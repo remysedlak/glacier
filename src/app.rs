@@ -1,0 +1,114 @@
+use crate::graphics::{create_graphics, Graphics, Rc};
+use winit::{
+    application::ApplicationHandler,
+    dpi::PhysicalSize,
+    event::{MouseButton, WindowEvent},
+    event_loop::{ActiveEventLoop, EventLoop, EventLoopProxy},
+    window::{Window, WindowId},
+};
+
+// the app is in initializing state or its ready to draw
+enum State {
+    Ready(Graphics),
+    Init(Option<EventLoopProxy<Graphics>>),
+}
+
+pub struct App {
+    state: State,
+    mouse_x: f64,
+    mouse_y: f64,
+}
+
+impl App {
+    // initalize the event loop on creation
+    pub fn new(event_loop: &EventLoop<Graphics>) -> Self {
+        Self {
+            state: State::Init(Some(event_loop.create_proxy())),
+            mouse_x: 0.0,
+            mouse_y: 0.0,
+        }
+    }
+
+    // if the state is ready, draw the frame
+    fn draw(&mut self) {
+        if let State::Ready(gfx) = &mut self.state {
+            gfx.draw(self.mouse_x, self.mouse_y);
+        }
+    }
+
+    // handles window resizing and min/maximizing
+    fn resized(&mut self, size: PhysicalSize<u32>) {
+        if let State::Ready(gfx) = &mut self.state {
+            gfx.resize(size);
+        }
+    }
+}
+
+// app startup
+impl ApplicationHandler<Graphics> for App {
+    fn resumed(&mut self, event_loop: &ActiveEventLoop) {
+        if let State::Init(proxy) = &mut self.state {
+            if let Some(proxy) = proxy.take() {
+                let mut win_attr = Window::default_attributes();
+
+                #[cfg(not(target_arch = "wasm32"))]
+                {
+                    win_attr = win_attr.with_title("WebGPU example");
+                }
+
+                #[cfg(target_arch = "wasm32")]
+                {
+                    use winit::platform::web::WindowAttributesExtWebSys;
+                    win_attr = win_attr.with_append(true);
+                }
+
+                let window = Rc::new(
+                    event_loop
+                        .create_window(win_attr)
+                        .expect("create window err."),
+                );
+
+                #[cfg(target_arch = "wasm32")]
+                wasm_bindgen_futures::spawn_local(create_graphics(window, proxy));
+
+                #[cfg(not(target_arch = "wasm32"))]
+                pollster::block_on(create_graphics(window, proxy));
+            }
+        }
+    }
+
+    fn user_event(&mut self, _event_loop: &ActiveEventLoop, graphics: Graphics) {
+        // Request a redraw now that graphics are ready
+        graphics.request_redraw();
+        self.state = State::Ready(graphics);
+    }
+
+    fn window_event(
+        &mut self,
+        event_loop: &ActiveEventLoop,
+        _window_id: WindowId,
+        event: WindowEvent,
+    ) {
+        match event {
+            WindowEvent::Resized(size) => self.resized(size),
+            WindowEvent::RedrawRequested => self.draw(),
+            WindowEvent::CloseRequested => event_loop.exit(),
+            WindowEvent::MouseInput { state, button, .. } => {
+                // handle left click
+                if state.is_pressed() && button == MouseButton::Left {
+                    if let State::Ready(gfx) = &mut self.state {
+                        gfx.handle_button_click(self.mouse_x, self.mouse_y);
+                    }
+                    self.draw();
+                }
+            }
+            WindowEvent::CursorMoved { position, .. } => {
+                // position.x and position.y are available here
+                self.mouse_x = position.x;
+                self.mouse_y = position.y;
+                self.draw();
+            }
+            _ => {}
+        }
+    }
+}
