@@ -8,6 +8,7 @@ struct Instrument {
     position: f32,     // current playback position
     steps: Vec<f32>,   // the sequence of steps to play back
     is_playing: bool,
+
     // audio ramping
     target_volume: f32,
     current_volume: f32,
