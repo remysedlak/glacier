@@ -1,6 +1,12 @@
 use cpal::traits::StreamTrait;
 use cpal::traits::{DeviceTrait, HostTrait};
 use cpal::{SampleFormat, Stream};
+use ringbuf::traits::Consumer;
+use ringbuf::HeapCons;
+
+pub enum AudioCommand {
+    ToggleStep(usize, usize),
+}
 
 // instrument struct: track information about ONE instrument
 struct Instrument {
@@ -14,7 +20,7 @@ struct Instrument {
     current_volume: f32,
 }
 
-pub fn init() -> Stream {
+pub fn init(mut consumer: HeapCons<AudioCommand>) -> Stream {
     println!("STARTING REMY'S DAW");
     let err_fn = |err| eprintln!("an error occurred on the output audio stream: {}", err);
 
@@ -51,7 +57,7 @@ pub fn init() -> Stream {
         samples: path_to_vector("AttackS.wav"),
         position: 0.0,
         steps: vec![
-            0.0, 0.0, 0.0, 0.0, 95.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 95.0, 0.0, 0.0, 0.0,
+            0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
         ],
         is_playing: false,
         target_volume: 1.0,
@@ -71,6 +77,18 @@ pub fn init() -> Stream {
     // audio callback to fill samples requested from CPAL
     let sequencer_callback = move |data: &mut [f32], _: &cpal::OutputCallbackInfo| {
         sample_counter += data.len() as f32 / 2.0; // increment sample counter by number of samples requested : keep track of sample position
+
+        while let Some(cmd) = consumer.try_pop() {
+            match cmd {
+                AudioCommand::ToggleStep(x, y) => {
+                    if instruments[x].steps[y] > 0.0 {
+                        instruments[x].steps[y] = 0.0;
+                    } else {
+                        instruments[x].steps[y] = 95.0;
+                    }
+                }
+            }
+        }
 
         // for each sample requested, mix in the appropriate instrument samples
         for sample in data.chunks_mut(2) {

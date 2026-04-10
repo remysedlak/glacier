@@ -1,4 +1,7 @@
+use crate::audio::AudioCommand;
 use crate::graphics::{create_graphics, Graphics, Rc};
+use ringbuf::traits::Producer;
+use ringbuf::HeapProd;
 use winit::{
     application::ApplicationHandler,
     dpi::PhysicalSize,
@@ -6,7 +9,6 @@ use winit::{
     event_loop::{ActiveEventLoop, EventLoop, EventLoopProxy},
     window::{Window, WindowId},
 };
-
 // the app is in initializing state or its ready to draw
 enum State {
     Ready(Graphics),
@@ -14,6 +16,7 @@ enum State {
 }
 
 pub struct App {
+    producer: HeapProd<AudioCommand>,
     state: State,
     mouse_x: f64,
     mouse_y: f64,
@@ -21,8 +24,9 @@ pub struct App {
 
 impl App {
     // initalize the event loop on creation
-    pub fn new(event_loop: &EventLoop<Graphics>) -> Self {
+    pub fn new(producer: HeapProd<AudioCommand>, event_loop: &EventLoop<Graphics>) -> Self {
         Self {
+            producer,
             state: State::Init(Some(event_loop.create_proxy())),
             mouse_x: 0.0,
             mouse_y: 0.0,
@@ -97,7 +101,13 @@ impl ApplicationHandler<Graphics> for App {
                 // handle left click
                 if state.is_pressed() && button == MouseButton::Left {
                     if let State::Ready(gfx) = &mut self.state {
-                        gfx.handle_button_click(self.mouse_x, self.mouse_y);
+                        if let Some(step_index) =
+                            gfx.handle_button_click(self.mouse_x, self.mouse_y)
+                        {
+                            self.producer
+                                .try_push(AudioCommand::ToggleStep(0, step_index))
+                                .ok();
+                        }
                     }
                     self.draw();
                 }

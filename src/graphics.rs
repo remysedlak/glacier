@@ -80,7 +80,7 @@ pub async fn create_graphics(window: Rc<Window>, proxy: EventLoopProxy<Graphics>
 
     let mut buttons: Vec<Button> = Vec::new();
     let mut vertices: Vec<Vertex> = Vec::new();
-    for i in 0..15 {
+    for i in 0..16 {
         buttons.push(Button {
             x: 100 + i * 30,
             y: 100,
@@ -173,16 +173,18 @@ impl Graphics {
         self.window.request_redraw();
     }
 
-    pub fn handle_button_click(&mut self, x: f64, y: f64) {
-        for button in &mut self.buttons {
+    pub fn handle_button_click(&mut self, x: f64, y: f64) -> Option<usize> {
+        for (i, button) in self.buttons.iter_mut().enumerate() {
             if x > button.x as f64
                 && x < button.x as f64 + button.width as f64
                 && y > button.y as f64
                 && y < button.y as f64 + button.height as f64
             {
                 button.is_active = !button.is_active;
+                return Some(i);
             }
         }
+        None
     }
 
     // react to resize events from user like minimize

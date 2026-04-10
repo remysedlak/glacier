@@ -4,6 +4,9 @@ mod graphics;
 mod render;
 
 use crate::{app::App, graphics::Graphics};
+use audio::AudioCommand;
+use ringbuf::traits::Split;
+use ringbuf::HeapRb;
 use winit::event_loop::{ControlFlow, EventLoop};
 
 #[cfg(target_arch = "wasm32")]
@@ -43,7 +46,10 @@ fn main() {
     // This is ideal for non-game applications that only update in response to user
     // input, and uses significantly less power/CPU time than ControlFlow::Poll.
     //event_loop.set_control_flow(ControlFlow::Wait);
-    let _stream = audio::init();
-    let app = App::new(&event_loop);
+
+    let (producer, consumer) = HeapRb::<AudioCommand>::new(64).split();
+
+    let _stream = audio::init(consumer);
+    let app = App::new(producer, &event_loop);
     run_app(event_loop, app);
 }
