@@ -1,4 +1,4 @@
-use crate::render::{draw_rectangle, Button};
+use crate::render::{draw_rectangle, StepButton};
 use std::borrow::Cow;
 use wgpu::util::DeviceExt;
 use wgpu::{
@@ -17,13 +17,24 @@ pub type Rc<T> = std::rc::Rc<T>;
 pub type Rc<T> = std::sync::Arc<T>;
 
 const LIGHT_GRAY: (f32, f32, f32) = (0.53, 0.53, 0.53);
-const DARK_GRAY: (f32, f32, f32) = (0.33, 0.33, 0.33);
+const DARK_GRAY: (f32, f32, f32) = (0.13, 0.13, 0.13);
+const BLUE: (f32, f32, f32) = (0.01, 0.01, 0.98);
+const BLACK: (f32, f32, f32) = (0.00, 0.00, 0.00);
+const LL_GRAY: (f32, f32, f32, f32) = (0.67, 0.67, 0.67, 0.0);
 
 #[repr(C)]
 #[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
 pub struct Vertex {
     pub position: [f32; 3],
     pub color: [f32; 3],
+}
+
+#[derive(Debug)]
+struct Track {
+    pub steps: Vec<StepButton>,
+    is_muted: bool,
+    is_solo: bool,
+    instrument_index: usize,
 }
 
 impl Vertex {
@@ -78,27 +89,36 @@ pub async fn create_graphics(window: Rc<Window>, proxy: EventLoopProxy<Graphics>
 
     let render_pipeline = create_pipeline(&device, surface_config.format);
 
-    let mut buttons: Vec<Button> = Vec::new();
     let mut vertices: Vec<Vertex> = Vec::new();
-    for i in 0..16 {
-        buttons.push(Button {
-            x: 100 + i * 30,
-            y: 100,
-            width: 25,
-            height: 50,
-            is_active: false,
-        });
-        for vert in draw_rectangle(
-            100 + i * 30,
-            100,
-            20,
-            80,
-            surface_config.width,
-            surface_config.height,
-            LIGHT_GRAY,
-        ) {
-            vertices.push(vert);
+    let mut rows: Vec<Track> = Vec::new();
+    for i in 0..3 {
+        let mut buttons: Vec<StepButton> = Vec::new();
+        for j in 0..16 {
+            buttons.push(StepButton {
+                x: 100 + j * 30,
+                y: 100 + i * 70,
+                width: 25,
+                height: 50,
+                is_active: false,
+            });
+            for vert in draw_rectangle(
+                100 + j * 30,
+                100 + i * 70,
+                20,
+                80,
+                surface_config.width,
+                surface_config.height,
+                LIGHT_GRAY,
+            ) {
+                vertices.push(vert);
+            }
         }
+        rows.push(Track {
+            steps: buttons,
+            is_muted: false,
+            is_solo: false,
+            instrument_index: i as usize,
+        });
     }
 
     let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
@@ -113,12 +133,13 @@ pub async fn create_graphics(window: Rc<Window>, proxy: EventLoopProxy<Graphics>
         window: window.clone(),
         surface,
         surface_config,
-        buttons,
+        rows,
         device,
         queue,
         render_pipeline,
         vertex_buffer,
         num_vertices,
+        active_step: 0,
     };
 
     let _ = proxy.send_event(gfx);
@@ -164,8 +185,9 @@ pub struct Graphics {
     queue: Queue,
     render_pipeline: RenderPipeline,
     vertex_buffer: wgpu::Buffer,
-    buttons: Vec<Button>,
+    rows: Vec<Track>,
     num_vertices: u32,
+    pub active_step: usize,
 }
 
 impl Graphics {
@@ -173,17 +195,20 @@ impl Graphics {
         self.window.request_redraw();
     }
 
-    pub fn handle_button_click(&mut self, x: f64, y: f64) -> Option<usize> {
-        for (i, button) in self.buttons.iter_mut().enumerate() {
-            if x > button.x as f64
-                && x < button.x as f64 + button.width as f64
-                && y > button.y as f64
-                && y < button.y as f64 + button.height as f64
-            {
-                button.is_active = !button.is_active;
-                return Some(i);
+    pub fn handle_button_click(&mut self, x: f64, y: f64) -> Option<(usize, usize)> {
+        for (i, track) in &mut self.rows.iter_mut().enumerate() {
+            for (j, button) in &mut track.steps.iter_mut().enumerate() {
+                if x > button.x as f64
+                    && x < button.x as f64 + button.width as f64
+                    && y > button.y as f64
+                    && y < button.y as f64 + button.height as f64
+                {
+                    button.is_active = !button.is_active;
+                    return Some((i, j));
+                }
             }
         }
+
         None
     }
 
@@ -204,23 +229,30 @@ impl Graphics {
         let view = frame.texture.create_view(&TextureViewDescriptor::default());
 
         let mut vertices: Vec<Vertex> = Vec::new();
-        for button in &mut self.buttons {
-            let color;
-            if button.is_active {
-                color = DARK_GRAY;
-            } else {
-                color = LIGHT_GRAY;
-            }
-            for vert in draw_rectangle(
-                button.x,
-                button.y,
-                button.width,
-                button.height,
-                self.surface_config.width,
-                self.surface_config.height,
-                color,
-            ) {
-                vertices.push(vert);
+        for (j, track) in &mut self.rows.iter_mut().enumerate() {
+            for (i, button) in &mut track.steps.iter_mut().enumerate() {
+                let color;
+                if i == self.active_step {
+                    color = BLUE;
+                } else {
+                    if button.is_active {
+                        color = BLACK;
+                    } else {
+                        color = LIGHT_GRAY;
+                    }
+                }
+
+                for vert in draw_rectangle(
+                    button.x,
+                    button.y,
+                    button.width,
+                    button.height,
+                    self.surface_config.width,
+                    self.surface_config.height,
+                    color,
+                ) {
+                    vertices.push(vert);
+                }
             }
         }
 
@@ -240,7 +272,12 @@ impl Graphics {
                     depth_slice: None,
                     resolve_target: None,
                     ops: Operations {
-                        load: LoadOp::Clear(Color::GREEN),
+                        load: LoadOp::Clear(Color {
+                            r: 0.1,
+                            g: 0.1,
+                            b: 0.1,
+                            a: 1.0,
+                        }),
                         store: StoreOp::Store,
                     },
                 })],

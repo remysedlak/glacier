@@ -1,8 +1,9 @@
+use crate::UiCommand;
 use cpal::traits::StreamTrait;
 use cpal::traits::{DeviceTrait, HostTrait};
 use cpal::{SampleFormat, Stream};
-use ringbuf::traits::Consumer;
-use ringbuf::HeapCons;
+use ringbuf::traits::{Consumer, Producer};
+use ringbuf::{HeapCons, HeapProd};
 
 pub enum AudioCommand {
     ToggleStep(usize, usize),
@@ -20,7 +21,7 @@ struct Instrument {
     current_volume: f32,
 }
 
-pub fn init(mut consumer: HeapCons<AudioCommand>) -> Stream {
+pub fn init(mut consumer: HeapCons<AudioCommand>, mut producer: HeapProd<UiCommand>) -> Stream {
     println!("STARTING REMY'S DAW");
     let err_fn = |err| eprintln!("an error occurred on the output audio stream: {}", err);
 
@@ -73,6 +74,16 @@ pub fn init(mut consumer: HeapCons<AudioCommand>) -> Stream {
         target_volume: 1.0,
         current_volume: 0.0,
     });
+    instruments.push(Instrument {
+        samples: path_to_vector("SharpK.wav"),
+        position: 0.0,
+        steps: vec![
+            0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+        ],
+        is_playing: false,
+        target_volume: 1.0,
+        current_volume: 0.0,
+    });
 
     // audio callback to fill samples requested from CPAL
     let sequencer_callback = move |data: &mut [f32], _: &cpal::OutputCallbackInfo| {
@@ -118,6 +129,9 @@ pub fn init(mut consumer: HeapCons<AudioCommand>) -> Stream {
         if sample_counter >= samples_per_step {
             sample_counter = 0.0;
             current_step = (current_step + 1) % 16;
+            producer
+                .try_push(UiCommand::StepAdvanced(current_step))
+                .ok();
             for instrument in &mut instruments {
                 if instrument.steps[current_step] > 0.0 {
                     instrument.position = 0.0;

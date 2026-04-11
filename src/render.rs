@@ -3,7 +3,7 @@ use crate::graphics::Vertex;
 // this file holds my shape abstractions
 
 #[derive(Debug)]
-pub struct Button {
+pub struct StepButton {
     pub x: u32,
     pub y: u32,
     pub width: u32,

@@ -3,7 +3,10 @@ mod audio;
 mod graphics;
 mod render;
 
-use crate::{app::App, graphics::Graphics};
+use crate::{
+    app::{App, UiCommand},
+    graphics::Graphics,
+};
 use audio::AudioCommand;
 use ringbuf::traits::Split;
 use ringbuf::HeapRb;
@@ -48,8 +51,9 @@ fn main() {
     //event_loop.set_control_flow(ControlFlow::Wait);
 
     let (producer, consumer) = HeapRb::<AudioCommand>::new(64).split();
+    let (ui_prod, ui_cons) = HeapRb::<UiCommand>::new(64).split();
 
-    let _stream = audio::init(consumer);
-    let app = App::new(producer, &event_loop);
+    let _stream = audio::init(consumer, ui_prod);
+    let app = App::new(producer, ui_cons, &event_loop);
     run_app(event_loop, app);
 }

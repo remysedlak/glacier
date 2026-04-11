@@ -1,7 +1,7 @@
 use crate::audio::AudioCommand;
 use crate::graphics::{create_graphics, Graphics, Rc};
-use ringbuf::traits::Producer;
-use ringbuf::HeapProd;
+use ringbuf::traits::{Consumer, Producer};
+use ringbuf::{HeapCons, HeapProd};
 use winit::{
     application::ApplicationHandler,
     dpi::PhysicalSize,
@@ -9,6 +9,13 @@ use winit::{
     event_loop::{ActiveEventLoop, EventLoop, EventLoopProxy},
     window::{Window, WindowId},
 };
+
+// commands that the audio engine sends to the window
+pub enum UiCommand {
+    StepAdvanced(usize),
+    // InstrumentAdded(...) when we get there
+}
+
 // the app is in initializing state or its ready to draw
 enum State {
     Ready(Graphics),
@@ -17,6 +24,7 @@ enum State {
 
 pub struct App {
     producer: HeapProd<AudioCommand>,
+    consumer: HeapCons<UiCommand>,
     state: State,
     mouse_x: f64,
     mouse_y: f64,
@@ -24,9 +32,14 @@ pub struct App {
 
 impl App {
     // initalize the event loop on creation
-    pub fn new(producer: HeapProd<AudioCommand>, event_loop: &EventLoop<Graphics>) -> Self {
+    pub fn new(
+        producer: HeapProd<AudioCommand>,
+        consumer: HeapCons<UiCommand>,
+        event_loop: &EventLoop<Graphics>,
+    ) -> Self {
         Self {
             producer,
+            consumer,
             state: State::Init(Some(event_loop.create_proxy())),
             mouse_x: 0.0,
             mouse_y: 0.0,
@@ -36,7 +49,15 @@ impl App {
     // if the state is ready, draw the frame
     fn draw(&mut self) {
         if let State::Ready(gfx) = &mut self.state {
+            while let Some(cmd) = self.consumer.try_pop() {
+                match cmd {
+                    UiCommand::StepAdvanced(size) => {
+                        gfx.active_step = size;
+                    }
+                }
+            }
             gfx.draw(self.mouse_x, self.mouse_y);
+            gfx.request_redraw(); // add this
         }
     }
 
@@ -101,11 +122,11 @@ impl ApplicationHandler<Graphics> for App {
                 // handle left click
                 if state.is_pressed() && button == MouseButton::Left {
                     if let State::Ready(gfx) = &mut self.state {
-                        if let Some(step_index) =
+                        if let Some((track_index, step_index)) =
                             gfx.handle_button_click(self.mouse_x, self.mouse_y)
                         {
                             self.producer
-                                .try_push(AudioCommand::ToggleStep(0, step_index))
+                                .try_push(AudioCommand::ToggleStep(track_index, step_index))
                                 .ok();
                         }
                     }
