@@ -1,12 +1,16 @@
 use crate::render::{draw_h_line, draw_rectangle, StepButton};
+use glyphon::{
+    Attrs, Cache, Family, FontSystem, Metrics, Resolution, Shaping, SwashCache, TextArea,
+    TextAtlas, TextBounds, TextRenderer, Viewport,
+};
 use std::borrow::Cow;
 use wgpu::util::DeviceExt;
 use wgpu::{
-    Color, CommandEncoderDescriptor, Device, DeviceDescriptor, Features, FragmentState, Instance,
-    Limits, LoadOp, MemoryHints, Operations, PowerPreference, Queue, RenderPassColorAttachment,
-    RenderPassDescriptor, RenderPipeline, RenderPipelineDescriptor, RequestAdapterOptions,
-    ShaderModuleDescriptor, ShaderSource, StoreOp, Surface, SurfaceConfiguration, TextureFormat,
-    TextureViewDescriptor, VertexState,
+    Buffer, Color, CommandEncoderDescriptor, Device, DeviceDescriptor, Features, FragmentState,
+    Instance, Limits, LoadOp, MemoryHints, MultisampleState, Operations, PowerPreference, Queue,
+    RenderPassColorAttachment, RenderPassDescriptor, RenderPipeline, RenderPipelineDescriptor,
+    RequestAdapterOptions, ShaderModuleDescriptor, ShaderSource, StoreOp, Surface,
+    SurfaceConfiguration, TextureFormat, TextureViewDescriptor, VertexState,
 };
 use winit::{dpi::PhysicalSize, event_loop::EventLoopProxy, window::Window};
 
@@ -87,6 +91,12 @@ pub async fn create_graphics(window: Rc<Window>, proxy: EventLoopProxy<Graphics>
     surface.configure(&device, &surface_config);
 
     let render_pipeline = create_pipeline(&device, surface_config.format);
+    let font_system = FontSystem::new();
+    let swash_cache = SwashCache::new();
+    let cache = Cache::new(&device);
+    let viewport = Viewport::new(&device, &cache);
+    let mut atlas = TextAtlas::new(&device, &queue, &cache, surface_config.format);
+    let renderer = TextRenderer::new(&mut atlas, &device, MultisampleState::default(), None);
 
     let mut vertices: Vec<Vertex> = Vec::new();
     let mut rows: Vec<Track> = Vec::new();
@@ -145,6 +155,11 @@ pub async fn create_graphics(window: Rc<Window>, proxy: EventLoopProxy<Graphics>
         vertex_buffer,
         num_vertices,
         active_step: 0,
+        font_system,
+        viewport,
+        atlas,
+        swash_cache,
+        renderer,
     };
 
     let _ = proxy.send_event(gfx);
@@ -181,7 +196,6 @@ fn create_pipeline(device: &Device, swap_chain_format: TextureFormat) -> RenderP
 }
 
 // graphics state
-#[derive(Debug)]
 pub struct Graphics {
     window: Rc<Window>,
     surface: Surface<'static>,
@@ -193,6 +207,11 @@ pub struct Graphics {
     rows: Vec<Track>,
     num_vertices: u32,
     pub active_step: usize,
+    font_system: FontSystem,
+    viewport: Viewport,
+    atlas: TextAtlas,
+    swash_cache: SwashCache,
+    renderer: TextRenderer,
 }
 
 impl Graphics {
@@ -226,6 +245,51 @@ impl Graphics {
 
     // called every frame to update the canvas
     pub fn draw(&mut self, _mouse_x: f64, _mouse_y: f64) {
+        // create a buffer describing your text
+        let mut buffer = glyphon::Buffer::new(&mut self.font_system, Metrics::new(18.0, 22.0));
+        buffer.set_size(&mut self.font_system, Some(400.0), Some(50.0));
+        buffer.set_text(
+            &mut self.font_system,
+            "BPM: 120",
+            &Attrs::new().family(Family::SansSerif),
+            Shaping::Advanced,
+        );
+        buffer.shape_until_scroll(&mut self.font_system, false);
+
+        // update viewport to current screen size
+        self.viewport.update(
+            &self.queue,
+            Resolution {
+                width: 800,
+                height: 600,
+            },
+        );
+
+        // prepare uploads glyphs to GPU atlas
+        self.renderer
+            .prepare(
+                &self.device,
+                &self.queue,
+                &mut self.font_system,
+                &mut self.atlas,
+                &self.viewport,
+                [TextArea {
+                    buffer: &buffer,
+                    left: 10.0, // pixel x
+                    top: 10.0,  // pixel y
+                    scale: 1.0,
+                    bounds: TextBounds {
+                        left: 0,
+                        top: 0,
+                        right: 400,
+                        bottom: 50,
+                    },
+                    default_color: glyphon::Color::rgb(0, 0, 0),
+                    custom_glyphs: &[],
+                }],
+                &mut self.swash_cache,
+            )
+            .unwrap();
         let frame = self
             .surface
             .get_current_texture()
@@ -303,6 +367,9 @@ impl Graphics {
             r_pass.set_pipeline(&self.render_pipeline);
             r_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
             r_pass.draw(0..self.num_vertices, 0..1);
+            self.renderer
+                .render(&self.atlas, &self.viewport, &mut r_pass)
+                .unwrap();
         } // `r_pass` dropped here
 
         self.queue.submit(Some(encoder.finish()));
