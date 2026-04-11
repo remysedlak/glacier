@@ -55,3 +55,37 @@ pub fn draw_rectangle(
         },
     ];
 }
+
+pub fn draw_h_line(y: f32, thickness: f32, screen_height: u32) -> Vec<Vertex> {
+    // first normalize the coordinates to fit in decimal form.
+    let mut vertices: Vec<Vertex> = Vec::new();
+
+    let ndc_y: f32 = 1.0 - (y as f32 / screen_height as f32) * 2.0;
+
+    return vec![
+        Vertex {
+            position: [-1.0, ndc_y, 0.0],
+            color: [0.0, 0.0, 0.0],
+        },
+        Vertex {
+            position: [1.0, ndc_y, 0.0],
+            color: [0.0, 0.0, 0.0],
+        },
+        Vertex {
+            position: [1.0, ndc_y - thickness, 0.0],
+            color: [0.0, 0.0, 0.0],
+        },
+        Vertex {
+            position: [-1.0, ndc_y, 0.0],
+            color: [0.0, 0.0, 0.0],
+        },
+        Vertex {
+            position: [1.0, ndc_y - thickness, 0.0],
+            color: [0.0, 0.0, 0.0],
+        },
+        Vertex {
+            position: [-1.0, ndc_y - thickness, 0.0],
+            color: [0.0, 0.0, 0.0],
+        },
+    ];
+}

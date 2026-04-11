@@ -1,4 +1,4 @@
-use crate::render::{draw_rectangle, StepButton};
+use crate::render::{draw_h_line, draw_rectangle, StepButton};
 use std::borrow::Cow;
 use wgpu::util::DeviceExt;
 use wgpu::{
@@ -20,7 +20,7 @@ const LIGHT_GRAY: (f32, f32, f32) = (0.53, 0.53, 0.53);
 const DARK_GRAY: (f32, f32, f32) = (0.13, 0.13, 0.13);
 const BLUE: (f32, f32, f32) = (0.01, 0.01, 0.98);
 const BLACK: (f32, f32, f32) = (0.00, 0.00, 0.00);
-const LL_GRAY: (f32, f32, f32, f32) = (0.67, 0.67, 0.67, 0.0);
+const LL_GRAY: (f32, f32, f32) = (0.27, 0.27, 0.27);
 
 #[repr(C)]
 #[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
@@ -72,7 +72,6 @@ pub async fn create_graphics(window: Rc<Window>, proxy: EventLoopProxy<Graphics>
             required_limits: Limits::downlevel_webgl2_defaults().using_resolution(adapter.limits()),
             memory_hints: MemoryHints::Performance,
             trace: Default::default(),
-            experimental_features: Default::default(),
         })
         .await
         .expect("Failed to get device");
@@ -91,21 +90,23 @@ pub async fn create_graphics(window: Rc<Window>, proxy: EventLoopProxy<Graphics>
 
     let mut vertices: Vec<Vertex> = Vec::new();
     let mut rows: Vec<Track> = Vec::new();
+    dbg!(&surface_config);
     for i in 0..3 {
         let mut buttons: Vec<StepButton> = Vec::new();
         for j in 0..16 {
+            let group = j / 4;
             buttons.push(StepButton {
-                x: 100 + j * 30,
-                y: 100 + i * 70,
-                width: 25,
-                height: 50,
+                x: 128 + j * 28 + group * 8,
+                y: 64 + i * 72,
+                width: 24,
+                height: 64,
                 is_active: false,
             });
             for vert in draw_rectangle(
-                100 + j * 30,
-                100 + i * 70,
-                20,
-                80,
+                128 + j * 28 + group * 8,
+                64 + i * 72,
+                24,
+                72,
                 surface_config.width,
                 surface_config.height,
                 LIGHT_GRAY,
@@ -119,6 +120,10 @@ pub async fn create_graphics(window: Rc<Window>, proxy: EventLoopProxy<Graphics>
             is_solo: false,
             instrument_index: i as usize,
         });
+    }
+
+    for vert in draw_h_line(0.90, 0.003, surface_config.height) {
+        vertices.push(vert);
     }
 
     let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
@@ -238,7 +243,15 @@ impl Graphics {
                     if button.is_active {
                         color = BLACK;
                     } else {
-                        color = LIGHT_GRAY;
+                        if _mouse_x > button.x as f64
+                            && _mouse_x < button.x as f64 + button.width as f64
+                            && _mouse_y > button.y as f64
+                            && _mouse_y < button.y as f64 + button.height as f64
+                        {
+                            color = LL_GRAY
+                        } else {
+                            color = LIGHT_GRAY;
+                        }
                     }
                 }
 
@@ -255,6 +268,9 @@ impl Graphics {
                 }
             }
         }
+        for vert in draw_h_line(32.0, 0.003, self.surface_config.height) {
+            vertices.push(vert);
+        }
 
         self.queue
             .write_buffer(&self.vertex_buffer, 0, bytemuck::cast_slice(&vertices));
@@ -269,7 +285,6 @@ impl Graphics {
                 label: None,
                 color_attachments: &[Some(RenderPassColorAttachment {
                     view: &view,
-                    depth_slice: None,
                     resolve_target: None,
                     ops: Operations {
                         load: LoadOp::Clear(Color {

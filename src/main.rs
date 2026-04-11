@@ -50,10 +50,14 @@ fn main() {
     // input, and uses significantly less power/CPU time than ControlFlow::Poll.
     //event_loop.set_control_flow(ControlFlow::Wait);
 
+    // Commands are passed through audio and ui thread by ring buffers
     let (producer, consumer) = HeapRb::<AudioCommand>::new(64).split();
     let (ui_prod, ui_cons) = HeapRb::<UiCommand>::new(64).split();
 
+    // start the audio stream
     let _stream = audio::init(consumer, ui_prod);
+
+    // start the ui
     let app = App::new(producer, ui_cons, &event_loop);
     run_app(event_loop, app);
 }
