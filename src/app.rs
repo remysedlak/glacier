@@ -13,6 +13,7 @@ use winit::{
 // commands that the audio engine sends to the window
 pub enum UiCommand {
     StepAdvanced(usize),
+    LoadTracks(usize, [bool; 16]),
     // InstrumentAdded(...) when we get there
 }
 
@@ -53,6 +54,9 @@ impl App {
                 match cmd {
                     UiCommand::StepAdvanced(size) => {
                         gfx.active_step = size;
+                    }
+                    UiCommand::LoadTracks(i, steps) => {
+                        gfx.load_track(i, steps);
                     }
                 }
             }

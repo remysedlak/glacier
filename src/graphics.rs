@@ -204,7 +204,7 @@ pub struct Graphics {
     queue: Queue,
     render_pipeline: RenderPipeline,
     vertex_buffer: wgpu::Buffer,
-    rows: Vec<Track>,
+    pub rows: Vec<Track>,
     num_vertices: u32,
     pub active_step: usize,
     font_system: FontSystem,
@@ -217,6 +217,12 @@ pub struct Graphics {
 impl Graphics {
     pub fn request_redraw(&self) {
         self.window.request_redraw();
+    }
+
+    pub fn load_track(&mut self, i: usize, steps: [bool; 16]) {
+        for (j, &step) in steps.iter().enumerate() {
+            self.rows[i].steps[j].is_active = if step == true { true } else { false };
+        }
     }
 
     pub fn handle_button_click(&mut self, x: f64, y: f64) -> Option<(usize, usize)> {

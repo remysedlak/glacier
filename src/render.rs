@@ -11,6 +11,14 @@ pub struct StepButton {
     pub is_active: bool,
 }
 
+#[derive(Debug)]
+pub struct Rectangle {
+    pub x: u32,
+    pub y: u32,
+    pub width: u32,
+    pub height: u32,
+}
+
 pub fn draw_rectangle(
     x: u32,
     y: u32,

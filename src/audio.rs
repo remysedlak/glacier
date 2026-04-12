@@ -7,6 +7,7 @@ use ringbuf::{HeapCons, HeapProd};
 
 pub enum AudioCommand {
     ToggleStep(usize, usize),
+    ChangeBpm(f32),
 }
 
 // instrument struct: track information about ONE instrument
@@ -41,11 +42,9 @@ pub fn init(mut consumer: HeapCons<AudioCommand>, mut producer: HeapProd<UiComma
     let config = supported_config.config();
     let sample_format = supported_config.sample_format();
 
-    let bpm: f32 = 120.0;
     let sample_ratef: f32 = config.sample_rate as f32;
+    let mut bpm: f32 = 120.0;
 
-    // get amount of samples per step
-    let samples_per_step = sample_ratef / (bpm / 60.0 * 4.0);
     // track how many samples have passed since the last step
     let mut sample_counter: f32 = 0.0;
     let mut current_step = 0;
@@ -85,6 +84,13 @@ pub fn init(mut consumer: HeapCons<AudioCommand>, mut producer: HeapProd<UiComma
         current_volume: 0.0,
     });
 
+    for (i, instrument) in instruments.iter().enumerate() {
+        let bools: Vec<bool> = instrument.steps.iter().map(|step| *step > 0.0).collect();
+        producer
+            .try_push(UiCommand::LoadTracks(i, bools.try_into().unwrap()))
+            .ok();
+    }
+
     // audio callback to fill samples requested from CPAL
     let sequencer_callback = move |data: &mut [f32], _: &cpal::OutputCallbackInfo| {
         sample_counter += data.len() as f32 / 2.0; // increment sample counter by number of samples requested : keep track of sample position
@@ -98,8 +104,14 @@ pub fn init(mut consumer: HeapCons<AudioCommand>, mut producer: HeapProd<UiComma
                         instruments[x].steps[y] = 95.0;
                     }
                 }
+                AudioCommand::ChangeBpm(new_bpm) => {
+                    bpm = new_bpm;
+                }
             }
         }
+
+        // get amount of samples per step
+        let samples_per_step = sample_ratef / (bpm / 60.0 * 4.0);
 
         // for each sample requested, mix in the appropriate instrument samples
         for sample in data.chunks_mut(2) {
