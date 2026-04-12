@@ -36,6 +36,7 @@ pub struct Vertex {
 #[derive(Debug)]
 struct Track {
     pub steps: Vec<StepButton>,
+    name: String,
     is_muted: bool,
     is_solo: bool,
     instrument_index: usize,
@@ -101,45 +102,16 @@ pub async fn create_graphics(window: Rc<Window>, proxy: EventLoopProxy<Graphics>
     let mut vertices: Vec<Vertex> = Vec::new();
     let mut rows: Vec<Track> = Vec::new();
     dbg!(&surface_config);
-    for i in 0..3 {
-        let mut buttons: Vec<StepButton> = Vec::new();
-        for j in 0..16 {
-            let group = j / 4;
-            buttons.push(StepButton {
-                x: 128 + j * 28 + group * 8,
-                y: 64 + i * 72,
-                width: 24,
-                height: 64,
-                is_active: false,
-            });
-            for vert in draw_rectangle(
-                128 + j * 28 + group * 8,
-                64 + i * 72,
-                24,
-                72,
-                surface_config.width,
-                surface_config.height,
-                LIGHT_GRAY,
-            ) {
-                vertices.push(vert);
-            }
-        }
-        rows.push(Track {
-            steps: buttons,
-            is_muted: false,
-            is_solo: false,
-            instrument_index: i as usize,
-        });
-    }
 
     for vert in draw_h_line(0.90, 0.003, surface_config.height) {
         vertices.push(vert);
     }
 
-    let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+    let vertex_buffer = device.create_buffer(&wgpu::BufferDescriptor {
         label: Some("Vertex Buffer"),
-        contents: bytemuck::cast_slice(&vertices),
+        size: 1024 * 1024, // 1MB, plenty of room
         usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
+        mapped_at_creation: false,
     });
 
     let num_vertices = vertices.len() as u32;
@@ -219,9 +191,31 @@ impl Graphics {
         self.window.request_redraw();
     }
 
-    pub fn load_track(&mut self, i: usize, steps: [bool; 16]) {
+    pub fn load_track(&mut self, i: usize, name: String, steps: [bool; 16]) {
+        if i >= self.rows.len() {
+            // add a new row
+            let mut buttons = Vec::new();
+            for j in 0..16 {
+                let group = j / 4;
+                buttons.push(StepButton {
+                    x: 128 + j * 28 + group * 8,
+                    y: 64 + i as u32 * 72 as u32,
+                    width: 24,
+                    height: 64,
+                    is_active: false,
+                });
+            }
+            self.rows.push(Track {
+                name,
+                steps: buttons,
+                is_muted: false,
+                is_solo: false,
+                instrument_index: i,
+            });
+        }
+        // set step states
         for (j, &step) in steps.iter().enumerate() {
-            self.rows[i].steps[j].is_active = if step == true { true } else { false };
+            self.rows[i].steps[j].is_active = step;
         }
     }
 
@@ -262,6 +256,17 @@ impl Graphics {
         );
         buffer.shape_until_scroll(&mut self.font_system, false);
 
+        // second text buffer
+        let mut buffer2 = glyphon::Buffer::new(&mut self.font_system, Metrics::new(18.0, 22.0));
+        buffer2.set_size(&mut self.font_system, Some(400.0), Some(50.0));
+        buffer2.set_text(
+            &mut self.font_system,
+            "my new text",
+            &Attrs::new().family(Family::SansSerif),
+            Shaping::Advanced,
+        );
+        buffer2.shape_until_scroll(&mut self.font_system, false);
+
         // update viewport to current screen size
         self.viewport.update(
             &self.queue,
@@ -281,8 +286,8 @@ impl Graphics {
                 &self.viewport,
                 [TextArea {
                     buffer: &buffer,
-                    left: 10.0, // pixel x
-                    top: 10.0,  // pixel y
+                    left: 10.0,
+                    top: 10.0,
                     scale: 1.0,
                     bounds: TextBounds {
                         left: 0,

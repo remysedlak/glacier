@@ -16,6 +16,7 @@ struct Instrument {
     position: f32,     // current playback position
     steps: Vec<f32>,   // the sequence of steps to play back
     is_playing: bool,
+    name: String,
 
     // audio ramping
     target_volume: f32,
@@ -56,6 +57,7 @@ pub fn init(mut consumer: HeapCons<AudioCommand>, mut producer: HeapProd<UiComma
     instruments.push(Instrument {
         samples: path_to_vector("AttackS.wav"),
         position: 0.0,
+        name: "AttackS.wav".to_string(),
         steps: vec![
             0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
         ],
@@ -66,6 +68,7 @@ pub fn init(mut consumer: HeapCons<AudioCommand>, mut producer: HeapProd<UiComma
     instruments.push(Instrument {
         samples: path_to_vector("PopOHH.wav"),
         position: 0.0,
+        name: "PopOHH.wav".to_string(),
         steps: vec![
             0.0, 0.0, 95.0, 0.0, 0.0, 0.0, 95.0, 0.0, 0.0, 0.0, 95.0, 0.0, 0.0, 0.0, 95.0, 0.0,
         ],
@@ -76,6 +79,7 @@ pub fn init(mut consumer: HeapCons<AudioCommand>, mut producer: HeapProd<UiComma
     instruments.push(Instrument {
         samples: path_to_vector("SharpK.wav"),
         position: 0.0,
+        name: "SharpK.wav".to_string(),
         steps: vec![
             0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
         ],
@@ -87,7 +91,11 @@ pub fn init(mut consumer: HeapCons<AudioCommand>, mut producer: HeapProd<UiComma
     for (i, instrument) in instruments.iter().enumerate() {
         let bools: Vec<bool> = instrument.steps.iter().map(|step| *step > 0.0).collect();
         producer
-            .try_push(UiCommand::LoadTracks(i, bools.try_into().unwrap()))
+            .try_push(UiCommand::LoadTracks(
+                i,
+                instrument.name.clone(),
+                bools.try_into().unwrap(),
+            ))
             .ok();
     }
 
