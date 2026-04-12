@@ -40,7 +40,7 @@ struct Instrument {
     is_playing: bool,
     name: String,
     mute: bool,
-
+    path: String,
     // audio ramping
     target_volume: f32,
     current_volume: f32,
@@ -94,6 +94,7 @@ pub fn init(mut consumer: HeapCons<AudioCommand>, mut producer: HeapProd<UiComma
             target_volume: track.target_volume,
             current_volume: 0.0,
             mute: track.mute,
+            path: track.sample_path,
         })
     }
 
@@ -138,6 +139,25 @@ pub fn init(mut consumer: HeapCons<AudioCommand>, mut producer: HeapProd<UiComma
                     is_playing = !is_playing;
                 }
                 AudioCommand::ShutDown => {
+                    let project = ProjectFile {
+                        project_name: "My Song".to_string(),
+                        bpm,
+                        tracks: instruments
+                            .iter()
+                            .map(|inst| TrackData {
+                                name: inst.name.clone(),
+                                mute: inst.mute,
+                                steps: inst.steps.clone(),
+                                sample_path: inst.path.clone(),
+                                position: 0.0,
+                                target_volume: inst.target_volume,
+                                is_playing: false,
+                            })
+                            .collect(),
+                    };
+                    let text = toml::to_string(&project).unwrap();
+                    std::fs::write("my_song.toml", text).unwrap();
+
                     if !is_playing {
                         producer.try_push(UiCommand::ShutdownComplete).ok();
                     }

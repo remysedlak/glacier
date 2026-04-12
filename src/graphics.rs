@@ -36,7 +36,11 @@ const BUTTON_GAP: u32 = 32;
 const TRACK_GAP: u32 = 72;
 
 const MUTE_SQUARE_LENGTH: u32 = 12;
-const PLAY_SQUARE_LENGTH: u32 = 16;
+const PLAY_SQUARE_HEIGHT: u32 = 20;
+const PLAY_SQUARE_WIDTH: u32 = 54;
+
+const PLAY_Y_ORIGIN: u32 = 8;
+const PLAY_X_ORIGIN: u32 = 90;
 
 #[cfg(target_arch = "wasm32")]
 pub type Rc<T> = std::rc::Rc<T>;
@@ -45,7 +49,7 @@ pub type Rc<T> = std::rc::Rc<T>;
 pub type Rc<T> = std::sync::Arc<T>;
 
 const LIGHT_GRAY: (f32, f32, f32) = (0.53, 0.53, 0.53);
-const DARK_GRAY: (f32, f32, f32) = (0.05, 0.05, 0.05);
+const DARK_GRAY: (f32, f32, f32) = (0.03, 0.03, 0.03);
 const BLUE: (f32, f32, f32) = (0.01, 0.01, 0.98);
 const BLACK: (f32, f32, f32) = (0.00, 0.00, 0.00);
 const LL_GRAY: (f32, f32, f32) = (0.27, 0.27, 0.27);
@@ -159,7 +163,7 @@ pub async fn create_graphics(window: Rc<Window>, proxy: EventLoopProxy<Graphics>
         swash_cache,
         renderer,
         bpm: 120.0,
-        is_playing: true,
+        is_playing: false,
     };
 
     // returns the graphics state back to wherever it was requested
@@ -290,12 +294,12 @@ impl Graphics {
         }
 
         // play / pause
-        if x > 100 as f64
-            && x < (100 + PLAY_SQUARE_LENGTH) as f64
-            && y > 12 as f64
-            && y < (12 + PLAY_SQUARE_LENGTH) as f64
+        if x > PLAY_X_ORIGIN as f64
+            && x < (PLAY_X_ORIGIN + PLAY_SQUARE_WIDTH) as f64
+            && y > PLAY_Y_ORIGIN as f64
+            && y < (PLAY_Y_ORIGIN + PLAY_SQUARE_HEIGHT) as f64
         {
-            self.is_playing = false;
+            self.is_playing = !self.is_playing;
             return ClickResult::TogglePlay;
         }
 
@@ -347,7 +351,15 @@ impl Graphics {
                     color = BLUE;
                 } else {
                     if button.is_active {
-                        color = BLACK;
+                        if _mouse_x > button.x as f64
+                            && _mouse_x < button.x as f64 + button.width as f64
+                            && _mouse_y > button.y as f64
+                            && _mouse_y < button.y as f64 + button.height as f64
+                        {
+                            color = DARK_GRAY
+                        } else {
+                            color = BLACK;
+                        }
                     } else {
                         if _mouse_x > button.x as f64
                             && _mouse_x < button.x as f64 + button.width as f64
@@ -421,7 +433,7 @@ impl Graphics {
             ));
         }
 
-        // text buffer
+        // bpm text buffer
         let mut bpm_buffer = glyphon::Buffer::new(&mut self.font_system, Metrics::new(18.0, 22.0));
         bpm_buffer.set_size(&mut self.font_system, Some(400.0), Some(50.0));
         bpm_buffer.set_text(
@@ -432,6 +444,25 @@ impl Graphics {
         );
         bpm_buffer.shape_until_scroll(&mut self.font_system, false);
         text_items.push((bpm_buffer, 10.0, 10.0));
+
+        let label = if self.is_playing { "❚❚" } else { "  ▶" };
+
+        // play/pause text buffer
+        let mut play_pause_buffer =
+            glyphon::Buffer::new(&mut self.font_system, Metrics::new(18.0, 22.0));
+        play_pause_buffer.set_size(&mut self.font_system, Some(400.0), Some(50.0));
+        play_pause_buffer.set_text(
+            &mut self.font_system,
+            label,
+            &Attrs::new().family(Family::SansSerif),
+            Shaping::Advanced,
+        );
+        play_pause_buffer.shape_until_scroll(&mut self.font_system, false);
+        text_items.push((
+            play_pause_buffer,
+            (PLAY_X_ORIGIN as f32 + (PLAY_SQUARE_WIDTH as f32 / 4.0)),
+            5.0,
+        ));
 
         let text_areas: Vec<TextArea> = text_items
             .iter()
@@ -494,15 +525,25 @@ impl Graphics {
             vertices.push(vert);
         }
 
-        // Play / Pause
+        let color = if _mouse_x > PLAY_X_ORIGIN as f64
+            && _mouse_x < (PLAY_X_ORIGIN + PLAY_SQUARE_WIDTH) as f64
+            && _mouse_y > PLAY_Y_ORIGIN as f64
+            && _mouse_y < (PLAY_Y_ORIGIN + PLAY_SQUARE_HEIGHT) as f64
+        {
+            LL_GRAY
+        } else {
+            LIGHT_GRAY
+        };
+
+        // play/pause button
         for vert in draw_rectangle(
-            100,
-            12,
-            PLAY_SQUARE_LENGTH,
-            PLAY_SQUARE_LENGTH,
+            PLAY_X_ORIGIN,
+            PLAY_Y_ORIGIN,
+            PLAY_SQUARE_WIDTH,
+            PLAY_SQUARE_HEIGHT,
             self.surface_config.width,
             self.surface_config.height,
-            LIGHT_GRAY,
+            color,
         ) {
             vertices.push(vert);
         }

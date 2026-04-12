@@ -718,6 +718,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "glacier_daw"
+version = "0.1.0"
+dependencies = [
+ "bytemuck",
+ "console_error_panic_hook",
+ "console_log",
+ "cpal",
+ "env_logger",
+ "glyphon",
+ "hound",
+ "log",
+ "pollster",
+ "ringbuf",
+ "serde",
+ "toml",
+ "wasm-bindgen-futures",
+ "wgpu",
+ "winit",
+]
+
+[[package]]
 name = "glow"
 version = "0.16.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2663,27 +2684,6 @@ dependencies = [
  "wgpu-types",
  "windows 0.58.0",
  "windows-core 0.58.0",
-]
-
-[[package]]
-name = "wgpu-template"
-version = "0.1.0"
-dependencies = [
- "bytemuck",
- "console_error_panic_hook",
- "console_log",
- "cpal",
- "env_logger",
- "glyphon",
- "hound",
- "log",
- "pollster",
- "ringbuf",
- "serde",
- "toml",
- "wasm-bindgen-futures",
- "wgpu",
- "winit",
 ]
 
 [[package]]
