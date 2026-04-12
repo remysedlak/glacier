@@ -1,0 +1,29 @@
+project_name = "My Song"
+bpm = 135.0
+
+[[tracks]]
+name = "kick"
+mute = false
+steps =[100.0,0.0,0.0,0.0,100.0,0.0,0.0,0.0,100.0,0.0,0.0,0.0,100.0,0.0,0.0,0.0]
+sample_path= "AttackS.wav"
+position = 0.0
+target_volume = 100.0
+is_playing = false
+
+[[tracks]]
+name = "hat"
+mute = false
+steps = [100.0,0.0,0.0,0.0,100.0,0.0,0.0,0.0,100.0,0.0,0.0,0.0,100.0,0.0,0.0,0.0]
+sample_path = "PopOHH.wav"
+position = 0.0
+target_volume = 100.0
+is_playing = false
+
+[[tracks]]
+name = "snare"
+mute = false
+steps = [0.0,0.0,0.0,0.0,100.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,100.0,0.0,0.0,0.0]
+sample_path = "AttackS.wav"
+position = 0.0
+target_volume = 100.0
+is_playing = false
