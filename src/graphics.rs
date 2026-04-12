@@ -17,6 +17,7 @@ pub enum ClickResult {
     Step(usize, usize), // track, step
     Mute(usize),        // track
     ChangeBpm(f32),
+    TogglePlay(bool),
     None,
 }
 
@@ -34,7 +35,8 @@ const BAR_GAP: u32 = 8;
 const BUTTON_GAP: u32 = 32;
 const TRACK_GAP: u32 = 72;
 
-const MUTE_SQUARE_LENGTH: u32 = 8;
+const MUTE_SQUARE_LENGTH: u32 = 12;
+const PLAY_SQUARE_LENGTH: u32 = 16;
 
 #[cfg(target_arch = "wasm32")]
 pub type Rc<T> = std::rc::Rc<T>;
@@ -43,7 +45,7 @@ pub type Rc<T> = std::rc::Rc<T>;
 pub type Rc<T> = std::sync::Arc<T>;
 
 const LIGHT_GRAY: (f32, f32, f32) = (0.53, 0.53, 0.53);
-const DARK_GRAY: (f32, f32, f32) = (0.13, 0.13, 0.13);
+const DARK_GRAY: (f32, f32, f32) = (0.05, 0.05, 0.05);
 const BLUE: (f32, f32, f32) = (0.01, 0.01, 0.98);
 const BLACK: (f32, f32, f32) = (0.00, 0.00, 0.00);
 const LL_GRAY: (f32, f32, f32) = (0.27, 0.27, 0.27);
@@ -157,6 +159,7 @@ pub async fn create_graphics(window: Rc<Window>, proxy: EventLoopProxy<Graphics>
         swash_cache,
         renderer,
         bpm: 120.0,
+        is_playing: true,
     };
 
     // returns the graphics state back to wherever it was requested
@@ -211,6 +214,7 @@ pub struct Graphics {
     swash_cache: SwashCache,
     renderer: TextRenderer,
     pub bpm: f32,
+    pub is_playing: bool,
 }
 
 impl Graphics {
@@ -261,8 +265,8 @@ impl Graphics {
                 }
             }
             // check for mute
-            if x > (BUTTON_X_ORIGIN - 16) as f64
-                && x < (BUTTON_X_ORIGIN - 16 + MUTE_SQUARE_LENGTH) as f64
+            if x > (BUTTON_X_ORIGIN - 24) as f64
+                && x < (BUTTON_X_ORIGIN - 24 + MUTE_SQUARE_LENGTH) as f64
                 && y > (BUTTON_Y_ORIGIN + (i as u32 * TRACK_GAP) + 48) as f64
                 && y < ((BUTTON_Y_ORIGIN + (i as u32 * TRACK_GAP) + 48) + MUTE_SQUARE_LENGTH) as f64
             {
@@ -283,6 +287,16 @@ impl Graphics {
         {
             self.bpm = self.bpm - 1.0;
             return ClickResult::ChangeBpm(self.bpm);
+        }
+
+        // play / pause
+        if x > 100 as f64
+            && x < (100 + PLAY_SQUARE_LENGTH) as f64
+            && y > 12 as f64
+            && y < (12 + PLAY_SQUARE_LENGTH) as f64
+        {
+            self.is_playing = false;
+            return ClickResult::TogglePlay(!self.is_playing);
         }
 
         ClickResult::None
@@ -366,7 +380,11 @@ impl Graphics {
                 && _mouse_y
                     < ((BUTTON_Y_ORIGIN + (j as u32 * TRACK_GAP) + 48) + MUTE_SQUARE_LENGTH) as f64
             {
-                LL_GRAY // hover
+                if !track.is_muted {
+                    LL_GRAY // hover
+                } else {
+                    DARK_GRAY
+                }
             } else if track.is_muted {
                 BLACK // on
             } else {
@@ -375,7 +393,7 @@ impl Graphics {
 
             //mute button
             for vert in draw_rectangle(
-                BUTTON_X_ORIGIN - 16,
+                BUTTON_X_ORIGIN - 24,
                 BUTTON_Y_ORIGIN + (j as u32 * TRACK_GAP) + 48,
                 MUTE_SQUARE_LENGTH,
                 MUTE_SQUARE_LENGTH,
@@ -469,6 +487,19 @@ impl Graphics {
             15 + 8,
             16,
             6,
+            self.surface_config.width,
+            self.surface_config.height,
+            LIGHT_GRAY,
+        ) {
+            vertices.push(vert);
+        }
+
+        // Play / Pause
+        for vert in draw_rectangle(
+            100,
+            12,
+            PLAY_SQUARE_LENGTH,
+            PLAY_SQUARE_LENGTH,
             self.surface_config.width,
             self.surface_config.height,
             LIGHT_GRAY,

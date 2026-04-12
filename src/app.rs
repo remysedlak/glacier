@@ -141,6 +141,9 @@ impl ApplicationHandler<Graphics> for App {
                             ClickResult::ChangeBpm(bpm) => {
                                 self.producer.try_push(AudioCommand::ChangeBpm(bpm)).ok();
                             }
+                            ClickResult::TogglePlay(b) => {
+                                self.producer.try_push(AudioCommand::TogglePlay(b)).ok();
+                            }
                             ClickResult::None => {}
                         }
                     } // closes if let

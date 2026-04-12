@@ -3,14 +3,34 @@ use crate::UiCommand;
 use cpal::traits::StreamTrait;
 use cpal::traits::{DeviceTrait, HostTrait};
 use cpal::{SampleFormat, Stream};
+use serde::{Deserialize, Serialize};
 
 use ringbuf::traits::{Consumer, Producer};
 use ringbuf::{HeapCons, HeapProd};
+
+#[derive(Serialize, Deserialize)]
+struct ProjectFile {
+    project_name: String,
+    bpm: f32,
+    tracks: Vec<TrackData>,
+}
+
+#[derive(Serialize, Deserialize)]
+struct TrackData {
+    name: String,
+    mute: bool,
+    steps: Vec<f32>,
+    sample_path: String,
+    position: f32,
+    target_volume: f32,
+    is_playing: bool,
+}
 
 pub enum AudioCommand {
     ToggleStep(usize, usize),
     ChangeBpm(f32),
     ToggleMute(usize),
+    TogglePlay(bool),
 }
 
 // instrument struct: track information about ONE instrument
@@ -48,7 +68,12 @@ pub fn init(mut consumer: HeapCons<AudioCommand>, mut producer: HeapProd<UiComma
     let sample_format = supported_config.sample_format();
 
     let sample_ratef: f32 = config.sample_rate as f32;
-    let mut bpm: f32 = 120.0;
+
+    // load raw string data from toml file to handle init.
+    let text: String = std::fs::read_to_string("my_song.toml").unwrap();
+    let project: ProjectFile = toml::from_str(&text).unwrap();
+
+    let mut bpm: f32 = project.bpm;
 
     // track how many samples have passed since the last step
     let mut sample_counter: f32 = 0.0;
@@ -58,42 +83,56 @@ pub fn init(mut consumer: HeapCons<AudioCommand>, mut producer: HeapProd<UiComma
 
     // set of instruments to test
     let mut instruments: Vec<Instrument> = Vec::new();
-    instruments.push(Instrument {
-        samples: path_to_vector("AttackS.wav"),
-        position: 0.0,
-        name: "AttackS.wav".to_string(),
-        steps: vec![
-            0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-        ],
-        is_playing: false,
-        target_volume: 1.0,
-        current_volume: 0.0,
-        mute: false,
-    });
-    instruments.push(Instrument {
-        samples: path_to_vector("PopOHH.wav"),
-        position: 0.0,
-        name: "PopOHH.wav".to_string(),
-        steps: vec![
-            0.0, 0.0, 95.0, 0.0, 0.0, 0.0, 95.0, 0.0, 0.0, 0.0, 95.0, 0.0, 0.0, 0.0, 95.0, 0.0,
-        ],
-        is_playing: false,
-        target_volume: 1.0,
-        current_volume: 0.0,
-        mute: false,
-    });
-    instruments.push(Instrument {
-        samples: path_to_vector("SharpK.wav"),
-        position: 0.0,
-        name: "SharpK.wav".to_string(),
-        steps: vec![
-            0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-        ],
-        is_playing: false,
-        target_volume: 1.0,
-        current_volume: 0.0,
-        mute: false,
-    });
+
+    for track in project.tracks {
+        instruments.push(Instrument {
+            samples: path_to_vector(&track.sample_path),
+            position: track.position,
+            name: track.name,
+            steps: track.steps,
+            is_playing: false,
+            target_volume: track.target_volume,
+            current_volume: 0.0,
+            mute: track.mute,
+        })
+    }
+
+    // instruments.push(Instrument {
+    //     samples: path_to_vector("AttackS.wav"),
+    //     position: 0.0,
+    //     name: "AttackS.wav".to_string(),
+    //     steps: vec![
+    //         0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+    //     ],
+    //     is_playing: false,
+    //     target_volume: 1.0,
+    //     current_volume: 0.0,
+    //     mute: false,
+    // });
+    // instruments.push(Instrument {
+    //     samples: path_to_vector("PopOHH.wav"),
+    //     position: 0.0,
+    //     name: "PopOHH.wav".to_string(),
+    //     steps: vec![
+    //         0.0, 0.0, 95.0, 0.0, 0.0, 0.0, 95.0, 0.0, 0.0, 0.0, 95.0, 0.0, 0.0, 0.0, 95.0, 0.0,
+    //     ],
+    //     is_playing: false,
+    //     target_volume: 1.0,
+    //     current_volume: 0.0,
+    //     mute: false,
+    // });
+    // instruments.push(Instrument {
+    //     samples: path_to_vector("SharpK.wav"),
+    //     position: 0.0,
+    //     name: "SharpK.wav".to_string(),
+    //     steps: vec![
+    //         0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+    //     ],
+    //     is_playing: false,
+    //     target_volume: 1.0,
+    //     current_volume: 0.0,
+    //     mute: false,
+    // });
 
     producer.try_push(UiCommand::LoadBpm(bpm)).ok();
 
@@ -109,10 +148,10 @@ pub fn init(mut consumer: HeapCons<AudioCommand>, mut producer: HeapProd<UiComma
             .ok();
     }
 
+    let mut is_playing = false;
+
     // audio callback to fill samples requested from CPAL
     let sequencer_callback = move |data: &mut [f32], _: &cpal::OutputCallbackInfo| {
-        sample_counter += data.len() as f32 / 2.0; // increment sample counter by number of samples requested : keep track of sample position
-
         while let Some(cmd) = consumer.try_pop() {
             match cmd {
                 AudioCommand::ToggleStep(x, y) => {
@@ -130,51 +169,61 @@ pub fn init(mut consumer: HeapCons<AudioCommand>, mut producer: HeapProd<UiComma
                     instruments[i].position = 0.0;
                     instruments[i].is_playing = false;
                 }
+                AudioCommand::TogglePlay(b) => {
+                    is_playing = !is_playing;
+                }
             }
         }
 
-        // get amount of samples per step
-        let samples_per_step = sample_ratef / (bpm / 60.0 * 4.0);
+        if is_playing {
+            sample_counter += data.len() as f32 / 2.0; // increment sample counter by number of samples requested : keep track of sample position
 
-        // for each sample requested, mix in the appropriate instrument samples
-        for sample in data.chunks_mut(2) {
-            sample[0] = 0.0; // left
-            sample[1] = 0.0; // right
+            // get amount of samples per step
+            let samples_per_step = sample_ratef / (bpm / 60.0 * 4.0);
 
-            for instrument in &mut instruments {
-                if !instrument.mute {
-                    // if the instrument is active at the current step, mix in its sample
-                    if instrument.is_playing {
-                        if instrument.position >= instrument.samples.len() as f32 {
-                            instrument.is_playing = false;
-                        } else {
-                            instrument.is_playing = true;
-                            if instrument.current_volume != instrument.target_volume {
-                                let difference =
-                                    instrument.target_volume - instrument.current_volume;
-                                instrument.current_volume += difference * 0.01;
+            // for each sample requested, mix in the appropriate instrument samples
+            for sample in data.chunks_mut(2) {
+                sample[0] = 0.0; // left
+                sample[1] = 0.0; // right
+
+                for instrument in &mut instruments {
+                    if !instrument.mute {
+                        // if the instrument is active at the current step, mix in its sample
+                        if instrument.is_playing {
+                            if instrument.position >= instrument.samples.len() as f32 {
+                                instrument.is_playing = false;
+                            } else {
+                                instrument.is_playing = true;
+                                if instrument.current_volume != instrument.target_volume {
+                                    let difference =
+                                        instrument.target_volume - instrument.current_volume;
+                                    instrument.current_volume += difference * 0.01;
+                                }
+                                sample[0] += instrument.samples
+                                    [(instrument.position as f32) as usize]
+                                    * instrument.current_volume;
+                                sample[1] += instrument.samples
+                                    [(instrument.position as f32) as usize + 1]
+                                    * instrument.current_volume;
+                                instrument.position += 2.0;
                             }
-                            sample[0] += instrument.samples[(instrument.position as f32) as usize]
-                                * instrument.current_volume;
-                            sample[1] += instrument.samples
-                                [(instrument.position as f32) as usize + 1]
-                                * instrument.current_volume;
-                            instrument.position += 2.0;
                         }
                     }
                 }
             }
-        }
-        if sample_counter >= samples_per_step {
-            sample_counter = 0.0;
-            current_step = (current_step + 1) % 16;
-            producer
-                .try_push(UiCommand::StepAdvanced(current_step))
-                .ok();
-            for instrument in &mut instruments {
-                if instrument.steps[current_step] > 0.0 {
-                    instrument.position = 0.0;
-                    instrument.is_playing = true;
+            if sample_counter >= samples_per_step {
+                sample_counter = 0.0;
+                current_step = (current_step + 1) % 16;
+                producer
+                    .try_push(UiCommand::StepAdvanced(current_step))
+                    .ok();
+                for instrument in &mut instruments {
+                    if instrument.steps[current_step] > 0.0 {
+                        instrument.position = 0.0;
+                        instrument.is_playing = true;
+                        instrument.target_volume = instrument.steps[current_step] / 127.0;
+                        // midi vel
+                    }
                 }
             }
         }
