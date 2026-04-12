@@ -30,6 +30,7 @@ pub enum AudioCommand {
     ToggleMute(usize),
     TogglePlay,
     ShutDown,
+    SaveProject,
 }
 
 // instrument struct: track information about ONE instrument
@@ -46,7 +47,11 @@ struct Instrument {
     current_volume: f32,
 }
 
-pub fn init(mut consumer: HeapCons<AudioCommand>, mut producer: HeapProd<UiCommand>) -> Stream {
+pub fn init(
+    mut consumer: HeapCons<AudioCommand>,
+    mut producer: HeapProd<UiCommand>,
+    project_file: String,
+) -> Stream {
     println!("STARTING REMY'S AUDIO ENGINE");
 
     let err_fn = |err| eprintln!("an error occurred on the output audio stream: {}", err);
@@ -67,10 +72,10 @@ pub fn init(mut consumer: HeapCons<AudioCommand>, mut producer: HeapProd<UiComma
     let config = supported_config.config();
     let sample_format = supported_config.sample_format();
 
-    let sample_ratef: f32 = config.sample_rate as f32;
+    let sample_rate_f: f32 = config.sample_rate as f32;
 
     // load raw string data from toml file to handle init.
-    let text: String = std::fs::read_to_string("my_song.toml").unwrap();
+    let text: String = std::fs::read_to_string(&project_file).unwrap();
     let project: ProjectFile = toml::from_str(&text).unwrap();
 
     let mut bpm: f32 = project.bpm;
@@ -79,6 +84,9 @@ pub fn init(mut consumer: HeapCons<AudioCommand>, mut producer: HeapProd<UiComma
 
     // user hardware specific
     println!("SAMPLE RATE: {}", config.sample_rate);
+
+    let project_name = project.project_name;
+    println!("Loading project: {}", project_name);
 
     // load a set of instruments to play
     let mut instruments: Vec<Instrument> = Vec::new();
@@ -139,9 +147,9 @@ pub fn init(mut consumer: HeapCons<AudioCommand>, mut producer: HeapProd<UiComma
                 AudioCommand::TogglePlay => {
                     is_playing = !is_playing;
                 }
-                AudioCommand::ShutDown => {
+                AudioCommand::SaveProject => {
                     let project = ProjectFile {
-                        project_name: "My Song".to_string(),
+                        project_name: project_name.clone(),
                         bpm,
                         tracks: instruments
                             .iter()
@@ -157,8 +165,32 @@ pub fn init(mut consumer: HeapCons<AudioCommand>, mut producer: HeapProd<UiComma
                             .collect(),
                     };
                     let text = toml::to_string(&project).unwrap();
-                    std::fs::write("my_song.toml", text).unwrap();
+                    std::fs::write(project_file.clone(), text).unwrap();
+                    producer.try_push(UiCommand::SaveComplete).ok();
+                    println!("saved to {}", project_file.clone());
+                }
+                AudioCommand::ShutDown => {
+                    let project = ProjectFile {
+                        project_name: project_name.clone(),
+                        bpm,
+                        tracks: instruments
+                            .iter()
+                            .map(|inst| TrackData {
+                                name: inst.name.clone(),
+                                mute: inst.mute,
+                                steps: inst.steps.clone(),
+                                sample_path: inst.path.clone(),
+                                position: 0.0,
+                                target_volume: inst.target_volume,
+                                is_playing: false,
+                            })
+                            .collect(),
+                    };
+                    let text = toml::to_string(&project).unwrap();
+                    std::fs::write(project_file.clone(), text).unwrap();
 
+                    // save is complete
+                    producer.try_push(UiCommand::SaveComplete).ok();
                     if !is_playing {
                         producer.try_push(UiCommand::ShutdownComplete).ok();
                     }
@@ -220,7 +252,7 @@ pub fn init(mut consumer: HeapCons<AudioCommand>, mut producer: HeapProd<UiComma
             sample_counter += data.len() as f32 / 2.0; // increment sample counter by number of samples requested : keep track of sample position
 
             // get amount of samples per step
-            let samples_per_step = sample_ratef / (bpm / 60.0 * 4.0);
+            let samples_per_step = sample_rate_f / (bpm / 60.0 * 4.0);
 
             // increment the step if enough samples have passed
             if sample_counter >= samples_per_step {

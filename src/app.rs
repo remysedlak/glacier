@@ -1,8 +1,12 @@
+use crate::audio;
 use crate::audio::AudioCommand;
 use crate::graphics::{create_graphics, ClickResult, Graphics, Rc};
 use cpal::traits::StreamTrait;
 use cpal::Stream;
+use rfd::FileDialog;
+use ringbuf::traits::Split;
 use ringbuf::traits::{Consumer, Producer};
+use ringbuf::HeapRb;
 use ringbuf::{HeapCons, HeapProd};
 use winit::{
     application::ApplicationHandler,
@@ -18,6 +22,7 @@ pub enum UiCommand {
     LoadTrack(usize, String, [bool; 16], bool),
     LoadBpm(f32),
     ShutdownComplete,
+    SaveComplete,
     // InstrumentAdded(...) when we get there
 }
 
@@ -34,6 +39,7 @@ pub struct App {
     mouse_x: f64,
     mouse_y: f64,
     stream: Stream,
+    pending_project: Option<String>,
 }
 
 impl App {
@@ -51,6 +57,7 @@ impl App {
             mouse_x: 0.0,
             mouse_y: 0.0,
             stream: stream,
+            pending_project: None,
         }
     }
 
@@ -71,6 +78,19 @@ impl App {
                     UiCommand::ShutdownComplete => {
                         let _ = self.stream.pause();
                         event_loop.exit();
+                    }
+                    UiCommand::SaveComplete => {
+                        if let Some(path) = self.pending_project.take() {
+                            // swap out ring buffers
+                            let _ = self.stream.pause();
+                            let (audio_prod, audio_cons) = HeapRb::<AudioCommand>::new(64).split();
+                            let (ui_prod, ui_cons) = HeapRb::<UiCommand>::new(64).split();
+                            self.producer = audio_prod;
+                            self.consumer = ui_cons;
+                            // restore the stream
+                            self.stream = audio::init(audio_cons, ui_prod, path);
+                        } else {
+                        }
                     }
                 }
             }
@@ -158,6 +178,25 @@ impl ApplicationHandler<Graphics> for App {
                             }
                             ClickResult::TogglePlay => {
                                 self.producer.try_push(AudioCommand::TogglePlay).ok();
+                            }
+                            ClickResult::FileDialog => {
+                                let file = FileDialog::new()
+                                    .add_filter("toml", &["toml"])
+                                    .set_directory("/")
+                                    .pick_file();
+
+                                match file {
+                                    Some(x) => {
+                                        // save and pause the stream
+                                        gfx.is_playing = false;
+                                        self.pending_project =
+                                            Some(x.to_str().unwrap().to_string());
+                                        self.producer.try_push(AudioCommand::SaveProject).ok();
+                                    }
+                                    None => {
+                                        println!("no file chosen...")
+                                    }
+                                }
                             }
                             ClickResult::None => {}
                         }

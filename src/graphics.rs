@@ -18,7 +18,7 @@ pub enum ClickResult {
     Mute(usize),        // track
     ChangeBpm(f32),
     TogglePlay,
-    // FileDialog,
+    FileDialog,
     None,
 }
 
@@ -26,6 +26,7 @@ const ONE_MEGABYTE: u64 = 1024 * 1024;
 
 const TOOLBAR_Y: f32 = 32.0;
 const TOOLBAR_THICKNESS: f32 = 0.003;
+const TOOLBAR_MARGIN: u32 = 4;
 
 const BUTTON_X_ORIGIN: u32 = 128;
 const BUTTON_Y_ORIGIN: u32 = 64;
@@ -40,11 +41,13 @@ const MUTE_SQUARE_LENGTH: u32 = 12;
 const PLAY_SQUARE_HEIGHT: u32 = ICON_HEIGHT;
 const PLAY_SQUARE_WIDTH: u32 = 54;
 
-const PLAY_Y_ORIGIN: u32 = 4;
+const PLAY_Y_ORIGIN: u32 = TOOLBAR_MARGIN;
 const PLAY_X_ORIGIN: u32 = 90;
 
 const ICON_WIDTH: u32 = 32;
 const ICON_HEIGHT: u32 = 24;
+
+const LOAD_PROJECT_ICON_OFFSET: u32 = 40;
 
 #[cfg(target_arch = "wasm32")]
 pub type Rc<T> = std::rc::Rc<T>;
@@ -138,7 +141,7 @@ pub async fn create_graphics(window: Rc<Window>, proxy: EventLoopProxy<Graphics>
     let renderer = TextRenderer::new(&mut atlas, &device, MultisampleState::default(), None);
 
     // Vectors to store all triangles for display
-    let mut vertices: Vec<Vertex> = Vec::new();
+    let vertices: Vec<Vertex> = Vec::new();
     let rows: Vec<Track> = Vec::new();
 
     // the vertex buffer is how we send data to the gpu
@@ -213,7 +216,7 @@ pub struct Graphics {
     queue: Queue,
     render_pipeline: RenderPipeline,
     vertex_buffer: wgpu::Buffer,
-    pub rows: Vec<Track>,
+    rows: Vec<Track>,
     num_vertices: u32,
     pub active_step: usize,
     font_system: FontSystem,
@@ -305,6 +308,17 @@ impl Graphics {
         {
             self.is_playing = !self.is_playing;
             return ClickResult::TogglePlay;
+        }
+
+        let user_width = self.surface_config.width;
+
+        // load project
+        if x > (user_width - LOAD_PROJECT_ICON_OFFSET) as f64
+            && x < (user_width - LOAD_PROJECT_ICON_OFFSET + ICON_WIDTH) as f64
+            && y > TOOLBAR_MARGIN as f64
+            && y < (TOOLBAR_MARGIN + ICON_HEIGHT) as f64
+        {
+            return ClickResult::FileDialog;
         }
 
         ClickResult::None
@@ -554,8 +568,8 @@ impl Graphics {
 
         // Load file button
         for vert in draw_rectangle(
-            self.surface_config.width - 40,
-            4,
+            self.surface_config.width - LOAD_PROJECT_ICON_OFFSET,
+            TOOLBAR_MARGIN,
             ICON_WIDTH,
             ICON_HEIGHT,
             self.surface_config.width,

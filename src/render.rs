@@ -11,13 +11,13 @@ pub struct StepButton {
     pub is_active: bool,
 }
 
-#[derive(Debug)]
-pub struct Rectangle {
-    pub x: u32,
-    pub y: u32,
-    pub width: u32,
-    pub height: u32,
-}
+// #[derive(Debug)]
+// pub struct Rectangle {
+//     pub x: u32,
+//     pub y: u32,
+//     pub width: u32,
+//     pub height: u32,
+// }
 
 pub fn draw_rectangle(
     x: u32,
@@ -66,7 +66,6 @@ pub fn draw_rectangle(
 
 pub fn draw_h_line(y: f32, thickness: f32, screen_height: u32) -> Vec<Vertex> {
     // first normalize the coordinates to fit in decimal form.
-    let mut vertices: Vec<Vertex> = Vec::new();
 
     let ndc_y: f32 = 1.0 - (y as f32 / screen_height as f32) * 2.0;
 

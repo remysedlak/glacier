@@ -51,13 +51,13 @@ fn main() {
     //event_loop.set_control_flow(ControlFlow::Wait);
 
     // Commands are passed through audio and ui thread by ring buffers
-    let (producer, consumer) = HeapRb::<AudioCommand>::new(64).split();
+    let (audio_prod, audio_cons) = HeapRb::<AudioCommand>::new(64).split();
     let (ui_prod, ui_cons) = HeapRb::<UiCommand>::new(64).split();
 
     // start the audio stream
-    let stream = audio::init(consumer, ui_prod);
+    let stream = audio::init(audio_cons, ui_prod, "my_song.toml".to_string()); // hard coded intro song for dev work
 
     // start the ui
-    let app = App::new(producer, ui_cons, &event_loop, stream);
+    let app = App::new(audio_prod, ui_cons, &event_loop, stream);
     run_app(event_loop, app);
 }
