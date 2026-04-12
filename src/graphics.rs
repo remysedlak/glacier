@@ -18,6 +18,7 @@ pub enum ClickResult {
     Mute(usize),        // track
     ChangeBpm(f32),
     TogglePlay,
+    // FileDialog,
     None,
 }
 
@@ -36,11 +37,14 @@ const BUTTON_GAP: u32 = 32;
 const TRACK_GAP: u32 = 72;
 
 const MUTE_SQUARE_LENGTH: u32 = 12;
-const PLAY_SQUARE_HEIGHT: u32 = 20;
+const PLAY_SQUARE_HEIGHT: u32 = ICON_HEIGHT;
 const PLAY_SQUARE_WIDTH: u32 = 54;
 
-const PLAY_Y_ORIGIN: u32 = 8;
+const PLAY_Y_ORIGIN: u32 = 4;
 const PLAY_X_ORIGIN: u32 = 90;
+
+const ICON_WIDTH: u32 = 32;
+const ICON_HEIGHT: u32 = 24;
 
 #[cfg(target_arch = "wasm32")]
 pub type Rc<T> = std::rc::Rc<T>;
@@ -330,8 +334,8 @@ impl Graphics {
         self.viewport.update(
             &self.queue,
             Resolution {
-                width: 800,
-                height: 600,
+                width: self.surface_config.width,
+                height: self.surface_config.height,
             },
         );
 
@@ -499,7 +503,7 @@ impl Graphics {
             vertices.push(vert);
         }
 
-        // bpm up
+        // bpm up button
         for vert in draw_rectangle(
             48,
             15,
@@ -512,7 +516,7 @@ impl Graphics {
             vertices.push(vert);
         }
 
-        // bpm down
+        // bpm down button
         for vert in draw_rectangle(
             48,
             15 + 8,
@@ -544,6 +548,19 @@ impl Graphics {
             self.surface_config.width,
             self.surface_config.height,
             color,
+        ) {
+            vertices.push(vert);
+        }
+
+        // Load file button
+        for vert in draw_rectangle(
+            self.surface_config.width - 40,
+            4,
+            ICON_WIDTH,
+            ICON_HEIGHT,
+            self.surface_config.width,
+            self.surface_config.height,
+            LIGHT_GRAY,
         ) {
             vertices.push(vert);
         }
