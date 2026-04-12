@@ -16,6 +16,7 @@ use winit::{dpi::PhysicalSize, event_loop::EventLoopProxy, window::Window};
 pub enum ClickResult {
     Step(usize, usize), // track, step
     Mute(usize),        // track
+    ChangeBpm(f32),
     None,
 }
 
@@ -155,6 +156,7 @@ pub async fn create_graphics(window: Rc<Window>, proxy: EventLoopProxy<Graphics>
         atlas,
         swash_cache,
         renderer,
+        bpm: 120.0,
     };
 
     // returns the graphics state back to wherever it was requested
@@ -208,6 +210,7 @@ pub struct Graphics {
     atlas: TextAtlas,
     swash_cache: SwashCache,
     renderer: TextRenderer,
+    pub bpm: f32,
 }
 
 impl Graphics {
@@ -268,6 +271,20 @@ impl Graphics {
             }
         }
 
+        // check for bpm
+        if x > 48 as f64 && x < 48 as f64 + 16 as f64 && y > 15 as f64 && y < 15 as f64 + 6 as f64 {
+            self.bpm = self.bpm + 1.0;
+            return ClickResult::ChangeBpm(self.bpm);
+        }
+        if x > 48 as f64
+            && x < 48 as f64 + 16 as f64
+            && y > (15 + 8) as f64
+            && y < (15 + 8 + 6) as f64
+        {
+            self.bpm = self.bpm - 1.0;
+            return ClickResult::ChangeBpm(self.bpm);
+        }
+
         ClickResult::None
     }
 
@@ -308,7 +325,7 @@ impl Graphics {
         let view = frame.texture.create_view(&TextureViewDescriptor::default());
 
         let mut vertices: Vec<Vertex> = Vec::new();
-        let mut text_buffers: Vec<glyphon::Buffer> = Vec::new();
+        let mut text_items: Vec<(glyphon::Buffer, f32, f32)> = Vec::new();
         for (j, track) in &mut self.rows.iter_mut().enumerate() {
             for (i, button) in &mut track.steps.iter_mut().enumerate() {
                 let color;
@@ -379,16 +396,31 @@ impl Graphics {
                 Shaping::Advanced,
             );
             buffer.shape_until_scroll(&mut self.font_system, false);
-            text_buffers.push(buffer);
+            text_items.push((
+                buffer,
+                10.0,
+                BUTTON_Y_ORIGIN as f32 + j as f32 * TRACK_GAP as f32,
+            ));
         }
 
-        let text_areas: Vec<TextArea> = text_buffers
+        // text buffer
+        let mut bpm_buffer = glyphon::Buffer::new(&mut self.font_system, Metrics::new(18.0, 22.0));
+        bpm_buffer.set_size(&mut self.font_system, Some(400.0), Some(50.0));
+        bpm_buffer.set_text(
+            &mut self.font_system,
+            &self.bpm.to_string(),
+            &Attrs::new().family(Family::SansSerif),
+            Shaping::Advanced,
+        );
+        bpm_buffer.shape_until_scroll(&mut self.font_system, false);
+        text_items.push((bpm_buffer, 10.0, 10.0));
+
+        let text_areas: Vec<TextArea> = text_items
             .iter()
-            .enumerate()
-            .map(|(j, buf)| TextArea {
-                buffer: buf,
-                left: 10.0,
-                top: BUTTON_Y_ORIGIN as f32 + j as f32 * TRACK_GAP as f32,
+            .map(|buf| TextArea {
+                buffer: &buf.0,
+                left: buf.1,
+                top: buf.2,
                 scale: 1.0,
                 bounds: TextBounds {
                     left: 0,
@@ -413,7 +445,34 @@ impl Graphics {
             )
             .unwrap();
 
+        // toolbar line
         for vert in draw_h_line(TOOLBAR_Y, TOOLBAR_THICKNESS, self.surface_config.height) {
+            vertices.push(vert);
+        }
+
+        // bpm up
+        for vert in draw_rectangle(
+            48,
+            15,
+            16,
+            6,
+            self.surface_config.width,
+            self.surface_config.height,
+            LIGHT_GRAY,
+        ) {
+            vertices.push(vert);
+        }
+
+        // bpm down
+        for vert in draw_rectangle(
+            48,
+            15 + 8,
+            16,
+            6,
+            self.surface_config.width,
+            self.surface_config.height,
+            LIGHT_GRAY,
+        ) {
             vertices.push(vert);
         }
 

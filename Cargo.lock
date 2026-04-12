@@ -2625,6 +2625,7 @@ dependencies = [
  "log",
  "pollster",
  "ringbuf",
+ "serde",
  "wasm-bindgen-futures",
  "wgpu",
  "winit",

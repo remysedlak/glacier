@@ -20,6 +20,7 @@ bytemuck = { version = "1.24", features = [ "derive" ] }
 cpal = "0.17.3"
 hound = "3.5.1"
 ringbuf = "0.4.8"
+serde = "1.0"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 console_error_panic_hook = "0.1.7"

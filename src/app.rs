@@ -14,6 +14,7 @@ use winit::{
 pub enum UiCommand {
     StepAdvanced(usize),
     LoadTrack(usize, String, [bool; 16], bool),
+    LoadBpm(f32),
     // InstrumentAdded(...) when we get there
 }
 
@@ -57,6 +58,9 @@ impl App {
                     }
                     UiCommand::LoadTrack(i, name, steps, mute) => {
                         gfx.load_track(i, name, steps, mute);
+                    }
+                    UiCommand::LoadBpm(bpm) => {
+                        gfx.bpm = bpm;
                     }
                 }
             }
@@ -133,6 +137,9 @@ impl ApplicationHandler<Graphics> for App {
                             }
                             ClickResult::Mute(track) => {
                                 self.producer.try_push(AudioCommand::ToggleMute(track)).ok();
+                            }
+                            ClickResult::ChangeBpm(bpm) => {
+                                self.producer.try_push(AudioCommand::ChangeBpm(bpm)).ok();
                             }
                             ClickResult::None => {}
                         }

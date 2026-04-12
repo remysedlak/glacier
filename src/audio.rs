@@ -95,6 +95,8 @@ pub fn init(mut consumer: HeapCons<AudioCommand>, mut producer: HeapProd<UiComma
         mute: false,
     });
 
+    producer.try_push(UiCommand::LoadBpm(bpm)).ok();
+
     for (i, instrument) in instruments.iter().enumerate() {
         let bools: Vec<bool> = instrument.steps.iter().map(|step| *step > 0.0).collect();
         producer
