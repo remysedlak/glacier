@@ -63,6 +63,8 @@ impl App {
 
     // if the state is ready, draw the frame
     fn draw(&mut self, event_loop: &ActiveEventLoop) {
+        let mut should_exit = false;
+
         if let State::Ready(gfx) = &mut self.state {
             while let Some(cmd) = self.consumer.try_pop() {
                 match cmd {
@@ -77,25 +79,27 @@ impl App {
                     }
                     UiCommand::ShutdownComplete => {
                         let _ = self.stream.pause();
-                        event_loop.exit();
+                        should_exit = true;
                     }
                     UiCommand::SaveComplete => {
                         if let Some(path) = self.pending_project.take() {
-                            // swap out ring buffers
                             let _ = self.stream.pause();
                             let (audio_prod, audio_cons) = HeapRb::<AudioCommand>::new(64).split();
                             let (ui_prod, ui_cons) = HeapRb::<UiCommand>::new(64).split();
                             self.producer = audio_prod;
                             self.consumer = ui_cons;
-                            // restore the stream
                             self.stream = audio::init(audio_cons, ui_prod, path);
-                        } else {
                         }
                     }
                 }
             }
             gfx.draw(self.mouse_x, self.mouse_y);
-            gfx.request_redraw(); // add this
+            gfx.request_redraw();
+        }
+
+        if should_exit {
+            self.state = State::Init(None);
+            event_loop.exit();
         }
     }
 
