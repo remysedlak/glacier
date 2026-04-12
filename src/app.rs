@@ -1,5 +1,5 @@
 use crate::audio::AudioCommand;
-use crate::graphics::{create_graphics, Graphics, Rc};
+use crate::graphics::{create_graphics, ClickResult, Graphics, Rc};
 use ringbuf::traits::{Consumer, Producer};
 use ringbuf::{HeapCons, HeapProd};
 use winit::{
@@ -13,7 +13,7 @@ use winit::{
 // commands that the audio engine sends to the window
 pub enum UiCommand {
     StepAdvanced(usize),
-    LoadTrack(usize, String, [bool; 16]),
+    LoadTrack(usize, String, [bool; 16], bool),
     // InstrumentAdded(...) when we get there
 }
 
@@ -55,8 +55,8 @@ impl App {
                     UiCommand::StepAdvanced(size) => {
                         gfx.active_step = size;
                     }
-                    UiCommand::LoadTrack(i, name, steps) => {
-                        gfx.load_track(i, name, steps);
+                    UiCommand::LoadTrack(i, name, steps, mute) => {
+                        gfx.load_track(i, name, steps, mute);
                     }
                 }
             }
@@ -123,20 +123,24 @@ impl ApplicationHandler<Graphics> for App {
             WindowEvent::RedrawRequested => self.draw(),
             WindowEvent::CloseRequested => event_loop.exit(),
             WindowEvent::MouseInput { state, button, .. } => {
-                // handle left click
                 if state.is_pressed() && button == MouseButton::Left {
                     if let State::Ready(gfx) = &mut self.state {
-                        if let Some((track_index, step_index)) =
-                            gfx.handle_button_click(self.mouse_x, self.mouse_y)
-                        {
-                            self.producer
-                                .try_push(AudioCommand::ToggleStep(track_index, step_index))
-                                .ok();
+                        match gfx.handle_button_click(self.mouse_x, self.mouse_y) {
+                            ClickResult::Step(track, step) => {
+                                self.producer
+                                    .try_push(AudioCommand::ToggleStep(track, step))
+                                    .ok();
+                            }
+                            ClickResult::Mute(track) => {
+                                self.producer.try_push(AudioCommand::ToggleMute(track)).ok();
+                            }
+                            ClickResult::None => {}
                         }
-                    }
+                    } // closes if let
                     self.draw();
-                }
-            }
+                } // closes if state.is_pressed()
+            } // closes MouseInput arm
+
             WindowEvent::CursorMoved { position, .. } => {
                 // position.x and position.y are available here
                 self.mouse_x = position.x;

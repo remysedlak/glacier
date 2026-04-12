@@ -1,13 +1,16 @@
 use crate::UiCommand;
+
 use cpal::traits::StreamTrait;
 use cpal::traits::{DeviceTrait, HostTrait};
 use cpal::{SampleFormat, Stream};
+
 use ringbuf::traits::{Consumer, Producer};
 use ringbuf::{HeapCons, HeapProd};
 
 pub enum AudioCommand {
     ToggleStep(usize, usize),
     ChangeBpm(f32),
+    ToggleMute(usize),
 }
 
 // instrument struct: track information about ONE instrument
@@ -17,6 +20,7 @@ struct Instrument {
     steps: Vec<f32>,   // the sequence of steps to play back
     is_playing: bool,
     name: String,
+    mute: bool,
 
     // audio ramping
     target_volume: f32,
@@ -64,6 +68,7 @@ pub fn init(mut consumer: HeapCons<AudioCommand>, mut producer: HeapProd<UiComma
         is_playing: false,
         target_volume: 1.0,
         current_volume: 0.0,
+        mute: false,
     });
     instruments.push(Instrument {
         samples: path_to_vector("PopOHH.wav"),
@@ -75,6 +80,7 @@ pub fn init(mut consumer: HeapCons<AudioCommand>, mut producer: HeapProd<UiComma
         is_playing: false,
         target_volume: 1.0,
         current_volume: 0.0,
+        mute: false,
     });
     instruments.push(Instrument {
         samples: path_to_vector("SharpK.wav"),
@@ -86,6 +92,7 @@ pub fn init(mut consumer: HeapCons<AudioCommand>, mut producer: HeapProd<UiComma
         is_playing: false,
         target_volume: 1.0,
         current_volume: 0.0,
+        mute: false,
     });
 
     for (i, instrument) in instruments.iter().enumerate() {
@@ -95,6 +102,7 @@ pub fn init(mut consumer: HeapCons<AudioCommand>, mut producer: HeapProd<UiComma
                 i,
                 instrument.name.clone(),
                 bools.try_into().unwrap(),
+                instrument.mute,
             ))
             .ok();
     }
@@ -115,6 +123,11 @@ pub fn init(mut consumer: HeapCons<AudioCommand>, mut producer: HeapProd<UiComma
                 AudioCommand::ChangeBpm(new_bpm) => {
                     bpm = new_bpm;
                 }
+                AudioCommand::ToggleMute(i) => {
+                    instruments[i].mute = !instruments[i].mute;
+                    instruments[i].position = 0.0;
+                    instruments[i].is_playing = false;
+                }
             }
         }
 
@@ -127,21 +140,25 @@ pub fn init(mut consumer: HeapCons<AudioCommand>, mut producer: HeapProd<UiComma
             sample[1] = 0.0; // right
 
             for instrument in &mut instruments {
-                // if the instrument is active at the current step, mix in its sample
-                if instrument.is_playing {
-                    if instrument.position >= instrument.samples.len() as f32 {
-                        instrument.is_playing = false;
-                    } else {
-                        instrument.is_playing = true;
-                        if instrument.current_volume != instrument.target_volume {
-                            let difference = instrument.target_volume - instrument.current_volume;
-                            instrument.current_volume += difference * 0.01;
+                if !instrument.mute {
+                    // if the instrument is active at the current step, mix in its sample
+                    if instrument.is_playing {
+                        if instrument.position >= instrument.samples.len() as f32 {
+                            instrument.is_playing = false;
+                        } else {
+                            instrument.is_playing = true;
+                            if instrument.current_volume != instrument.target_volume {
+                                let difference =
+                                    instrument.target_volume - instrument.current_volume;
+                                instrument.current_volume += difference * 0.01;
+                            }
+                            sample[0] += instrument.samples[(instrument.position as f32) as usize]
+                                * instrument.current_volume;
+                            sample[1] += instrument.samples
+                                [(instrument.position as f32) as usize + 1]
+                                * instrument.current_volume;
+                            instrument.position += 2.0;
                         }
-                        sample[0] += instrument.samples[(instrument.position as f32) as usize]
-                            * instrument.current_volume;
-                        sample[1] += instrument.samples[(instrument.position as f32) as usize + 1]
-                            * instrument.current_volume;
-                        instrument.position += 2.0;
                     }
                 }
             }

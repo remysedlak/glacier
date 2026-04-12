@@ -13,6 +13,28 @@ use wgpu::{
 };
 use winit::{dpi::PhysicalSize, event_loop::EventLoopProxy, window::Window};
 
+pub enum ClickResult {
+    Step(usize, usize), // track, step
+    Mute(usize),        // track
+    None,
+}
+
+const ONE_MEGABYTE: u64 = 1024 * 1024;
+
+const TOOLBAR_Y: f32 = 32.0;
+const TOOLBAR_THICKNESS: f32 = 0.003;
+
+const BUTTON_X_ORIGIN: u32 = 128;
+const BUTTON_Y_ORIGIN: u32 = 64;
+const BUTTON_WIDTH: u32 = 24;
+const BUTTON_HEIGHT: u32 = 64;
+
+const BAR_GAP: u32 = 8;
+const BUTTON_GAP: u32 = 32;
+const TRACK_GAP: u32 = 72;
+
+const MUTE_SQUARE_LENGTH: u32 = 8;
+
 #[cfg(target_arch = "wasm32")]
 pub type Rc<T> = std::rc::Rc<T>;
 
@@ -108,15 +130,10 @@ pub async fn create_graphics(window: Rc<Window>, proxy: EventLoopProxy<Graphics>
     let mut vertices: Vec<Vertex> = Vec::new();
     let rows: Vec<Track> = Vec::new();
 
-    // draw the horizontal line for the future toolbar
-    for vert in draw_h_line(0.90, 0.003, surface_config.height) {
-        vertices.push(vert);
-    }
-
     // the vertex buffer is how we send data to the gpu
     let vertex_buffer = device.create_buffer(&wgpu::BufferDescriptor {
         label: Some("Vertex Buffer"),
-        size: 1024 * 1024, // 1MB, plenty of room
+        size: ONE_MEGABYTE, // 1MB, plenty of room
         usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
         mapped_at_creation: false,
     });
@@ -199,24 +216,24 @@ impl Graphics {
     }
 
     // handler for : UiCommand::LoadTrack
-    pub fn load_track(&mut self, i: usize, name: String, steps: [bool; 16]) {
+    pub fn load_track(&mut self, i: usize, name: String, steps: [bool; 16], mute: bool) {
         if i >= self.rows.len() {
             // add a new row
             let mut buttons = Vec::new();
             for j in 0..16 {
                 let group = j / 4;
                 buttons.push(StepButton {
-                    x: 128 + j * 28 + group * 8,
-                    y: 64 + i as u32 * 72 as u32,
-                    width: 24,
-                    height: 64,
+                    x: BUTTON_X_ORIGIN + j * BUTTON_GAP + group * BAR_GAP,
+                    y: BUTTON_Y_ORIGIN + i as u32 * TRACK_GAP,
+                    width: BUTTON_WIDTH,
+                    height: BUTTON_HEIGHT,
                     is_active: false,
                 });
             }
             self.rows.push(Track {
                 name,
                 steps: buttons,
-                is_muted: false,
+                is_muted: mute,
                 is_solo: false,
                 instrument_index: i,
             });
@@ -227,8 +244,8 @@ impl Graphics {
         }
     }
 
-    // handler for UiCommand::StepAdvanced
-    pub fn handle_button_click(&mut self, x: f64, y: f64) -> Option<(usize, usize)> {
+    // handler for UiCommand::StepAdvanced, UiCmomand::MuteTrack
+    pub fn handle_button_click(&mut self, x: f64, y: f64) -> ClickResult {
         for (i, track) in &mut self.rows.iter_mut().enumerate() {
             for (j, button) in &mut track.steps.iter_mut().enumerate() {
                 if x > button.x as f64
@@ -237,12 +254,21 @@ impl Graphics {
                     && y < button.y as f64 + button.height as f64
                 {
                     button.is_active = !button.is_active;
-                    return Some((i, j));
+                    return ClickResult::Step(i, j);
                 }
+            }
+            // check for mute
+            if x > (BUTTON_X_ORIGIN - 16) as f64
+                && x < (BUTTON_X_ORIGIN - 16 + MUTE_SQUARE_LENGTH) as f64
+                && y > (BUTTON_Y_ORIGIN + (i as u32 * TRACK_GAP) + 48) as f64
+                && y < ((BUTTON_Y_ORIGIN + (i as u32 * TRACK_GAP) + 48) + MUTE_SQUARE_LENGTH) as f64
+            {
+                track.is_muted = !track.is_muted;
+                return ClickResult::Mute(i);
             }
         }
 
-        None
+        ClickResult::None
     }
 
     // react to resize events from user like minimize
@@ -316,6 +342,34 @@ impl Graphics {
                     vertices.push(vert);
                 }
             }
+
+            let color = if _mouse_x > (BUTTON_X_ORIGIN - 16) as f64
+                && _mouse_x < (BUTTON_X_ORIGIN - 16 + MUTE_SQUARE_LENGTH) as f64
+                && _mouse_y > (BUTTON_Y_ORIGIN + (j as u32 * TRACK_GAP) + 48) as f64
+                && _mouse_y
+                    < ((BUTTON_Y_ORIGIN + (j as u32 * TRACK_GAP) + 48) + MUTE_SQUARE_LENGTH) as f64
+            {
+                LL_GRAY // hover
+            } else if track.is_muted {
+                BLACK // on
+            } else {
+                LIGHT_GRAY // off
+            };
+
+            //mute button
+            for vert in draw_rectangle(
+                BUTTON_X_ORIGIN - 16,
+                BUTTON_Y_ORIGIN + (j as u32 * TRACK_GAP) + 48,
+                MUTE_SQUARE_LENGTH,
+                MUTE_SQUARE_LENGTH,
+                self.surface_config.width,
+                self.surface_config.height,
+                color,
+            ) {
+                vertices.push(vert);
+            }
+
+            // text buffer
             let mut buffer = glyphon::Buffer::new(&mut self.font_system, Metrics::new(18.0, 22.0));
             buffer.set_size(&mut self.font_system, Some(400.0), Some(50.0));
             buffer.set_text(
@@ -334,7 +388,7 @@ impl Graphics {
             .map(|(j, buf)| TextArea {
                 buffer: buf,
                 left: 10.0,
-                top: 64.0 + j as f32 * 72.0,
+                top: BUTTON_Y_ORIGIN as f32 + j as f32 * TRACK_GAP as f32,
                 scale: 1.0,
                 bounds: TextBounds {
                     left: 0,
@@ -342,7 +396,7 @@ impl Graphics {
                     right: 800,
                     bottom: 600,
                 },
-                default_color: glyphon::Color::rgb(255, 255, 255),
+                default_color: glyphon::Color::rgb(255, 255, 255), // white
                 custom_glyphs: &[],
             })
             .collect();
@@ -359,7 +413,7 @@ impl Graphics {
             )
             .unwrap();
 
-        for vert in draw_h_line(32.0, 0.003, self.surface_config.height) {
+        for vert in draw_h_line(TOOLBAR_Y, TOOLBAR_THICKNESS, self.surface_config.height) {
             vertices.push(vert);
         }
 
