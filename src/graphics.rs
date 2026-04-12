@@ -4,10 +4,9 @@ use glyphon::{
     TextAtlas, TextBounds, TextRenderer, Viewport,
 };
 use std::borrow::Cow;
-use wgpu::util::DeviceExt;
 use wgpu::{
-    Buffer, Color, CommandEncoderDescriptor, Device, DeviceDescriptor, Features, FragmentState,
-    Instance, Limits, LoadOp, MemoryHints, MultisampleState, Operations, PowerPreference, Queue,
+    Color, CommandEncoderDescriptor, Device, DeviceDescriptor, Features, FragmentState, Instance,
+    Limits, LoadOp, MemoryHints, MultisampleState, Operations, PowerPreference, Queue,
     RenderPassColorAttachment, RenderPassDescriptor, RenderPipeline, RenderPipelineDescriptor,
     RequestAdapterOptions, ShaderModuleDescriptor, ShaderSource, StoreOp, Surface,
     SurfaceConfiguration, TextureFormat, TextureViewDescriptor, VertexState,
@@ -42,6 +41,7 @@ struct Track {
     instrument_index: usize,
 }
 
+// im not messing with this;; WGSL setup
 impl Vertex {
     const ATTRIBS: [wgpu::VertexAttribute; 2] =
         wgpu::vertex_attr_array![0 => Float32x3, 1 => Float32x3];
@@ -59,8 +59,11 @@ impl Vertex {
 
 // runs once at the beginning of app start up
 pub async fn create_graphics(window: Rc<Window>, proxy: EventLoopProxy<Graphics>) {
+    // Context for all other wgpu objects. Instance of wgpu. first item u create on wgpu
     let instance = Instance::default();
+    //  bridge between wgpu and the actual window pixels, the canvas
     let surface = instance.create_surface(Rc::clone(&window)).unwrap();
+    // the thing wgpu queries to find out "what hardware (GPUs) is actually here and what can it do."
     let adapter = instance
         .request_adapter(&RequestAdapterOptions {
             power_preference: PowerPreference::default(), // Power preference for the device
@@ -70,6 +73,7 @@ pub async fn create_graphics(window: Rc<Window>, proxy: EventLoopProxy<Graphics>
         .await
         .expect("Could not get an adapter (GPU).");
 
+    // device is our GPU interface, and the queue is how we send commands to it
     let (device, queue) = adapter
         .request_device(&DeviceDescriptor {
             label: None,
@@ -90,8 +94,9 @@ pub async fn create_graphics(window: Rc<Window>, proxy: EventLoopProxy<Graphics>
 
     // Initializes Surface for presentation.
     surface.configure(&device, &surface_config);
-
     let render_pipeline = create_pipeline(&device, surface_config.format);
+
+    // glyphon setup
     let font_system = FontSystem::new();
     let swash_cache = SwashCache::new();
     let cache = Cache::new(&device);
@@ -99,14 +104,16 @@ pub async fn create_graphics(window: Rc<Window>, proxy: EventLoopProxy<Graphics>
     let mut atlas = TextAtlas::new(&device, &queue, &cache, surface_config.format);
     let renderer = TextRenderer::new(&mut atlas, &device, MultisampleState::default(), None);
 
+    // Vectors to store all triangles for display
     let mut vertices: Vec<Vertex> = Vec::new();
-    let mut rows: Vec<Track> = Vec::new();
-    dbg!(&surface_config);
+    let rows: Vec<Track> = Vec::new();
 
+    // draw the horizontal line for the future toolbar
     for vert in draw_h_line(0.90, 0.003, surface_config.height) {
         vertices.push(vert);
     }
 
+    // the vertex buffer is how we send data to the gpu
     let vertex_buffer = device.create_buffer(&wgpu::BufferDescriptor {
         label: Some("Vertex Buffer"),
         size: 1024 * 1024, // 1MB, plenty of room
@@ -114,8 +121,7 @@ pub async fn create_graphics(window: Rc<Window>, proxy: EventLoopProxy<Graphics>
         mapped_at_creation: false,
     });
 
-    let num_vertices = vertices.len() as u32;
-
+    // graphics class state to mutate for the rest of the sessions
     let gfx = Graphics {
         window: window.clone(),
         surface,
@@ -125,7 +131,7 @@ pub async fn create_graphics(window: Rc<Window>, proxy: EventLoopProxy<Graphics>
         queue,
         render_pipeline,
         vertex_buffer,
-        num_vertices,
+        num_vertices: vertices.len() as u32,
         active_step: 0,
         font_system,
         viewport,
@@ -134,6 +140,7 @@ pub async fn create_graphics(window: Rc<Window>, proxy: EventLoopProxy<Graphics>
         renderer,
     };
 
+    // returns the graphics state back to wherever it was requested
     let _ = proxy.send_event(gfx);
 }
 
@@ -191,6 +198,7 @@ impl Graphics {
         self.window.request_redraw();
     }
 
+    // handler for : UiCommand::LoadTrack
     pub fn load_track(&mut self, i: usize, name: String, steps: [bool; 16]) {
         if i >= self.rows.len() {
             // add a new row
@@ -219,6 +227,7 @@ impl Graphics {
         }
     }
 
+    // handler for UiCommand::StepAdvanced
     pub fn handle_button_click(&mut self, x: f64, y: f64) -> Option<(usize, usize)> {
         for (i, track) in &mut self.rows.iter_mut().enumerate() {
             for (j, button) in &mut track.steps.iter_mut().enumerate() {
@@ -245,27 +254,16 @@ impl Graphics {
 
     // called every frame to update the canvas
     pub fn draw(&mut self, _mouse_x: f64, _mouse_y: f64) {
-        // create a buffer describing your text
-        let mut buffer = glyphon::Buffer::new(&mut self.font_system, Metrics::new(18.0, 22.0));
-        buffer.set_size(&mut self.font_system, Some(400.0), Some(50.0));
-        buffer.set_text(
-            &mut self.font_system,
-            "BPM: 120",
-            &Attrs::new().family(Family::SansSerif),
-            Shaping::Advanced,
-        );
-        buffer.shape_until_scroll(&mut self.font_system, false);
-
-        // second text buffer
-        let mut buffer2 = glyphon::Buffer::new(&mut self.font_system, Metrics::new(18.0, 22.0));
-        buffer2.set_size(&mut self.font_system, Some(400.0), Some(50.0));
-        buffer2.set_text(
-            &mut self.font_system,
-            "my new text",
-            &Attrs::new().family(Family::SansSerif),
-            Shaping::Advanced,
-        );
-        buffer2.shape_until_scroll(&mut self.font_system, false);
+        // // create a buffer describing your text
+        // let mut buffer = glyphon::Buffer::new(&mut self.font_system, Metrics::new(18.0, 22.0));
+        // buffer.set_size(&mut self.font_system, Some(400.0), Some(50.0));
+        // buffer.set_text(
+        //     &mut self.font_system,
+        //     "BPM: 120",
+        //     &Attrs::new().family(Family::SansSerif),
+        //     Shaping::Advanced,
+        // );
+        // buffer.shape_until_scroll(&mut self.font_system, false);
 
         // update viewport to current screen size
         self.viewport.update(
@@ -276,31 +274,6 @@ impl Graphics {
             },
         );
 
-        // prepare uploads glyphs to GPU atlas
-        self.renderer
-            .prepare(
-                &self.device,
-                &self.queue,
-                &mut self.font_system,
-                &mut self.atlas,
-                &self.viewport,
-                [TextArea {
-                    buffer: &buffer,
-                    left: 10.0,
-                    top: 10.0,
-                    scale: 1.0,
-                    bounds: TextBounds {
-                        left: 0,
-                        top: 0,
-                        right: 400,
-                        bottom: 50,
-                    },
-                    default_color: glyphon::Color::rgb(0, 0, 0),
-                    custom_glyphs: &[],
-                }],
-                &mut self.swash_cache,
-            )
-            .unwrap();
         let frame = self
             .surface
             .get_current_texture()
@@ -309,6 +282,7 @@ impl Graphics {
         let view = frame.texture.create_view(&TextureViewDescriptor::default());
 
         let mut vertices: Vec<Vertex> = Vec::new();
+        let mut text_buffers: Vec<glyphon::Buffer> = Vec::new();
         for (j, track) in &mut self.rows.iter_mut().enumerate() {
             for (i, button) in &mut track.steps.iter_mut().enumerate() {
                 let color;
@@ -342,7 +316,49 @@ impl Graphics {
                     vertices.push(vert);
                 }
             }
+            let mut buffer = glyphon::Buffer::new(&mut self.font_system, Metrics::new(18.0, 22.0));
+            buffer.set_size(&mut self.font_system, Some(400.0), Some(50.0));
+            buffer.set_text(
+                &mut self.font_system,
+                &track.name,
+                &Attrs::new().family(Family::SansSerif),
+                Shaping::Advanced,
+            );
+            buffer.shape_until_scroll(&mut self.font_system, false);
+            text_buffers.push(buffer);
         }
+
+        let text_areas: Vec<TextArea> = text_buffers
+            .iter()
+            .enumerate()
+            .map(|(j, buf)| TextArea {
+                buffer: buf,
+                left: 10.0,
+                top: 64.0 + j as f32 * 72.0,
+                scale: 1.0,
+                bounds: TextBounds {
+                    left: 0,
+                    top: 0,
+                    right: 800,
+                    bottom: 600,
+                },
+                default_color: glyphon::Color::rgb(255, 255, 255),
+                custom_glyphs: &[],
+            })
+            .collect();
+
+        self.renderer
+            .prepare(
+                &self.device,
+                &self.queue,
+                &mut self.font_system,
+                &mut self.atlas,
+                &self.viewport,
+                text_areas,
+                &mut self.swash_cache,
+            )
+            .unwrap();
+
         for vert in draw_h_line(32.0, 0.003, self.surface_config.height) {
             vertices.push(vert);
         }

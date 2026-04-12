@@ -91,7 +91,7 @@ pub fn init(mut consumer: HeapCons<AudioCommand>, mut producer: HeapProd<UiComma
     for (i, instrument) in instruments.iter().enumerate() {
         let bools: Vec<bool> = instrument.steps.iter().map(|step| *step > 0.0).collect();
         producer
-            .try_push(UiCommand::LoadTracks(
+            .try_push(UiCommand::LoadTrack(
                 i,
                 instrument.name.clone(),
                 bools.try_into().unwrap(),
