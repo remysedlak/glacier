@@ -17,7 +17,7 @@ pub enum ClickResult {
     Step(usize, usize), // track, step
     Mute(usize),        // track
     ChangeBpm(f32),
-    TogglePlay(bool),
+    TogglePlay,
     None,
 }
 
@@ -296,7 +296,7 @@ impl Graphics {
             && y < (12 + PLAY_SQUARE_LENGTH) as f64
         {
             self.is_playing = false;
-            return ClickResult::TogglePlay(!self.is_playing);
+            return ClickResult::TogglePlay;
         }
 
         ClickResult::None

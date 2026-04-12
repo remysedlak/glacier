@@ -1,12 +1,10 @@
 use crate::UiCommand;
-
 use cpal::traits::StreamTrait;
 use cpal::traits::{DeviceTrait, HostTrait};
 use cpal::{SampleFormat, Stream};
-use serde::{Deserialize, Serialize};
-
 use ringbuf::traits::{Consumer, Producer};
 use ringbuf::{HeapCons, HeapProd};
+use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize)]
 struct ProjectFile {
@@ -30,7 +28,8 @@ pub enum AudioCommand {
     ToggleStep(usize, usize),
     ChangeBpm(f32),
     ToggleMute(usize),
-    TogglePlay(bool),
+    TogglePlay,
+    ShutDown,
 }
 
 // instrument struct: track information about ONE instrument
@@ -48,7 +47,8 @@ struct Instrument {
 }
 
 pub fn init(mut consumer: HeapCons<AudioCommand>, mut producer: HeapProd<UiCommand>) -> Stream {
-    println!("STARTING REMY'S DAW");
+    println!("STARTING REMY'S AUDIO ENGINE");
+
     let err_fn = |err| eprintln!("an error occurred on the output audio stream: {}", err);
 
     // use the default host to find devices
@@ -77,7 +77,7 @@ pub fn init(mut consumer: HeapCons<AudioCommand>, mut producer: HeapProd<UiComma
 
     // track how many samples have passed since the last step
     let mut sample_counter: f32 = 0.0;
-    let mut current_step = 0;
+    let mut current_step = 15;
 
     println!("SAMPLE RATE: {}", config.sample_rate);
 
@@ -97,43 +97,6 @@ pub fn init(mut consumer: HeapCons<AudioCommand>, mut producer: HeapProd<UiComma
         })
     }
 
-    // instruments.push(Instrument {
-    //     samples: path_to_vector("AttackS.wav"),
-    //     position: 0.0,
-    //     name: "AttackS.wav".to_string(),
-    //     steps: vec![
-    //         0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-    //     ],
-    //     is_playing: false,
-    //     target_volume: 1.0,
-    //     current_volume: 0.0,
-    //     mute: false,
-    // });
-    // instruments.push(Instrument {
-    //     samples: path_to_vector("PopOHH.wav"),
-    //     position: 0.0,
-    //     name: "PopOHH.wav".to_string(),
-    //     steps: vec![
-    //         0.0, 0.0, 95.0, 0.0, 0.0, 0.0, 95.0, 0.0, 0.0, 0.0, 95.0, 0.0, 0.0, 0.0, 95.0, 0.0,
-    //     ],
-    //     is_playing: false,
-    //     target_volume: 1.0,
-    //     current_volume: 0.0,
-    //     mute: false,
-    // });
-    // instruments.push(Instrument {
-    //     samples: path_to_vector("SharpK.wav"),
-    //     position: 0.0,
-    //     name: "SharpK.wav".to_string(),
-    //     steps: vec![
-    //         0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-    //     ],
-    //     is_playing: false,
-    //     target_volume: 1.0,
-    //     current_volume: 0.0,
-    //     mute: false,
-    // });
-
     producer.try_push(UiCommand::LoadBpm(bpm)).ok();
 
     for (i, instrument) in instruments.iter().enumerate() {
@@ -149,6 +112,8 @@ pub fn init(mut consumer: HeapCons<AudioCommand>, mut producer: HeapProd<UiComma
     }
 
     let mut is_playing = false;
+    let mut is_shutting_down = false;
+    let mut shutdown_volume: f32 = 1.00;
 
     // audio callback to fill samples requested from CPAL
     let sequencer_callback = move |data: &mut [f32], _: &cpal::OutputCallbackInfo| {
@@ -169,23 +134,30 @@ pub fn init(mut consumer: HeapCons<AudioCommand>, mut producer: HeapProd<UiComma
                     instruments[i].position = 0.0;
                     instruments[i].is_playing = false;
                 }
-                AudioCommand::TogglePlay(b) => {
+                AudioCommand::TogglePlay => {
                     is_playing = !is_playing;
+                }
+                AudioCommand::ShutDown => {
+                    if !is_playing {
+                        producer.try_push(UiCommand::ShutdownComplete).ok();
+                    }
+                    is_shutting_down = true;
                 }
             }
         }
 
-        if is_playing {
-            sample_counter += data.len() as f32 / 2.0; // increment sample counter by number of samples requested : keep track of sample position
+        // for each sample requested, mix in the appropriate instrument samples
+        for sample in data.chunks_mut(2) {
+            sample[0] = 0.0; // left
+            sample[1] = 0.0; // right
 
-            // get amount of samples per step
-            let samples_per_step = sample_ratef / (bpm / 60.0 * 4.0);
-
-            // for each sample requested, mix in the appropriate instrument samples
-            for sample in data.chunks_mut(2) {
-                sample[0] = 0.0; // left
-                sample[1] = 0.0; // right
-
+            if is_shutting_down {
+                shutdown_volume -= 0.0001;
+                if shutdown_volume <= 0.0 {
+                    producer.try_push(UiCommand::ShutdownComplete).ok();
+                }
+            }
+            if is_playing {
                 for instrument in &mut instruments {
                     if !instrument.mute {
                         // if the instrument is active at the current step, mix in its sample
@@ -199,30 +171,42 @@ pub fn init(mut consumer: HeapCons<AudioCommand>, mut producer: HeapProd<UiComma
                                         instrument.target_volume - instrument.current_volume;
                                     instrument.current_volume += difference * 0.01;
                                 }
+                                // add current samples to left and right channel and increment instruments position
                                 sample[0] += instrument.samples
                                     [(instrument.position as f32) as usize]
-                                    * instrument.current_volume;
+                                    * instrument.current_volume
+                                    * shutdown_volume;
                                 sample[1] += instrument.samples
                                     [(instrument.position as f32) as usize + 1]
-                                    * instrument.current_volume;
+                                    * instrument.current_volume
+                                    * shutdown_volume;
                                 instrument.position += 2.0;
                             }
                         }
                     }
                 }
             }
+        }
+
+        if is_playing {
+            sample_counter += data.len() as f32 / 2.0; // increment sample counter by number of samples requested : keep track of sample position
+
+            // get amount of samples per step
+            let samples_per_step = sample_ratef / (bpm / 60.0 * 4.0);
+
+            // increment the step if enough samples have passed
             if sample_counter >= samples_per_step {
                 sample_counter = 0.0;
                 current_step = (current_step + 1) % 16;
                 producer
                     .try_push(UiCommand::StepAdvanced(current_step))
                     .ok();
+                // if the instrument plays on the newly incremented step, restart its position, enabling it for the next callback
                 for instrument in &mut instruments {
                     if instrument.steps[current_step] > 0.0 {
                         instrument.position = 0.0;
                         instrument.is_playing = true;
                         instrument.target_volume = instrument.steps[current_step] / 127.0;
-                        // midi vel
                     }
                 }
             }

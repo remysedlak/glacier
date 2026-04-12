@@ -55,9 +55,9 @@ fn main() {
     let (ui_prod, ui_cons) = HeapRb::<UiCommand>::new(64).split();
 
     // start the audio stream
-    let _stream = audio::init(consumer, ui_prod);
+    let stream = audio::init(consumer, ui_prod);
 
     // start the ui
-    let app = App::new(producer, ui_cons, &event_loop);
+    let app = App::new(producer, ui_cons, &event_loop, stream);
     run_app(event_loop, app);
 }

@@ -1,5 +1,7 @@
 use crate::audio::AudioCommand;
 use crate::graphics::{create_graphics, ClickResult, Graphics, Rc};
+use cpal::traits::StreamTrait;
+use cpal::Stream;
 use ringbuf::traits::{Consumer, Producer};
 use ringbuf::{HeapCons, HeapProd};
 use winit::{
@@ -15,6 +17,7 @@ pub enum UiCommand {
     StepAdvanced(usize),
     LoadTrack(usize, String, [bool; 16], bool),
     LoadBpm(f32),
+    ShutdownComplete,
     // InstrumentAdded(...) when we get there
 }
 
@@ -30,6 +33,7 @@ pub struct App {
     state: State,
     mouse_x: f64,
     mouse_y: f64,
+    stream: Stream,
 }
 
 impl App {
@@ -38,6 +42,7 @@ impl App {
         producer: HeapProd<AudioCommand>,
         consumer: HeapCons<UiCommand>,
         event_loop: &EventLoop<Graphics>,
+        stream: Stream,
     ) -> Self {
         Self {
             producer,
@@ -45,11 +50,12 @@ impl App {
             state: State::Init(Some(event_loop.create_proxy())),
             mouse_x: 0.0,
             mouse_y: 0.0,
+            stream: stream,
         }
     }
 
     // if the state is ready, draw the frame
-    fn draw(&mut self) {
+    fn draw(&mut self, event_loop: &ActiveEventLoop) {
         if let State::Ready(gfx) = &mut self.state {
             while let Some(cmd) = self.consumer.try_pop() {
                 match cmd {
@@ -61,6 +67,10 @@ impl App {
                     }
                     UiCommand::LoadBpm(bpm) => {
                         gfx.bpm = bpm;
+                    }
+                    UiCommand::ShutdownComplete => {
+                        let _ = self.stream.pause();
+                        event_loop.exit();
                     }
                 }
             }
@@ -123,9 +133,14 @@ impl ApplicationHandler<Graphics> for App {
         event: WindowEvent,
     ) {
         match event {
+            WindowEvent::CloseRequested => {
+                self.producer.try_push(AudioCommand::ShutDown).ok();
+                if let State::Ready(gfx) = &mut self.state {
+                    gfx.request_redraw();
+                }
+            }
             WindowEvent::Resized(size) => self.resized(size),
-            WindowEvent::RedrawRequested => self.draw(),
-            WindowEvent::CloseRequested => event_loop.exit(),
+            WindowEvent::RedrawRequested => self.draw(&event_loop),
             WindowEvent::MouseInput { state, button, .. } => {
                 if state.is_pressed() && button == MouseButton::Left {
                     if let State::Ready(gfx) = &mut self.state {
@@ -141,13 +156,13 @@ impl ApplicationHandler<Graphics> for App {
                             ClickResult::ChangeBpm(bpm) => {
                                 self.producer.try_push(AudioCommand::ChangeBpm(bpm)).ok();
                             }
-                            ClickResult::TogglePlay(b) => {
-                                self.producer.try_push(AudioCommand::TogglePlay(b)).ok();
+                            ClickResult::TogglePlay => {
+                                self.producer.try_push(AudioCommand::TogglePlay).ok();
                             }
                             ClickResult::None => {}
                         }
                     } // closes if let
-                    self.draw();
+                    self.draw(&event_loop);
                 } // closes if state.is_pressed()
             } // closes MouseInput arm
 
@@ -155,7 +170,7 @@ impl ApplicationHandler<Graphics> for App {
                 // position.x and position.y are available here
                 self.mouse_x = position.x;
                 self.mouse_y = position.y;
-                self.draw();
+                self.draw(&event_loop);
             }
             _ => {}
         }
