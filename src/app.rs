@@ -12,7 +12,7 @@ use winit::keyboard::KeyCode;
 use winit::{
     application::ApplicationHandler,
     dpi::PhysicalSize,
-    event::{KeyEvent, MouseButton, WindowEvent},
+    event::{MouseButton, WindowEvent},
     event_loop::{ActiveEventLoop, EventLoop, EventLoopProxy},
     keyboard::PhysicalKey,
     window::{Window, WindowId},
@@ -42,6 +42,7 @@ pub struct App {
     mouse_y: f64,
     stream: Stream,
     pending_project: Option<String>,
+    ctrl_pressed: bool,
 }
 
 impl App {
@@ -60,6 +61,7 @@ impl App {
             mouse_y: 0.0,
             stream: stream,
             pending_project: None,
+            ctrl_pressed: false,
         }
     }
 
@@ -166,7 +168,20 @@ impl ApplicationHandler<Graphics> for App {
                 }
             }
             WindowEvent::Resized(size) => self.resized(size),
+            WindowEvent::RedrawRequested => self.draw(&event_loop),
+            // detect keyboard input
             WindowEvent::KeyboardInput { event, .. } => {
+                // on release
+                if !event.state.is_pressed() {
+                    match event.physical_key {
+                        PhysicalKey::Code(KeyCode::ControlLeft) => {
+                            self.ctrl_pressed = false;
+                        }
+                        _ => {}
+                    }
+                }
+
+                // on hold
                 if event.state.is_pressed() {
                     match event.physical_key {
                         PhysicalKey::Code(KeyCode::Space) => {
@@ -175,11 +190,21 @@ impl ApplicationHandler<Graphics> for App {
                                 gfx.is_playing = !gfx.is_playing
                             }
                         }
+                        // Ctrl state
+                        PhysicalKey::Code(KeyCode::ControlLeft) => {
+                            self.ctrl_pressed = true;
+                        }
+                        // Save
+                        PhysicalKey::Code(KeyCode::KeyS) => {
+                            if self.ctrl_pressed {
+                                self.producer.try_push(AudioCommand::SaveProject).ok();
+                            }
+                        }
                         _ => {}
                     }
                 }
             }
-            WindowEvent::RedrawRequested => self.draw(&event_loop),
+            // detect mouse input
             WindowEvent::MouseInput { state, button, .. } => {
                 if state.is_pressed() && button == MouseButton::Left {
                     if let State::Ready(gfx) = &mut self.state {
@@ -219,11 +244,12 @@ impl ApplicationHandler<Graphics> for App {
                             }
                             ClickResult::None => {}
                         }
-                    } // closes if let
+                    }
                     self.draw(&event_loop);
-                } // closes if state.is_pressed()
-            } // closes MouseInput arm
+                }
+            }
 
+            // detect cursor movement
             WindowEvent::CursorMoved { position, .. } => {
                 // position.x and position.y are available here
                 self.mouse_x = position.x;
