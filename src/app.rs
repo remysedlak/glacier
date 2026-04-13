@@ -8,11 +8,13 @@ use ringbuf::traits::Split;
 use ringbuf::traits::{Consumer, Producer};
 use ringbuf::HeapRb;
 use ringbuf::{HeapCons, HeapProd};
+use winit::keyboard::KeyCode;
 use winit::{
     application::ApplicationHandler,
     dpi::PhysicalSize,
-    event::{MouseButton, WindowEvent},
+    event::{KeyEvent, MouseButton, WindowEvent},
     event_loop::{ActiveEventLoop, EventLoop, EventLoopProxy},
+    keyboard::PhysicalKey,
     window::{Window, WindowId},
 };
 
@@ -164,6 +166,19 @@ impl ApplicationHandler<Graphics> for App {
                 }
             }
             WindowEvent::Resized(size) => self.resized(size),
+            WindowEvent::KeyboardInput { event, .. } => {
+                if event.state.is_pressed() {
+                    match event.physical_key {
+                        PhysicalKey::Code(KeyCode::Space) => {
+                            self.producer.try_push(AudioCommand::TogglePlay).ok();
+                            if let State::Ready(gfx) = &mut self.state {
+                                gfx.is_playing = !gfx.is_playing
+                            }
+                        }
+                        _ => {}
+                    }
+                }
+            }
             WindowEvent::RedrawRequested => self.draw(&event_loop),
             WindowEvent::MouseInput { state, button, .. } => {
                 if state.is_pressed() && button == MouseButton::Left {
