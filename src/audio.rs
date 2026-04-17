@@ -1,9 +1,12 @@
 use crate::UiCommand;
-use cpal::traits::StreamTrait;
-use cpal::traits::{DeviceTrait, HostTrait};
-use cpal::{SampleFormat, Stream};
-use ringbuf::traits::{Consumer, Producer};
-use ringbuf::{HeapCons, HeapProd};
+use cpal::{
+    traits::{DeviceTrait, HostTrait, StreamTrait},
+    {SampleFormat, Stream},
+};
+use ringbuf::{
+    traits::{Consumer, Producer},
+    {HeapCons, HeapProd},
+};
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize)]

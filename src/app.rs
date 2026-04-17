@@ -4,17 +4,16 @@ use crate::graphics::{create_graphics, ClickResult, Graphics, Rc};
 use cpal::traits::StreamTrait;
 use cpal::Stream;
 use rfd::FileDialog;
-use ringbuf::traits::Split;
-use ringbuf::traits::{Consumer, Producer};
-use ringbuf::HeapRb;
-use ringbuf::{HeapCons, HeapProd};
-use winit::keyboard::KeyCode;
+use ringbuf::{
+    traits::{Consumer, Producer, Split},
+    {HeapCons, HeapProd, HeapRb},
+};
 use winit::{
     application::ApplicationHandler,
     dpi::PhysicalSize,
     event::{MouseButton, WindowEvent},
     event_loop::{ActiveEventLoop, EventLoop, EventLoopProxy},
-    keyboard::PhysicalKey,
+    keyboard::{KeyCode, PhysicalKey},
     window::{Window, WindowId},
 };
 

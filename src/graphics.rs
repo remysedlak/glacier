@@ -1,4 +1,4 @@
-use crate::render::{draw_h_line, draw_rectangle, StepButton};
+use crate::ui::{draw_slider, draw_toolbar};
 use glyphon::{
     Attrs, Cache, Family, FontSystem, Metrics, Resolution, Shaping, SwashCache, TextArea,
     TextAtlas, TextBounds, TextRenderer, Viewport,
@@ -13,6 +13,9 @@ use wgpu::{
 };
 use winit::{dpi::PhysicalSize, event_loop::EventLoopProxy, window::Window};
 
+use crate::colors::*;
+use crate::ui::*;
+
 pub enum ClickResult {
     Step(usize, usize), // track, step
     Mute(usize),        // track
@@ -22,44 +25,11 @@ pub enum ClickResult {
     None,
 }
 
-const ONE_MEGABYTE: u64 = 1024 * 1024;
-
-const TOOLBAR_Y: f32 = 32.0;
-const TOOLBAR_THICKNESS: f32 = 0.003;
-const TOOLBAR_MARGIN: u32 = 4;
-
-const BUTTON_X_ORIGIN: u32 = 128;
-const BUTTON_Y_ORIGIN: u32 = 64;
-const BUTTON_WIDTH: u32 = 24;
-const BUTTON_HEIGHT: u32 = 64;
-
-const BAR_GAP: u32 = 8;
-const BUTTON_GAP: u32 = 32;
-const TRACK_GAP: u32 = 72;
-
-const MUTE_SQUARE_LENGTH: u32 = 12;
-const PLAY_SQUARE_HEIGHT: u32 = ICON_HEIGHT;
-const PLAY_SQUARE_WIDTH: u32 = 54;
-
-const PLAY_Y_ORIGIN: u32 = TOOLBAR_MARGIN;
-const PLAY_X_ORIGIN: u32 = 90;
-
-const ICON_WIDTH: u32 = 32;
-const ICON_HEIGHT: u32 = 24;
-
-const LOAD_PROJECT_ICON_OFFSET: u32 = 40;
-
 #[cfg(target_arch = "wasm32")]
 pub type Rc<T> = std::rc::Rc<T>;
 
 #[cfg(not(target_arch = "wasm32"))]
 pub type Rc<T> = std::sync::Arc<T>;
-
-const LIGHT_GRAY: (f32, f32, f32) = (0.53, 0.53, 0.53);
-const DARK_GRAY: (f32, f32, f32) = (0.03, 0.03, 0.03);
-const BLUE: (f32, f32, f32) = (0.01, 0.01, 0.98);
-const BLACK: (f32, f32, f32) = (0.00, 0.00, 0.00);
-const LL_GRAY: (f32, f32, f32) = (0.27, 0.27, 0.27);
 
 #[repr(C)]
 #[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
@@ -434,6 +404,12 @@ impl Graphics {
                 vertices.push(vert);
             }
 
+            draw_slider(
+                self.surface_config.width,
+                self.surface_config.height,
+                &mut vertices,
+            );
+
             // text buffer
             let mut buffer = glyphon::Buffer::new(&mut self.font_system, Metrics::new(18.0, 22.0));
             buffer.set_size(&mut self.font_system, Some(400.0), Some(50.0));
@@ -512,72 +488,13 @@ impl Graphics {
             )
             .unwrap();
 
-        // toolbar line
-        for vert in draw_h_line(TOOLBAR_Y, TOOLBAR_THICKNESS, self.surface_config.height) {
-            vertices.push(vert);
-        }
-
-        // bpm up button
-        for vert in draw_rectangle(
-            48,
-            15,
-            16,
-            6,
+        draw_toolbar(
+            &mut vertices,
             self.surface_config.width,
             self.surface_config.height,
-            LIGHT_GRAY,
-        ) {
-            vertices.push(vert);
-        }
-
-        // bpm down button
-        for vert in draw_rectangle(
-            48,
-            15 + 8,
-            16,
-            6,
-            self.surface_config.width,
-            self.surface_config.height,
-            LIGHT_GRAY,
-        ) {
-            vertices.push(vert);
-        }
-
-        let color = if _mouse_x > PLAY_X_ORIGIN as f64
-            && _mouse_x < (PLAY_X_ORIGIN + PLAY_SQUARE_WIDTH) as f64
-            && _mouse_y > PLAY_Y_ORIGIN as f64
-            && _mouse_y < (PLAY_Y_ORIGIN + PLAY_SQUARE_HEIGHT) as f64
-        {
-            LL_GRAY
-        } else {
-            LIGHT_GRAY
-        };
-
-        // play/pause button
-        for vert in draw_rectangle(
-            PLAY_X_ORIGIN,
-            PLAY_Y_ORIGIN,
-            PLAY_SQUARE_WIDTH,
-            PLAY_SQUARE_HEIGHT,
-            self.surface_config.width,
-            self.surface_config.height,
-            color,
-        ) {
-            vertices.push(vert);
-        }
-
-        // Load file button
-        for vert in draw_rectangle(
-            self.surface_config.width - LOAD_PROJECT_ICON_OFFSET,
-            TOOLBAR_MARGIN,
-            ICON_WIDTH,
-            ICON_HEIGHT,
-            self.surface_config.width,
-            self.surface_config.height,
-            LIGHT_GRAY,
-        ) {
-            vertices.push(vert);
-        }
+            _mouse_x,
+            _mouse_y,
+        );
 
         self.queue
             .write_buffer(&self.vertex_buffer, 0, bytemuck::cast_slice(&vertices));

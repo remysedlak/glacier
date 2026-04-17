@@ -1,8 +1,8 @@
 mod app;
 mod audio;
+mod colors;
 mod graphics;
-mod render;
-
+mod ui;
 use crate::{
     app::{App, UiCommand},
     graphics::Graphics,
@@ -50,14 +50,14 @@ fn main() {
     // input, and uses significantly less power/CPU time than ControlFlow::Poll.
     //event_loop.set_control_flow(ControlFlow::Wait);
 
-    // Commands are passed through audio and ui thread by ring buffers
+    // Create ring buffers with capacity of 64 commands for ui and audio engine to communicate data.
     let (audio_prod, audio_cons) = HeapRb::<AudioCommand>::new(64).split();
     let (ui_prod, ui_cons) = HeapRb::<UiCommand>::new(64).split();
 
-    // start the audio stream
+    // start the audio stream with buffers that product ui commands asnd consume in audio commands
     let stream = audio::init(audio_cons, ui_prod, "my_song.toml".to_string()); // hard coded intro song for dev work
 
-    // start the ui
+    // start the ui with buffers that produce audio commands and consume in ui commands
     let app = App::new(audio_prod, ui_cons, &event_loop, stream);
     run_app(event_loop, app);
 }
