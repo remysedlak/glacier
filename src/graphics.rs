@@ -25,6 +25,11 @@ pub enum ClickResult {
     None,
 }
 
+pub enum DragResult {
+    DragVolumeSlider(f32),
+    None,
+}
+
 #[cfg(target_arch = "wasm32")]
 pub type Rc<T> = std::rc::Rc<T>;
 
@@ -141,6 +146,7 @@ pub async fn create_graphics(window: Rc<Window>, proxy: EventLoopProxy<Graphics>
         renderer,
         bpm: 120.0,
         is_playing: false,
+        master_volume: 0.5,
     };
 
     // returns the graphics state back to wherever it was requested
@@ -196,6 +202,7 @@ pub struct Graphics {
     renderer: TextRenderer,
     pub bpm: f32,
     pub is_playing: bool,
+    pub master_volume: f32,
 }
 
 impl Graphics {
@@ -230,6 +237,20 @@ impl Graphics {
         for (j, &step) in steps.iter().enumerate() {
             self.rows[i].steps[j].is_active = step;
         }
+    }
+
+    pub fn handle_drag(&mut self, x: f64, y: f64) -> DragResult {
+        let y_ceiling: f64 = 416.0;
+        let track_height: f64 = 164.0;
+        let padding = 32.0;
+        if x > 64.0 - padding && x < 96.0 + padding && y > y_ceiling && y < y_ceiling + track_height
+        {
+            self.master_volume =
+                1.0 - ((y as f32 - y_ceiling as f32) / track_height as f32).clamp(0.0, 1.0);
+            dbg!(self.master_volume);
+            return DragResult::DragVolumeSlider(self.master_volume);
+        }
+        return DragResult::None;
     }
 
     // handler for UiCommand::StepAdvanced, UiCmomand::MuteTrack
@@ -408,6 +429,7 @@ impl Graphics {
                 self.surface_config.width,
                 self.surface_config.height,
                 &mut vertices,
+                &mut self.master_volume,
             );
 
             // text buffer

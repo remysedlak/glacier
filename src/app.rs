@@ -1,6 +1,6 @@
 use crate::audio;
 use crate::audio::AudioCommand;
-use crate::graphics::{create_graphics, ClickResult, Graphics, Rc};
+use crate::graphics::{create_graphics, ClickResult, DragResult, Graphics, Rc};
 use cpal::traits::StreamTrait;
 use cpal::Stream;
 use rfd::FileDialog;
@@ -22,6 +22,7 @@ pub enum UiCommand {
     StepAdvanced(usize),
     LoadTrack(usize, String, [bool; 16], bool),
     LoadBpm(f32),
+    LoadMasterVolume(f32),
     ShutdownComplete,
     SaveComplete,
     // InstrumentAdded(...) when we get there
@@ -42,6 +43,7 @@ pub struct App {
     stream: Stream,
     pending_project: Option<String>,
     ctrl_pressed: bool,
+    left_click_held: bool,
 }
 
 impl App {
@@ -61,6 +63,7 @@ impl App {
             stream: stream,
             pending_project: None,
             ctrl_pressed: false,
+            left_click_held: false,
         }
     }
 
@@ -79,6 +82,9 @@ impl App {
                     }
                     UiCommand::LoadBpm(bpm) => {
                         gfx.bpm = bpm;
+                    }
+                    UiCommand::LoadMasterVolume(fl) => {
+                        gfx.master_volume = fl;
                     }
                     UiCommand::ShutdownComplete => {
                         let _ = self.stream.pause();
@@ -206,6 +212,7 @@ impl ApplicationHandler<Graphics> for App {
             // detect mouse input
             WindowEvent::MouseInput { state, button, .. } => {
                 if state.is_pressed() && button == MouseButton::Left {
+                    self.left_click_held = true;
                     if let State::Ready(gfx) = &mut self.state {
                         match gfx.handle_button_click(self.mouse_x, self.mouse_y) {
                             ClickResult::Step(track, step) => {
@@ -245,6 +252,8 @@ impl ApplicationHandler<Graphics> for App {
                         }
                     }
                     self.draw(&event_loop);
+                } else {
+                    self.left_click_held = false;
                 }
             }
 
@@ -253,6 +262,18 @@ impl ApplicationHandler<Graphics> for App {
                 // position.x and position.y are available here
                 self.mouse_x = position.x;
                 self.mouse_y = position.y;
+                if let State::Ready(gfx) = &mut self.state {
+                    if self.left_click_held {
+                        match gfx.handle_drag(position.x, position.y) {
+                            DragResult::None => {}
+                            DragResult::DragVolumeSlider(fl) => {
+                                self.producer
+                                    .try_push(AudioCommand::ChangeMasterVolume(fl))
+                                    .ok();
+                            }
+                        }
+                    }
+                }
                 self.draw(&event_loop);
             }
             _ => {}

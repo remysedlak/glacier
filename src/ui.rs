@@ -45,6 +45,8 @@ pub struct StepButton {
 //     pub width: u32,
 //     pub height: u32,
 // }
+//
+//
 
 pub fn draw_rectangle(
     x: u32,
@@ -183,14 +185,43 @@ pub fn draw_toolbar(
     }
 }
 
-pub fn draw_slider(screen_x: u32, screen_y: u32, vertices: &mut Vec<Vertex>) {
-    // master volume button track
-    for vert in draw_rectangle(64 + (32 / 2), 416, 4, 164, screen_x, screen_y, BLACK) {
+pub fn draw_slider(
+    screen_x: u32,
+    screen_y: u32,
+    vertices: &mut Vec<Vertex>,
+    master_volume: &mut f32,
+) {
+    let x_coord = 64;
+    let y_ceiling = 416;
+    let track_height = 164;
+    let track_width = 4;
+    let thumb_height = 16;
+    let thumb_width = 32;
+    let thumb_y_coord = ((1.0 - *master_volume) * 164.0) as u32 + y_ceiling;
+
+    // TRACK (static)
+    for vert in draw_rectangle(
+        x_coord + (thumb_width / 2), // the track is in the midle of the button
+        y_ceiling,
+        track_width,
+        track_height,
+        screen_x,
+        screen_y,
+        BLACK,
+    ) {
         vertices.push(vert);
     }
 
-    // master volume button
-    for vert in draw_rectangle(64, 416, 32, 16, screen_x, screen_y, LIGHT_GRAY) {
+    // THUMB (user input)
+    for vert in draw_rectangle(
+        x_coord,
+        thumb_y_coord,
+        thumb_width,
+        thumb_height,
+        screen_x,
+        screen_y,
+        LIGHT_GRAY,
+    ) {
         vertices.push(vert);
     }
 }

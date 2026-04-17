@@ -30,6 +30,7 @@ struct TrackData {
 pub enum AudioCommand {
     ToggleStep(usize, usize),
     ChangeBpm(f32),
+    ChangeMasterVolume(f32),
     ToggleMute(usize),
     TogglePlay,
     ShutDown,
@@ -85,6 +86,8 @@ pub fn init(
     let mut sample_counter: f32 = 0.0; // tracks how many samples passed, to track when a step passes
     let mut current_step = 15;
 
+    let mut master_volume = 1.0;
+
     // user hardware specific
     println!("SAMPLE RATE: {}", config.sample_rate);
 
@@ -110,6 +113,11 @@ pub fn init(
     // load the stored BPM onto the UI screen
     producer.try_push(UiCommand::LoadBpm(bpm)).ok();
 
+    // load the stored BPM onto the UI screen
+    producer
+        .try_push(UiCommand::LoadMasterVolume(master_volume))
+        .ok();
+
     // load each instrument individually to the UI screen
     for (i, instrument) in instruments.iter().enumerate() {
         let bools: Vec<bool> = instrument.steps.iter().map(|step| *step > 0.0).collect();
@@ -132,6 +140,9 @@ pub fn init(
         // before performing an audio callback, check if UI pushed any commands to pop
         while let Some(cmd) = consumer.try_pop() {
             match cmd {
+                AudioCommand::ChangeMasterVolume(volume) => {
+                    master_volume = volume;
+                }
                 AudioCommand::ToggleStep(x, y) => {
                     if instruments[x].steps[y] > 0.0 {
                         instruments[x].steps[y] = 0.0;
@@ -239,11 +250,13 @@ pub fn init(
                             // add current samples to left and right channel and increment instruments position
                             sample[0] += instrument.samples[(instrument.position as f32) as usize]
                                 * instrument.current_volume
-                                * shutdown_volume;
+                                * shutdown_volume
+                                * master_volume;
                             sample[1] += instrument.samples
                                 [(instrument.position as f32) as usize + 1]
                                 * instrument.current_volume
-                                * shutdown_volume;
+                                * shutdown_volume
+                                * master_volume;
                             instrument.position += 2.0;
                         }
                     }
