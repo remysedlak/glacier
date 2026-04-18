@@ -1,5 +1,5 @@
 project_name = "My first song"
-bpm = 138.0
+bpm = 122.0
 
 [[tracks]]
 name = "kick"
@@ -7,13 +7,13 @@ mute = false
 steps = [100.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 95.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
 sample_path = "SharpK.wav"
 position = 0.0
-target_volume = 0.7480315
+target_volume = 0.78740156
 is_playing = false
 
 [[tracks]]
 name = "hat"
 mute = false
-steps = [0.0, 0.0, 95.0, 95.0, 0.0, 0.0, 95.0, 0.0, 0.0, 0.0, 0.0, 0.0, 100.0, 0.0, 95.0, 0.0]
+steps = [95.0, 0.0, 95.0, 95.0, 0.0, 0.0, 95.0, 0.0, 0.0, 0.0, 95.0, 0.0, 100.0, 0.0, 95.0, 95.0]
 sample_path = "PopOHH.wav"
 position = 0.0
 target_volume = 0.7480315
@@ -22,7 +22,7 @@ is_playing = false
 [[tracks]]
 name = "snare"
 mute = false
-steps = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 95.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+steps = [0.0, 0.0, 0.0, 0.0, 95.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 95.0, 0.0, 0.0, 0.0]
 sample_path = "AttackS.wav"
 position = 0.0
 target_volume = 0.7480315

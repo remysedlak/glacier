@@ -50,6 +50,7 @@ struct Track {
     is_muted: bool,
     is_solo: bool,
     instrument_index: usize,
+    show_velocity: bool,
 }
 
 // im not messing with this;; WGSL setup
@@ -231,6 +232,7 @@ impl Graphics {
                 is_muted: mute,
                 is_solo: false,
                 instrument_index: i,
+                show_velocity: false,
             });
         }
         // set step states
@@ -273,6 +275,16 @@ impl Graphics {
                 && y < ((BUTTON_Y_ORIGIN + (i as u32 * TRACK_GAP) + 48) + MUTE_SQUARE_LENGTH) as f64
             {
                 track.is_muted = !track.is_muted;
+                return ClickResult::Mute(i);
+            }
+
+            // check for solo
+            if x > (BUTTON_X_ORIGIN - 40) as f64
+                && x < (BUTTON_X_ORIGIN - 40 + MUTE_SQUARE_LENGTH) as f64
+                && y > (BUTTON_Y_ORIGIN + (i as u32 * TRACK_GAP) + 48) as f64
+                && y < ((BUTTON_Y_ORIGIN + (i as u32 * TRACK_GAP) + 48) + MUTE_SQUARE_LENGTH) as f64
+            {
+                track.show_velocity = !track.show_velocity;
                 return ClickResult::Mute(i);
             }
         }
@@ -324,18 +336,6 @@ impl Graphics {
 
     // called every frame to update the canvas
     pub fn draw(&mut self, _mouse_x: f64, _mouse_y: f64) {
-        // // create a buffer describing your text
-        // let mut buffer = glyphon::Buffer::new(&mut self.font_system, Metrics::new(18.0, 22.0));
-        // buffer.set_size(&mut self.font_system, Some(400.0), Some(50.0));
-        // buffer.set_text(
-        //     &mut self.font_system,
-        //     "BPM: 120",
-        //     &Attrs::new().family(Family::SansSerif),
-        //     Shaping::Advanced,
-        // );
-        // buffer.shape_until_scroll(&mut self.font_system, false);
-
-        // update viewport to current screen size
         self.viewport.update(
             &self.queue,
             Resolution {
@@ -357,7 +357,11 @@ impl Graphics {
             for (i, button) in &mut track.steps.iter_mut().enumerate() {
                 let color;
                 if i == self.active_step {
-                    color = BLUE;
+                    if button.is_active {
+                        color = DARK_BLUE;
+                    } else {
+                        color = BLUE;
+                    }
                 } else {
                     if button.is_active {
                         if _mouse_x > button.x as f64
@@ -395,22 +399,25 @@ impl Graphics {
                 }
             }
 
-            let color = if _mouse_x > (BUTTON_X_ORIGIN - 16) as f64
+            let button_color = |is_active: bool, hovering: bool| {
+                if hovering {
+                    if !is_active {
+                        LL_GRAY
+                    } else {
+                        DARK_GRAY
+                    }
+                } else if is_active {
+                    BLACK
+                } else {
+                    LIGHT_GRAY
+                }
+            };
+
+            let hover = _mouse_x > (BUTTON_X_ORIGIN - 16) as f64
                 && _mouse_x < (BUTTON_X_ORIGIN - 16 + MUTE_SQUARE_LENGTH) as f64
                 && _mouse_y > (BUTTON_Y_ORIGIN + (j as u32 * TRACK_GAP) + 48) as f64
                 && _mouse_y
-                    < ((BUTTON_Y_ORIGIN + (j as u32 * TRACK_GAP) + 48) + MUTE_SQUARE_LENGTH) as f64
-            {
-                if !track.is_muted {
-                    LL_GRAY // hover
-                } else {
-                    DARK_GRAY
-                }
-            } else if track.is_muted {
-                BLACK // on
-            } else {
-                LIGHT_GRAY // off
-            };
+                    < ((BUTTON_Y_ORIGIN + (j as u32 * TRACK_GAP) + 48) + MUTE_SQUARE_LENGTH) as f64;
 
             //mute button
             for vert in draw_rectangle(
@@ -420,19 +427,33 @@ impl Graphics {
                 MUTE_SQUARE_LENGTH,
                 self.surface_config.width,
                 self.surface_config.height,
-                color,
+                button_color(track.is_muted, hover),
             ) {
                 vertices.push(vert);
             }
 
-            draw_slider(
+            let button_gap = 40;
+
+            let hover = _mouse_x > (BUTTON_X_ORIGIN - button_gap) as f64
+                && _mouse_x < (BUTTON_X_ORIGIN + MUTE_SQUARE_LENGTH - button_gap) as f64
+                && _mouse_y > (BUTTON_Y_ORIGIN + (j as u32 * TRACK_GAP) + 48) as f64
+                && _mouse_y
+                    < ((BUTTON_Y_ORIGIN + (j as u32 * TRACK_GAP) + 48) + MUTE_SQUARE_LENGTH) as f64;
+
+            // velocity button
+            for vert in draw_rectangle(
+                BUTTON_X_ORIGIN - button_gap,
+                BUTTON_Y_ORIGIN + (j as u32 * TRACK_GAP) + 48,
+                MUTE_SQUARE_LENGTH,
+                MUTE_SQUARE_LENGTH,
                 self.surface_config.width,
                 self.surface_config.height,
-                &mut vertices,
-                &mut self.master_volume,
-            );
+                button_color(track.show_velocity, hover),
+            ) {
+                vertices.push(vert);
+            }
 
-            // text buffer
+            // track text buffer
             let mut buffer = glyphon::Buffer::new(&mut self.font_system, Metrics::new(18.0, 22.0));
             buffer.set_size(&mut self.font_system, Some(400.0), Some(50.0));
             buffer.set_text(
@@ -447,7 +468,34 @@ impl Graphics {
                 10.0,
                 BUTTON_Y_ORIGIN as f32 + j as f32 * TRACK_GAP as f32,
             ));
+
+            // mute text buffer
+            let mut mute_buffer =
+                glyphon::Buffer::new(&mut self.font_system, Metrics::new(12.0, 22.0));
+            mute_buffer.set_size(&mut self.font_system, Some(400.0), Some(50.0));
+            mute_buffer.set_text(
+                &mut self.font_system,
+                "mute",
+                &Attrs::new()
+                    .family(Family::SansSerif)
+                    .color(glyphon::Color::rgb(0, 0, 0)),
+                Shaping::Advanced,
+            );
+            mute_buffer.shape_until_scroll(&mut self.font_system, false);
+            text_items.push((
+                mute_buffer,
+                (BUTTON_X_ORIGIN - 32) as f32,
+                BUTTON_Y_ORIGIN as f32 + j as f32 * TRACK_GAP as f32 + 54.0,
+            ));
         }
+
+        // master volume slider
+        draw_slider(
+            self.surface_config.width,
+            self.surface_config.height,
+            &mut vertices,
+            &mut self.master_volume,
+        );
 
         // bpm text buffer
         let mut bpm_buffer = glyphon::Buffer::new(&mut self.font_system, Metrics::new(18.0, 22.0));
@@ -460,6 +508,19 @@ impl Graphics {
         );
         bpm_buffer.shape_until_scroll(&mut self.font_system, false);
         text_items.push((bpm_buffer, 10.0, 10.0));
+
+        // volume text buffer
+        let mut volume_buffer =
+            glyphon::Buffer::new(&mut self.font_system, Metrics::new(18.0, 22.0));
+        volume_buffer.set_size(&mut self.font_system, Some(400.0), Some(50.0));
+        volume_buffer.set_text(
+            &mut self.font_system,
+            &self.master_volume.to_string(),
+            &Attrs::new().family(Family::SansSerif),
+            Shaping::Advanced,
+        );
+        volume_buffer.shape_until_scroll(&mut self.font_system, false);
+        text_items.push((volume_buffer, 54.0, 380.0));
 
         let label = if self.is_playing { "❚❚" } else { "  ▶" };
 
