@@ -36,6 +36,7 @@ pub enum AudioCommand {
     ShutDown,
     SaveProject,
     AddInstrument(String),
+    DeleteTrack(usize),
 }
 
 // instrument struct: track information about ONE instrument
@@ -163,11 +164,20 @@ pub fn init(
                         instruments[x].steps[y] = 95.0;
                     }
                 }
+                AudioCommand::DeleteTrack(i) => {
+                    instruments.remove(i);
+                }
                 AudioCommand::AddInstrument(path) => {
+                    let file_name = std::path::Path::new(&path) // get the file name
+                        .file_name()
+                        .unwrap()
+                        .to_str()
+                        .unwrap()
+                        .to_string();
                     instruments.push(Instrument {
                         samples: path_to_vector(&path),
                         position: 0.0,
-                        name: path.clone(),
+                        name: file_name.clone(),
                         steps: vec![0.0; max_steps],
                         is_playing: false,
                         target_volume: 1.0,
@@ -178,12 +188,7 @@ pub fn init(
                     producer
                         .try_push(UiCommand::LoadTrack(
                             instruments.len() - 1,
-                            std::path::Path::new(&path) // get the file name
-                                .file_name()
-                                .unwrap()
-                                .to_str()
-                                .unwrap()
-                                .to_string(),
+                            file_name,
                             vec![0.0; max_steps],
                             false,
                         ))

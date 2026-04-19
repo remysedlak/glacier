@@ -4,3 +4,4 @@ pub const BLUE: (f32, f32, f32) = (0.01, 0.01, 0.98);
 pub const DARK_BLUE: (f32, f32, f32) = (0.00, 0.00, 0.10);
 pub const BLACK: (f32, f32, f32) = (0.00, 0.00, 0.00);
 pub const LL_GRAY: (f32, f32, f32) = (0.27, 0.27, 0.27);
+pub const RED: (f32, f32, f32) = (1.0, 0.0, 0.0);

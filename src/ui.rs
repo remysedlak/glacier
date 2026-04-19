@@ -32,8 +32,6 @@ use crate::graphics::Vertex;
 
 #[derive(Debug)]
 pub struct StepButton {
-    pub x: u32,
-    pub y: u32,
     pub width: u32,
     pub height: u32,
     pub velocity: f32,

@@ -24,6 +24,7 @@ pub enum ClickResult {
     TogglePlay,
     ProjectFileDialog,
     InstrumentFileDialog,
+    DeleteTrack(usize),
     None,
 }
 
@@ -219,12 +220,7 @@ impl Graphics {
             // add a new row
             let mut buttons = Vec::new();
             for j in 0..steps.len() {
-                let group = j / 4;
                 buttons.push(StepButton {
-                    x: BUTTON_X_ORIGIN
-                        + j as u32 * BUTTON_GAP as u32
-                        + group as u32 * BAR_GAP as u32,
-                    y: BUTTON_Y_ORIGIN + i as u32 * TRACK_GAP,
                     width: BUTTON_WIDTH,
                     height: BUTTON_HEIGHT,
                     velocity: steps[j as usize],
@@ -265,10 +261,10 @@ impl Graphics {
             if track.show_velocity {
             } else {
                 for (j, button) in &mut track.steps.iter_mut().enumerate() {
-                    if x > button.x as f64
-                        && x < button.x as f64 + button.width as f64
-                        && y > button.y as f64
-                        && y < button.y as f64 + button.height as f64
+                    if x > x as f64
+                        && x < x as f64 + button.width as f64
+                        && y > y as f64
+                        && y < y as f64 + button.height as f64
                     {
                         button.velocity = if button.velocity > 0.0 { 0.0 } else { 95.0 };
                         dbg!(button.velocity);
@@ -295,6 +291,16 @@ impl Graphics {
             {
                 track.show_velocity = !track.show_velocity;
                 return ClickResult::None;
+            }
+
+            // check for delete
+            if x > (BUTTON_X_ORIGIN - 40 - 16) as f64
+                && x < (BUTTON_X_ORIGIN - 40 - 16 + MUTE_SQUARE_LENGTH) as f64
+                && y > (BUTTON_Y_ORIGIN + (i as u32 * TRACK_GAP) + 48) as f64
+                && y < ((BUTTON_Y_ORIGIN + (i as u32 * TRACK_GAP) + 48) + MUTE_SQUARE_LENGTH) as f64
+            {
+                self.rows.remove(i);
+                return ClickResult::DeleteTrack(i);
             }
         }
 
@@ -373,11 +379,15 @@ impl Graphics {
         let mut text_items: Vec<(glyphon::Buffer, f32, f32)> = Vec::new();
         for (j, track) in &mut self.rows.iter_mut().enumerate() {
             for (i, button) in &mut track.steps.iter_mut().enumerate() {
+                let group = j / 4;
+                let x =
+                    BUTTON_X_ORIGIN + i as u32 * BUTTON_GAP as u32 + group as u32 * BAR_GAP as u32;
+                let y = BUTTON_Y_ORIGIN + j as u32 * TRACK_GAP;
                 if track.show_velocity {
                     // background
                     for vert in draw_rectangle(
-                        button.x,
-                        button.y,
+                        x,
+                        y,
                         button.width,
                         button.height,
                         self.surface_config.width,
@@ -388,10 +398,11 @@ impl Graphics {
                     }
 
                     // drag
+
                     let filled_height = (button.height as f32 * (button.velocity / 128.0)) as u32;
-                    let bar_y = button.y + button.height - filled_height;
+                    let bar_y = y + button.height - filled_height;
                     for vert in draw_rectangle(
-                        button.x, // stays the same
+                        x, // stays the same
                         bar_y,
                         button.width, // stays the same
                         filled_height,
@@ -411,20 +422,20 @@ impl Graphics {
                         }
                     } else {
                         if button.velocity > 0.0 {
-                            if _mouse_x > button.x as f64
-                                && _mouse_x < button.x as f64 + button.width as f64
-                                && _mouse_y > button.y as f64
-                                && _mouse_y < button.y as f64 + button.height as f64
+                            if _mouse_x > x as f64
+                                && _mouse_x < x as f64 + button.width as f64
+                                && _mouse_y > y as f64
+                                && _mouse_y < y as f64 + button.height as f64
                             {
                                 color = DARK_GRAY
                             } else {
                                 color = BLACK;
                             }
                         } else {
-                            if _mouse_x > button.x as f64
-                                && _mouse_x < button.x as f64 + button.width as f64
-                                && _mouse_y > button.y as f64
-                                && _mouse_y < button.y as f64 + button.height as f64
+                            if _mouse_x > x as f64
+                                && _mouse_x < x as f64 + button.width as f64
+                                && _mouse_y > y as f64
+                                && _mouse_y < y as f64 + button.height as f64
                             {
                                 color = LL_GRAY
                             } else {
@@ -433,8 +444,8 @@ impl Graphics {
                         }
                     }
                     for vert in draw_rectangle(
-                        button.x,
-                        button.y,
+                        x,
+                        y,
                         button.width,
                         button.height,
                         self.surface_config.width,
@@ -500,6 +511,19 @@ impl Graphics {
                 vertices.push(vert);
             }
 
+            // delete button
+            for vert in draw_rectangle(
+                BUTTON_X_ORIGIN - button_gap - 16,
+                BUTTON_Y_ORIGIN + (j as u32 * TRACK_GAP) + 48,
+                MUTE_SQUARE_LENGTH,
+                MUTE_SQUARE_LENGTH,
+                self.surface_config.width,
+                self.surface_config.height,
+                RED,
+            ) {
+                vertices.push(vert);
+            }
+
             // track text buffer
             let mut buffer = glyphon::Buffer::new(&mut self.font_system, Metrics::new(18.0, 22.0));
             buffer.set_size(&mut self.font_system, Some(400.0), Some(50.0));
@@ -522,7 +546,7 @@ impl Graphics {
             mute_buffer.set_size(&mut self.font_system, Some(400.0), Some(50.0));
             mute_buffer.set_text(
                 &mut self.font_system,
-                "mute",
+                "mut",
                 &Attrs::new()
                     .family(Family::SansSerif)
                     .color(glyphon::Color::rgb(0, 0, 0)),
@@ -531,7 +555,26 @@ impl Graphics {
             mute_buffer.shape_until_scroll(&mut self.font_system, false);
             text_items.push((
                 mute_buffer,
-                (BUTTON_X_ORIGIN - 32) as f32,
+                (BUTTON_X_ORIGIN - 32 + 4) as f32,
+                BUTTON_Y_ORIGIN as f32 + j as f32 * TRACK_GAP as f32 + 54.0,
+            ));
+
+            // velocity mode text buffer
+            let mut mute_buffer =
+                glyphon::Buffer::new(&mut self.font_system, Metrics::new(12.0, 22.0));
+            mute_buffer.set_size(&mut self.font_system, Some(400.0), Some(50.0));
+            mute_buffer.set_text(
+                &mut self.font_system,
+                "vel",
+                &Attrs::new()
+                    .family(Family::SansSerif)
+                    .color(glyphon::Color::rgb(0, 0, 0)),
+                Shaping::Advanced,
+            );
+            mute_buffer.shape_until_scroll(&mut self.font_system, false);
+            text_items.push((
+                mute_buffer,
+                (BUTTON_X_ORIGIN - 32 - 16) as f32,
                 BUTTON_Y_ORIGIN as f32 + j as f32 * TRACK_GAP as f32 + 54.0,
             ));
         }
@@ -557,6 +600,25 @@ impl Graphics {
         );
         proj_buffer.shape_until_scroll(&mut self.font_system, false);
         text_items.push((proj_buffer, self.surface_config.width as f32 - 37.0, 4.0));
+
+        // instrument text buffer
+        let mut instr_buffer =
+            glyphon::Buffer::new(&mut self.font_system, Metrics::new(14.0, 22.0));
+        instr_buffer.set_size(&mut self.font_system, Some(400.0), Some(50.0));
+        instr_buffer.set_text(
+            &mut self.font_system,
+            "instr",
+            &Attrs::new()
+                .family(Family::SansSerif)
+                .color(glyphon::Color::rgb(0, 0, 0)),
+            Shaping::Advanced,
+        );
+        instr_buffer.shape_until_scroll(&mut self.font_system, false);
+        text_items.push((
+            instr_buffer,
+            self.surface_config.width as f32 - (37.0 + 40.0 + 1.0),
+            4.0,
+        ));
 
         // bpm text buffer
         let mut bpm_buffer = glyphon::Buffer::new(&mut self.font_system, Metrics::new(18.0, 22.0));

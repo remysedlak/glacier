@@ -229,6 +229,9 @@ impl ApplicationHandler<Graphics> for App {
                             ClickResult::TogglePlay => {
                                 self.producer.try_push(AudioCommand::TogglePlay).ok();
                             }
+                            ClickResult::DeleteTrack(i) => {
+                                self.producer.try_push(AudioCommand::DeleteTrack(i)).ok();
+                            }
                             ClickResult::ProjectFileDialog => {
                                 let file = FileDialog::new()
                                     .add_filter("toml", &["toml"])
