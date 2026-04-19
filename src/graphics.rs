@@ -261,10 +261,15 @@ impl Graphics {
             if track.show_velocity {
             } else {
                 for (j, button) in &mut track.steps.iter_mut().enumerate() {
-                    if x > x as f64
-                        && x < x as f64 + button.width as f64
-                        && y > y as f64
-                        && y < y as f64 + button.height as f64
+                    let group = j / 4;
+                    let x2 = BUTTON_X_ORIGIN
+                        + i as u32 * BUTTON_GAP as u32
+                        + group as u32 * BAR_GAP as u32;
+                    let y2 = BUTTON_Y_ORIGIN + j as u32 * TRACK_GAP;
+                    if x > x2 as f64
+                        && x < x2 as f64 + button.width as f64
+                        && y > y2 as f64
+                        && y < y2 as f64 + button.height as f64
                     {
                         button.velocity = if button.velocity > 0.0 { 0.0 } else { 95.0 };
                         dbg!(button.velocity);
@@ -305,14 +310,18 @@ impl Graphics {
         }
 
         // check for bpm
-        if x > 48 as f64 && x < 48 as f64 + 16 as f64 && y > 15 as f64 && y < 15 as f64 + 6 as f64 {
+        if x > 48 as f64
+            && x < 48 as f64 + ICON_WIDTH as f64
+            && y > 4 as f64
+            && y < 4 as f64 + 10 as f64
+        {
             self.bpm = self.bpm + 1.0;
             return ClickResult::ChangeBpm(self.bpm);
         }
         if x > 48 as f64
-            && x < 48 as f64 + 16 as f64
-            && y > (15 + 8) as f64
-            && y < (15 + 8 + 6) as f64
+            && x < 48 as f64 + ICON_WIDTH as f64
+            && y > (16) as f64
+            && y < (16 + 10) as f64
         {
             self.bpm = self.bpm - 1.0;
             return ClickResult::ChangeBpm(self.bpm);
@@ -523,7 +532,6 @@ impl Graphics {
             ) {
                 vertices.push(vert);
             }
-
             // track text buffer
             let mut buffer = glyphon::Buffer::new(&mut self.font_system, Metrics::new(18.0, 22.0));
             buffer.set_size(&mut self.font_system, Some(400.0), Some(50.0));
@@ -630,7 +638,7 @@ impl Graphics {
             Shaping::Advanced,
         );
         bpm_buffer.shape_until_scroll(&mut self.font_system, false);
-        text_items.push((bpm_buffer, 10.0, 10.0));
+        text_items.push((bpm_buffer, 10.0, TOOLBAR_MARGIN as f32));
 
         // volume text buffer
         let mut volume_buffer =
@@ -674,8 +682,8 @@ impl Graphics {
                 bounds: TextBounds {
                     left: 0,
                     top: 0,
-                    right: 800,
-                    bottom: 600,
+                    right: self.surface_config.width as i32,
+                    bottom: self.surface_config.height as i32,
                 },
                 default_color: glyphon::Color::rgb(255, 255, 255), // white
                 custom_glyphs: &[],

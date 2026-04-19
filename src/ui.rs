@@ -92,6 +92,48 @@ pub fn draw_rectangle(
     ];
 }
 
+// DRAW A CIRCLE USING TRIANGLE SEGMENTS
+pub fn draw_circle(
+    cx: f32,
+    cy: f32,
+    radius: f32,
+    segments: u32,
+    screen_width: u32,
+    screen_height: u32,
+) -> Vec<Vertex> {
+    let mut vec: Vec<Vertex> = Vec::new();
+
+    // first normalize the coordinates to fit in decimal form.
+    let ncx: f32 = 2.0 * (cx as f32 / screen_width as f32) - 1.0;
+    let ncy: f32 = 1.0 - (cy as f32 / screen_height as f32) * 2.0;
+    let nrx = (radius / screen_width as f32) * 2.0;
+    let nry = (radius / screen_height as f32) * 2.0;
+
+    for k in 0..segments {
+        let angle = k as f32 * (2.0 * std::f32::consts::PI / segments as f32);
+        let next_angle = (k + 1) as f32 * (2.0 * std::f32::consts::PI / segments as f32);
+
+        let x1 = ncx + nrx * angle.cos();
+        let y1 = ncy + nry * angle.sin();
+        let x2 = ncx + nrx * next_angle.cos();
+        let y2 = ncy + nry * next_angle.sin();
+
+        vec.push(Vertex {
+            position: [ncx, ncy, 0.0],
+            color: [0.0, 0.0, 0.0],
+        });
+        vec.push(Vertex {
+            position: [x1, y1, 0.0],
+            color: [0.0, 0.0, 0.0],
+        });
+        vec.push(Vertex {
+            position: [x2, y2, 0.0],
+            color: [0.0, 0.0, 0.0],
+        });
+    }
+    vec
+}
+
 pub fn draw_h_line(y: f32, thickness: f32, screen_height: u32) -> Vec<Vertex> {
     // first normalize the coordinates to fit in decimal form.
 
@@ -138,12 +180,12 @@ pub fn draw_toolbar(
     }
 
     // bpm up button
-    for vert in draw_rectangle(48, 15, 16, 6, screen_x, screen_y, LIGHT_GRAY) {
+    for vert in draw_rectangle(48, 4, 32, 10, screen_x, screen_y, LIGHT_GRAY) {
         vertices.push(vert);
     }
 
     // bpm down button
-    for vert in draw_rectangle(48, 15 + 8, 16, 6, screen_x, screen_y, LIGHT_GRAY) {
+    for vert in draw_rectangle(48, 16, 32, 10, screen_x, screen_y, LIGHT_GRAY) {
         vertices.push(vert);
     }
 
