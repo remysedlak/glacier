@@ -110,6 +110,19 @@ pub fn init(
         })
     }
 
+    let max_steps = instruments
+        .iter()
+        .map(|i| i.steps.len())
+        .max()
+        .unwrap_or(16);
+
+    //  extend all tracks to longest if necesray
+    for instrument in &mut instruments {
+        if instrument.steps.len() < max_steps {
+            instrument.steps.resize(max_steps, 0.0);
+        }
+    }
+
     // load the stored BPM onto the UI screen
     producer.try_push(UiCommand::LoadBpm(bpm)).ok();
 
@@ -120,12 +133,11 @@ pub fn init(
 
     // load each instrument individually to the UI screen
     for (i, instrument) in instruments.iter().enumerate() {
-        let bools: Vec<bool> = instrument.steps.iter().map(|step| *step > 0.0).collect();
         producer
             .try_push(UiCommand::LoadTrack(
                 i,
                 instrument.name.clone(),
-                bools.try_into().unwrap(),
+                instrument.steps.clone().try_into().unwrap(),
                 instrument.mute,
             ))
             .ok();
@@ -273,16 +285,24 @@ pub fn init(
             // increment the step if enough samples have passed
             if sample_counter >= samples_per_step {
                 sample_counter = 0.0;
-                current_step = (current_step + 1) % 16;
+
+                // current step follows the longest instrument track
+                current_step = (current_step + 1)
+                    % instruments
+                        .iter()
+                        .map(|i| i.steps.len())
+                        .max()
+                        .unwrap_or(16);
                 producer
                     .try_push(UiCommand::StepAdvanced(current_step))
                     .ok();
                 // if the instrument plays on the newly incremented step, restart its position, enabling it for the next callback
                 for instrument in &mut instruments {
-                    if instrument.steps[current_step] > 0.0 {
+                    if instrument.steps[current_step % instrument.steps.len()] > 0.0 {
                         instrument.position = 0.0;
                         instrument.is_playing = true;
-                        instrument.target_volume = instrument.steps[current_step] / 127.0;
+                        instrument.target_volume =
+                            instrument.steps[current_step % instrument.steps.len()] / 127.0;
                     }
                 }
             }

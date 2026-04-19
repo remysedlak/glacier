@@ -20,7 +20,7 @@ use winit::{
 // commands that the audio engine sends to the window
 pub enum UiCommand {
     StepAdvanced(usize),
-    LoadTrack(usize, String, [bool; 16], bool),
+    LoadTrack(usize, String, Vec<f32>, bool),
     LoadBpm(f32),
     LoadMasterVolume(f32),
     ShutdownComplete,

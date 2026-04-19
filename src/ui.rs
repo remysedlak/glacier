@@ -35,7 +35,7 @@ pub struct StepButton {
     pub y: u32,
     pub width: u32,
     pub height: u32,
-    pub is_active: bool,
+    pub velocity: f32,
 }
 
 // #[derive(Debug)]

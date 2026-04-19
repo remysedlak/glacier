@@ -4,6 +4,7 @@ use glyphon::{
     TextAtlas, TextBounds, TextRenderer, Viewport,
 };
 use std::borrow::Cow;
+use std::f32;
 use wgpu::{
     Color, CommandEncoderDescriptor, Device, DeviceDescriptor, Features, FragmentState, Instance,
     Limits, LoadOp, MemoryHints, MultisampleState, Operations, PowerPreference, Queue,
@@ -212,18 +213,20 @@ impl Graphics {
     }
 
     // handler for : UiCommand::LoadTrack
-    pub fn load_track(&mut self, i: usize, name: String, steps: [bool; 16], mute: bool) {
+    pub fn load_track(&mut self, i: usize, name: String, steps: Vec<f32>, mute: bool) {
         if i >= self.rows.len() {
             // add a new row
             let mut buttons = Vec::new();
-            for j in 0..16 {
+            for j in 0..steps.len() {
                 let group = j / 4;
                 buttons.push(StepButton {
-                    x: BUTTON_X_ORIGIN + j * BUTTON_GAP + group * BAR_GAP,
+                    x: BUTTON_X_ORIGIN
+                        + j as u32 * BUTTON_GAP as u32
+                        + group as u32 * BAR_GAP as u32,
                     y: BUTTON_Y_ORIGIN + i as u32 * TRACK_GAP,
                     width: BUTTON_WIDTH,
                     height: BUTTON_HEIGHT,
-                    is_active: false,
+                    velocity: steps[j as usize],
                 });
             }
             self.rows.push(Track {
@@ -237,7 +240,7 @@ impl Graphics {
         }
         // set step states
         for (j, &step) in steps.iter().enumerate() {
-            self.rows[i].steps[j].is_active = step;
+            self.rows[i].steps[j].velocity = step;
         }
     }
 
@@ -258,16 +261,22 @@ impl Graphics {
     // handler for UiCommand::StepAdvanced, UiCmomand::MuteTrack
     pub fn handle_button_click(&mut self, x: f64, y: f64) -> ClickResult {
         for (i, track) in &mut self.rows.iter_mut().enumerate() {
-            for (j, button) in &mut track.steps.iter_mut().enumerate() {
-                if x > button.x as f64
-                    && x < button.x as f64 + button.width as f64
-                    && y > button.y as f64
-                    && y < button.y as f64 + button.height as f64
-                {
-                    button.is_active = !button.is_active;
-                    return ClickResult::Step(i, j);
+            dbg!(track.show_velocity);
+            if track.show_velocity {
+            } else {
+                for (j, button) in &mut track.steps.iter_mut().enumerate() {
+                    if x > button.x as f64
+                        && x < button.x as f64 + button.width as f64
+                        && y > button.y as f64
+                        && y < button.y as f64 + button.height as f64
+                    {
+                        button.velocity = if button.velocity > 0.0 { 0.0 } else { 95.0 };
+                        dbg!(button.velocity);
+                        return ClickResult::Step(i, j);
+                    }
                 }
             }
+
             // check for mute
             if x > (BUTTON_X_ORIGIN - 24) as f64
                 && x < (BUTTON_X_ORIGIN - 24 + MUTE_SQUARE_LENGTH) as f64
@@ -278,14 +287,14 @@ impl Graphics {
                 return ClickResult::Mute(i);
             }
 
-            // check for solo
+            // check for velocity
             if x > (BUTTON_X_ORIGIN - 40) as f64
                 && x < (BUTTON_X_ORIGIN - 40 + MUTE_SQUARE_LENGTH) as f64
                 && y > (BUTTON_Y_ORIGIN + (i as u32 * TRACK_GAP) + 48) as f64
                 && y < ((BUTTON_Y_ORIGIN + (i as u32 * TRACK_GAP) + 48) + MUTE_SQUARE_LENGTH) as f64
             {
                 track.show_velocity = !track.show_velocity;
-                return ClickResult::Mute(i);
+                return ClickResult::None;
             }
         }
 
@@ -355,47 +364,76 @@ impl Graphics {
         let mut text_items: Vec<(glyphon::Buffer, f32, f32)> = Vec::new();
         for (j, track) in &mut self.rows.iter_mut().enumerate() {
             for (i, button) in &mut track.steps.iter_mut().enumerate() {
-                let color;
-                if i == self.active_step {
-                    if button.is_active {
-                        color = DARK_BLUE;
-                    } else {
-                        color = BLUE;
+                if track.show_velocity {
+                    // background
+                    for vert in draw_rectangle(
+                        button.x,
+                        button.y,
+                        button.width,
+                        button.height,
+                        self.surface_config.width,
+                        self.surface_config.height,
+                        DARK_GRAY,
+                    ) {
+                        vertices.push(vert);
+                    }
+
+                    // drag
+                    let filled_height = (button.height as f32 * (button.velocity / 128.0)) as u32;
+                    let bar_y = button.y + button.height - filled_height;
+                    for vert in draw_rectangle(
+                        button.x, // stays the same
+                        bar_y,
+                        button.width, // stays the same
+                        filled_height,
+                        self.surface_config.width,  // stays the same
+                        self.surface_config.height, // stays the same
+                        BLUE,
+                    ) {
+                        vertices.push(vert);
                     }
                 } else {
-                    if button.is_active {
-                        if _mouse_x > button.x as f64
-                            && _mouse_x < button.x as f64 + button.width as f64
-                            && _mouse_y > button.y as f64
-                            && _mouse_y < button.y as f64 + button.height as f64
-                        {
-                            color = DARK_GRAY
+                    let color;
+                    if i == self.active_step {
+                        if button.velocity > 0.0 {
+                            color = DARK_BLUE;
                         } else {
-                            color = BLACK;
+                            color = BLUE;
                         }
                     } else {
-                        if _mouse_x > button.x as f64
-                            && _mouse_x < button.x as f64 + button.width as f64
-                            && _mouse_y > button.y as f64
-                            && _mouse_y < button.y as f64 + button.height as f64
-                        {
-                            color = LL_GRAY
+                        if button.velocity > 0.0 {
+                            if _mouse_x > button.x as f64
+                                && _mouse_x < button.x as f64 + button.width as f64
+                                && _mouse_y > button.y as f64
+                                && _mouse_y < button.y as f64 + button.height as f64
+                            {
+                                color = DARK_GRAY
+                            } else {
+                                color = BLACK;
+                            }
                         } else {
-                            color = LIGHT_GRAY;
+                            if _mouse_x > button.x as f64
+                                && _mouse_x < button.x as f64 + button.width as f64
+                                && _mouse_y > button.y as f64
+                                && _mouse_y < button.y as f64 + button.height as f64
+                            {
+                                color = LL_GRAY
+                            } else {
+                                color = LIGHT_GRAY;
+                            }
                         }
                     }
-                }
-
-                for vert in draw_rectangle(
-                    button.x,
-                    button.y,
-                    button.width,
-                    button.height,
-                    self.surface_config.width,
-                    self.surface_config.height,
-                    color,
-                ) {
-                    vertices.push(vert);
+                    for vert in draw_rectangle(
+                        button.x,
+                        button.y,
+                        button.width,
+                        button.height,
+                        self.surface_config.width,
+                        self.surface_config.height,
+                        color,
+                    ) {
+                        vertices.push(vert);
+                    }
                 }
             }
 
