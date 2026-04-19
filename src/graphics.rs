@@ -22,7 +22,8 @@ pub enum ClickResult {
     Mute(usize),        // track
     ChangeBpm(f32),
     TogglePlay,
-    FileDialog,
+    ProjectFileDialog,
+    InstrumentFileDialog,
     None,
 }
 
@@ -261,7 +262,6 @@ impl Graphics {
     // handler for UiCommand::StepAdvanced, UiCmomand::MuteTrack
     pub fn handle_button_click(&mut self, x: f64, y: f64) -> ClickResult {
         for (i, track) in &mut self.rows.iter_mut().enumerate() {
-            dbg!(track.show_velocity);
             if track.show_velocity {
             } else {
                 for (j, button) in &mut track.steps.iter_mut().enumerate() {
@@ -330,7 +330,16 @@ impl Graphics {
             && y > TOOLBAR_MARGIN as f64
             && y < (TOOLBAR_MARGIN + ICON_HEIGHT) as f64
         {
-            return ClickResult::FileDialog;
+            return ClickResult::ProjectFileDialog;
+        }
+
+        // load instrument
+        if x > (user_width - ADD_INSTRUMENT_ICON_OFFSET) as f64
+            && x < (user_width - ADD_INSTRUMENT_ICON_OFFSET + ICON_WIDTH) as f64
+            && y > TOOLBAR_MARGIN as f64
+            && y < (TOOLBAR_MARGIN + ICON_HEIGHT) as f64
+        {
+            return ClickResult::InstrumentFileDialog;
         }
 
         ClickResult::None
@@ -457,7 +466,7 @@ impl Graphics {
                 && _mouse_y
                     < ((BUTTON_Y_ORIGIN + (j as u32 * TRACK_GAP) + 48) + MUTE_SQUARE_LENGTH) as f64;
 
-            //mute button
+            // mute button
             for vert in draw_rectangle(
                 BUTTON_X_ORIGIN - 24,
                 BUTTON_Y_ORIGIN + (j as u32 * TRACK_GAP) + 48,
@@ -534,6 +543,20 @@ impl Graphics {
             &mut vertices,
             &mut self.master_volume,
         );
+
+        // project text buffer
+        let mut proj_buffer = glyphon::Buffer::new(&mut self.font_system, Metrics::new(14.0, 22.0));
+        proj_buffer.set_size(&mut self.font_system, Some(400.0), Some(50.0));
+        proj_buffer.set_text(
+            &mut self.font_system,
+            "proj",
+            &Attrs::new()
+                .family(Family::SansSerif)
+                .color(glyphon::Color::rgb(0, 0, 0)),
+            Shaping::Advanced,
+        );
+        proj_buffer.shape_until_scroll(&mut self.font_system, false);
+        text_items.push((proj_buffer, self.surface_config.width as f32 - 37.0, 4.0));
 
         // bpm text buffer
         let mut bpm_buffer = glyphon::Buffer::new(&mut self.font_system, Metrics::new(18.0, 22.0));

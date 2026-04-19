@@ -24,8 +24,9 @@ pub const ICON_WIDTH: u32 = 32;
 pub const ICON_HEIGHT: u32 = 24;
 
 pub const LOAD_PROJECT_ICON_OFFSET: u32 = 40;
+pub const ADD_INSTRUMENT_ICON_OFFSET: u32 = 80;
 
-use crate::colors::{BLACK, LIGHT_GRAY, LL_GRAY};
+use crate::colors::{BLACK, DARK_GRAY, LIGHT_GRAY, LL_GRAY};
 use crate::graphics::Vertex;
 // this file holds my shape abstractions
 
@@ -171,6 +172,16 @@ pub fn draw_toolbar(
         vertices.push(vert);
     }
 
+    let color = if _mouse_x > (screen_x - LOAD_PROJECT_ICON_OFFSET) as f64
+        && _mouse_x < (screen_x - LOAD_PROJECT_ICON_OFFSET + ICON_WIDTH) as f64
+        && _mouse_y > TOOLBAR_MARGIN as f64
+        && _mouse_y < (TOOLBAR_MARGIN + ICON_HEIGHT) as f64
+    {
+        LL_GRAY
+    } else {
+        LIGHT_GRAY
+    };
+
     // Load file button
     for vert in draw_rectangle(
         screen_x - LOAD_PROJECT_ICON_OFFSET,
@@ -179,7 +190,30 @@ pub fn draw_toolbar(
         ICON_HEIGHT,
         screen_x,
         screen_y,
-        LIGHT_GRAY,
+        color,
+    ) {
+        vertices.push(vert);
+    }
+
+    let color = if _mouse_x > (screen_x - ADD_INSTRUMENT_ICON_OFFSET) as f64
+        && _mouse_x < (screen_x - ADD_INSTRUMENT_ICON_OFFSET + ICON_WIDTH) as f64
+        && _mouse_y > TOOLBAR_MARGIN as f64
+        && _mouse_y < (TOOLBAR_MARGIN + ICON_HEIGHT) as f64
+    {
+        LL_GRAY
+    } else {
+        LIGHT_GRAY
+    };
+
+    // add instrument button
+    for vert in draw_rectangle(
+        screen_x - ADD_INSTRUMENT_ICON_OFFSET,
+        TOOLBAR_MARGIN,
+        ICON_WIDTH,
+        ICON_HEIGHT,
+        screen_x,
+        screen_y,
+        color,
     ) {
         vertices.push(vert);
     }

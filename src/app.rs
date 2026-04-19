@@ -129,7 +129,7 @@ impl ApplicationHandler<Graphics> for App {
 
                 #[cfg(not(target_arch = "wasm32"))]
                 {
-                    win_attr = win_attr.with_title("WebGPU example");
+                    win_attr = win_attr.with_title("Glacier");
                 }
 
                 #[cfg(target_arch = "wasm32")]
@@ -229,7 +229,7 @@ impl ApplicationHandler<Graphics> for App {
                             ClickResult::TogglePlay => {
                                 self.producer.try_push(AudioCommand::TogglePlay).ok();
                             }
-                            ClickResult::FileDialog => {
+                            ClickResult::ProjectFileDialog => {
                                 let file = FileDialog::new()
                                     .add_filter("toml", &["toml"])
                                     .set_directory("/")
@@ -242,6 +242,27 @@ impl ApplicationHandler<Graphics> for App {
                                         self.pending_project =
                                             Some(x.to_str().unwrap().to_string());
                                         self.producer.try_push(AudioCommand::SaveProject).ok();
+                                    }
+                                    None => {
+                                        println!("no file chosen...")
+                                    }
+                                }
+                            }
+                            ClickResult::InstrumentFileDialog => {
+                                let file = FileDialog::new()
+                                    .add_filter("wav", &["wav"])
+                                    .add_filter("mp3", &["mp3"])
+                                    .set_directory("/")
+                                    .pick_file();
+
+                                match file {
+                                    Some(x) => {
+                                        // add new instrument
+                                        self.producer
+                                            .try_push(AudioCommand::AddInstrument(
+                                                x.to_str().unwrap().to_string(),
+                                            ))
+                                            .ok();
                                     }
                                     None => {
                                         println!("no file chosen...")

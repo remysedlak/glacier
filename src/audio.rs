@@ -35,6 +35,7 @@ pub enum AudioCommand {
     TogglePlay,
     ShutDown,
     SaveProject,
+    AddInstrument(String),
 }
 
 // instrument struct: track information about ONE instrument
@@ -161,6 +162,32 @@ pub fn init(
                     } else {
                         instruments[x].steps[y] = 95.0;
                     }
+                }
+                AudioCommand::AddInstrument(path) => {
+                    instruments.push(Instrument {
+                        samples: path_to_vector(&path),
+                        position: 0.0,
+                        name: path.clone(),
+                        steps: vec![0.0; max_steps],
+                        is_playing: false,
+                        target_volume: 1.0,
+                        current_volume: 0.0,
+                        mute: false,
+                        path: path.clone(),
+                    });
+                    producer
+                        .try_push(UiCommand::LoadTrack(
+                            instruments.len() - 1,
+                            std::path::Path::new(&path) // get the file name
+                                .file_name()
+                                .unwrap()
+                                .to_str()
+                                .unwrap()
+                                .to_string(),
+                            vec![0.0; max_steps],
+                            false,
+                        ))
+                        .ok();
                 }
                 AudioCommand::ChangeBpm(new_bpm) => {
                     bpm = new_bpm;
