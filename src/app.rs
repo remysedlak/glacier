@@ -20,7 +20,7 @@ use winit::{
 // commands that the audio engine sends to the window
 pub enum UiCommand {
     StepAdvanced(usize),
-    LoadTrack(usize, String, Vec<f32>, bool),
+    LoadTrack(usize, String, Vec<f32>, bool, f32),
     LoadBpm(f32),
     LoadMasterVolume(f32),
     ShutdownComplete,
@@ -40,6 +40,7 @@ pub struct App {
     state: State,
     mouse_x: f64,
     mouse_y: f64,
+    prev_mouse_y: f64,
     stream: Stream,
     pending_project: Option<String>,
     ctrl_pressed: bool,
@@ -60,6 +61,7 @@ impl App {
             state: State::Init(Some(event_loop.create_proxy())),
             mouse_x: 0.0,
             mouse_y: 0.0,
+            prev_mouse_y: 0.0,
             stream: stream,
             pending_project: None,
             ctrl_pressed: false,
@@ -77,8 +79,8 @@ impl App {
                     UiCommand::StepAdvanced(size) => {
                         gfx.active_step = size;
                     }
-                    UiCommand::LoadTrack(i, name, steps, mute) => {
-                        gfx.load_track(i, name, steps, mute);
+                    UiCommand::LoadTrack(i, name, steps, mute, vol) => {
+                        gfx.load_track(i, name, steps, mute, vol);
                     }
                     UiCommand::LoadBpm(bpm) => {
                         gfx.bpm = bpm;
@@ -289,15 +291,27 @@ impl ApplicationHandler<Graphics> for App {
                 // position.x and position.y are available here
                 self.mouse_x = position.x;
                 self.mouse_y = position.y;
+                let delta_y = position.y - self.prev_mouse_y;
+                self.prev_mouse_y = position.y;
                 if let State::Ready(gfx) = &mut self.state {
                     if self.left_click_held {
-                        match gfx.handle_drag(position.x, position.y) {
+                        match gfx.handle_drag(position.x, position.y, delta_y) {
                             DragResult::None => {}
                             DragResult::DragVolumeSlider(fl) => {
                                 self.producer
                                     .try_push(AudioCommand::ChangeMasterVolume(fl))
                                     .ok();
                             }
+                            DragResult::DragVolumeKnob(i, fl) => {
+                                self.producer
+                                    .try_push(AudioCommand::ChangeTrackVolume(i, fl))
+                                    .ok();
+                            }
+                        }
+                    } else {
+                        self.left_click_held = false;
+                        if let State::Ready(gfx) = &mut self.state {
+                            gfx.dragging_knob = None;
                         }
                     }
                 }

@@ -24,6 +24,7 @@ struct TrackData {
     sample_path: String,
     position: f32,
     target_volume: f32,
+    track_volume: f32,
     is_playing: bool,
 }
 
@@ -37,6 +38,7 @@ pub enum AudioCommand {
     SaveProject,
     AddInstrument(String),
     DeleteTrack(usize),
+    ChangeTrackVolume(usize, f32),
 }
 
 // instrument struct: track information about ONE instrument
@@ -51,6 +53,7 @@ struct Instrument {
     // audio ramping
     target_volume: f32,
     current_volume: f32,
+    track_volume: f32,
 }
 
 pub fn init(
@@ -106,6 +109,7 @@ pub fn init(
             steps: track.steps,
             is_playing: false,
             target_volume: track.target_volume,
+            track_volume: track.track_volume,
             current_volume: 0.0,
             mute: track.mute,
             path: track.sample_path,
@@ -141,6 +145,7 @@ pub fn init(
                 instrument.name.clone(),
                 instrument.steps.clone().try_into().unwrap(),
                 instrument.mute,
+                instrument.track_volume,
             ))
             .ok();
     }
@@ -156,6 +161,9 @@ pub fn init(
             match cmd {
                 AudioCommand::ChangeMasterVolume(volume) => {
                     master_volume = volume;
+                }
+                AudioCommand::ChangeTrackVolume(i, vol) => {
+                    instruments[i].track_volume = vol;
                 }
                 AudioCommand::ToggleStep(x, y) => {
                     if instruments[x].steps[y] > 0.0 {
@@ -182,6 +190,7 @@ pub fn init(
                         is_playing: false,
                         target_volume: 1.0,
                         current_volume: 0.0,
+                        track_volume: 1.0,
                         mute: false,
                         path: path.clone(),
                     });
@@ -191,6 +200,7 @@ pub fn init(
                             file_name,
                             vec![0.0; max_steps],
                             false,
+                            1.0,
                         ))
                         .ok();
                 }
@@ -218,6 +228,7 @@ pub fn init(
                                 sample_path: inst.path.clone(),
                                 position: 0.0,
                                 target_volume: inst.target_volume,
+                                track_volume: inst.track_volume,
                                 is_playing: false,
                             })
                             .collect(),
@@ -240,6 +251,7 @@ pub fn init(
                                 sample_path: inst.path.clone(),
                                 position: 0.0,
                                 target_volume: inst.target_volume,
+                                track_volume: inst.track_volume,
                                 is_playing: false,
                             })
                             .collect(),
@@ -294,11 +306,13 @@ pub fn init(
                             // add current samples to left and right channel and increment instruments position
                             sample[0] += instrument.samples[(instrument.position as f32) as usize]
                                 * instrument.current_volume
+                                * instrument.track_volume
                                 * shutdown_volume
                                 * master_volume;
                             sample[1] += instrument.samples
                                 [(instrument.position as f32) as usize + 1]
                                 * instrument.current_volume
+                                * instrument.track_volume
                                 * shutdown_volume
                                 * master_volume;
                             instrument.position += 2.0;

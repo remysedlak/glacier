@@ -13,6 +13,8 @@ pub const BAR_GAP: u32 = 8;
 pub const BUTTON_GAP: u32 = 32;
 pub const TRACK_GAP: u32 = 72;
 
+pub const KNOB_RADIUS: f32 = 13.0;
+
 pub const MUTE_SQUARE_LENGTH: u32 = 12;
 pub const PLAY_SQUARE_HEIGHT: u32 = ICON_HEIGHT;
 pub const PLAY_SQUARE_WIDTH: u32 = 54;
@@ -25,6 +27,8 @@ pub const ICON_HEIGHT: u32 = 24;
 
 pub const LOAD_PROJECT_ICON_OFFSET: u32 = 40;
 pub const ADD_INSTRUMENT_ICON_OFFSET: u32 = 80;
+
+use std::f32::consts::PI;
 
 use crate::colors::{BLACK, DARK_GRAY, LIGHT_GRAY, LL_GRAY};
 use crate::graphics::Vertex;
@@ -100,6 +104,7 @@ pub fn draw_circle(
     segments: u32,
     screen_width: u32,
     screen_height: u32,
+    (r, g, b): (f32, f32, f32),
 ) -> Vec<Vertex> {
     let mut vec: Vec<Vertex> = Vec::new();
 
@@ -109,6 +114,7 @@ pub fn draw_circle(
     let nrx = (radius / screen_width as f32) * 2.0;
     let nry = (radius / screen_height as f32) * 2.0;
 
+    // draw the circle
     for k in 0..segments {
         let angle = k as f32 * (2.0 * std::f32::consts::PI / segments as f32);
         let next_angle = (k + 1) as f32 * (2.0 * std::f32::consts::PI / segments as f32);
@@ -120,17 +126,64 @@ pub fn draw_circle(
 
         vec.push(Vertex {
             position: [ncx, ncy, 0.0],
-            color: [0.0, 0.0, 0.0],
+            color: [r, g, b],
         });
         vec.push(Vertex {
             position: [x1, y1, 0.0],
-            color: [0.0, 0.0, 0.0],
+            color: [r, g, b],
         });
         vec.push(Vertex {
             position: [x2, y2, 0.0],
-            color: [0.0, 0.0, 0.0],
+            color: [r, g, b],
         });
     }
+    vec
+}
+
+pub fn draw_knob(
+    vol: f32,
+    cx: f32,
+    cy: f32,
+    radius: f32,
+    segments: u32,
+    screen_width: u32,
+    screen_height: u32,
+) -> Vec<Vertex> {
+    let mut vec: Vec<Vertex> =
+        draw_circle(cx, cy, radius + 3.0, 10, screen_width, screen_height, BLACK);
+    for vert in draw_circle(
+        cx,
+        cy,
+        radius,
+        segments,
+        screen_width,
+        screen_height,
+        LL_GRAY,
+    ) {
+        vec.push(vert);
+    }
+    let ncx = |x: f32| 2.0 * (x as f32 / screen_width as f32) - 1.0;
+    let ncy = |y: f32| 1.0 - (y as f32 / screen_height as f32) * 2.0;
+    let radians = |degree: f32| (degree * PI) / 180.0;
+
+    let angle: f32 = 210.0 - vol * 270.0; // Linear interpolation
+    let x = cx + radius * radians(angle).cos();
+    let y = cy - radius * radians(angle).sin();
+
+    // draw the dial
+    vec.push(Vertex {
+        position: [ncx(cx), ncy(cy), 0.0], // center
+        color: [0.0, 0.0, 1.0],
+    });
+    vec.push(Vertex {
+        position: [ncx(x), ncy(y), 0.0], // hits circumfrence
+        color: [0.0, 0.0, 1.0],
+    });
+    let perp = radians(angle + 90.0);
+    vec.push(Vertex {
+        position: [ncx(x) + 0.01 * perp.cos(), ncy(y) + 0.01 * perp.sin(), 0.0],
+        color: [0.0, 0.0, 1.0],
+    });
     vec
 }
 

@@ -30,6 +30,7 @@ pub enum ClickResult {
 
 pub enum DragResult {
     DragVolumeSlider(f32),
+    DragVolumeKnob(usize, f32),
     None,
 }
 
@@ -54,6 +55,7 @@ struct Track {
     is_solo: bool,
     instrument_index: usize,
     show_velocity: bool,
+    track_volume: f32,
 }
 
 // im not messing with this;; WGSL setup
@@ -151,6 +153,7 @@ pub async fn create_graphics(window: Rc<Window>, proxy: EventLoopProxy<Graphics>
         bpm: 120.0,
         is_playing: false,
         master_volume: 0.5,
+        dragging_knob: None,
     };
 
     // returns the graphics state back to wherever it was requested
@@ -207,6 +210,7 @@ pub struct Graphics {
     pub bpm: f32,
     pub is_playing: bool,
     pub master_volume: f32,
+    pub dragging_knob: Option<usize>,
 }
 
 impl Graphics {
@@ -215,7 +219,7 @@ impl Graphics {
     }
 
     // handler for : UiCommand::LoadTrack
-    pub fn load_track(&mut self, i: usize, name: String, steps: Vec<f32>, mute: bool) {
+    pub fn load_track(&mut self, i: usize, name: String, steps: Vec<f32>, mute: bool, vol: f32) {
         if i >= self.rows.len() {
             // add a new row
             let mut buttons = Vec::new();
@@ -233,6 +237,7 @@ impl Graphics {
                 is_solo: false,
                 instrument_index: i,
                 show_velocity: false,
+                track_volume: vol,
             });
         }
         // set step states
@@ -241,17 +246,44 @@ impl Graphics {
         }
     }
 
-    pub fn handle_drag(&mut self, x: f64, y: f64) -> DragResult {
-        let y_ceiling: f64 = 416.0;
-        let track_height: f64 = 164.0;
-        let padding = 32.0;
-        if x > 64.0 - padding && x < 96.0 + padding && y > y_ceiling && y < y_ceiling + track_height
-        {
-            self.master_volume =
-                1.0 - ((y as f32 - y_ceiling as f32) / track_height as f32).clamp(0.0, 1.0);
-            dbg!(self.master_volume);
-            return DragResult::DragVolumeSlider(self.master_volume);
+    pub fn handle_drag(&mut self, x: f64, y: f64, dy: f64) -> DragResult {
+        // master volume tracking
+        if self.dragging_knob == None {
+            let y_ceiling: f64 = 416.0;
+            let track_height: f64 = 164.0;
+            let padding = 32.0;
+            if x > 64.0 - padding
+                && x < 96.0 + padding
+                && y > y_ceiling
+                && y < y_ceiling + track_height
+            {
+                self.master_volume =
+                    1.0 - ((y as f32 - y_ceiling as f32) / track_height as f32).clamp(0.0, 1.0);
+                dbg!(self.master_volume);
+                return DragResult::DragVolumeSlider(self.master_volume);
+            }
         }
+
+        // knob tracking
+        if let Some(i) = self.dragging_knob {
+            self.rows[i].track_volume =
+                (self.rows[i].track_volume - dy as f32 * 0.005).clamp(0.0, 1.0);
+            return DragResult::DragVolumeKnob(i, self.rows[i].track_volume);
+        }
+        for (i, track) in &mut self.rows.iter_mut().enumerate() {
+            if x > (BUTTON_X_ORIGIN - 24 - KNOB_RADIUS as u32) as f64
+                && x < (BUTTON_X_ORIGIN - 24 as u32) as f64 + KNOB_RADIUS as f64
+                && y > (BUTTON_Y_ORIGIN as f64 + (i as f64 * TRACK_GAP as f64) + 24.0) as f64
+                    - KNOB_RADIUS as f64
+                && y < (BUTTON_Y_ORIGIN as f64 + (i as f64 * TRACK_GAP as f64) + 24.0) as f64
+                    + KNOB_RADIUS as f64
+            {
+                self.dragging_knob = Some(i);
+                track.track_volume = (track.track_volume - dy as f32 * 0.01).clamp(0.0, 1.0);
+                return DragResult::DragVolumeKnob(i, track.track_volume);
+            }
+        }
+
         return DragResult::None;
     }
 
@@ -480,8 +512,8 @@ impl Graphics {
                 }
             };
 
-            let hover = _mouse_x > (BUTTON_X_ORIGIN - 16) as f64
-                && _mouse_x < (BUTTON_X_ORIGIN - 16 + MUTE_SQUARE_LENGTH) as f64
+            let hover = _mouse_x > (BUTTON_X_ORIGIN - 24) as f64
+                && _mouse_x < (BUTTON_X_ORIGIN - 24 + MUTE_SQUARE_LENGTH) as f64
                 && _mouse_y > (BUTTON_Y_ORIGIN + (j as u32 * TRACK_GAP) + 48) as f64
                 && _mouse_y
                     < ((BUTTON_Y_ORIGIN + (j as u32 * TRACK_GAP) + 48) + MUTE_SQUARE_LENGTH) as f64;
@@ -532,6 +564,20 @@ impl Graphics {
             ) {
                 vertices.push(vert);
             }
+
+            // track volume knob
+            for vert in draw_knob(
+                track.track_volume,
+                (BUTTON_X_ORIGIN - 24) as f32,
+                (BUTTON_Y_ORIGIN as f32 + (j as f32 * TRACK_GAP as f32) + 24.0) as f32,
+                KNOB_RADIUS,
+                35,
+                self.surface_config.width,
+                self.surface_config.height,
+            ) {
+                vertices.push(vert);
+            }
+
             // track text buffer
             let mut buffer = glyphon::Buffer::new(&mut self.font_system, Metrics::new(18.0, 22.0));
             buffer.set_size(&mut self.font_system, Some(400.0), Some(50.0));
