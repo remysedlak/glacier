@@ -297,8 +297,10 @@ impl Graphics {
             } else {
                 for (j, button) in &mut track.steps.iter_mut().enumerate() {
                     let group = j / 4;
-                    let x2 = BUTTON_X_ORIGIN + i as u32 * BUTTON_GAP as u32 + group as u32 * BAR_GAP as u32;
-                    let y2 = BUTTON_Y_ORIGIN + j as u32 * TRACK_GAP;
+
+                    let x2 = BUTTON_X_ORIGIN + j as u32 * BUTTON_GAP as u32 + group as u32 * BAR_GAP as u32;
+                    let y2 = BUTTON_Y_ORIGIN + i as u32 * TRACK_GAP;
+
                     if x > x2 as f64 && x < x2 as f64 + button.width as f64 && y > y2 as f64 && y < y2 as f64 + button.height as f64 {
                         button.velocity = if button.velocity > 0.0 { 0.0 } else { 95.0 };
                         dbg!(button.velocity);
@@ -426,7 +428,7 @@ impl Graphics {
         /* begin per track rendering */
         for (j, track) in &mut self.rows.iter_mut().enumerate() {
             for (i, button) in &mut track.steps.iter_mut().enumerate() {
-                let group = j / 4;
+                let group = i / 4;
                 let x = BUTTON_X_ORIGIN + i as u32 * BUTTON_GAP as u32 + group as u32 * BAR_GAP as u32;
                 let y = BUTTON_Y_ORIGIN + j as u32 * TRACK_GAP;
                 if track.show_velocity {
