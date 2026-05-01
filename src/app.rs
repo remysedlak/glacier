@@ -34,6 +34,7 @@ enum State {
     Init(Option<EventLoopProxy<Graphics>>),
 }
 
+// gui app state
 pub struct App {
     producer: HeapProd<AudioCommand>,
     consumer: HeapCons<UiCommand>,
@@ -49,12 +50,7 @@ pub struct App {
 
 impl App {
     // initalize the event loop on creation
-    pub fn new(
-        producer: HeapProd<AudioCommand>,
-        consumer: HeapCons<UiCommand>,
-        event_loop: &EventLoop<Graphics>,
-        stream: Stream,
-    ) -> Self {
+    pub fn new(producer: HeapProd<AudioCommand>, consumer: HeapCons<UiCommand>, event_loop: &EventLoop<Graphics>, stream: Stream) -> Self {
         Self {
             producer,
             consumer,
@@ -107,7 +103,7 @@ impl App {
             gfx.draw(self.mouse_x, self.mouse_y);
             gfx.request_redraw();
         }
-
+        // exit the event loop
         if should_exit {
             self.state = State::Init(None);
             event_loop.exit();
@@ -143,11 +139,7 @@ impl ApplicationHandler<Graphics> for App {
                     win_attr = win_attr.with_inner_size(winit::dpi::LogicalSize::new(1400, 800));
                 }
 
-                let window = Rc::new(
-                    event_loop
-                        .create_window(win_attr)
-                        .expect("create window err."),
-                );
+                let window = Rc::new(event_loop.create_window(win_attr).expect("create window err."));
 
                 #[cfg(target_arch = "wasm32")]
                 wasm_bindgen_futures::spawn_local(create_graphics(window, proxy));
@@ -164,12 +156,8 @@ impl ApplicationHandler<Graphics> for App {
         self.state = State::Ready(graphics);
     }
 
-    fn window_event(
-        &mut self,
-        event_loop: &ActiveEventLoop,
-        _window_id: WindowId,
-        event: WindowEvent,
-    ) {
+    // handles all events from a window
+    fn window_event(&mut self, event_loop: &ActiveEventLoop, _window_id: WindowId, event: WindowEvent) {
         match event {
             WindowEvent::CloseRequested => {
                 self.producer.try_push(AudioCommand::ShutDown).ok();
@@ -179,6 +167,7 @@ impl ApplicationHandler<Graphics> for App {
             }
             WindowEvent::Resized(size) => self.resized(size),
             WindowEvent::RedrawRequested => self.draw(&event_loop),
+
             // detect keyboard input
             WindowEvent::KeyboardInput { event, .. } => {
                 // on release
@@ -221,9 +210,7 @@ impl ApplicationHandler<Graphics> for App {
                     if let State::Ready(gfx) = &mut self.state {
                         match gfx.handle_button_click(self.mouse_x, self.mouse_y) {
                             ClickResult::Step(track, step) => {
-                                self.producer
-                                    .try_push(AudioCommand::ToggleStep(track, step))
-                                    .ok();
+                                self.producer.try_push(AudioCommand::ToggleStep(track, step)).ok();
                             }
                             ClickResult::Mute(track) => {
                                 self.producer.try_push(AudioCommand::ToggleMute(track)).ok();
@@ -238,17 +225,13 @@ impl ApplicationHandler<Graphics> for App {
                                 self.producer.try_push(AudioCommand::DeleteTrack(i)).ok();
                             }
                             ClickResult::ProjectFileDialog => {
-                                let file = FileDialog::new()
-                                    .add_filter("toml", &["toml"])
-                                    .set_directory("/")
-                                    .pick_file();
+                                let file = FileDialog::new().add_filter("toml", &["toml"]).set_directory("/").pick_file();
 
                                 match file {
                                     Some(x) => {
                                         // save and pause the stream
                                         gfx.is_playing = false;
-                                        self.pending_project =
-                                            Some(x.to_str().unwrap().to_string());
+                                        self.pending_project = Some(x.to_str().unwrap().to_string());
                                         self.producer.try_push(AudioCommand::SaveProject).ok();
                                     }
                                     None => {
@@ -267,9 +250,7 @@ impl ApplicationHandler<Graphics> for App {
                                     Some(x) => {
                                         // add new instrument
                                         self.producer
-                                            .try_push(AudioCommand::AddInstrument(
-                                                x.to_str().unwrap().to_string(),
-                                            ))
+                                            .try_push(AudioCommand::AddInstrument(x.to_str().unwrap().to_string()))
                                             .ok();
                                     }
                                     None => {
@@ -298,14 +279,12 @@ impl ApplicationHandler<Graphics> for App {
                         match gfx.handle_drag(position.x, position.y, delta_y) {
                             DragResult::None => {}
                             DragResult::DragVolumeSlider(fl) => {
-                                self.producer
-                                    .try_push(AudioCommand::ChangeMasterVolume(fl))
-                                    .ok();
+                                self.producer.try_push(AudioCommand::ChangeMasterVolume(fl)).ok();
+                                gfx.request_redraw();
                             }
                             DragResult::DragVolumeKnob(i, fl) => {
-                                self.producer
-                                    .try_push(AudioCommand::ChangeTrackVolume(i, fl))
-                                    .ok();
+                                self.producer.try_push(AudioCommand::ChangeTrackVolume(i, fl)).ok();
+                                gfx.request_redraw();
                             }
                         }
                     } else {
@@ -315,7 +294,6 @@ impl ApplicationHandler<Graphics> for App {
                         }
                     }
                 }
-                self.draw(&event_loop);
             }
             _ => {}
         }

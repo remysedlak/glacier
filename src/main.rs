@@ -38,7 +38,6 @@ fn run_app(event_loop: EventLoop<Graphics>, mut app: App) {
 fn main() {
     // <T> (T -> AppEvent) extends regular platform specific events (resize, mouse, etc.).
     // This allows our app to inject custom events and handle them alongside regular ones.
-    // let event_loop = EventLoop::<()>::new().unwrap();
     let event_loop = EventLoop::<Graphics>::with_user_event().build().unwrap();
 
     // ControlFlow::Poll continuously runs the event loop, even if the OS hasn't

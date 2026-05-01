@@ -1,16 +1,14 @@
 use crate::ui::{draw_slider, draw_toolbar};
 use glyphon::{
-    Attrs, Cache, Family, FontSystem, Metrics, Resolution, Shaping, SwashCache, TextArea,
-    TextAtlas, TextBounds, TextRenderer, Viewport,
+    Attrs, Cache, Family, FontSystem, Metrics, Resolution, Shaping, SwashCache, TextArea, TextAtlas, TextBounds, TextRenderer, Viewport,
 };
 use std::borrow::Cow;
 use std::f32;
 use wgpu::{
-    Color, CommandEncoderDescriptor, Device, DeviceDescriptor, Features, FragmentState, Instance,
-    Limits, LoadOp, MemoryHints, MultisampleState, Operations, PowerPreference, Queue,
-    RenderPassColorAttachment, RenderPassDescriptor, RenderPipeline, RenderPipelineDescriptor,
-    RequestAdapterOptions, ShaderModuleDescriptor, ShaderSource, StoreOp, Surface,
-    SurfaceConfiguration, TextureFormat, TextureViewDescriptor, VertexState,
+    Color, CommandEncoderDescriptor, Device, DeviceDescriptor, Features, FragmentState, Instance, Limits, LoadOp, MemoryHints,
+    MultisampleState, Operations, PowerPreference, Queue, RenderPassColorAttachment, RenderPassDescriptor, RenderPipeline,
+    RenderPipelineDescriptor, RequestAdapterOptions, ShaderModuleDescriptor, ShaderSource, StoreOp, Surface, SurfaceConfiguration,
+    TextureFormat, TextureViewDescriptor, VertexState,
 };
 use winit::{dpi::PhysicalSize, event_loop::EventLoopProxy, window::Window};
 
@@ -60,8 +58,7 @@ struct Track {
 
 // im not messing with this;; WGSL setup
 impl Vertex {
-    const ATTRIBS: [wgpu::VertexAttribute; 2] =
-        wgpu::vertex_attr_array![0 => Float32x3, 1 => Float32x3];
+    const ATTRIBS: [wgpu::VertexAttribute; 2] = wgpu::vertex_attr_array![0 => Float32x3, 1 => Float32x3];
 
     fn desc() -> wgpu::VertexBufferLayout<'static> {
         use std::mem;
@@ -74,6 +71,20 @@ impl Vertex {
     }
 }
 
+fn make_buffer(font_system: &mut FontSystem, text: &str, size: f32, line_height: f32, color: Option<(u8, u8, u8)>) -> glyphon::Buffer {
+    let (r, g, b) = color.unwrap_or((255, 255, 255));
+    let mut buffer = glyphon::Buffer::new(font_system, Metrics::new(size, line_height));
+    buffer.set_size(font_system, Some(400.0), Some(50.0));
+    buffer.set_text(
+        font_system,
+        text,
+        &Attrs::new().family(Family::SansSerif).color(glyphon::Color::rgb(r, g, b)),
+        Shaping::Advanced,
+    );
+    buffer.shape_until_scroll(font_system, false);
+    buffer
+}
+
 // runs once at the beginning of app start up
 pub async fn create_graphics(window: Rc<Window>, proxy: EventLoopProxy<Graphics>) {
     // Context for all other wgpu objects. Instance of wgpu. first item u create on wgpu
@@ -84,8 +95,8 @@ pub async fn create_graphics(window: Rc<Window>, proxy: EventLoopProxy<Graphics>
     let adapter = instance
         .request_adapter(&RequestAdapterOptions {
             power_preference: PowerPreference::default(), // Power preference for the device
-            force_fallback_adapter: false, // Indicates that only a fallback ("software") adapter can be used
-            compatible_surface: Some(&surface), // Guarantee that the adapter can render to this surface
+            force_fallback_adapter: false,                // Indicates that only a fallback ("software") adapter can be used
+            compatible_surface: Some(&surface),           // Guarantee that the adapter can render to this surface
         })
         .await
         .expect("Could not get an adapter (GPU).");
@@ -252,13 +263,8 @@ impl Graphics {
             let y_ceiling: f64 = 416.0;
             let track_height: f64 = 164.0;
             let padding = 32.0;
-            if x > 64.0 - padding
-                && x < 96.0 + padding
-                && y > y_ceiling
-                && y < y_ceiling + track_height
-            {
-                self.master_volume =
-                    1.0 - ((y as f32 - y_ceiling as f32) / track_height as f32).clamp(0.0, 1.0);
+            if x > 64.0 - padding && x < 96.0 + padding && y > y_ceiling && y < y_ceiling + track_height {
+                self.master_volume = 1.0 - ((y as f32 - y_ceiling as f32) / track_height as f32).clamp(0.0, 1.0);
                 dbg!(self.master_volume);
                 return DragResult::DragVolumeSlider(self.master_volume);
             }
@@ -266,17 +272,14 @@ impl Graphics {
 
         // knob tracking
         if let Some(i) = self.dragging_knob {
-            self.rows[i].track_volume =
-                (self.rows[i].track_volume - dy as f32 * 0.005).clamp(0.0, 1.0);
+            self.rows[i].track_volume = (self.rows[i].track_volume - dy as f32 * 0.005).clamp(0.0, 1.0);
             return DragResult::DragVolumeKnob(i, self.rows[i].track_volume);
         }
         for (i, track) in &mut self.rows.iter_mut().enumerate() {
             if x > (BUTTON_X_ORIGIN - 24 - KNOB_RADIUS as u32) as f64
                 && x < (BUTTON_X_ORIGIN - 24 as u32) as f64 + KNOB_RADIUS as f64
-                && y > (BUTTON_Y_ORIGIN as f64 + (i as f64 * TRACK_GAP as f64) + 24.0) as f64
-                    - KNOB_RADIUS as f64
-                && y < (BUTTON_Y_ORIGIN as f64 + (i as f64 * TRACK_GAP as f64) + 24.0) as f64
-                    + KNOB_RADIUS as f64
+                && y > (BUTTON_Y_ORIGIN as f64 + (i as f64 * TRACK_GAP as f64) + 24.0) as f64 - KNOB_RADIUS as f64
+                && y < (BUTTON_Y_ORIGIN as f64 + (i as f64 * TRACK_GAP as f64) + 24.0) as f64 + KNOB_RADIUS as f64
             {
                 self.dragging_knob = Some(i);
                 track.track_volume = (track.track_volume - dy as f32 * 0.01).clamp(0.0, 1.0);
@@ -294,15 +297,9 @@ impl Graphics {
             } else {
                 for (j, button) in &mut track.steps.iter_mut().enumerate() {
                     let group = j / 4;
-                    let x2 = BUTTON_X_ORIGIN
-                        + i as u32 * BUTTON_GAP as u32
-                        + group as u32 * BAR_GAP as u32;
+                    let x2 = BUTTON_X_ORIGIN + i as u32 * BUTTON_GAP as u32 + group as u32 * BAR_GAP as u32;
                     let y2 = BUTTON_Y_ORIGIN + j as u32 * TRACK_GAP;
-                    if x > x2 as f64
-                        && x < x2 as f64 + button.width as f64
-                        && y > y2 as f64
-                        && y < y2 as f64 + button.height as f64
-                    {
+                    if x > x2 as f64 && x < x2 as f64 + button.width as f64 && y > y2 as f64 && y < y2 as f64 + button.height as f64 {
                         button.velocity = if button.velocity > 0.0 { 0.0 } else { 95.0 };
                         dbg!(button.velocity);
                         return ClickResult::Step(i, j);
@@ -342,19 +339,11 @@ impl Graphics {
         }
 
         // check for bpm
-        if x > 48 as f64
-            && x < 48 as f64 + ICON_WIDTH as f64
-            && y > 4 as f64
-            && y < 4 as f64 + 10 as f64
-        {
+        if x > 48 as f64 && x < 48 as f64 + ICON_WIDTH as f64 && y > 4 as f64 && y < 4 as f64 + 10 as f64 {
             self.bpm = self.bpm + 1.0;
             return ClickResult::ChangeBpm(self.bpm);
         }
-        if x > 48 as f64
-            && x < 48 as f64 + ICON_WIDTH as f64
-            && y > (16) as f64
-            && y < (16 + 10) as f64
-        {
+        if x > 48 as f64 && x < 48 as f64 + ICON_WIDTH as f64 && y > (16) as f64 && y < (16 + 10) as f64 {
             self.bpm = self.bpm - 1.0;
             return ClickResult::ChangeBpm(self.bpm);
         }
@@ -416,13 +405,29 @@ impl Graphics {
 
         let view = frame.texture.create_view(&TextureViewDescriptor::default());
 
+        // draw the steps
         let mut vertices: Vec<Vertex> = Vec::new();
         let mut text_items: Vec<(glyphon::Buffer, f32, f32)> = Vec::new();
+
+        /* dark background */
+
+        // for vert in draw_rectangle(
+        //     4,
+        //     TOOLBAR_MARGIN + 48,
+        //     1200,
+        //     248,
+        //     self.surface_config.width,
+        //     self.surface_config.height,
+        //     DARK_GRAY,
+        // ) {
+        //     vertices.push(vert);
+        // }
+
+        /* begin per track rendering */
         for (j, track) in &mut self.rows.iter_mut().enumerate() {
             for (i, button) in &mut track.steps.iter_mut().enumerate() {
                 let group = j / 4;
-                let x =
-                    BUTTON_X_ORIGIN + i as u32 * BUTTON_GAP as u32 + group as u32 * BAR_GAP as u32;
+                let x = BUTTON_X_ORIGIN + i as u32 * BUTTON_GAP as u32 + group as u32 * BAR_GAP as u32;
                 let y = BUTTON_Y_ORIGIN + j as u32 * TRACK_GAP;
                 if track.show_velocity {
                     // background
@@ -515,8 +520,7 @@ impl Graphics {
             let hover = _mouse_x > (BUTTON_X_ORIGIN - 24) as f64
                 && _mouse_x < (BUTTON_X_ORIGIN - 24 + MUTE_SQUARE_LENGTH) as f64
                 && _mouse_y > (BUTTON_Y_ORIGIN + (j as u32 * TRACK_GAP) + 48) as f64
-                && _mouse_y
-                    < ((BUTTON_Y_ORIGIN + (j as u32 * TRACK_GAP) + 48) + MUTE_SQUARE_LENGTH) as f64;
+                && _mouse_y < ((BUTTON_Y_ORIGIN + (j as u32 * TRACK_GAP) + 48) + MUTE_SQUARE_LENGTH) as f64;
 
             // mute button
             for vert in draw_rectangle(
@@ -536,8 +540,7 @@ impl Graphics {
             let hover = _mouse_x > (BUTTON_X_ORIGIN - button_gap) as f64
                 && _mouse_x < (BUTTON_X_ORIGIN + MUTE_SQUARE_LENGTH - button_gap) as f64
                 && _mouse_y > (BUTTON_Y_ORIGIN + (j as u32 * TRACK_GAP) + 48) as f64
-                && _mouse_y
-                    < ((BUTTON_Y_ORIGIN + (j as u32 * TRACK_GAP) + 48) + MUTE_SQUARE_LENGTH) as f64;
+                && _mouse_y < ((BUTTON_Y_ORIGIN + (j as u32 * TRACK_GAP) + 48) + MUTE_SQUARE_LENGTH) as f64;
 
             // velocity button
             for vert in draw_rectangle(
@@ -579,55 +582,22 @@ impl Graphics {
             }
 
             // track text buffer
-            let mut buffer = glyphon::Buffer::new(&mut self.font_system, Metrics::new(18.0, 22.0));
-            buffer.set_size(&mut self.font_system, Some(400.0), Some(50.0));
-            buffer.set_text(
-                &mut self.font_system,
-                &track.name,
-                &Attrs::new().family(Family::SansSerif),
-                Shaping::Advanced,
-            );
-            buffer.shape_until_scroll(&mut self.font_system, false);
             text_items.push((
-                buffer,
+                make_buffer(&mut self.font_system, &track.name, 18.0, 22.0, None),
                 10.0,
                 BUTTON_Y_ORIGIN as f32 + j as f32 * TRACK_GAP as f32,
             ));
 
             // mute text buffer
-            let mut mute_buffer =
-                glyphon::Buffer::new(&mut self.font_system, Metrics::new(12.0, 22.0));
-            mute_buffer.set_size(&mut self.font_system, Some(400.0), Some(50.0));
-            mute_buffer.set_text(
-                &mut self.font_system,
-                "mut",
-                &Attrs::new()
-                    .family(Family::SansSerif)
-                    .color(glyphon::Color::rgb(0, 0, 0)),
-                Shaping::Advanced,
-            );
-            mute_buffer.shape_until_scroll(&mut self.font_system, false);
             text_items.push((
-                mute_buffer,
+                make_buffer(&mut self.font_system, "mut", 12.0, 22.0, None),
                 (BUTTON_X_ORIGIN - 32 + 4) as f32,
                 BUTTON_Y_ORIGIN as f32 + j as f32 * TRACK_GAP as f32 + 54.0,
             ));
 
             // velocity mode text buffer
-            let mut mute_buffer =
-                glyphon::Buffer::new(&mut self.font_system, Metrics::new(12.0, 22.0));
-            mute_buffer.set_size(&mut self.font_system, Some(400.0), Some(50.0));
-            mute_buffer.set_text(
-                &mut self.font_system,
-                "vel",
-                &Attrs::new()
-                    .family(Family::SansSerif)
-                    .color(glyphon::Color::rgb(0, 0, 0)),
-                Shaping::Advanced,
-            );
-            mute_buffer.shape_until_scroll(&mut self.font_system, false);
             text_items.push((
-                mute_buffer,
+                make_buffer(&mut self.font_system, "vel", 12.0, 22.0, None),
                 (BUTTON_X_ORIGIN - 32 - 16) as f32,
                 BUTTON_Y_ORIGIN as f32 + j as f32 * TRACK_GAP as f32 + 54.0,
             ));
@@ -642,78 +612,38 @@ impl Graphics {
         );
 
         // project text buffer
-        let mut proj_buffer = glyphon::Buffer::new(&mut self.font_system, Metrics::new(14.0, 22.0));
-        proj_buffer.set_size(&mut self.font_system, Some(400.0), Some(50.0));
-        proj_buffer.set_text(
-            &mut self.font_system,
-            "proj",
-            &Attrs::new()
-                .family(Family::SansSerif)
-                .color(glyphon::Color::rgb(0, 0, 0)),
-            Shaping::Advanced,
-        );
-        proj_buffer.shape_until_scroll(&mut self.font_system, false);
-        text_items.push((proj_buffer, self.surface_config.width as f32 - 37.0, 4.0));
+        text_items.push((
+            make_buffer(&mut self.font_system, "proj", 14.0, 22.0, Some((0, 0, 0))),
+            self.surface_config.width as f32 - 37.0,
+            4.0,
+        ));
 
         // instrument text buffer
-        let mut instr_buffer =
-            glyphon::Buffer::new(&mut self.font_system, Metrics::new(14.0, 22.0));
-        instr_buffer.set_size(&mut self.font_system, Some(400.0), Some(50.0));
-        instr_buffer.set_text(
-            &mut self.font_system,
-            "instr",
-            &Attrs::new()
-                .family(Family::SansSerif)
-                .color(glyphon::Color::rgb(0, 0, 0)),
-            Shaping::Advanced,
-        );
-        instr_buffer.shape_until_scroll(&mut self.font_system, false);
         text_items.push((
-            instr_buffer,
+            make_buffer(&mut self.font_system, "instr", 14.0, 22.0, Some((0, 0, 0))),
             self.surface_config.width as f32 - (37.0 + 40.0 + 1.0),
             4.0,
         ));
 
         // bpm text buffer
-        let mut bpm_buffer = glyphon::Buffer::new(&mut self.font_system, Metrics::new(18.0, 22.0));
-        bpm_buffer.set_size(&mut self.font_system, Some(400.0), Some(50.0));
-        bpm_buffer.set_text(
-            &mut self.font_system,
-            &self.bpm.to_string(),
-            &Attrs::new().family(Family::SansSerif),
-            Shaping::Advanced,
-        );
-        bpm_buffer.shape_until_scroll(&mut self.font_system, false);
-        text_items.push((bpm_buffer, 10.0, TOOLBAR_MARGIN as f32));
+        text_items.push((
+            make_buffer(&mut self.font_system, &self.bpm.to_string(), 18.0, 22.0, None),
+            10.0,
+            TOOLBAR_MARGIN as f32,
+        ));
 
         // volume text buffer
-        let mut volume_buffer =
-            glyphon::Buffer::new(&mut self.font_system, Metrics::new(18.0, 22.0));
-        volume_buffer.set_size(&mut self.font_system, Some(400.0), Some(50.0));
-        volume_buffer.set_text(
-            &mut self.font_system,
-            &self.master_volume.to_string(),
-            &Attrs::new().family(Family::SansSerif),
-            Shaping::Advanced,
-        );
-        volume_buffer.shape_until_scroll(&mut self.font_system, false);
-        text_items.push((volume_buffer, 54.0, 380.0));
+        text_items.push((
+            make_buffer(&mut self.font_system, &self.master_volume.to_string(), 18.0, 22.0, None),
+            54.0,
+            380.0,
+        ));
 
         let label = if self.is_playing { "❚❚" } else { "  ▶" };
 
         // play/pause text buffer
-        let mut play_pause_buffer =
-            glyphon::Buffer::new(&mut self.font_system, Metrics::new(18.0, 22.0));
-        play_pause_buffer.set_size(&mut self.font_system, Some(400.0), Some(50.0));
-        play_pause_buffer.set_text(
-            &mut self.font_system,
-            label,
-            &Attrs::new().family(Family::SansSerif),
-            Shaping::Advanced,
-        );
-        play_pause_buffer.shape_until_scroll(&mut self.font_system, false);
         text_items.push((
-            play_pause_buffer,
+            make_buffer(&mut self.font_system, label, 18.0, 22.0, None),
             (PLAY_X_ORIGIN as f32 + (PLAY_SQUARE_WIDTH as f32 / 4.0)),
             5.0,
         ));
@@ -756,13 +686,10 @@ impl Graphics {
             _mouse_y,
         );
 
-        self.queue
-            .write_buffer(&self.vertex_buffer, 0, bytemuck::cast_slice(&vertices));
+        self.queue.write_buffer(&self.vertex_buffer, 0, bytemuck::cast_slice(&vertices));
         self.num_vertices = vertices.len() as u32;
 
-        let mut encoder = self
-            .device
-            .create_command_encoder(&CommandEncoderDescriptor { label: None });
+        let mut encoder = self.device.create_command_encoder(&CommandEncoderDescriptor { label: None });
 
         {
             let mut r_pass = encoder.begin_render_pass(&RenderPassDescriptor {
@@ -787,9 +714,7 @@ impl Graphics {
             r_pass.set_pipeline(&self.render_pipeline);
             r_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
             r_pass.draw(0..self.num_vertices, 0..1);
-            self.renderer
-                .render(&self.atlas, &self.viewport, &mut r_pass)
-                .unwrap();
+            self.renderer.render(&self.atlas, &self.viewport, &mut r_pass).unwrap();
         } // `r_pass` dropped here
 
         self.queue.submit(Some(encoder.finish()));

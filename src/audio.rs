@@ -28,6 +28,11 @@ struct TrackData {
     is_playing: bool,
 }
 
+struct Playlist {
+    pattern_id: u32,
+    bar: usize,
+}
+
 pub enum AudioCommand {
     ToggleStep(usize, usize),
     ChangeBpm(f32),
