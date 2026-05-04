@@ -15,9 +15,10 @@ use winit::{dpi::PhysicalSize, event_loop::EventLoopProxy, window::Window};
 use crate::colors::*;
 use crate::ui::*;
 
+// Click results let the app handle what graphics are clicked
 pub enum ClickResult {
-    Step(usize, usize), // track, step
-    Mute(usize),        // track
+    Step(usize, usize),
+    Mute(usize),
     ChangeBpm(f32),
     TogglePlay,
     ProjectFileDialog,
@@ -25,15 +26,11 @@ pub enum ClickResult {
     DeleteTrack(usize),
     None,
 }
-
 pub enum DragResult {
     DragVolumeSlider(f32),
     DragVolumeKnob(usize, f32),
     None,
 }
-
-#[cfg(target_arch = "wasm32")]
-pub type Rc<T> = std::rc::Rc<T>;
 
 #[cfg(not(target_arch = "wasm32"))]
 pub type Rc<T> = std::sync::Arc<T>;
@@ -67,7 +64,7 @@ impl Vertex {
     }
 }
 
-fn make_buffer(font_system: &mut FontSystem, text: &str, size: f32, line_height: f32, color: Option<(u8, u8, u8)>) -> glyphon::Buffer {
+fn make_text_buffer(font_system: &mut FontSystem, text: &str, size: f32, line_height: f32, color: Option<(u8, u8, u8)>) -> glyphon::Buffer {
     let (r, g, b) = color.unwrap_or((255, 255, 255));
     let mut buffer = glyphon::Buffer::new(font_system, Metrics::new(size, line_height));
     buffer.set_size(font_system, Some(400.0), Some(50.0));
@@ -81,6 +78,7 @@ fn make_buffer(font_system: &mut FontSystem, text: &str, size: f32, line_height:
     buffer
 }
 
+/// Initialize the graphics with default/loaded state and find driver/display info
 pub async fn create_graphics(window: Rc<Window>, proxy: EventLoopProxy<Graphics>) {
     let instance = Instance::default();
     let surface = instance.create_surface(Rc::clone(&window)).unwrap();
@@ -128,6 +126,13 @@ pub async fn create_graphics(window: Rc<Window>, proxy: EventLoopProxy<Graphics>
         mapped_at_creation: false,
     });
 
+    // instantiate app movable windows
+    let mut mini_windows: Vec<MiniWindow> = Vec::new();
+
+    // declare sequencer
+    let sequencer_window = MiniWindow::new(128.0, 128.0, 900.0, 400.0, "Sequencer", WindowKind::Sequencer);
+    mini_windows.push(sequencer_window);
+
     let gfx = Graphics {
         window: window.clone(),
         surface,
@@ -148,11 +153,14 @@ pub async fn create_graphics(window: Rc<Window>, proxy: EventLoopProxy<Graphics>
         is_playing: false,
         master_volume: 0.5,
         dragging_knob: None,
+        mini_windows,
+        dragging_window: None,
     };
 
     let _ = proxy.send_event(gfx);
 }
 
+/// Creates a WGSL render pipeline
 fn create_pipeline(device: &Device, swap_chain_format: TextureFormat) -> RenderPipeline {
     let shader = device.create_shader_module(ShaderModuleDescriptor {
         label: None,
@@ -182,6 +190,7 @@ fn create_pipeline(device: &Device, swap_chain_format: TextureFormat) -> RenderP
     })
 }
 
+// Graphics state
 pub struct Graphics {
     window: Rc<Window>,
     surface: Surface<'static>,
@@ -202,6 +211,8 @@ pub struct Graphics {
     pub is_playing: bool,
     pub master_volume: f32,
     pub dragging_knob: Option<usize>,
+    pub mini_windows: Vec<MiniWindow>,
+    pub dragging_window: Option<usize>,
 }
 
 impl Graphics {
@@ -209,6 +220,7 @@ impl Graphics {
         self.window.request_redraw();
     }
 
+    /// Performs operations to load a new track of instrument steps to the state
     pub fn load_track(&mut self, i: usize, name: String, steps: Vec<f32>, mute: bool, vol: f32) {
         if i >= self.rows.len() {
             let mut buttons = Vec::new();
@@ -233,7 +245,16 @@ impl Graphics {
         }
     }
 
-    pub fn handle_drag(&mut self, x: f32, y: f32, dy: f32) -> DragResult {
+    /// handles dragging operations and returns location/result to app
+    pub fn handle_drag(&mut self, x: f32, y: f32, dy: f32, dx: f32) -> DragResult {
+        // find the sequencer position
+        let (seq_x, seq_y) = self
+            .mini_windows
+            .iter()
+            .find(|w| matches!(w.window_kind, WindowKind::Sequencer))
+            .map(|w| (w.x, w.y))
+            .unwrap_or((64.0, 64.0));
+
         if self.dragging_knob == None {
             let y_ceiling: f32 = 416.0;
             let track_height: f32 = 164.0;
@@ -250,10 +271,10 @@ impl Graphics {
         }
 
         for (i, track) in &mut self.rows.iter_mut().enumerate() {
-            if x > (BUTTON_X_ORIGIN - 24.0 - KNOB_RADIUS)
-                && x < BUTTON_X_ORIGIN - 24.0 + KNOB_RADIUS
-                && y > (BUTTON_Y_ORIGIN + (i as f32 * TRACK_GAP) + 24.0) - KNOB_RADIUS
-                && y < (BUTTON_Y_ORIGIN + (i as f32 * TRACK_GAP) + 24.0) + KNOB_RADIUS
+            if x > (seq_x - 24.0 - KNOB_RADIUS)
+                && x < seq_x - 24.0 + KNOB_RADIUS
+                && y > (seq_y + (i as f32 * TRACK_GAP) + 24.0) - KNOB_RADIUS
+                && y < (seq_y + (i as f32 * TRACK_GAP) + 24.0) + KNOB_RADIUS
             {
                 self.dragging_knob = Some(i);
                 track.track_volume = (track.track_volume - dy * 0.01).clamp(0.0, 1.0);
@@ -261,9 +282,30 @@ impl Graphics {
             }
         }
 
+        // if already dragging a window, just move it
+        if let Some(i) = self.dragging_window {
+            self.mini_windows[i].x += dx;
+            self.mini_windows[i].y += dy;
+            return DragResult::None;
+        }
+
+        // only check titlebar hit if not already dragging
+        for (i, win) in self.mini_windows.iter().enumerate() {
+            let titlebar = Rectangle {
+                x: win.x,
+                y: win.y - TITLEBAR_HEIGHT,
+                width: win.width,
+                height: TITLEBAR_HEIGHT,
+            };
+            if titlebar.is_hovered(x, y) {
+                self.dragging_window = Some(i);
+                return DragResult::None;
+            }
+        }
         DragResult::None
     }
 
+    /// Resize the user's main window
     pub fn resize(&mut self, new_size: PhysicalSize<u32>) {
         self.surface_config.width = new_size.width.max(1);
         self.surface_config.height = new_size.height.max(1);
@@ -293,12 +335,47 @@ impl Graphics {
         let sw = self.surface_config.width;
         let sh = self.surface_config.height;
 
+        // unload sequencer window information from setup
+        let (seq_x, seq_y, seq_w, seq_h, seq_t) = self
+            .mini_windows
+            .iter()
+            .find(|w| matches!(w.window_kind, WindowKind::Sequencer))
+            .map(|w| (w.x, w.y, w.width, w.height, w.title.clone()))
+            .unwrap_or((64.0, 64.0, 1000.0, 600.0, "Title".to_string()));
+
+        // background of sequencer
+        let seq_background = Rectangle {
+            x: seq_x,
+            y: seq_y,
+            width: seq_w,
+            height: seq_h,
+        };
+        vertices.extend(seq_background.draw(sw, sh, BACKGROUND));
+
+        // titlebar rectangle
+        let titlebar = Rectangle {
+            x: seq_x,
+            y: seq_y - TITLEBAR_HEIGHT,
+            width: seq_w,
+            height: TITLEBAR_HEIGHT,
+        };
+        vertices.extend(titlebar.draw(sw, sh, DARK_GRAY));
+
+        // titlebar text
+        text_items.push((
+            make_text_buffer(&mut self.font_system, &seq_t, 14.0, 22.0, None),
+            seq_x + 8.0,
+            seq_y - TITLEBAR_HEIGHT + 4.0,
+        ));
+
+        let padding = 16.0;
+
         /* begin per track rendering */
         for (j, track) in &mut self.rows.iter_mut().enumerate() {
             for (i, button) in &mut track.steps.iter_mut().enumerate() {
                 let group = i / 4;
-                let x = BUTTON_X_ORIGIN + i as f32 * BUTTON_GAP + group as f32 * BAR_GAP;
-                let y = BUTTON_Y_ORIGIN + j as f32 * TRACK_GAP;
+                let x = 240.0 + padding + seq_x + i as f32 * BUTTON_GAP + group as f32 * BAR_GAP;
+                let y = padding + seq_y + j as f32 * TRACK_GAP;
 
                 if track.show_velocity {
                     // background
@@ -343,8 +420,8 @@ impl Graphics {
 
             // mute button
             let mute_button = Rectangle {
-                x: BUTTON_X_ORIGIN - 24.0,
-                y: BUTTON_Y_ORIGIN + (j as f32 * TRACK_GAP) + 48.0,
+                x: padding + seq_x,
+                y: 32.0 + seq_y + (j as f32 * TRACK_GAP),
                 width: MUTE_SQUARE_LENGTH,
                 height: MUTE_SQUARE_LENGTH,
             };
@@ -356,8 +433,8 @@ impl Graphics {
 
             // velocity button
             let velocity_button = Rectangle {
-                x: BUTTON_X_ORIGIN - button_gap,
-                y: BUTTON_Y_ORIGIN + (j as f32 * TRACK_GAP) + 48.0,
+                x: padding + seq_x + button_gap,
+                y: 32.0 + seq_y + (j as f32 * TRACK_GAP),
                 width: MUTE_SQUARE_LENGTH,
                 height: MUTE_SQUARE_LENGTH,
             };
@@ -368,8 +445,8 @@ impl Graphics {
 
             // delete button
             let delete_button = Rectangle {
-                x: BUTTON_X_ORIGIN - button_gap - 16.0,
-                y: BUTTON_Y_ORIGIN + (j as f32 * TRACK_GAP) + 48.0,
+                x: padding + seq_x + button_gap + 16.0,
+                y: 32.0 + seq_y + (j as f32 * TRACK_GAP),
                 width: MUTE_SQUARE_LENGTH,
                 height: MUTE_SQUARE_LENGTH,
             };
@@ -381,8 +458,8 @@ impl Graphics {
             // track volume knob
             for vert in draw_knob(
                 track.track_volume,
-                BUTTON_X_ORIGIN - 24.0,
-                BUTTON_Y_ORIGIN + (j as f32 * TRACK_GAP) + 24.0,
+                seq_x + 198.0,
+                seq_y + (j as f32 * TRACK_GAP) + 24.0,
                 KNOB_RADIUS,
                 35,
                 sw,
@@ -393,19 +470,19 @@ impl Graphics {
 
             // text buffers
             text_items.push((
-                make_buffer(&mut self.font_system, &track.name, 18.0, 22.0, None),
-                10.0,
-                BUTTON_Y_ORIGIN + j as f32 * TRACK_GAP,
+                make_text_buffer(&mut self.font_system, &track.name, 18.0, 22.0, None),
+                seq_x + 16.0,
+                seq_y + j as f32 * TRACK_GAP,
             ));
             text_items.push((
-                make_buffer(&mut self.font_system, "mut", 12.0, 22.0, None),
-                BUTTON_X_ORIGIN - 32.0 + 4.0,
-                BUTTON_Y_ORIGIN + j as f32 * TRACK_GAP + 54.0,
+                make_text_buffer(&mut self.font_system, "mut", 12.0, 22.0, None),
+                seq_x + 16.0,
+                seq_y + j as f32 * TRACK_GAP + 40.0,
             ));
             text_items.push((
-                make_buffer(&mut self.font_system, "vel", 12.0, 22.0, None),
-                BUTTON_X_ORIGIN - 32.0 - 16.0,
-                BUTTON_Y_ORIGIN + j as f32 * TRACK_GAP + 54.0,
+                make_text_buffer(&mut self.font_system, "vel", 12.0, 22.0, None),
+                seq_x - 32.0 - 16.0,
+                seq_y as f32 * TRACK_GAP + 54.0,
             ));
         }
 
@@ -481,29 +558,29 @@ impl Graphics {
 
         // text buffers
         text_items.push((
-            make_buffer(&mut self.font_system, "proj", 14.0, 22.0, Some((0, 0, 0))),
+            make_text_buffer(&mut self.font_system, "proj", 14.0, 22.0, Some((0, 0, 0))),
             self.surface_config.width as f32 - 37.0,
             4.0,
         ));
         text_items.push((
-            make_buffer(&mut self.font_system, "instr", 14.0, 22.0, Some((0, 0, 0))),
+            make_text_buffer(&mut self.font_system, "instr", 14.0, 22.0, Some((0, 0, 0))),
             self.surface_config.width as f32 - (37.0 + 40.0 + 1.0),
             4.0,
         ));
         text_items.push((
-            make_buffer(&mut self.font_system, &self.bpm.to_string(), 18.0, 22.0, None),
+            make_text_buffer(&mut self.font_system, &self.bpm.to_string(), 18.0, 22.0, None),
             10.0,
             TOOLBAR_MARGIN,
         ));
         text_items.push((
-            make_buffer(&mut self.font_system, &self.master_volume.to_string(), 18.0, 22.0, None),
+            make_text_buffer(&mut self.font_system, &self.master_volume.to_string(), 18.0, 22.0, None),
             54.0,
             380.0,
         ));
 
         let label = if self.is_playing { "❚❚" } else { "  ▶" };
         text_items.push((
-            make_buffer(&mut self.font_system, label, 18.0, 22.0, None),
+            make_text_buffer(&mut self.font_system, label, 18.0, 22.0, None),
             PLAY_X_ORIGIN + (PLAY_SQUARE_WIDTH / 4.0),
             5.0,
         ));

@@ -42,6 +42,7 @@ pub struct App {
     state: State,
     mouse_x: f32,
     mouse_y: f32,
+    prev_mouse_x: f32,
     prev_mouse_y: f32,
     stream: Stream,
     pending_project: Option<String>,
@@ -60,6 +61,7 @@ impl App {
             state: State::Init(Some(event_loop.create_proxy())),
             mouse_x: 0.0,
             mouse_y: 0.0,
+            prev_mouse_x: 0.0,
             prev_mouse_y: 0.0,
             stream,
             pending_project: None,
@@ -299,6 +301,10 @@ impl ApplicationHandler<Graphics> for App {
                 } else {
                     self.left_click_held = false;
                     self.clicked = false;
+                    if let State::Ready(gfx) = &mut self.state {
+                        gfx.dragging_window = None; // is this here?
+                        gfx.dragging_knob = None;
+                    }
                 }
             }
 
@@ -306,11 +312,13 @@ impl ApplicationHandler<Graphics> for App {
                 self.mouse_x = position.x as f32;
                 self.mouse_y = position.y as f32;
                 let delta_y = position.y as f32 - self.prev_mouse_y;
+                let delta_x = position.x as f32 - self.prev_mouse_x;
                 self.prev_mouse_y = position.y as f32;
+                self.prev_mouse_x = position.x as f32;
 
                 if let State::Ready(gfx) = &mut self.state {
                     if self.left_click_held {
-                        match gfx.handle_drag(position.x as f32, position.y as f32, delta_y) {
+                        match gfx.handle_drag(position.x as f32, position.y as f32, delta_y, delta_x) {
                             DragResult::None => {}
                             DragResult::DragVolumeSlider(fl) => {
                                 self.producer.try_push(AudioCommand::ChangeMasterVolume(fl)).ok();

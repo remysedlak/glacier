@@ -1,5 +1,6 @@
 pub const ONE_MEGABYTE: u64 = 1024 * 1024;
 
+pub const TITLEBAR_HEIGHT: f32 = 32.0;
 pub const TOOLBAR_Y: f32 = 32.0;
 pub const TOOLBAR_THICKNESS: f32 = 0.003;
 pub const TOOLBAR_MARGIN: f32 = 4.0;
@@ -30,6 +31,8 @@ pub const ADD_INSTRUMENT_ICON_OFFSET: f32 = 80.0;
 
 use std::f32::consts::PI;
 
+use winit::window::Window;
+
 use crate::colors::{BLACK, BLUE, DARK_BLUE, DARK_GRAY, LIGHT_GRAY, LL_GRAY};
 use crate::graphics::Vertex;
 // this file holds my shape abstractions
@@ -41,6 +44,37 @@ pub struct StepButton {
     pub velocity: f32,
 }
 
+pub enum WindowKind {
+    Sequencer,
+    Playlist,
+    Mixer,
+    PianoRoll,
+    InstrumentDetail(usize), // which instrument
+}
+
+pub struct MiniWindow {
+    pub x: f32,
+    pub y: f32,
+    pub width: f32,
+    pub height: f32,
+    pub title: String,
+    is_open: bool,
+    pub window_kind: WindowKind,
+}
+impl MiniWindow {
+    /// Creates a movable new window
+    pub fn new(x: f32, y: f32, width: f32, height: f32, title: &str, window_kind: WindowKind) -> Self {
+        Self {
+            x,
+            y,
+            width,
+            height,
+            title: title.to_string(),
+            is_open: true,
+            window_kind,
+        }
+    }
+}
 pub struct Rectangle {
     pub x: f32,
     pub y: f32,

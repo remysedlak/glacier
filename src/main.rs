@@ -5,25 +5,12 @@ mod graphics;
 mod ui;
 use crate::{
     app::{App, UiCommand},
+    audio::AudioCommand,
     graphics::Graphics,
 };
-use audio::AudioCommand;
 use ringbuf::traits::Split;
 use ringbuf::HeapRb;
 use winit::event_loop::{ControlFlow, EventLoop};
-
-#[cfg(target_arch = "wasm32")]
-fn run_app(event_loop: EventLoop<Graphics>, app: App) {
-    // Sets up panics to go to the console.error in browser environments
-    std::panic::set_hook(Box::new(console_error_panic_hook::hook));
-    console_log::init_with_level(log::Level::Error).expect("Couldn't initialize logger");
-
-    // Runs the app async via the browsers event loop
-    use winit::platform::web::EventLoopExtWebSys;
-    wasm_bindgen_futures::spawn_local(async move {
-        event_loop.spawn_app(app);
-    });
-}
 
 #[cfg(not(target_arch = "wasm32"))]
 fn run_app(event_loop: EventLoop<Graphics>, mut app: App) {
@@ -43,11 +30,6 @@ fn main() {
     // ControlFlow::Poll continuously runs the event loop, even if the OS hasn't
     // dispatched any events. This is ideal for games and similar applications.
     event_loop.set_control_flow(ControlFlow::Poll); // use poll to get 60fs ^^
-
-    // ControlFlow::Wait pauses the event loop if no events are available to process.
-    // This is ideal for non-game applications that only update in response to user
-    // input, and uses significantly less power/CPU time than ControlFlow::Poll.
-    //event_loop.set_control_flow(ControlFlow::Wait);
 
     // Create ring buffers with capacity of 64 commands for ui and audio engine to communicate data.
     let (audio_prod, audio_cons) = HeapRb::<AudioCommand>::new(64).split();
