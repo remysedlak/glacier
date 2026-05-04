@@ -1,5 +1,4 @@
-use crate::audio;
-use crate::audio::AudioCommand;
+use crate::audio::{init, AudioCommand};
 use crate::graphics::{create_graphics, ClickResult, DragResult, Graphics, Rc};
 use cpal::traits::StreamTrait;
 use cpal::Stream;
@@ -8,6 +7,9 @@ use ringbuf::{
     traits::{Consumer, Producer, Split},
     {HeapCons, HeapProd, HeapRb},
 };
+use std::path::PathBuf;
+use std::sync::mpsc::{Receiver, TryRecvError};
+use std::thread;
 use winit::{
     application::ApplicationHandler,
     dpi::PhysicalSize,
@@ -46,6 +48,8 @@ pub struct App {
     ctrl_pressed: bool,
     clicked: bool,
     left_click_held: bool,
+    instrument_file_dialog_rx: Option<Receiver<Option<PathBuf>>>,
+    project_file_dialog_rx: Option<Receiver<Option<PathBuf>>>,
 }
 
 impl App {
@@ -62,6 +66,8 @@ impl App {
             ctrl_pressed: false,
             left_click_held: false,
             clicked: false,
+            instrument_file_dialog_rx: None,
+            project_file_dialog_rx: None,
         }
     }
 
@@ -70,6 +76,43 @@ impl App {
         let mut should_exit = false;
 
         if let State::Ready(gfx) = &mut self.state {
+            // handle instrument dialog
+            if let Some(rx) = &self.instrument_file_dialog_rx {
+                match rx.try_recv() {
+                    Ok(Some(path)) => {
+                        self.producer
+                            .try_push(AudioCommand::AddInstrument(path.to_str().unwrap().to_string()))
+                            .ok();
+                        self.instrument_file_dialog_rx = None;
+                    }
+                    Ok(None) => {
+                        self.instrument_file_dialog_rx = None;
+                    }
+                    Err(TryRecvError::Empty) => {}
+                    Err(TryRecvError::Disconnected) => {
+                        self.instrument_file_dialog_rx = None;
+                    }
+                }
+            }
+            // handle project dialog
+            if let Some(rx) = &self.project_file_dialog_rx {
+                match rx.try_recv() {
+                    Ok(Some(path)) => {
+                        gfx.is_playing = false;
+                        self.pending_project = Some(path.to_str().unwrap().to_string());
+                        self.producer.try_push(AudioCommand::SaveProject).ok();
+                        self.project_file_dialog_rx = None;
+                    }
+                    Ok(None) => {
+                        self.project_file_dialog_rx = None;
+                    }
+                    Err(TryRecvError::Empty) => {}
+                    Err(TryRecvError::Disconnected) => {
+                        self.project_file_dialog_rx = None;
+                    }
+                }
+            }
+
             // consume audio -> ui commands
             while let Some(cmd) = self.consumer.try_pop() {
                 match cmd {
@@ -97,7 +140,7 @@ impl App {
                             let (ui_prod, ui_cons) = HeapRb::<UiCommand>::new(64).split();
                             self.producer = audio_prod;
                             self.consumer = ui_cons;
-                            self.stream = audio::init(audio_cons, ui_prod, path);
+                            self.stream = init(audio_cons, ui_prod, path);
                         }
                     }
                 }
@@ -125,31 +168,32 @@ impl App {
                     self.producer.try_push(AudioCommand::DeleteTrack(i)).ok();
                 }
                 ClickResult::ProjectFileDialog => {
-                    let file = FileDialog::new().add_filter("toml", &["toml"]).set_directory("/").pick_file();
-                    match file {
-                        Some(x) => {
-                            gfx.is_playing = false;
-                            self.pending_project = Some(x.to_str().unwrap().to_string());
-                            self.producer.try_push(AudioCommand::SaveProject).ok();
-                        }
-                        None => println!("no file chosen..."),
+                    if self.project_file_dialog_rx.is_none() {
+                        let (tx, rx) = std::sync::mpsc::channel::<Option<PathBuf>>();
+                        self.project_file_dialog_rx = Some(rx);
+                        thread::spawn(move || {
+                            let file = FileDialog::new().add_filter("toml", &["toml"]).set_directory("/").pick_file();
+                            tx.send(file).ok()
+                        });
                     }
                 }
                 ClickResult::InstrumentFileDialog => {
-                    let file = FileDialog::new()
-                        .add_filter("wav", &["wav"])
-                        .add_filter("mp3", &["mp3"])
-                        .set_directory("/")
-                        .pick_file();
-                    match file {
-                        Some(x) => {
-                            self.producer
-                                .try_push(AudioCommand::AddInstrument(x.to_str().unwrap().to_string()))
-                                .ok();
-                        }
-                        None => println!("no file chosen..."),
+                    // only allow one instrument to be added at a time.
+                    if self.instrument_file_dialog_rx.is_none() {
+                        // tx -> open file dialog
+                        let (tx, rx) = std::sync::mpsc::channel::<Option<PathBuf>>();
+                        self.instrument_file_dialog_rx = Some(rx); // store it
+                        thread::spawn(move || {
+                            let file = FileDialog::new()
+                                .add_filter("wav", &["wav"])
+                                .add_filter("mp3", &["mp3"])
+                                .set_directory("/")
+                                .pick_file();
+                            tx.send(file).ok();
+                        });
                     }
                 }
+
                 ClickResult::None => {}
             }
 
