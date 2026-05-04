@@ -1,5 +1,6 @@
 use crate::audio::{init, AudioCommand};
 use crate::graphics::{create_graphics, ClickResult, DragResult, Graphics, Rc};
+use crate::ui::WindowKind;
 use cpal::traits::StreamTrait;
 use cpal::Stream;
 use rfd::FileDialog;
@@ -154,6 +155,12 @@ impl App {
 
             // dispatch audio commands based on what was clicked
             match result {
+                ClickResult::ToggleSequencer => {
+                    if let Some(win) = gfx.mini_windows.iter_mut().find(|w| matches!(w.window_kind, WindowKind::Sequencer)) {
+                        println!("yay");
+                        win.is_open = !win.is_open;
+                    }
+                }
                 ClickResult::Step(track, step) => {
                     self.producer.try_push(AudioCommand::ToggleStep(track, step)).ok();
                 }

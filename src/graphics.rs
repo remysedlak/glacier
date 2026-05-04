@@ -24,6 +24,7 @@ pub enum ClickResult {
     ProjectFileDialog,
     InstrumentFileDialog,
     DeleteTrack(usize),
+    ToggleSequencer,
     None,
 }
 pub enum DragResult {
@@ -271,11 +272,13 @@ impl Graphics {
         }
 
         for (i, track) in &mut self.rows.iter_mut().enumerate() {
-            if x > (seq_x - 24.0 - KNOB_RADIUS)
-                && x < seq_x - 24.0 + KNOB_RADIUS
-                && y > (seq_y + (i as f32 * TRACK_GAP) + 24.0) - KNOB_RADIUS
-                && y < (seq_y + (i as f32 * TRACK_GAP) + 24.0) + KNOB_RADIUS
-            {
+            let knob_rect = Rectangle {
+                x: seq_x + 198.0 - KNOB_RADIUS,
+                y: seq_y + (i as f32 * TRACK_GAP) + 24.0 - KNOB_RADIUS,
+                width: KNOB_RADIUS * 2.0,
+                height: KNOB_RADIUS * 2.0,
+            };
+            if knob_rect.is_hovered(x, y) {
                 self.dragging_knob = Some(i);
                 track.track_volume = (track.track_volume - dy * 0.01).clamp(0.0, 1.0);
                 return DragResult::DragVolumeKnob(i, track.track_volume);
@@ -322,6 +325,8 @@ impl Graphics {
             },
         );
 
+        let padding = 16.0;
+
         let frame = self
             .surface
             .get_current_texture()
@@ -336,154 +341,161 @@ impl Graphics {
         let sh = self.surface_config.height;
 
         // unload sequencer window information from setup
-        let (seq_x, seq_y, seq_w, seq_h, seq_t) = self
+        let (seq_x, seq_y, seq_w, _, seq_t) = self
             .mini_windows
             .iter()
             .find(|w| matches!(w.window_kind, WindowKind::Sequencer))
             .map(|w| (w.x, w.y, w.width, w.height, w.title.clone()))
             .unwrap_or((64.0, 64.0, 1000.0, 600.0, "Title".to_string()));
 
-        // background of sequencer
-        let seq_background = Rectangle {
-            x: seq_x,
-            y: seq_y,
-            width: seq_w,
-            height: seq_h,
-        };
-        vertices.extend(seq_background.draw(sw, sh, BACKGROUND));
+        let seq_is_open = self
+            .mini_windows
+            .iter()
+            .find(|w| matches!(w.window_kind, WindowKind::Sequencer))
+            .map(|w| w.is_open)
+            .unwrap_or(false);
 
-        // titlebar rectangle
-        let titlebar = Rectangle {
-            x: seq_x,
-            y: seq_y - TITLEBAR_HEIGHT,
-            width: seq_w,
-            height: TITLEBAR_HEIGHT,
-        };
-        vertices.extend(titlebar.draw(sw, sh, DARK_GRAY));
+        if seq_is_open {
+            // background of sequencer
+            let seq_h = TITLEBAR_HEIGHT + padding + self.rows.len() as f32 * TRACK_GAP;
+            let seq_background = Rectangle {
+                x: seq_x,
+                y: seq_y,
+                width: seq_w,
+                height: seq_h,
+            };
+            vertices.extend(seq_background.draw(sw, sh, BACKGROUND));
 
-        // titlebar text
-        text_items.push((
-            make_text_buffer(&mut self.font_system, &seq_t, 14.0, 22.0, None),
-            seq_x + 8.0,
-            seq_y - TITLEBAR_HEIGHT + 4.0,
-        ));
+            // titlebar rectangle
+            let titlebar = Rectangle {
+                x: seq_x,
+                y: seq_y - TITLEBAR_HEIGHT,
+                width: seq_w,
+                height: TITLEBAR_HEIGHT,
+            };
+            vertices.extend(titlebar.draw(sw, sh, DARK_GRAY));
 
-        let padding = 16.0;
+            // titlebar text
+            text_items.push((
+                make_text_buffer(&mut self.font_system, &seq_t, 14.0, 22.0, None),
+                seq_x + 8.0,
+                seq_y - TITLEBAR_HEIGHT + 4.0,
+            ));
 
-        /* begin per track rendering */
-        for (j, track) in &mut self.rows.iter_mut().enumerate() {
-            for (i, button) in &mut track.steps.iter_mut().enumerate() {
-                let group = i / 4;
-                let x = 240.0 + padding + seq_x + i as f32 * BUTTON_GAP + group as f32 * BAR_GAP;
-                let y = padding + seq_y + j as f32 * TRACK_GAP;
+            /* begin per track rendering */
+            for (j, track) in &mut self.rows.iter_mut().enumerate() {
+                for (i, button) in &mut track.steps.iter_mut().enumerate() {
+                    let group = i / 4;
+                    let x = 240.0 + padding + seq_x + i as f32 * BUTTON_GAP + group as f32 * BAR_GAP;
+                    let y = padding + seq_y + j as f32 * TRACK_GAP;
 
-                if track.show_velocity {
-                    // background
-                    let background = Rectangle {
-                        x,
-                        y,
-                        width: button.width,
-                        height: button.height,
-                    };
-                    vertices.extend(background.draw(sw, sh, DARK_GRAY));
+                    if track.show_velocity {
+                        // background
+                        let background = Rectangle {
+                            x,
+                            y,
+                            width: button.width,
+                            height: button.height,
+                        };
+                        vertices.extend(background.draw(sw, sh, DARK_GRAY));
 
-                    // velocity bar
-                    let filled_height = button.height * (button.velocity / 128.0);
-                    let bar = Rectangle {
-                        x,
-                        y: y + button.height - filled_height,
-                        width: button.width,
-                        height: filled_height,
-                    };
-                    vertices.extend(bar.draw(sw, sh, BLUE));
-                } else {
-                    let step = Rectangle {
-                        x,
-                        y,
-                        width: button.width,
-                        height: button.height,
-                    };
-                    vertices.extend(step.draw(
-                        sw,
-                        sh,
-                        step.active_step_color(_mouse_x, _mouse_y, i == self.active_step, button.velocity > 0.0),
-                    ));
+                        // velocity bar
+                        let filled_height = button.height * (button.velocity / 128.0);
+                        let bar = Rectangle {
+                            x,
+                            y: y + button.height - filled_height,
+                            width: button.width,
+                            height: filled_height,
+                        };
+                        vertices.extend(bar.draw(sw, sh, BLUE));
+                    } else {
+                        let step = Rectangle {
+                            x,
+                            y,
+                            width: button.width,
+                            height: button.height,
+                        };
+                        vertices.extend(step.draw(
+                            sw,
+                            sh,
+                            step.active_step_color(_mouse_x, _mouse_y, i == self.active_step, button.velocity > 0.0),
+                        ));
 
-                    if clicked && step.is_hovered(_mouse_x, _mouse_y) {
-                        button.velocity = if button.velocity > 0.0 { 0.0 } else { 95.0 };
-                        click_result = ClickResult::Step(j, i);
+                        if clicked && step.is_hovered(_mouse_x, _mouse_y) {
+                            button.velocity = if button.velocity > 0.0 { 0.0 } else { 95.0 };
+                            click_result = ClickResult::Step(j, i);
+                        }
                     }
                 }
+
+                let button_gap = 40.0;
+
+                // mute button
+                let mute_button = Rectangle {
+                    x: padding + seq_x,
+                    y: 32.0 + seq_y + (j as f32 * TRACK_GAP),
+                    width: MUTE_SQUARE_LENGTH,
+                    height: MUTE_SQUARE_LENGTH,
+                };
+                vertices.extend(mute_button.draw(sw, sh, mute_button.active_color(_mouse_x, _mouse_y, track.is_muted)));
+                if clicked && mute_button.is_hovered(_mouse_x, _mouse_y) {
+                    track.is_muted = !track.is_muted;
+                    click_result = ClickResult::Mute(j);
+                }
+
+                // velocity button
+                let velocity_button = Rectangle {
+                    x: padding + seq_x + button_gap,
+                    y: 32.0 + seq_y + (j as f32 * TRACK_GAP),
+                    width: MUTE_SQUARE_LENGTH,
+                    height: MUTE_SQUARE_LENGTH,
+                };
+                vertices.extend(velocity_button.draw(sw, sh, velocity_button.active_color(_mouse_x, _mouse_y, track.show_velocity)));
+                if clicked && velocity_button.is_hovered(_mouse_x, _mouse_y) {
+                    track.show_velocity = !track.show_velocity;
+                }
+
+                // delete button
+                let delete_button = Rectangle {
+                    x: padding + seq_x + button_gap + 16.0,
+                    y: 32.0 + seq_y + (j as f32 * TRACK_GAP),
+                    width: MUTE_SQUARE_LENGTH,
+                    height: MUTE_SQUARE_LENGTH,
+                };
+                vertices.extend(delete_button.draw(sw, sh, delete_button.hover_color(_mouse_x, _mouse_y)));
+                if clicked && delete_button.is_hovered(_mouse_x, _mouse_y) {
+                    click_result = ClickResult::DeleteTrack(j);
+                }
+
+                // track volume knob
+                for vert in draw_knob(
+                    track.track_volume,
+                    seq_x + 198.0,
+                    seq_y + (j as f32 * TRACK_GAP) + 24.0,
+                    KNOB_RADIUS,
+                    35,
+                    sw,
+                    sh,
+                ) {
+                    vertices.push(vert);
+                }
+                // text buffers
+                text_items.push((
+                    make_text_buffer(&mut self.font_system, &track.name, 18.0, 22.0, None),
+                    seq_x + 16.0,
+                    seq_y + j as f32 * TRACK_GAP,
+                ));
+                text_items.push((
+                    make_text_buffer(&mut self.font_system, "mut", 12.0, 22.0, None),
+                    seq_x + 16.0,
+                    seq_y + j as f32 * TRACK_GAP + 40.0,
+                ));
+                text_items.push((
+                    make_text_buffer(&mut self.font_system, "vel", 12.0, 22.0, None),
+                    seq_x - 32.0 - 16.0,
+                    seq_y as f32 * TRACK_GAP + 54.0,
+                ));
             }
-
-            let button_gap = 40.0;
-
-            // mute button
-            let mute_button = Rectangle {
-                x: padding + seq_x,
-                y: 32.0 + seq_y + (j as f32 * TRACK_GAP),
-                width: MUTE_SQUARE_LENGTH,
-                height: MUTE_SQUARE_LENGTH,
-            };
-            vertices.extend(mute_button.draw(sw, sh, mute_button.active_color(_mouse_x, _mouse_y, track.is_muted)));
-            if clicked && mute_button.is_hovered(_mouse_x, _mouse_y) {
-                track.is_muted = !track.is_muted;
-                click_result = ClickResult::Mute(j);
-            }
-
-            // velocity button
-            let velocity_button = Rectangle {
-                x: padding + seq_x + button_gap,
-                y: 32.0 + seq_y + (j as f32 * TRACK_GAP),
-                width: MUTE_SQUARE_LENGTH,
-                height: MUTE_SQUARE_LENGTH,
-            };
-            vertices.extend(velocity_button.draw(sw, sh, velocity_button.active_color(_mouse_x, _mouse_y, track.show_velocity)));
-            if clicked && velocity_button.is_hovered(_mouse_x, _mouse_y) {
-                track.show_velocity = !track.show_velocity;
-            }
-
-            // delete button
-            let delete_button = Rectangle {
-                x: padding + seq_x + button_gap + 16.0,
-                y: 32.0 + seq_y + (j as f32 * TRACK_GAP),
-                width: MUTE_SQUARE_LENGTH,
-                height: MUTE_SQUARE_LENGTH,
-            };
-            vertices.extend(delete_button.draw(sw, sh, delete_button.hover_color(_mouse_x, _mouse_y)));
-            if clicked && delete_button.is_hovered(_mouse_x, _mouse_y) {
-                click_result = ClickResult::DeleteTrack(j);
-            }
-
-            // track volume knob
-            for vert in draw_knob(
-                track.track_volume,
-                seq_x + 198.0,
-                seq_y + (j as f32 * TRACK_GAP) + 24.0,
-                KNOB_RADIUS,
-                35,
-                sw,
-                sh,
-            ) {
-                vertices.push(vert);
-            }
-
-            // text buffers
-            text_items.push((
-                make_text_buffer(&mut self.font_system, &track.name, 18.0, 22.0, None),
-                seq_x + 16.0,
-                seq_y + j as f32 * TRACK_GAP,
-            ));
-            text_items.push((
-                make_text_buffer(&mut self.font_system, "mut", 12.0, 22.0, None),
-                seq_x + 16.0,
-                seq_y + j as f32 * TRACK_GAP + 40.0,
-            ));
-            text_items.push((
-                make_text_buffer(&mut self.font_system, "vel", 12.0, 22.0, None),
-                seq_x - 32.0 - 16.0,
-                seq_y as f32 * TRACK_GAP + 54.0,
-            ));
         }
 
         // handle delete after loop to avoid borrow issues
@@ -527,6 +539,18 @@ impl Graphics {
         if clicked && play_button.is_hovered(_mouse_x, _mouse_y) {
             self.is_playing = !self.is_playing;
             click_result = ClickResult::TogglePlay;
+        }
+
+        // sequencer button
+        let sequencer_toggle = Rectangle {
+            x: PLAY_X_ORIGIN + 256.0,
+            y: PLAY_Y_ORIGIN,
+            width: PLAY_SQUARE_WIDTH,
+            height: PLAY_SQUARE_HEIGHT,
+        };
+        vertices.extend(sequencer_toggle.draw(sw, sh, sequencer_toggle.hover_color(_mouse_x, _mouse_y)));
+        if clicked && sequencer_toggle.is_hovered(_mouse_x, _mouse_y) {
+            click_result = ClickResult::ToggleSequencer;
         }
 
         let user_width = self.surface_config.width as f32;

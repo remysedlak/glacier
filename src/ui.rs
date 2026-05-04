@@ -58,7 +58,7 @@ pub struct MiniWindow {
     pub width: f32,
     pub height: f32,
     pub title: String,
-    is_open: bool,
+    pub is_open: bool,
     pub window_kind: WindowKind,
 }
 impl MiniWindow {

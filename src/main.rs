@@ -36,7 +36,7 @@ fn main() {
     let (ui_prod, ui_cons) = HeapRb::<UiCommand>::new(64).split();
 
     // start the audio stream with buffers that product ui commands asnd consume in audio commands
-    let stream = audio::init(audio_cons, ui_prod, "my_song.toml".to_string()); // hard coded intro song for dev work
+    let stream = audio::init(audio_cons, ui_prod, "projects/example_project.toml".to_string()); // hard coded intro song for dev work
 
     // start the ui with buffers that produce audio commands and consume in ui commands
     let app = App::new(audio_prod, ui_cons, &event_loop, stream);
