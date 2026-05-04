@@ -61,11 +61,7 @@ struct Instrument {
     track_volume: f32,
 }
 
-pub fn init(
-    mut consumer: HeapCons<AudioCommand>,
-    mut producer: HeapProd<UiCommand>,
-    project_file: String,
-) -> Stream {
+pub fn init(mut consumer: HeapCons<AudioCommand>, mut producer: HeapProd<UiCommand>, project_file: String) -> Stream {
     println!("STARTING REMY'S AUDIO ENGINE");
 
     let err_fn = |err| eprintln!("an error occurred on the output audio stream: {}", err);
@@ -74,14 +70,10 @@ pub fn init(
     let host = cpal::default_host();
 
     // access the devices data streams
-    let device = host
-        .default_output_device()
-        .expect("no output device available");
+    let device = host.default_output_device().expect("no output device available");
 
     // a config must be defined to use the device properlyz
-    let supported_config = device
-        .default_output_config()
-        .expect("error getting default config");
+    let supported_config = device.default_output_config().expect("error getting default config");
 
     let config = supported_config.config();
     let sample_format = supported_config.sample_format();
@@ -121,11 +113,7 @@ pub fn init(
         })
     }
 
-    let max_steps = instruments
-        .iter()
-        .map(|i| i.steps.len())
-        .max()
-        .unwrap_or(16);
+    let max_steps = instruments.iter().map(|i| i.steps.len()).max().unwrap_or(16);
 
     //  extend all tracks to longest if necesray
     for instrument in &mut instruments {
@@ -138,9 +126,7 @@ pub fn init(
     producer.try_push(UiCommand::LoadBpm(bpm)).ok();
 
     // load the stored BPM onto the UI screen
-    producer
-        .try_push(UiCommand::LoadMasterVolume(master_volume))
-        .ok();
+    producer.try_push(UiCommand::LoadMasterVolume(master_volume)).ok();
 
     // load each instrument individually to the UI screen
     for (i, instrument) in instruments.iter().enumerate() {
@@ -303,8 +289,7 @@ pub fn init(
 
                             // volume ramping
                             if instrument.current_volume != instrument.target_volume {
-                                let difference =
-                                    instrument.target_volume - instrument.current_volume;
+                                let difference = instrument.target_volume - instrument.current_volume;
                                 instrument.current_volume += difference * 0.01;
                             }
 
@@ -314,8 +299,7 @@ pub fn init(
                                 * instrument.track_volume
                                 * shutdown_volume
                                 * master_volume;
-                            sample[1] += instrument.samples
-                                [(instrument.position as f32) as usize + 1]
+                            sample[1] += instrument.samples[(instrument.position as f32) as usize + 1]
                                 * instrument.current_volume
                                 * instrument.track_volume
                                 * shutdown_volume
@@ -338,22 +322,14 @@ pub fn init(
                 sample_counter = 0.0;
 
                 // current step follows the longest instrument track
-                current_step = (current_step + 1)
-                    % instruments
-                        .iter()
-                        .map(|i| i.steps.len())
-                        .max()
-                        .unwrap_or(16);
-                producer
-                    .try_push(UiCommand::StepAdvanced(current_step))
-                    .ok();
+                current_step = (current_step + 1) % instruments.iter().map(|i| i.steps.len()).max().unwrap_or(16);
+                producer.try_push(UiCommand::StepAdvanced(current_step)).ok();
                 // if the instrument plays on the newly incremented step, restart its position, enabling it for the next callback
                 for instrument in &mut instruments {
                     if instrument.steps[current_step % instrument.steps.len()] > 0.0 {
                         instrument.position = 0.0;
                         instrument.is_playing = true;
-                        instrument.target_volume =
-                            instrument.steps[current_step % instrument.steps.len()] / 127.0;
+                        instrument.target_volume = instrument.steps[current_step % instrument.steps.len()] / 127.0;
                     }
                 }
             }

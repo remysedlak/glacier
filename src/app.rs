@@ -39,9 +39,9 @@ pub struct App {
     producer: HeapProd<AudioCommand>,
     consumer: HeapCons<UiCommand>,
     state: State,
-    mouse_x: f64,
-    mouse_y: f64,
-    prev_mouse_y: f64,
+    mouse_x: f32,
+    mouse_y: f32,
+    prev_mouse_y: f32,
     stream: Stream,
     pending_project: Option<String>,
     ctrl_pressed: bool,
@@ -270,13 +270,13 @@ impl ApplicationHandler<Graphics> for App {
             // detect cursor movement
             WindowEvent::CursorMoved { position, .. } => {
                 // position.x and position.y are available here
-                self.mouse_x = position.x;
-                self.mouse_y = position.y;
-                let delta_y = position.y - self.prev_mouse_y;
-                self.prev_mouse_y = position.y;
+                self.mouse_x = position.x as f32;
+                self.mouse_y = position.y as f32;
+                let delta_y: f32 = position.y as f32 - self.prev_mouse_y;
+                self.prev_mouse_y = position.y as f32;
                 if let State::Ready(gfx) = &mut self.state {
                     if self.left_click_held {
-                        match gfx.handle_drag(position.x, position.y, delta_y) {
+                        match gfx.handle_drag(position.x as f32, position.y as f32, delta_y) {
                             DragResult::None => {}
                             DragResult::DragVolumeSlider(fl) => {
                                 self.producer.try_push(AudioCommand::ChangeMasterVolume(fl)).ok();

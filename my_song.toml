@@ -1,31 +1,31 @@
 project_name = "My first song"
-bpm = 118.0
+bpm = 127.0
 
 [[tracks]]
-name = "kick"
+name = "TR909S.wav"
 mute = false
-steps = [95.0, 0.0, 0.0, 0.0, 0.0, 95.0, 0.0, 0.0, 95.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 95.0, 100.0, 100.0, 0.0, 95.0, 0.0, 0.0, 0.0, 95.0, 95.0, 70.0, 0.0, 0.0, 0.0, 0.0, 95.0, 0.0]
-sample_path = "SharpK.wav"
+steps = [0.0, 0.0, 0.0, 0.0, 95.0, 0.0, 0.0, 95.0, 0.0, 0.0, 0.0, 0.0, 95.0, 0.0, 0.0, 0.0]
+sample_path = "/home/remy/Music/4018-DR660 Samples/DR660 Samples/Snare/TR909S.wav"
 position = 0.0
 target_volume = 0.7480315
 track_volume = 1.0
 is_playing = false
 
 [[tracks]]
-name = "hat"
-mute = false
-steps = [95.0, 0.0, 0.0, 0.0, 0.0, 95.0, 0.0, 0.0, 95.0, 0.0, 0.0, 0.0, 100.0, 0.0, 95.0, 95.0, 0.0, 0.0, 0.0, 0.0, 95.0, 0.0, 0.0, 95.0, 0.0, 95.0, 95.0, 0.0, 95.0, 0.0, 95.0, 95.0]
-sample_path = "PopOHH.wav"
+name = "808OHH.wav"
+mute = true
+steps = [0.0, 0.0, 95.0, 0.0, 0.0, 0.0, 95.0, 0.0, 0.0, 0.0, 95.0, 0.0, 0.0, 0.0, 95.0, 0.0]
+sample_path = "/home/remy/Music/4018-DR660 Samples/DR660 Samples/HiHat/808OHH.wav"
 position = 0.0
 target_volume = 0.7480315
-track_volume = 0.21267568
+track_volume = 1.0
 is_playing = false
 
 [[tracks]]
-name = "snare"
-mute = true
-steps = [0.0, 0.0, 0.0, 95.0, 0.0, 95.0, 0.0, 0.0, 95.0, 0.0, 0.0, 95.0, 60.0, 0.0, 95.0, 0.0, 0.0, 0.0, 0.0, 0.0, 95.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 95.0, 0.0, 0.0, 0.0]
-sample_path = "AttackS.wav"
+name = "HouseK.wav"
+mute = false
+steps = [95.0, 0.0, 0.0, 0.0, 95.0, 0.0, 95.0, 0.0, 95.0, 0.0, 0.0, 0.0, 95.0, 0.0, 0.0, 0.0]
+sample_path = "/home/remy/Music/4018-DR660 Samples/DR660 Samples/Kick/HouseK.wav"
 position = 0.0
 target_volume = 0.7480315
 track_volume = 1.0

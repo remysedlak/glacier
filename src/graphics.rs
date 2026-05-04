@@ -71,6 +71,7 @@ impl Vertex {
     }
 }
 
+// returns a buffer of text that is shaped and laid out
 fn make_buffer(font_system: &mut FontSystem, text: &str, size: f32, line_height: f32, color: Option<(u8, u8, u8)>) -> glyphon::Buffer {
     let (r, g, b) = color.unwrap_or((255, 255, 255));
     let mut buffer = glyphon::Buffer::new(font_system, Metrics::new(size, line_height));
@@ -257,14 +258,14 @@ impl Graphics {
         }
     }
 
-    pub fn handle_drag(&mut self, x: f64, y: f64, dy: f64) -> DragResult {
+    pub fn handle_drag(&mut self, x: f32, y: f32, dy: f32) -> DragResult {
         // master volume tracking
         if self.dragging_knob == None {
-            let y_ceiling: f64 = 416.0;
-            let track_height: f64 = 164.0;
+            let y_ceiling: f32 = 416.0;
+            let track_height: f32 = 164.0;
             let padding = 32.0;
             if x > 64.0 - padding && x < 96.0 + padding && y > y_ceiling && y < y_ceiling + track_height {
-                self.master_volume = 1.0 - ((y as f32 - y_ceiling as f32) / track_height as f32).clamp(0.0, 1.0);
+                self.master_volume = 1.0 - ((y - y_ceiling) / track_height).clamp(0.0, 1.0);
                 dbg!(self.master_volume);
                 return DragResult::DragVolumeSlider(self.master_volume);
             }
@@ -272,17 +273,17 @@ impl Graphics {
 
         // knob tracking
         if let Some(i) = self.dragging_knob {
-            self.rows[i].track_volume = (self.rows[i].track_volume - dy as f32 * 0.005).clamp(0.0, 1.0);
+            self.rows[i].track_volume = (self.rows[i].track_volume - dy * 0.005).clamp(0.0, 1.0);
             return DragResult::DragVolumeKnob(i, self.rows[i].track_volume);
         }
         for (i, track) in &mut self.rows.iter_mut().enumerate() {
-            if x > (BUTTON_X_ORIGIN - 24 - KNOB_RADIUS as u32) as f64
-                && x < (BUTTON_X_ORIGIN - 24 as u32) as f64 + KNOB_RADIUS as f64
-                && y > (BUTTON_Y_ORIGIN as f64 + (i as f64 * TRACK_GAP as f64) + 24.0) as f64 - KNOB_RADIUS as f64
-                && y < (BUTTON_Y_ORIGIN as f64 + (i as f64 * TRACK_GAP as f64) + 24.0) as f64 + KNOB_RADIUS as f64
+            if x > (BUTTON_X_ORIGIN - 24.0 - KNOB_RADIUS)
+                && x < BUTTON_X_ORIGIN - 24.0 + KNOB_RADIUS
+                && y > (BUTTON_Y_ORIGIN + (i as f32 * TRACK_GAP) + 24.0) - KNOB_RADIUS
+                && y < (BUTTON_Y_ORIGIN + (i as f32 * TRACK_GAP) + 24.0) + KNOB_RADIUS
             {
                 self.dragging_knob = Some(i);
-                track.track_volume = (track.track_volume - dy as f32 * 0.01).clamp(0.0, 1.0);
+                track.track_volume = (track.track_volume - dy * 0.01).clamp(0.0, 1.0);
                 return DragResult::DragVolumeKnob(i, track.track_volume);
             }
         }
@@ -291,17 +292,17 @@ impl Graphics {
     }
 
     // handler for UiCommand::StepAdvanced, UiCmomand::MuteTrack
-    pub fn handle_button_click(&mut self, x: f64, y: f64) -> ClickResult {
+    pub fn handle_button_click(&mut self, x: f32, y: f32) -> ClickResult {
         for (i, track) in &mut self.rows.iter_mut().enumerate() {
             if track.show_velocity {
             } else {
                 for (j, button) in &mut track.steps.iter_mut().enumerate() {
                     let group = j / 4;
 
-                    let x2 = BUTTON_X_ORIGIN + j as u32 * BUTTON_GAP as u32 + group as u32 * BAR_GAP as u32;
-                    let y2 = BUTTON_Y_ORIGIN + i as u32 * TRACK_GAP;
+                    let x2 = BUTTON_X_ORIGIN + j as f32 * BUTTON_GAP + group as f32 * BAR_GAP;
+                    let y2 = BUTTON_Y_ORIGIN + i as f32 * TRACK_GAP;
 
-                    if x > x2 as f64 && x < x2 as f64 + button.width as f64 && y > y2 as f64 && y < y2 as f64 + button.height as f64 {
+                    if x > x2 && x < x2 + button.width && y > y2 && y < y2 + button.height {
                         button.velocity = if button.velocity > 0.0 { 0.0 } else { 95.0 };
                         dbg!(button.velocity);
                         return ClickResult::Step(i, j);
@@ -310,30 +311,30 @@ impl Graphics {
             }
 
             // check for mute
-            if x > (BUTTON_X_ORIGIN - 24) as f64
-                && x < (BUTTON_X_ORIGIN - 24 + MUTE_SQUARE_LENGTH) as f64
-                && y > (BUTTON_Y_ORIGIN + (i as u32 * TRACK_GAP) + 48) as f64
-                && y < ((BUTTON_Y_ORIGIN + (i as u32 * TRACK_GAP) + 48) + MUTE_SQUARE_LENGTH) as f64
+            if x > BUTTON_X_ORIGIN - 24.0
+                && x < BUTTON_X_ORIGIN - 24.0 + MUTE_SQUARE_LENGTH
+                && y > BUTTON_Y_ORIGIN + (i as f32 * TRACK_GAP) + 48.0
+                && y < ((BUTTON_Y_ORIGIN + (i as f32 * TRACK_GAP) + 48.0) + MUTE_SQUARE_LENGTH)
             {
                 track.is_muted = !track.is_muted;
                 return ClickResult::Mute(i);
             }
 
             // check for velocity
-            if x > (BUTTON_X_ORIGIN - 40) as f64
-                && x < (BUTTON_X_ORIGIN - 40 + MUTE_SQUARE_LENGTH) as f64
-                && y > (BUTTON_Y_ORIGIN + (i as u32 * TRACK_GAP) + 48) as f64
-                && y < ((BUTTON_Y_ORIGIN + (i as u32 * TRACK_GAP) + 48) + MUTE_SQUARE_LENGTH) as f64
+            if x > BUTTON_X_ORIGIN - 40.0
+                && x < BUTTON_X_ORIGIN - 40.0 + MUTE_SQUARE_LENGTH
+                && y > BUTTON_Y_ORIGIN + (i as f32 * TRACK_GAP) + 48.0
+                && y < BUTTON_Y_ORIGIN + (i as f32 * TRACK_GAP) + 48.0 + MUTE_SQUARE_LENGTH
             {
                 track.show_velocity = !track.show_velocity;
                 return ClickResult::None;
             }
 
             // check for delete
-            if x > (BUTTON_X_ORIGIN - 40 - 16) as f64
-                && x < (BUTTON_X_ORIGIN - 40 - 16 + MUTE_SQUARE_LENGTH) as f64
-                && y > (BUTTON_Y_ORIGIN + (i as u32 * TRACK_GAP) + 48) as f64
-                && y < ((BUTTON_Y_ORIGIN + (i as u32 * TRACK_GAP) + 48) + MUTE_SQUARE_LENGTH) as f64
+            if x > BUTTON_X_ORIGIN - 40.0 - 16.0
+                && x < BUTTON_X_ORIGIN - 40.0 - 16.0 + MUTE_SQUARE_LENGTH
+                && y > BUTTON_Y_ORIGIN + (i as f32 * TRACK_GAP) + 48.0
+                && y < BUTTON_Y_ORIGIN + (i as f32 * TRACK_GAP) + 48.0 + MUTE_SQUARE_LENGTH
             {
                 self.rows.remove(i);
                 return ClickResult::DeleteTrack(i);
@@ -341,21 +342,17 @@ impl Graphics {
         }
 
         // check for bpm
-        if x > 48 as f64 && x < 48 as f64 + ICON_WIDTH as f64 && y > 4 as f64 && y < 4 as f64 + 10 as f64 {
+        if x > 48.0 && x < 48.0 + ICON_WIDTH && y > 4.0 && y < 4.0 + 10.0 {
             self.bpm = self.bpm + 1.0;
             return ClickResult::ChangeBpm(self.bpm);
         }
-        if x > 48 as f64 && x < 48 as f64 + ICON_WIDTH as f64 && y > (16) as f64 && y < (16 + 10) as f64 {
+        if x > 48.0 && x < 48.0 + ICON_WIDTH && y > 16.0 && y < (16.0 + 10.0) {
             self.bpm = self.bpm - 1.0;
             return ClickResult::ChangeBpm(self.bpm);
         }
 
         // play / pause
-        if x > PLAY_X_ORIGIN as f64
-            && x < (PLAY_X_ORIGIN + PLAY_SQUARE_WIDTH) as f64
-            && y > PLAY_Y_ORIGIN as f64
-            && y < (PLAY_Y_ORIGIN + PLAY_SQUARE_HEIGHT) as f64
-        {
+        if x > PLAY_X_ORIGIN && x < PLAY_X_ORIGIN + PLAY_SQUARE_WIDTH && y > PLAY_Y_ORIGIN && y < PLAY_Y_ORIGIN + PLAY_SQUARE_HEIGHT {
             self.is_playing = !self.is_playing;
             return ClickResult::TogglePlay;
         }
@@ -363,19 +360,19 @@ impl Graphics {
         let user_width = self.surface_config.width;
 
         // load project
-        if x > (user_width - LOAD_PROJECT_ICON_OFFSET) as f64
-            && x < (user_width - LOAD_PROJECT_ICON_OFFSET + ICON_WIDTH) as f64
-            && y > TOOLBAR_MARGIN as f64
-            && y < (TOOLBAR_MARGIN + ICON_HEIGHT) as f64
+        if x > user_width as f32 - LOAD_PROJECT_ICON_OFFSET
+            && x < user_width as f32 - LOAD_PROJECT_ICON_OFFSET + ICON_WIDTH
+            && y > TOOLBAR_MARGIN
+            && y < TOOLBAR_MARGIN + ICON_HEIGHT
         {
             return ClickResult::ProjectFileDialog;
         }
 
         // load instrument
-        if x > (user_width - ADD_INSTRUMENT_ICON_OFFSET) as f64
-            && x < (user_width - ADD_INSTRUMENT_ICON_OFFSET + ICON_WIDTH) as f64
-            && y > TOOLBAR_MARGIN as f64
-            && y < (TOOLBAR_MARGIN + ICON_HEIGHT) as f64
+        if x > user_width as f32 - ADD_INSTRUMENT_ICON_OFFSET
+            && x < user_width as f32 - ADD_INSTRUMENT_ICON_OFFSET + ICON_WIDTH
+            && y > TOOLBAR_MARGIN
+            && y < TOOLBAR_MARGIN + ICON_HEIGHT
         {
             return ClickResult::InstrumentFileDialog;
         }
@@ -391,7 +388,7 @@ impl Graphics {
     }
 
     // called every frame to update the canvas
-    pub fn draw(&mut self, _mouse_x: f64, _mouse_y: f64) {
+    pub fn draw(&mut self, _mouse_x: f32, _mouse_y: f32) {
         self.viewport.update(
             &self.queue,
             Resolution {
@@ -411,170 +408,94 @@ impl Graphics {
         let mut vertices: Vec<Vertex> = Vec::new();
         let mut text_items: Vec<(glyphon::Buffer, f32, f32)> = Vec::new();
 
-        /* dark background */
-
-        // for vert in draw_rectangle(
-        //     4,
-        //     TOOLBAR_MARGIN + 48,
-        //     1200,
-        //     248,
-        //     self.surface_config.width,
-        //     self.surface_config.height,
-        //     DARK_GRAY,
-        // ) {
-        //     vertices.push(vert);
-        // }
-
         /* begin per track rendering */
         for (j, track) in &mut self.rows.iter_mut().enumerate() {
             for (i, button) in &mut track.steps.iter_mut().enumerate() {
                 let group = i / 4;
-                let x = BUTTON_X_ORIGIN + i as u32 * BUTTON_GAP as u32 + group as u32 * BAR_GAP as u32;
-                let y = BUTTON_Y_ORIGIN + j as u32 * TRACK_GAP;
+                let x = BUTTON_X_ORIGIN + i as f32 * BUTTON_GAP + group as f32 * BAR_GAP;
+                let y = BUTTON_Y_ORIGIN + j as f32 * TRACK_GAP;
                 if track.show_velocity {
                     // background
-                    for vert in draw_rectangle(
-                        x,
-                        y,
-                        button.width,
-                        button.height,
-                        self.surface_config.width,
-                        self.surface_config.height,
-                        DARK_GRAY,
-                    ) {
-                        vertices.push(vert);
-                    }
+                    let background = Rectangle {
+                        x: x,
+                        y: y,
+                        width: button.width,
+                        height: button.height,
+                    };
+                    vertices.extend(background.draw(self.surface_config.width, self.surface_config.height, DARK_GRAY));
 
                     // drag
 
-                    let filled_height = (button.height as f32 * (button.velocity / 128.0)) as u32;
+                    let filled_height = button.height * (button.velocity / 128.0);
                     let bar_y = y + button.height - filled_height;
-                    for vert in draw_rectangle(
-                        x, // stays the same
-                        bar_y,
-                        button.width, // stays the same
-                        filled_height,
-                        self.surface_config.width,  // stays the same
-                        self.surface_config.height, // stays the same
-                        BLUE,
-                    ) {
-                        vertices.push(vert);
-                    }
-                } else {
-                    let color;
-                    if i == self.active_step {
-                        if button.velocity > 0.0 {
-                            color = DARK_BLUE;
-                        } else {
-                            color = BLUE;
-                        }
-                    } else {
-                        if button.velocity > 0.0 {
-                            if _mouse_x > x as f64
-                                && _mouse_x < x as f64 + button.width as f64
-                                && _mouse_y > y as f64
-                                && _mouse_y < y as f64 + button.height as f64
-                            {
-                                color = DARK_GRAY
-                            } else {
-                                color = BLACK;
-                            }
-                        } else {
-                            if _mouse_x > x as f64
-                                && _mouse_x < x as f64 + button.width as f64
-                                && _mouse_y > y as f64
-                                && _mouse_y < y as f64 + button.height as f64
-                            {
-                                color = LL_GRAY
-                            } else {
-                                color = LIGHT_GRAY;
-                            }
-                        }
-                    }
-                    for vert in draw_rectangle(
+                    let bar = Rectangle {
                         x,
-                        y,
-                        button.width,
-                        button.height,
+                        y: bar_y,
+                        width: button.width,
+                        height: filled_height,
+                    };
+                    vertices.extend(bar.draw(self.surface_config.width, self.surface_config.height, BLUE));
+                } else {
+                    let step = Rectangle {
+                        x: x,
+                        y: y,
+                        width: button.width,
+                        height: button.height,
+                    };
+                    vertices.extend(step.draw(
                         self.surface_config.width,
                         self.surface_config.height,
-                        color,
-                    ) {
-                        vertices.push(vert);
-                    }
+                        step.active_step_color(_mouse_x, _mouse_y, i == self.active_step, button.velocity > 0.0),
+                    ));
                 }
             }
-
-            let button_color = |is_active: bool, hovering: bool| {
-                if hovering {
-                    if !is_active {
-                        LL_GRAY
-                    } else {
-                        DARK_GRAY
-                    }
-                } else if is_active {
-                    BLACK
-                } else {
-                    LIGHT_GRAY
-                }
-            };
-
-            let hover = _mouse_x > (BUTTON_X_ORIGIN - 24) as f64
-                && _mouse_x < (BUTTON_X_ORIGIN - 24 + MUTE_SQUARE_LENGTH) as f64
-                && _mouse_y > (BUTTON_Y_ORIGIN + (j as u32 * TRACK_GAP) + 48) as f64
-                && _mouse_y < ((BUTTON_Y_ORIGIN + (j as u32 * TRACK_GAP) + 48) + MUTE_SQUARE_LENGTH) as f64;
 
             // mute button
-            for vert in draw_rectangle(
-                BUTTON_X_ORIGIN - 24,
-                BUTTON_Y_ORIGIN + (j as u32 * TRACK_GAP) + 48,
-                MUTE_SQUARE_LENGTH,
-                MUTE_SQUARE_LENGTH,
+            let mute_button = Rectangle {
+                x: BUTTON_X_ORIGIN - 24.0,
+                y: BUTTON_Y_ORIGIN + (j as f32 * TRACK_GAP) + 48.0,
+                width: MUTE_SQUARE_LENGTH,
+                height: MUTE_SQUARE_LENGTH,
+            };
+            vertices.extend(mute_button.draw(
                 self.surface_config.width,
                 self.surface_config.height,
-                button_color(track.is_muted, hover),
-            ) {
-                vertices.push(vert);
-            }
+                mute_button.active_color(_mouse_x, _mouse_y, track.is_muted),
+            ));
 
-            let button_gap = 40;
-
-            let hover = _mouse_x > (BUTTON_X_ORIGIN - button_gap) as f64
-                && _mouse_x < (BUTTON_X_ORIGIN + MUTE_SQUARE_LENGTH - button_gap) as f64
-                && _mouse_y > (BUTTON_Y_ORIGIN + (j as u32 * TRACK_GAP) + 48) as f64
-                && _mouse_y < ((BUTTON_Y_ORIGIN + (j as u32 * TRACK_GAP) + 48) + MUTE_SQUARE_LENGTH) as f64;
+            let button_gap = 40.0;
 
             // velocity button
-            for vert in draw_rectangle(
-                BUTTON_X_ORIGIN - button_gap,
-                BUTTON_Y_ORIGIN + (j as u32 * TRACK_GAP) + 48,
-                MUTE_SQUARE_LENGTH,
-                MUTE_SQUARE_LENGTH,
+            let velocity_button = Rectangle {
+                x: BUTTON_X_ORIGIN - button_gap,
+                y: BUTTON_Y_ORIGIN + (j as f32 * TRACK_GAP) + 48.0,
+                width: MUTE_SQUARE_LENGTH,
+                height: MUTE_SQUARE_LENGTH,
+            };
+            vertices.extend(velocity_button.draw(
                 self.surface_config.width,
                 self.surface_config.height,
-                button_color(track.show_velocity, hover),
-            ) {
-                vertices.push(vert);
-            }
+                velocity_button.active_color(_mouse_x, _mouse_y, track.show_velocity),
+            ));
 
             // delete button
-            for vert in draw_rectangle(
-                BUTTON_X_ORIGIN - button_gap - 16,
-                BUTTON_Y_ORIGIN + (j as u32 * TRACK_GAP) + 48,
-                MUTE_SQUARE_LENGTH,
-                MUTE_SQUARE_LENGTH,
+            let delete_button = Rectangle {
+                x: BUTTON_X_ORIGIN - button_gap - 16.0,
+                y: BUTTON_Y_ORIGIN + (j as f32 * TRACK_GAP) + 48.0,
+                width: MUTE_SQUARE_LENGTH,
+                height: MUTE_SQUARE_LENGTH,
+            };
+            vertices.extend(delete_button.draw(
                 self.surface_config.width,
                 self.surface_config.height,
-                RED,
-            ) {
-                vertices.push(vert);
-            }
+                delete_button.hover_color(_mouse_x, _mouse_y),
+            ));
 
             // track volume knob
             for vert in draw_knob(
                 track.track_volume,
-                (BUTTON_X_ORIGIN - 24) as f32,
-                (BUTTON_Y_ORIGIN as f32 + (j as f32 * TRACK_GAP as f32) + 24.0) as f32,
+                BUTTON_X_ORIGIN - 24.0,
+                BUTTON_Y_ORIGIN + (j as f32 * TRACK_GAP) + 24.0,
                 KNOB_RADIUS,
                 35,
                 self.surface_config.width,
@@ -587,21 +508,21 @@ impl Graphics {
             text_items.push((
                 make_buffer(&mut self.font_system, &track.name, 18.0, 22.0, None),
                 10.0,
-                BUTTON_Y_ORIGIN as f32 + j as f32 * TRACK_GAP as f32,
+                BUTTON_Y_ORIGIN + j as f32 * TRACK_GAP,
             ));
 
             // mute text buffer
             text_items.push((
                 make_buffer(&mut self.font_system, "mut", 12.0, 22.0, None),
-                (BUTTON_X_ORIGIN - 32 + 4) as f32,
-                BUTTON_Y_ORIGIN as f32 + j as f32 * TRACK_GAP as f32 + 54.0,
+                BUTTON_X_ORIGIN - 32.0 + 4.0,
+                BUTTON_Y_ORIGIN + j as f32 * TRACK_GAP + 54.0,
             ));
 
             // velocity mode text buffer
             text_items.push((
                 make_buffer(&mut self.font_system, "vel", 12.0, 22.0, None),
-                (BUTTON_X_ORIGIN - 32 - 16) as f32,
-                BUTTON_Y_ORIGIN as f32 + j as f32 * TRACK_GAP as f32 + 54.0,
+                BUTTON_X_ORIGIN - 32.0 - 16.0,
+                BUTTON_Y_ORIGIN + j as f32 * TRACK_GAP + 54.0,
             ));
         }
 
@@ -631,7 +552,7 @@ impl Graphics {
         text_items.push((
             make_buffer(&mut self.font_system, &self.bpm.to_string(), 18.0, 22.0, None),
             10.0,
-            TOOLBAR_MARGIN as f32,
+            TOOLBAR_MARGIN,
         ));
 
         // volume text buffer
@@ -646,7 +567,7 @@ impl Graphics {
         // play/pause text buffer
         text_items.push((
             make_buffer(&mut self.font_system, label, 18.0, 22.0, None),
-            (PLAY_X_ORIGIN as f32 + (PLAY_SQUARE_WIDTH as f32 / 4.0)),
+            (PLAY_X_ORIGIN + (PLAY_SQUARE_WIDTH / 4.0)),
             5.0,
         ));
 

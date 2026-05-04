@@ -2,60 +2,117 @@ pub const ONE_MEGABYTE: u64 = 1024 * 1024;
 
 pub const TOOLBAR_Y: f32 = 32.0;
 pub const TOOLBAR_THICKNESS: f32 = 0.003;
-pub const TOOLBAR_MARGIN: u32 = 4;
+pub const TOOLBAR_MARGIN: f32 = 4.0;
 
-pub const BUTTON_X_ORIGIN: u32 = 128;
-pub const BUTTON_Y_ORIGIN: u32 = 64;
-pub const BUTTON_WIDTH: u32 = 24;
-pub const BUTTON_HEIGHT: u32 = 64;
+pub const BUTTON_X_ORIGIN: f32 = 128.0;
+pub const BUTTON_Y_ORIGIN: f32 = 64.0;
+pub const BUTTON_WIDTH: f32 = 24.0;
+pub const BUTTON_HEIGHT: f32 = 64.0;
 
-pub const BAR_GAP: u32 = 8;
-pub const BUTTON_GAP: u32 = 32;
-pub const TRACK_GAP: u32 = 72;
+pub const BAR_GAP: f32 = 8.0;
+pub const BUTTON_GAP: f32 = 32.0;
+pub const TRACK_GAP: f32 = 72.0;
 
 pub const KNOB_RADIUS: f32 = 13.0;
 
-pub const MUTE_SQUARE_LENGTH: u32 = 12;
-pub const PLAY_SQUARE_HEIGHT: u32 = ICON_HEIGHT;
-pub const PLAY_SQUARE_WIDTH: u32 = 54;
+pub const MUTE_SQUARE_LENGTH: f32 = 12.0;
+pub const PLAY_SQUARE_HEIGHT: f32 = ICON_HEIGHT;
+pub const PLAY_SQUARE_WIDTH: f32 = 54.0;
 
-pub const PLAY_Y_ORIGIN: u32 = TOOLBAR_MARGIN;
-pub const PLAY_X_ORIGIN: u32 = 90;
+pub const PLAY_Y_ORIGIN: f32 = TOOLBAR_MARGIN;
+pub const PLAY_X_ORIGIN: f32 = 90.0;
 
-pub const ICON_WIDTH: u32 = 32;
-pub const ICON_HEIGHT: u32 = 24;
+pub const ICON_WIDTH: f32 = 32.0;
+pub const ICON_HEIGHT: f32 = 24.0;
 
-pub const LOAD_PROJECT_ICON_OFFSET: u32 = 40;
-pub const ADD_INSTRUMENT_ICON_OFFSET: u32 = 80;
+pub const LOAD_PROJECT_ICON_OFFSET: f32 = 40.0;
+pub const ADD_INSTRUMENT_ICON_OFFSET: f32 = 80.0;
 
 use std::f32::consts::PI;
 
-use crate::colors::{BLACK, DARK_GRAY, LIGHT_GRAY, LL_GRAY};
+use crate::colors::{BLACK, BLUE, DARK_BLUE, DARK_GRAY, LIGHT_GRAY, LL_GRAY};
 use crate::graphics::Vertex;
 // this file holds my shape abstractions
 
 #[derive(Debug)]
 pub struct StepButton {
-    pub width: u32,
-    pub height: u32,
+    pub width: f32,
+    pub height: f32,
     pub velocity: f32,
 }
 
-// #[derive(Debug)]
-// pub struct Rectangle {
-//     pub x: u32,
-//     pub y: u32,
-//     pub width: u32,
-//     pub height: u32,
-// }
-//
-//
+pub struct Rectangle {
+    pub x: f32,
+    pub y: f32,
+    pub width: f32,
+    pub height: f32,
+}
+impl Rectangle {
+    pub fn is_hovered(&self, mouse_x: f32, mouse_y: f32) -> bool {
+        mouse_x > self.x && mouse_x < self.x + self.width && mouse_y > self.y && mouse_y < self.y + self.height
+    }
+    pub fn draw(&self, screen_w: u32, screen_h: u32, (r, g, b): (f32, f32, f32)) -> Vec<Vertex> {
+        draw_rectangle(
+            self.x as f32,
+            self.y as f32,
+            self.width as f32,
+            self.height as f32,
+            screen_w,
+            screen_h,
+            (r, g, b),
+        )
+    }
+    pub fn hover_color(&self, mx: f32, my: f32) -> (f32, f32, f32) {
+        if self.is_hovered(mx, my) {
+            LL_GRAY
+        } else {
+            LIGHT_GRAY
+        }
+    }
+
+    pub fn active_color(&self, mx: f32, my: f32, is_active: bool) -> (f32, f32, f32) {
+        let hovered = self.is_hovered(mx, my);
+        if hovered && is_active {
+            DARK_GRAY
+        } else if hovered {
+            LL_GRAY
+        } else if is_active {
+            BLACK
+        } else {
+            LIGHT_GRAY
+        }
+    }
+    pub fn active_step_color(&self, mx: f32, my: f32, is_active: bool, has_velocity: bool) -> (f32, f32, f32) {
+        let hovered = self.is_hovered(mx, my);
+        if is_active {
+            if has_velocity {
+                DARK_BLUE
+            } else {
+                BLUE
+            }
+        } else {
+            if has_velocity {
+                if hovered {
+                    DARK_GRAY
+                } else {
+                    BLACK
+                }
+            } else {
+                if hovered {
+                    LL_GRAY
+                } else {
+                    LIGHT_GRAY
+                }
+            }
+        }
+    }
+}
 
 pub fn draw_rectangle(
-    x: u32,
-    y: u32,
-    width: u32,
-    height: u32,
+    x: f32,
+    y: f32,
+    width: f32,
+    height: f32,
     screen_width: u32,
     screen_height: u32,
     (r, g, b): (f32, f32, f32),
@@ -140,26 +197,9 @@ pub fn draw_circle(
     vec
 }
 
-pub fn draw_knob(
-    vol: f32,
-    cx: f32,
-    cy: f32,
-    radius: f32,
-    segments: u32,
-    screen_width: u32,
-    screen_height: u32,
-) -> Vec<Vertex> {
-    let mut vec: Vec<Vertex> =
-        draw_circle(cx, cy, radius + 3.0, 10, screen_width, screen_height, BLACK);
-    for vert in draw_circle(
-        cx,
-        cy,
-        radius,
-        segments,
-        screen_width,
-        screen_height,
-        LL_GRAY,
-    ) {
+pub fn draw_knob(vol: f32, cx: f32, cy: f32, radius: f32, segments: u32, screen_width: u32, screen_height: u32) -> Vec<Vertex> {
+    let mut vec: Vec<Vertex> = draw_circle(cx, cy, radius + 3.0, 10, screen_width, screen_height, BLACK);
+    for vert in draw_circle(cx, cy, radius, segments, screen_width, screen_height, LL_GRAY) {
         vec.push(vert);
     }
     let ncx = |x: f32| 2.0 * (x as f32 / screen_width as f32) - 1.0;
@@ -220,135 +260,73 @@ pub fn draw_h_line(y: f32, thickness: f32, screen_height: u32) -> Vec<Vertex> {
     ];
 }
 
-pub fn draw_toolbar(
-    vertices: &mut Vec<Vertex>,
-    screen_x: u32,
-    screen_y: u32,
-    _mouse_x: f64,
-    _mouse_y: f64,
-) {
+pub fn draw_toolbar(vertices: &mut Vec<Vertex>, screen_x: u32, screen_y: u32, _mouse_x: f32, _mouse_y: f32) {
     // toolbar line
     for vert in draw_h_line(TOOLBAR_Y, TOOLBAR_THICKNESS, screen_y) {
         vertices.push(vert);
     }
 
     // bpm up button
-    for vert in draw_rectangle(48, 4, 32, 10, screen_x, screen_y, LIGHT_GRAY) {
+    for vert in draw_rectangle(48.0, 4.0, 32.0, 10.0, screen_x, screen_y, LIGHT_GRAY) {
         vertices.push(vert);
     }
 
     // bpm down button
-    for vert in draw_rectangle(48, 16, 32, 10, screen_x, screen_y, LIGHT_GRAY) {
+    for vert in draw_rectangle(48.0, 16.0, 32.0, 10.0, screen_x, screen_y, LIGHT_GRAY) {
         vertices.push(vert);
     }
 
-    let color = if _mouse_x > PLAY_X_ORIGIN as f64
-        && _mouse_x < (PLAY_X_ORIGIN + PLAY_SQUARE_WIDTH) as f64
-        && _mouse_y > PLAY_Y_ORIGIN as f64
-        && _mouse_y < (PLAY_Y_ORIGIN + PLAY_SQUARE_HEIGHT) as f64
-    {
-        LL_GRAY
-    } else {
-        LIGHT_GRAY
+    // play or pause
+    let play_button = Rectangle {
+        x: PLAY_X_ORIGIN as f32,
+        y: PLAY_Y_ORIGIN as f32,
+        width: PLAY_SQUARE_WIDTH as f32,
+        height: PLAY_SQUARE_HEIGHT as f32,
     };
+    vertices.extend(play_button.draw(screen_x, screen_y, play_button.hover_color(_mouse_x, _mouse_y)));
 
-    // play/pause button
-    for vert in draw_rectangle(
-        PLAY_X_ORIGIN,
-        PLAY_Y_ORIGIN,
-        PLAY_SQUARE_WIDTH,
-        PLAY_SQUARE_HEIGHT,
-        screen_x,
-        screen_y,
-        color,
-    ) {
-        vertices.push(vert);
-    }
-
-    let color = if _mouse_x > (screen_x - LOAD_PROJECT_ICON_OFFSET) as f64
-        && _mouse_x < (screen_x - LOAD_PROJECT_ICON_OFFSET + ICON_WIDTH) as f64
-        && _mouse_y > TOOLBAR_MARGIN as f64
-        && _mouse_y < (TOOLBAR_MARGIN + ICON_HEIGHT) as f64
-    {
-        LL_GRAY
-    } else {
-        LIGHT_GRAY
+    // load a file
+    let load_file_button = Rectangle {
+        x: screen_x as f32 - LOAD_PROJECT_ICON_OFFSET,
+        y: TOOLBAR_MARGIN,
+        width: ICON_WIDTH,
+        height: ICON_HEIGHT,
     };
+    vertices.extend(load_file_button.draw(screen_x, screen_y, load_file_button.hover_color(_mouse_x, _mouse_y)));
 
-    // Load file button
-    for vert in draw_rectangle(
-        screen_x - LOAD_PROJECT_ICON_OFFSET,
-        TOOLBAR_MARGIN,
-        ICON_WIDTH,
-        ICON_HEIGHT,
-        screen_x,
-        screen_y,
-        color,
-    ) {
-        vertices.push(vert);
-    }
-
-    let color = if _mouse_x > (screen_x - ADD_INSTRUMENT_ICON_OFFSET) as f64
-        && _mouse_x < (screen_x - ADD_INSTRUMENT_ICON_OFFSET + ICON_WIDTH) as f64
-        && _mouse_y > TOOLBAR_MARGIN as f64
-        && _mouse_y < (TOOLBAR_MARGIN + ICON_HEIGHT) as f64
-    {
-        LL_GRAY
-    } else {
-        LIGHT_GRAY
+    // load an instrument
+    let instrument_button = Rectangle {
+        x: screen_x as f32 - ADD_INSTRUMENT_ICON_OFFSET,
+        y: TOOLBAR_MARGIN as f32,
+        width: ICON_WIDTH as f32,
+        height: ICON_HEIGHT as f32,
     };
-
-    // add instrument button
-    for vert in draw_rectangle(
-        screen_x - ADD_INSTRUMENT_ICON_OFFSET,
-        TOOLBAR_MARGIN,
-        ICON_WIDTH,
-        ICON_HEIGHT,
-        screen_x,
-        screen_y,
-        color,
-    ) {
-        vertices.push(vert);
-    }
+    vertices.extend(instrument_button.draw(screen_x, screen_y, instrument_button.hover_color(_mouse_x, _mouse_y)));
 }
 
-pub fn draw_slider(
-    screen_x: u32,
-    screen_y: u32,
-    vertices: &mut Vec<Vertex>,
-    master_volume: &mut f32,
-) {
-    let x_coord = 64;
-    let y_ceiling = 416;
-    let track_height = 164;
-    let track_width = 4;
-    let thumb_height = 16;
-    let thumb_width = 32;
-    let thumb_y_coord = ((1.0 - *master_volume) * 164.0) as u32 + y_ceiling;
+pub fn draw_slider(screen_x: u32, screen_y: u32, vertices: &mut Vec<Vertex>, master_volume: &mut f32) {
+    let x_coord = 64.0;
+    let y_ceiling = 416.0;
+    let track_height = 164.0;
+    let track_width = 4.0;
+    let thumb_height = 16.0;
+    let thumb_width = 32.0;
+    let thumb_y_coord = ((1.0 - *master_volume) * 164.0) + y_ceiling;
 
     // TRACK (static)
-    for vert in draw_rectangle(
-        x_coord + (thumb_width / 2), // the track is in the midle of the button
-        y_ceiling,
-        track_width,
-        track_height,
-        screen_x,
-        screen_y,
-        BLACK,
-    ) {
-        vertices.push(vert);
-    }
+    let track = Rectangle {
+        x: x_coord + (thumb_width / 2.0), // the track is in the midle of the button
+        y: y_ceiling,
+        width: track_width,
+        height: track_height,
+    };
+    vertices.extend(track.draw(screen_x, screen_y, BLACK));
 
-    // THUMB (user input)
-    for vert in draw_rectangle(
-        x_coord,
-        thumb_y_coord,
-        thumb_width,
-        thumb_height,
-        screen_x,
-        screen_y,
-        LIGHT_GRAY,
-    ) {
-        vertices.push(vert);
-    }
+    let thumb = Rectangle {
+        x: x_coord,
+        y: thumb_y_coord,
+        width: thumb_width,
+        height: thumb_height,
+    };
+    vertices.extend(thumb.draw(screen_x, screen_y, LIGHT_GRAY));
 }
