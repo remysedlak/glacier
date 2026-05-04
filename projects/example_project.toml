@@ -2,30 +2,30 @@ project_name = "My first song"
 bpm = 127.0
 
 [[tracks]]
-name = "TR909S.wav"
+name = "kick"
 mute = false
-steps = [0.0, 0.0, 0.0, 0.0, 95.0, 0.0, 0.0, 95.0, 0.0, 0.0, 0.0, 0.0, 95.0, 0.0, 0.0, 0.0]
-sample_path = "/home/remy/Music/4018-DR660 Samples/DR660 Samples/Snare/TR909S.wav"
+steps = [95.0, 0.0, 0.0, 0.0, 95.0, 0.0, 0.0, 0.0, 95.0, 0.0, 0.0, 0.0, 95.0, 0.0, 0.0, 0.0]
+sample_path = "./example_drums/SharpK.wav"
 position = 0.0
 target_volume = 0.7480315
 track_volume = 1.0
 is_playing = false
 
 [[tracks]]
-name = "808OHH.wav"
-mute = true
+name = "hat"
+mute = false
 steps = [0.0, 0.0, 95.0, 0.0, 0.0, 0.0, 95.0, 0.0, 0.0, 0.0, 95.0, 0.0, 0.0, 0.0, 95.0, 0.0]
-sample_path = "/home/remy/Music/4018-DR660 Samples/DR660 Samples/HiHat/808OHH.wav"
+sample_path = "./example_drums/PopOHH.wav"
 position = 0.0
 target_volume = 0.7480315
 track_volume = 1.0
 is_playing = false
 
 [[tracks]]
-name = "HouseK.wav"
+name = "snare"
 mute = false
-steps = [95.0, 0.0, 0.0, 0.0, 95.0, 0.0, 95.0, 0.0, 95.0, 0.0, 0.0, 0.0, 95.0, 0.0, 0.0, 0.0]
-sample_path = "/home/remy/Music/4018-DR660 Samples/DR660 Samples/Kick/HouseK.wav"
+steps = [0.0, 95.0, 0.0, 0.0, 95.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 95.0, 0.0, 0.0, 95.0]
+sample_path = "./example_drums/AttackS.wav"
 position = 0.0
 target_volume = 0.7480315
 track_volume = 1.0
