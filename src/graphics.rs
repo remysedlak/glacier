@@ -38,31 +38,27 @@ pub type Rc<T> = std::rc::Rc<T>;
 #[cfg(not(target_arch = "wasm32"))]
 pub type Rc<T> = std::sync::Arc<T>;
 
-#[repr(C)]
-#[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
-pub struct Vertex {
-    pub position: [f32; 3],
-    pub color: [f32; 3],
-}
-
 #[derive(Debug)]
 struct Track {
     pub steps: Vec<StepButton>,
     name: String,
     is_muted: bool,
     is_solo: bool,
-    instrument_index: usize,
     show_velocity: bool,
     track_volume: f32,
 }
 
-// im not messing with this;; WGSL setup
+#[repr(C)]
+#[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
+pub struct Vertex {
+    pub position: [f32; 3],
+    pub color: [f32; 3],
+}
 impl Vertex {
     const ATTRIBS: [wgpu::VertexAttribute; 2] = wgpu::vertex_attr_array![0 => Float32x3, 1 => Float32x3];
 
     fn desc() -> wgpu::VertexBufferLayout<'static> {
         use std::mem;
-
         wgpu::VertexBufferLayout {
             array_stride: mem::size_of::<Self>() as wgpu::BufferAddress,
             step_mode: wgpu::VertexStepMode::Vertex,
@@ -71,7 +67,6 @@ impl Vertex {
     }
 }
 
-// returns a buffer of text that is shaped and laid out
 fn make_buffer(font_system: &mut FontSystem, text: &str, size: f32, line_height: f32, color: Option<(u8, u8, u8)>) -> glyphon::Buffer {
     let (r, g, b) = color.unwrap_or((255, 255, 255));
     let mut buffer = glyphon::Buffer::new(font_system, Metrics::new(size, line_height));
@@ -86,27 +81,22 @@ fn make_buffer(font_system: &mut FontSystem, text: &str, size: f32, line_height:
     buffer
 }
 
-// runs once at the beginning of app start up
 pub async fn create_graphics(window: Rc<Window>, proxy: EventLoopProxy<Graphics>) {
-    // Context for all other wgpu objects. Instance of wgpu. first item u create on wgpu
     let instance = Instance::default();
-    //  bridge between wgpu and the actual window pixels, the canvas
     let surface = instance.create_surface(Rc::clone(&window)).unwrap();
-    // the thing wgpu queries to find out "what hardware (GPUs) is actually here and what can it do."
     let adapter = instance
         .request_adapter(&RequestAdapterOptions {
-            power_preference: PowerPreference::default(), // Power preference for the device
-            force_fallback_adapter: false,                // Indicates that only a fallback ("software") adapter can be used
-            compatible_surface: Some(&surface),           // Guarantee that the adapter can render to this surface
+            power_preference: PowerPreference::default(),
+            force_fallback_adapter: false,
+            compatible_surface: Some(&surface),
         })
         .await
         .expect("Could not get an adapter (GPU).");
 
-    // device is our GPU interface, and the queue is how we send commands to it
     let (device, queue) = adapter
         .request_device(&DeviceDescriptor {
             label: None,
-            required_features: Features::empty(), // Specifies the required features by the device request. Fails if the adapter can't provide them.
+            required_features: Features::empty(),
             required_limits: Limits::downlevel_webgl2_defaults().using_resolution(adapter.limits()),
             memory_hints: MemoryHints::Performance,
             trace: Default::default(),
@@ -114,18 +104,13 @@ pub async fn create_graphics(window: Rc<Window>, proxy: EventLoopProxy<Graphics>
         .await
         .expect("Failed to get device");
 
-    // Get physical pixel dimensions inside the window
     let size = window.inner_size();
-    // Make the dimensions at least size 1, otherwise wgpu would panic
     let width = size.width.max(1);
     let height = size.height.max(1);
     let surface_config = surface.get_default_config(&adapter, width, height).unwrap();
-
-    // Initializes Surface for presentation.
     surface.configure(&device, &surface_config);
     let render_pipeline = create_pipeline(&device, surface_config.format);
 
-    // glyphon setup
     let font_system = FontSystem::new();
     let swash_cache = SwashCache::new();
     let cache = Cache::new(&device);
@@ -133,19 +118,16 @@ pub async fn create_graphics(window: Rc<Window>, proxy: EventLoopProxy<Graphics>
     let mut atlas = TextAtlas::new(&device, &queue, &cache, surface_config.format);
     let renderer = TextRenderer::new(&mut atlas, &device, MultisampleState::default(), None);
 
-    // Vectors to store all triangles for display
     let vertices: Vec<Vertex> = Vec::new();
     let rows: Vec<Track> = Vec::new();
 
-    // the vertex buffer is how we send data to the gpu
     let vertex_buffer = device.create_buffer(&wgpu::BufferDescriptor {
         label: Some("Vertex Buffer"),
-        size: ONE_MEGABYTE, // 1MB, plenty of room
+        size: ONE_MEGABYTE,
         usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
         mapped_at_creation: false,
     });
 
-    // graphics class state to mutate for the rest of the sessions
     let gfx = Graphics {
         window: window.clone(),
         surface,
@@ -168,11 +150,9 @@ pub async fn create_graphics(window: Rc<Window>, proxy: EventLoopProxy<Graphics>
         dragging_knob: None,
     };
 
-    // returns the graphics state back to wherever it was requested
     let _ = proxy.send_event(gfx);
 }
 
-// compiles the shader code and describes the full rendering pipeline to the GPU  (runs once per session)
 fn create_pipeline(device: &Device, swap_chain_format: TextureFormat) -> RenderPipeline {
     let shader = device.create_shader_module(ShaderModuleDescriptor {
         label: None,
@@ -202,7 +182,6 @@ fn create_pipeline(device: &Device, swap_chain_format: TextureFormat) -> RenderP
     })
 }
 
-// graphics state
 pub struct Graphics {
     window: Rc<Window>,
     surface: Surface<'static>,
@@ -230,16 +209,14 @@ impl Graphics {
         self.window.request_redraw();
     }
 
-    // handler for : UiCommand::LoadTrack
     pub fn load_track(&mut self, i: usize, name: String, steps: Vec<f32>, mute: bool, vol: f32) {
         if i >= self.rows.len() {
-            // add a new row
             let mut buttons = Vec::new();
             for j in 0..steps.len() {
                 buttons.push(StepButton {
                     width: BUTTON_WIDTH,
                     height: BUTTON_HEIGHT,
-                    velocity: steps[j as usize],
+                    velocity: steps[j],
                 });
             }
             self.rows.push(Track {
@@ -247,35 +224,31 @@ impl Graphics {
                 steps: buttons,
                 is_muted: mute,
                 is_solo: false,
-                instrument_index: i,
                 show_velocity: false,
                 track_volume: vol,
             });
         }
-        // set step states
         for (j, &step) in steps.iter().enumerate() {
             self.rows[i].steps[j].velocity = step;
         }
     }
 
     pub fn handle_drag(&mut self, x: f32, y: f32, dy: f32) -> DragResult {
-        // master volume tracking
         if self.dragging_knob == None {
             let y_ceiling: f32 = 416.0;
             let track_height: f32 = 164.0;
             let padding = 32.0;
             if x > 64.0 - padding && x < 96.0 + padding && y > y_ceiling && y < y_ceiling + track_height {
                 self.master_volume = 1.0 - ((y - y_ceiling) / track_height).clamp(0.0, 1.0);
-                dbg!(self.master_volume);
                 return DragResult::DragVolumeSlider(self.master_volume);
             }
         }
 
-        // knob tracking
         if let Some(i) = self.dragging_knob {
             self.rows[i].track_volume = (self.rows[i].track_volume - dy * 0.005).clamp(0.0, 1.0);
             return DragResult::DragVolumeKnob(i, self.rows[i].track_volume);
         }
+
         for (i, track) in &mut self.rows.iter_mut().enumerate() {
             if x > (BUTTON_X_ORIGIN - 24.0 - KNOB_RADIUS)
                 && x < BUTTON_X_ORIGIN - 24.0 + KNOB_RADIUS
@@ -288,107 +261,17 @@ impl Graphics {
             }
         }
 
-        return DragResult::None;
+        DragResult::None
     }
 
-    // handler for UiCommand::StepAdvanced, UiCmomand::MuteTrack
-    pub fn handle_button_click(&mut self, x: f32, y: f32) -> ClickResult {
-        for (i, track) in &mut self.rows.iter_mut().enumerate() {
-            if track.show_velocity {
-            } else {
-                for (j, button) in &mut track.steps.iter_mut().enumerate() {
-                    let group = j / 4;
-
-                    let x2 = BUTTON_X_ORIGIN + j as f32 * BUTTON_GAP + group as f32 * BAR_GAP;
-                    let y2 = BUTTON_Y_ORIGIN + i as f32 * TRACK_GAP;
-
-                    if x > x2 && x < x2 + button.width && y > y2 && y < y2 + button.height {
-                        button.velocity = if button.velocity > 0.0 { 0.0 } else { 95.0 };
-                        dbg!(button.velocity);
-                        return ClickResult::Step(i, j);
-                    }
-                }
-            }
-
-            // check for mute
-            if x > BUTTON_X_ORIGIN - 24.0
-                && x < BUTTON_X_ORIGIN - 24.0 + MUTE_SQUARE_LENGTH
-                && y > BUTTON_Y_ORIGIN + (i as f32 * TRACK_GAP) + 48.0
-                && y < ((BUTTON_Y_ORIGIN + (i as f32 * TRACK_GAP) + 48.0) + MUTE_SQUARE_LENGTH)
-            {
-                track.is_muted = !track.is_muted;
-                return ClickResult::Mute(i);
-            }
-
-            // check for velocity
-            if x > BUTTON_X_ORIGIN - 40.0
-                && x < BUTTON_X_ORIGIN - 40.0 + MUTE_SQUARE_LENGTH
-                && y > BUTTON_Y_ORIGIN + (i as f32 * TRACK_GAP) + 48.0
-                && y < BUTTON_Y_ORIGIN + (i as f32 * TRACK_GAP) + 48.0 + MUTE_SQUARE_LENGTH
-            {
-                track.show_velocity = !track.show_velocity;
-                return ClickResult::None;
-            }
-
-            // check for delete
-            if x > BUTTON_X_ORIGIN - 40.0 - 16.0
-                && x < BUTTON_X_ORIGIN - 40.0 - 16.0 + MUTE_SQUARE_LENGTH
-                && y > BUTTON_Y_ORIGIN + (i as f32 * TRACK_GAP) + 48.0
-                && y < BUTTON_Y_ORIGIN + (i as f32 * TRACK_GAP) + 48.0 + MUTE_SQUARE_LENGTH
-            {
-                self.rows.remove(i);
-                return ClickResult::DeleteTrack(i);
-            }
-        }
-
-        // check for bpm
-        if x > 48.0 && x < 48.0 + ICON_WIDTH && y > 4.0 && y < 4.0 + 10.0 {
-            self.bpm = self.bpm + 1.0;
-            return ClickResult::ChangeBpm(self.bpm);
-        }
-        if x > 48.0 && x < 48.0 + ICON_WIDTH && y > 16.0 && y < (16.0 + 10.0) {
-            self.bpm = self.bpm - 1.0;
-            return ClickResult::ChangeBpm(self.bpm);
-        }
-
-        // play / pause
-        if x > PLAY_X_ORIGIN && x < PLAY_X_ORIGIN + PLAY_SQUARE_WIDTH && y > PLAY_Y_ORIGIN && y < PLAY_Y_ORIGIN + PLAY_SQUARE_HEIGHT {
-            self.is_playing = !self.is_playing;
-            return ClickResult::TogglePlay;
-        }
-
-        let user_width = self.surface_config.width;
-
-        // load project
-        if x > user_width as f32 - LOAD_PROJECT_ICON_OFFSET
-            && x < user_width as f32 - LOAD_PROJECT_ICON_OFFSET + ICON_WIDTH
-            && y > TOOLBAR_MARGIN
-            && y < TOOLBAR_MARGIN + ICON_HEIGHT
-        {
-            return ClickResult::ProjectFileDialog;
-        }
-
-        // load instrument
-        if x > user_width as f32 - ADD_INSTRUMENT_ICON_OFFSET
-            && x < user_width as f32 - ADD_INSTRUMENT_ICON_OFFSET + ICON_WIDTH
-            && y > TOOLBAR_MARGIN
-            && y < TOOLBAR_MARGIN + ICON_HEIGHT
-        {
-            return ClickResult::InstrumentFileDialog;
-        }
-
-        ClickResult::None
-    }
-
-    // react to resize events from user like minimize
     pub fn resize(&mut self, new_size: PhysicalSize<u32>) {
         self.surface_config.width = new_size.width.max(1);
         self.surface_config.height = new_size.height.max(1);
         self.surface.configure(&self.device, &self.surface_config);
     }
 
-    // called every frame to update the canvas
-    pub fn draw(&mut self, _mouse_x: f32, _mouse_y: f32) {
+    // called every frame — returns ClickResult so app.rs can dispatch audio commands
+    pub fn draw(&mut self, _mouse_x: f32, _mouse_y: f32, clicked: bool) -> ClickResult {
         self.viewport.update(
             &self.queue,
             Resolution {
@@ -404,9 +287,11 @@ impl Graphics {
 
         let view = frame.texture.create_view(&TextureViewDescriptor::default());
 
-        // draw the steps
         let mut vertices: Vec<Vertex> = Vec::new();
         let mut text_items: Vec<(glyphon::Buffer, f32, f32)> = Vec::new();
+        let mut click_result = ClickResult::None;
+        let sw = self.surface_config.width;
+        let sh = self.surface_config.height;
 
         /* begin per track rendering */
         for (j, track) in &mut self.rows.iter_mut().enumerate() {
@@ -414,41 +299,47 @@ impl Graphics {
                 let group = i / 4;
                 let x = BUTTON_X_ORIGIN + i as f32 * BUTTON_GAP + group as f32 * BAR_GAP;
                 let y = BUTTON_Y_ORIGIN + j as f32 * TRACK_GAP;
+
                 if track.show_velocity {
                     // background
                     let background = Rectangle {
-                        x: x,
-                        y: y,
+                        x,
+                        y,
                         width: button.width,
                         height: button.height,
                     };
-                    vertices.extend(background.draw(self.surface_config.width, self.surface_config.height, DARK_GRAY));
+                    vertices.extend(background.draw(sw, sh, DARK_GRAY));
 
-                    // drag
-
+                    // velocity bar
                     let filled_height = button.height * (button.velocity / 128.0);
-                    let bar_y = y + button.height - filled_height;
                     let bar = Rectangle {
                         x,
-                        y: bar_y,
+                        y: y + button.height - filled_height,
                         width: button.width,
                         height: filled_height,
                     };
-                    vertices.extend(bar.draw(self.surface_config.width, self.surface_config.height, BLUE));
+                    vertices.extend(bar.draw(sw, sh, BLUE));
                 } else {
                     let step = Rectangle {
-                        x: x,
-                        y: y,
+                        x,
+                        y,
                         width: button.width,
                         height: button.height,
                     };
                     vertices.extend(step.draw(
-                        self.surface_config.width,
-                        self.surface_config.height,
+                        sw,
+                        sh,
                         step.active_step_color(_mouse_x, _mouse_y, i == self.active_step, button.velocity > 0.0),
                     ));
+
+                    if clicked && step.is_hovered(_mouse_x, _mouse_y) {
+                        button.velocity = if button.velocity > 0.0 { 0.0 } else { 95.0 };
+                        click_result = ClickResult::Step(j, i);
+                    }
                 }
             }
+
+            let button_gap = 40.0;
 
             // mute button
             let mute_button = Rectangle {
@@ -457,13 +348,11 @@ impl Graphics {
                 width: MUTE_SQUARE_LENGTH,
                 height: MUTE_SQUARE_LENGTH,
             };
-            vertices.extend(mute_button.draw(
-                self.surface_config.width,
-                self.surface_config.height,
-                mute_button.active_color(_mouse_x, _mouse_y, track.is_muted),
-            ));
-
-            let button_gap = 40.0;
+            vertices.extend(mute_button.draw(sw, sh, mute_button.active_color(_mouse_x, _mouse_y, track.is_muted)));
+            if clicked && mute_button.is_hovered(_mouse_x, _mouse_y) {
+                track.is_muted = !track.is_muted;
+                click_result = ClickResult::Mute(j);
+            }
 
             // velocity button
             let velocity_button = Rectangle {
@@ -472,11 +361,10 @@ impl Graphics {
                 width: MUTE_SQUARE_LENGTH,
                 height: MUTE_SQUARE_LENGTH,
             };
-            vertices.extend(velocity_button.draw(
-                self.surface_config.width,
-                self.surface_config.height,
-                velocity_button.active_color(_mouse_x, _mouse_y, track.show_velocity),
-            ));
+            vertices.extend(velocity_button.draw(sw, sh, velocity_button.active_color(_mouse_x, _mouse_y, track.show_velocity)));
+            if clicked && velocity_button.is_hovered(_mouse_x, _mouse_y) {
+                track.show_velocity = !track.show_velocity;
+            }
 
             // delete button
             let delete_button = Rectangle {
@@ -485,11 +373,10 @@ impl Graphics {
                 width: MUTE_SQUARE_LENGTH,
                 height: MUTE_SQUARE_LENGTH,
             };
-            vertices.extend(delete_button.draw(
-                self.surface_config.width,
-                self.surface_config.height,
-                delete_button.hover_color(_mouse_x, _mouse_y),
-            ));
+            vertices.extend(delete_button.draw(sw, sh, delete_button.hover_color(_mouse_x, _mouse_y)));
+            if clicked && delete_button.is_hovered(_mouse_x, _mouse_y) {
+                click_result = ClickResult::DeleteTrack(j);
+            }
 
             // track volume knob
             for vert in draw_knob(
@@ -498,27 +385,23 @@ impl Graphics {
                 BUTTON_Y_ORIGIN + (j as f32 * TRACK_GAP) + 24.0,
                 KNOB_RADIUS,
                 35,
-                self.surface_config.width,
-                self.surface_config.height,
+                sw,
+                sh,
             ) {
                 vertices.push(vert);
             }
 
-            // track text buffer
+            // text buffers
             text_items.push((
                 make_buffer(&mut self.font_system, &track.name, 18.0, 22.0, None),
                 10.0,
                 BUTTON_Y_ORIGIN + j as f32 * TRACK_GAP,
             ));
-
-            // mute text buffer
             text_items.push((
                 make_buffer(&mut self.font_system, "mut", 12.0, 22.0, None),
                 BUTTON_X_ORIGIN - 32.0 + 4.0,
                 BUTTON_Y_ORIGIN + j as f32 * TRACK_GAP + 54.0,
             ));
-
-            // velocity mode text buffer
             text_items.push((
                 make_buffer(&mut self.font_system, "vel", 12.0, 22.0, None),
                 BUTTON_X_ORIGIN - 32.0 - 16.0,
@@ -526,36 +409,92 @@ impl Graphics {
             ));
         }
 
-        // master volume slider
-        draw_slider(
-            self.surface_config.width,
-            self.surface_config.height,
-            &mut vertices,
-            &mut self.master_volume,
-        );
+        // handle delete after loop to avoid borrow issues
+        if let ClickResult::DeleteTrack(i) = click_result {
+            self.rows.remove(i);
+        }
 
-        // project text buffer
+        // bpm up
+        let bpm_up = Rectangle {
+            x: 48.0,
+            y: 4.0,
+            width: 32.0,
+            height: 10.0,
+        };
+        vertices.extend(bpm_up.draw(sw, sh, LIGHT_GRAY));
+        if clicked && bpm_up.is_hovered(_mouse_x, _mouse_y) {
+            self.bpm += 1.0;
+            click_result = ClickResult::ChangeBpm(self.bpm);
+        }
+
+        // bpm down
+        let bpm_down = Rectangle {
+            x: 48.0,
+            y: 16.0,
+            width: 32.0,
+            height: 10.0,
+        };
+        vertices.extend(bpm_down.draw(sw, sh, LIGHT_GRAY));
+        if clicked && bpm_down.is_hovered(_mouse_x, _mouse_y) {
+            self.bpm -= 1.0;
+            click_result = ClickResult::ChangeBpm(self.bpm);
+        }
+
+        // play / pause
+        let play_button = Rectangle {
+            x: PLAY_X_ORIGIN,
+            y: PLAY_Y_ORIGIN,
+            width: PLAY_SQUARE_WIDTH,
+            height: PLAY_SQUARE_HEIGHT,
+        };
+        if clicked && play_button.is_hovered(_mouse_x, _mouse_y) {
+            self.is_playing = !self.is_playing;
+            click_result = ClickResult::TogglePlay;
+        }
+
+        let user_width = self.surface_config.width as f32;
+
+        // load project
+        let load_project = Rectangle {
+            x: user_width - LOAD_PROJECT_ICON_OFFSET,
+            y: TOOLBAR_MARGIN,
+            width: ICON_WIDTH,
+            height: ICON_HEIGHT,
+        };
+        if clicked && load_project.is_hovered(_mouse_x, _mouse_y) {
+            click_result = ClickResult::ProjectFileDialog;
+        }
+
+        // load instrument
+        let load_instrument = Rectangle {
+            x: user_width - ADD_INSTRUMENT_ICON_OFFSET,
+            y: TOOLBAR_MARGIN,
+            width: ICON_WIDTH,
+            height: ICON_HEIGHT,
+        };
+        if clicked && load_instrument.is_hovered(_mouse_x, _mouse_y) {
+            click_result = ClickResult::InstrumentFileDialog;
+        }
+
+        // master volume slider
+        draw_slider(sw, sh, &mut vertices, &mut self.master_volume);
+
+        // text buffers
         text_items.push((
             make_buffer(&mut self.font_system, "proj", 14.0, 22.0, Some((0, 0, 0))),
             self.surface_config.width as f32 - 37.0,
             4.0,
         ));
-
-        // instrument text buffer
         text_items.push((
             make_buffer(&mut self.font_system, "instr", 14.0, 22.0, Some((0, 0, 0))),
             self.surface_config.width as f32 - (37.0 + 40.0 + 1.0),
             4.0,
         ));
-
-        // bpm text buffer
         text_items.push((
             make_buffer(&mut self.font_system, &self.bpm.to_string(), 18.0, 22.0, None),
             10.0,
             TOOLBAR_MARGIN,
         ));
-
-        // volume text buffer
         text_items.push((
             make_buffer(&mut self.font_system, &self.master_volume.to_string(), 18.0, 22.0, None),
             54.0,
@@ -563,11 +502,9 @@ impl Graphics {
         ));
 
         let label = if self.is_playing { "❚❚" } else { "  ▶" };
-
-        // play/pause text buffer
         text_items.push((
             make_buffer(&mut self.font_system, label, 18.0, 22.0, None),
-            (PLAY_X_ORIGIN + (PLAY_SQUARE_WIDTH / 4.0)),
+            PLAY_X_ORIGIN + (PLAY_SQUARE_WIDTH / 4.0),
             5.0,
         ));
 
@@ -584,7 +521,7 @@ impl Graphics {
                     right: self.surface_config.width as i32,
                     bottom: self.surface_config.height as i32,
                 },
-                default_color: glyphon::Color::rgb(255, 255, 255), // white
+                default_color: glyphon::Color::rgb(255, 255, 255),
                 custom_glyphs: &[],
             })
             .collect();
@@ -601,19 +538,12 @@ impl Graphics {
             )
             .unwrap();
 
-        draw_toolbar(
-            &mut vertices,
-            self.surface_config.width,
-            self.surface_config.height,
-            _mouse_x,
-            _mouse_y,
-        );
+        draw_toolbar(&mut vertices, sw, sh, _mouse_x, _mouse_y);
 
         self.queue.write_buffer(&self.vertex_buffer, 0, bytemuck::cast_slice(&vertices));
         self.num_vertices = vertices.len() as u32;
 
         let mut encoder = self.device.create_command_encoder(&CommandEncoderDescriptor { label: None });
-
         {
             let mut r_pass = encoder.begin_render_pass(&RenderPassDescriptor {
                 label: None,
@@ -638,9 +568,11 @@ impl Graphics {
             r_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
             r_pass.draw(0..self.num_vertices, 0..1);
             self.renderer.render(&self.atlas, &self.viewport, &mut r_pass).unwrap();
-        } // `r_pass` dropped here
+        }
 
         self.queue.submit(Some(encoder.finish()));
         frame.present();
+
+        click_result
     }
 }

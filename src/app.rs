@@ -25,7 +25,6 @@ pub enum UiCommand {
     LoadMasterVolume(f32),
     ShutdownComplete,
     SaveComplete,
-    // InstrumentAdded(...) when we get there
 }
 
 // the app is in initializing state or its ready to draw
@@ -45,11 +44,11 @@ pub struct App {
     stream: Stream,
     pending_project: Option<String>,
     ctrl_pressed: bool,
+    clicked: bool,
     left_click_held: bool,
 }
 
 impl App {
-    // initalize the event loop on creation
     pub fn new(producer: HeapProd<AudioCommand>, consumer: HeapCons<UiCommand>, event_loop: &EventLoop<Graphics>, stream: Stream) -> Self {
         Self {
             producer,
@@ -58,22 +57,25 @@ impl App {
             mouse_x: 0.0,
             mouse_y: 0.0,
             prev_mouse_y: 0.0,
-            stream: stream,
+            stream,
             pending_project: None,
             ctrl_pressed: false,
             left_click_held: false,
+            clicked: false,
         }
     }
 
-    // if the state is ready, draw the frame
+    // if the state is ready, draw the frame and handle click results
     fn draw(&mut self, event_loop: &ActiveEventLoop) {
         let mut should_exit = false;
 
         if let State::Ready(gfx) = &mut self.state {
+            // consume audio -> ui commands
             while let Some(cmd) = self.consumer.try_pop() {
                 match cmd {
                     UiCommand::StepAdvanced(size) => {
                         gfx.active_step = size;
+                        gfx.request_redraw();
                     }
                     UiCommand::LoadTrack(i, name, steps, mute, vol) => {
                         gfx.load_track(i, name, steps, mute, vol);
@@ -100,17 +102,66 @@ impl App {
                     }
                 }
             }
-            gfx.draw(self.mouse_x, self.mouse_y);
+
+            // single draw call — returns click result
+            let result = gfx.draw(self.mouse_x, self.mouse_y, self.clicked);
+            self.clicked = false; // consume the click
+
+            // dispatch audio commands based on what was clicked
+            match result {
+                ClickResult::Step(track, step) => {
+                    self.producer.try_push(AudioCommand::ToggleStep(track, step)).ok();
+                }
+                ClickResult::Mute(track) => {
+                    self.producer.try_push(AudioCommand::ToggleMute(track)).ok();
+                }
+                ClickResult::ChangeBpm(bpm) => {
+                    self.producer.try_push(AudioCommand::ChangeBpm(bpm)).ok();
+                }
+                ClickResult::TogglePlay => {
+                    self.producer.try_push(AudioCommand::TogglePlay).ok();
+                }
+                ClickResult::DeleteTrack(i) => {
+                    self.producer.try_push(AudioCommand::DeleteTrack(i)).ok();
+                }
+                ClickResult::ProjectFileDialog => {
+                    let file = FileDialog::new().add_filter("toml", &["toml"]).set_directory("/").pick_file();
+                    match file {
+                        Some(x) => {
+                            gfx.is_playing = false;
+                            self.pending_project = Some(x.to_str().unwrap().to_string());
+                            self.producer.try_push(AudioCommand::SaveProject).ok();
+                        }
+                        None => println!("no file chosen..."),
+                    }
+                }
+                ClickResult::InstrumentFileDialog => {
+                    let file = FileDialog::new()
+                        .add_filter("wav", &["wav"])
+                        .add_filter("mp3", &["mp3"])
+                        .set_directory("/")
+                        .pick_file();
+                    match file {
+                        Some(x) => {
+                            self.producer
+                                .try_push(AudioCommand::AddInstrument(x.to_str().unwrap().to_string()))
+                                .ok();
+                        }
+                        None => println!("no file chosen..."),
+                    }
+                }
+                ClickResult::None => {}
+            }
+
             gfx.request_redraw();
         }
-        // exit the event loop
+
         if should_exit {
             self.state = State::Init(None);
             event_loop.exit();
         }
     }
 
-    // handles window resizing and min/maximizing
     fn resized(&mut self, size: PhysicalSize<u32>) {
         if let State::Ready(gfx) = &mut self.state {
             gfx.resize(size);
@@ -118,7 +169,6 @@ impl App {
     }
 }
 
-// app startup
 impl ApplicationHandler<Graphics> for App {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
         if let State::Init(proxy) = &mut self.state {
@@ -151,12 +201,10 @@ impl ApplicationHandler<Graphics> for App {
     }
 
     fn user_event(&mut self, _event_loop: &ActiveEventLoop, graphics: Graphics) {
-        // Request a redraw now that graphics are ready
         graphics.request_redraw();
         self.state = State::Ready(graphics);
     }
 
-    // handles all events from a window
     fn window_event(&mut self, event_loop: &ActiveEventLoop, _window_id: WindowId, event: WindowEvent) {
         match event {
             WindowEvent::CloseRequested => {
@@ -168,9 +216,7 @@ impl ApplicationHandler<Graphics> for App {
             WindowEvent::Resized(size) => self.resized(size),
             WindowEvent::RedrawRequested => self.draw(&event_loop),
 
-            // detect keyboard input
             WindowEvent::KeyboardInput { event, .. } => {
-                // on release
                 if !event.state.is_pressed() {
                     match event.physical_key {
                         PhysicalKey::Code(KeyCode::ControlLeft) => {
@@ -180,20 +226,17 @@ impl ApplicationHandler<Graphics> for App {
                     }
                 }
 
-                // on hold
                 if event.state.is_pressed() {
                     match event.physical_key {
                         PhysicalKey::Code(KeyCode::Space) => {
                             self.producer.try_push(AudioCommand::TogglePlay).ok();
                             if let State::Ready(gfx) = &mut self.state {
-                                gfx.is_playing = !gfx.is_playing
+                                gfx.is_playing = !gfx.is_playing;
                             }
                         }
-                        // Ctrl state
                         PhysicalKey::Code(KeyCode::ControlLeft) => {
                             self.ctrl_pressed = true;
                         }
-                        // Save
                         PhysicalKey::Code(KeyCode::KeyS) => {
                             if self.ctrl_pressed {
                                 self.producer.try_push(AudioCommand::SaveProject).ok();
@@ -203,77 +246,24 @@ impl ApplicationHandler<Graphics> for App {
                     }
                 }
             }
-            // detect mouse input
+
             WindowEvent::MouseInput { state, button, .. } => {
                 if state.is_pressed() && button == MouseButton::Left {
                     self.left_click_held = true;
-                    if let State::Ready(gfx) = &mut self.state {
-                        match gfx.handle_button_click(self.mouse_x, self.mouse_y) {
-                            ClickResult::Step(track, step) => {
-                                self.producer.try_push(AudioCommand::ToggleStep(track, step)).ok();
-                            }
-                            ClickResult::Mute(track) => {
-                                self.producer.try_push(AudioCommand::ToggleMute(track)).ok();
-                            }
-                            ClickResult::ChangeBpm(bpm) => {
-                                self.producer.try_push(AudioCommand::ChangeBpm(bpm)).ok();
-                            }
-                            ClickResult::TogglePlay => {
-                                self.producer.try_push(AudioCommand::TogglePlay).ok();
-                            }
-                            ClickResult::DeleteTrack(i) => {
-                                self.producer.try_push(AudioCommand::DeleteTrack(i)).ok();
-                            }
-                            ClickResult::ProjectFileDialog => {
-                                let file = FileDialog::new().add_filter("toml", &["toml"]).set_directory("/").pick_file();
-
-                                match file {
-                                    Some(x) => {
-                                        // save and pause the stream
-                                        gfx.is_playing = false;
-                                        self.pending_project = Some(x.to_str().unwrap().to_string());
-                                        self.producer.try_push(AudioCommand::SaveProject).ok();
-                                    }
-                                    None => {
-                                        println!("no file chosen...")
-                                    }
-                                }
-                            }
-                            ClickResult::InstrumentFileDialog => {
-                                let file = FileDialog::new()
-                                    .add_filter("wav", &["wav"])
-                                    .add_filter("mp3", &["mp3"])
-                                    .set_directory("/")
-                                    .pick_file();
-
-                                match file {
-                                    Some(x) => {
-                                        // add new instrument
-                                        self.producer
-                                            .try_push(AudioCommand::AddInstrument(x.to_str().unwrap().to_string()))
-                                            .ok();
-                                    }
-                                    None => {
-                                        println!("no file chosen...")
-                                    }
-                                }
-                            }
-                            ClickResult::None => {}
-                        }
-                    }
-                    self.draw(&event_loop);
+                    self.clicked = true;
+                    self.draw(&event_loop); // single draw, result handled inside
                 } else {
                     self.left_click_held = false;
+                    self.clicked = false;
                 }
             }
 
-            // detect cursor movement
             WindowEvent::CursorMoved { position, .. } => {
-                // position.x and position.y are available here
                 self.mouse_x = position.x as f32;
                 self.mouse_y = position.y as f32;
-                let delta_y: f32 = position.y as f32 - self.prev_mouse_y;
+                let delta_y = position.y as f32 - self.prev_mouse_y;
                 self.prev_mouse_y = position.y as f32;
+
                 if let State::Ready(gfx) = &mut self.state {
                     if self.left_click_held {
                         match gfx.handle_drag(position.x as f32, position.y as f32, delta_y) {
@@ -288,10 +278,7 @@ impl ApplicationHandler<Graphics> for App {
                             }
                         }
                     } else {
-                        self.left_click_held = false;
-                        if let State::Ready(gfx) = &mut self.state {
-                            gfx.dragging_knob = None;
-                        }
+                        gfx.dragging_knob = None;
                     }
                 }
             }
