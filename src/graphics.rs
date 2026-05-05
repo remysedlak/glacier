@@ -407,19 +407,20 @@ impl Graphics {
 
                 // velocity view
                 if instrument.show_velocity {
-                    // background
-                    let background = Rectangle {
-                        x,
-                        y,
-                        width: BUTTON_WIDTH,
-                        height: BUTTON_HEIGHT,
-                    };
-                    vertices.extend(background.draw(screen_width, screen_height, DARK_GRAY));
-                    for &velocity in steps_slice {
+                    for (j, &velocity) in steps_slice.iter().enumerate() {
                         // velocity bar
+                        let step_x = 240.0 + seq_x + (j as f32 * BUTTON_GAP) + ((j / 4) as f32 * BAR_GAP) + padding;
                         let filled_height = BUTTON_HEIGHT * (velocity / 128.0);
+                        // background
+                        let background = Rectangle {
+                            x: step_x,
+                            y,
+                            width: BUTTON_WIDTH,
+                            height: BUTTON_HEIGHT,
+                        };
+                        vertices.extend(background.draw(screen_width, screen_height, DARK_GRAY));
                         let bar = Rectangle {
-                            x,
+                            x: step_x,
                             y: y + BUTTON_HEIGHT - filled_height,
                             width: BUTTON_WIDTH,
                             height: filled_height,
@@ -483,6 +484,11 @@ impl Graphics {
                     screen_height,
                     mute_button.active_color(_mouse_x, _mouse_y, instrument.data.is_muted),
                 ));
+                text_items.push((
+                    make_text_buffer(&mut self.font_system, "mut", 12.0, 22.0, None),
+                    seq_x + 16.0,
+                    seq_y + i as f32 * TRACK_GAP + 40.0,
+                ));
                 if clicked && mute_button.is_hovered(_mouse_x, _mouse_y) {
                     instrument.data.is_muted = !instrument.data.is_muted;
                     click_result = ClickResult::Mute(i);
@@ -500,6 +506,11 @@ impl Graphics {
                     screen_height,
                     velocity_button.active_color(_mouse_x, _mouse_y, instrument.show_velocity),
                 ));
+                text_items.push((
+                    make_text_buffer(&mut self.font_system, "vel", 12.0, 22.0, None),
+                    seq_x + 50.0,
+                    seq_y + (i as f32 * TRACK_GAP) + 40.0,
+                ));
                 if clicked && velocity_button.is_hovered(_mouse_x, _mouse_y) {
                     instrument.show_velocity = !instrument.show_velocity;
                 }
@@ -512,6 +523,11 @@ impl Graphics {
                     height: MUTE_SQUARE_LENGTH,
                 };
                 vertices.extend(delete_button.draw(screen_width, screen_height, delete_button.hover_color(_mouse_x, _mouse_y)));
+                text_items.push((
+                    make_text_buffer(&mut self.font_system, "del", 12.0, 22.0, None),
+                    padding + seq_x + button_gap + 16.0,
+                    seq_y + (i as f32 * TRACK_GAP) + 40.0,
+                ));
                 if clicked && delete_button.is_hovered(_mouse_x, _mouse_y) {
                     click_result = ClickResult::DeleteTrack(i);
                 }
@@ -533,16 +549,6 @@ impl Graphics {
                     make_text_buffer(&mut self.font_system, &instrument.data.name, 18.0, 22.0, None),
                     seq_x + 16.0,
                     seq_y + i as f32 * TRACK_GAP,
-                ));
-                text_items.push((
-                    make_text_buffer(&mut self.font_system, "mut", 12.0, 22.0, None),
-                    seq_x + 16.0,
-                    seq_y + i as f32 * TRACK_GAP + 40.0,
-                ));
-                text_items.push((
-                    make_text_buffer(&mut self.font_system, "vel", 12.0, 22.0, None),
-                    seq_x - 32.0 - 16.0,
-                    seq_y as f32 * TRACK_GAP + 54.0,
                 ));
             }
         }
