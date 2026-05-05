@@ -312,8 +312,10 @@ impl ApplicationHandler<Graphics> for App {
                     self.draw(&event_loop); // single draw, result handled inside
                 } else {
                     self.left_click_held = false;
+
                     self.clicked = false;
                     if let State::Ready(gfx) = &mut self.state {
+                        gfx.dragging = false;
                         gfx.dragging_window = None; // is this here?
                         gfx.dragging_knob = None;
                     }

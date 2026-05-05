@@ -122,11 +122,11 @@ pub async fn create_graphics(window: Rc<Window>, proxy: EventLoopProxy<Graphics>
     let instruments: Vec<Instrument> = Vec::new();
 
     // declare sequencer
-    let sequencer_window = MiniWindow::new(128.0, 128.0, 1800.0, 400.0, "Sequencer", WindowKind::Sequencer);
+    let sequencer_window = MiniWindow::new(256.0, 128.0, 1200.0, 400.0, "Sequencer", WindowKind::Sequencer);
     mini_windows.push(sequencer_window);
 
     // declare mixer
-    let mixer_window = MiniWindow::new(128.0, 888.0, 900.0, 400.0, "Mixer", WindowKind::Mixer);
+    let mixer_window = MiniWindow::new(128.0, 500.0, 900.0, 300.0, "Mixer", WindowKind::Mixer);
     mini_windows.push(mixer_window);
 
     let gfx = Graphics {
@@ -153,6 +153,7 @@ pub async fn create_graphics(window: Rc<Window>, proxy: EventLoopProxy<Graphics>
         mini_windows,
         dragging_window: None,
         active_pattern_id: 0,
+        dragging: false,
     };
 
     let _ = proxy.send_event(gfx);
@@ -215,6 +216,7 @@ pub struct Graphics {
     pub dragging_knob: Option<usize>,
     pub mini_windows: Vec<MiniWindow>,
     pub dragging_window: Option<usize>,
+    pub dragging: bool,
     pub active_pattern_id: usize,
 }
 
@@ -245,21 +247,34 @@ impl Graphics {
             .map(|w| (w.x, w.y))
             .unwrap_or((64.0, 64.0));
 
+        // mixer window
+        let (mixer_x, mixer_y, mixer_w, mixer_h, mixer_t) = self
+            .mini_windows
+            .iter()
+            .find(|w| matches!(w.window_kind, WindowKind::Mixer))
+            .map(|w| (w.x, w.y, w.width, w.height, w.title.clone()))
+            .unwrap_or((64.0, 64.0, 1000.0, 600.0, "Title".to_string()));
+
+        // master/mixer
         if self.dragging_knob == None {
-            let y_ceiling: f32 = 416.0;
+            let y_ceiling: f32 = mixer_y;
             let track_height: f32 = 164.0;
             let padding = 32.0;
-            if x > 64.0 - padding && x < 96.0 + padding && y > y_ceiling && y < y_ceiling + track_height {
+            // replace "+ 24.0" with "i * 24.0", when multiple sliders are added to mixer
+            if x > mixer_x - padding + 24.0 && x < mixer_x + padding + 24.0 && y > mixer_y && y < mixer_y + track_height {
                 self.master_volume = 1.0 - ((y - y_ceiling) / track_height).clamp(0.0, 1.0);
+                self.dragging = true;
                 return DragResult::DragVolumeSlider(self.master_volume);
             }
         }
 
         if let Some(i) = self.dragging_knob {
             self.instruments[i].data.track_volume = (self.instruments[i].data.track_volume - dy * 0.005).clamp(0.0, 1.0);
+            self.dragging = true;
             return DragResult::DragVolumeKnob(i, self.instruments[i].data.track_volume);
         }
 
+        // track(instrument) volume
         for (i, track) in &mut self.instruments.iter_mut().enumerate() {
             let knob_rect = Rectangle {
                 x: seq_x + 198.0 - KNOB_RADIUS,
@@ -270,6 +285,7 @@ impl Graphics {
             if knob_rect.is_hovered(x, y) {
                 self.dragging_knob = Some(i);
                 track.data.track_volume = (track.data.track_volume - dy * 0.01).clamp(0.0, 1.0);
+                self.dragging = true;
                 return DragResult::DragVolumeKnob(i, track.data.track_volume);
             }
         }
@@ -282,16 +298,18 @@ impl Graphics {
         }
 
         // only check titlebar hit if not already dragging
-        for (i, win) in self.mini_windows.iter().enumerate() {
-            let titlebar = Rectangle {
-                x: win.x,
-                y: win.y - TITLEBAR_HEIGHT,
-                width: win.width,
-                height: TITLEBAR_HEIGHT,
-            };
-            if titlebar.is_hovered(x, y) {
-                self.dragging_window = Some(i);
-                return DragResult::None;
+        if !self.dragging {
+            for (i, win) in self.mini_windows.iter().enumerate() {
+                let titlebar = Rectangle {
+                    x: win.x,
+                    y: win.y - TITLEBAR_HEIGHT,
+                    width: win.width,
+                    height: TITLEBAR_HEIGHT,
+                };
+                if titlebar.is_hovered(x, y) {
+                    self.dragging_window = Some(i);
+                    return DragResult::None;
+                }
             }
         }
         DragResult::None
@@ -553,7 +571,6 @@ impl Graphics {
             vertices.extend(pattern_button.draw(sw, sh, pattern_button.hover_color(_mouse_x, _mouse_y)));
             if clicked && pattern_button.is_hovered(_mouse_x, _mouse_y) {
                 self.active_pattern_id = pattern.id as usize;
-                self.window.set_cursor(winit::window::CursorIcon::Pointer)
             }
         }
 
@@ -636,8 +653,51 @@ impl Graphics {
             click_result = ClickResult::InstrumentFileDialog;
         }
 
-        // master volume slider
-        draw_slider(sw, sh, &mut vertices, &mut self.master_volume);
+        // mixer window
+        let (mixer_x, mixer_y, mixer_w, mixer_h, mixer_t) = self
+            .mini_windows
+            .iter()
+            .find(|w| matches!(w.window_kind, WindowKind::Mixer))
+            .map(|w| (w.x, w.y, w.width, w.height, w.title.clone()))
+            .unwrap_or((64.0, 64.0, 1000.0, 600.0, "Title".to_string()));
+        let mixer_background = Rectangle {
+            x: mixer_x,
+            y: mixer_y,
+            width: mixer_w,
+            height: mixer_h,
+        };
+        vertices.extend(mixer_background.draw(sw, sh, BACKGROUND));
+        // titlebar rectangle
+        let titlebar = Rectangle {
+            x: mixer_x,
+            y: mixer_y - TITLEBAR_HEIGHT,
+            width: mixer_w,
+            height: TITLEBAR_HEIGHT,
+        };
+        vertices.extend(titlebar.draw(sw, sh, DARK_GRAY));
+        // titlebar text
+        text_items.push((
+            make_text_buffer(&mut self.font_system, &mixer_t, 14.0, 22.0, None),
+            mixer_x + mixer_w / 2.2,
+            mixer_y - TITLEBAR_HEIGHT + 4.0,
+        ));
+
+        // draw one slider
+        vertices.extend(draw_slider(
+            &mut self.master_volume,
+            mixer_x,
+            mixer_y,
+            self.surface_config.width as u32,
+            self.surface_config.height as u32,
+        ));
+
+        // text buffers
+        let label = &format!("{}", self.master_volume);
+        text_items.push((
+            make_text_buffer(&mut self.font_system, label, 14.0, 22.0, Some((0, 0, 0))),
+            mixer_x,
+            mixer_y,
+        ));
 
         // text buffers
         text_items.push((
@@ -654,11 +714,6 @@ impl Graphics {
             make_text_buffer(&mut self.font_system, &self.bpm.to_string(), 18.0, 22.0, None),
             10.0,
             TOOLBAR_MARGIN,
-        ));
-        text_items.push((
-            make_text_buffer(&mut self.font_system, &self.master_volume.to_string(), 18.0, 22.0, None),
-            54.0,
-            380.0,
         ));
 
         let label = if self.is_playing { "❚❚" } else { "  ▶" };

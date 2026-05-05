@@ -1,5 +1,5 @@
 pub const ONE_MEGABYTE: u64 = 1024 * 1024;
-
+pub const PADDING: f32 = 16.0;
 pub const TITLEBAR_HEIGHT: f32 = 32.0;
 pub const TOOLBAR_Y: f32 = 32.0;
 pub const TOOLBAR_THICKNESS: f32 = 0.003;
@@ -108,6 +108,8 @@ impl Rectangle {
             LIGHT_GRAY
         }
     }
+
+
     // return color if hovering and component is active
     pub fn active_color(&self, mx: f32, my: f32, is_active: bool) -> (f32, f32, f32) {
         let hovered = self.is_hovered(mx, my);
@@ -332,15 +334,16 @@ pub fn draw_toolbar(vertices: &mut Vec<Vertex>, screen_x: u32, screen_y: u32, _m
     vertices.extend(instrument_button.draw(screen_x, screen_y, instrument_button.hover_color(_mouse_x, _mouse_y)));
 }
 
-// draw one slider for master panel
-pub fn draw_slider(screen_x: u32, screen_y: u32, vertices: &mut Vec<Vertex>, master_volume: &mut f32) {
-    let x_coord = 64.0;
-    let y_ceiling = 416.0;
+/// draw one slider for master panel
+pub fn draw_slider(master_volume: &mut f32, x: f32, y: f32, screen_x: u32, screen_y: u32) -> Vec<Vertex> {
+    let x_coord = x + PADDING;
+    let y_ceiling = y + PADDING;
     let track_height = 164.0;
     let track_width = 4.0;
     let thumb_height = 16.0;
     let thumb_width = 32.0;
     let thumb_y_coord = ((1.0 - *master_volume) * 164.0) + y_ceiling;
+    let mut verts: Vec<Vertex> = Vec::new();
 
     // TRACK (static)
     let track = Rectangle {
@@ -349,7 +352,7 @@ pub fn draw_slider(screen_x: u32, screen_y: u32, vertices: &mut Vec<Vertex>, mas
         width: track_width,
         height: track_height,
     };
-    vertices.extend(track.draw(screen_x, screen_y, BLACK));
+    verts.extend(track.draw(screen_x, screen_y, BLACK));
 
     let thumb = Rectangle {
         x: x_coord,
@@ -357,5 +360,6 @@ pub fn draw_slider(screen_x: u32, screen_y: u32, vertices: &mut Vec<Vertex>, mas
         width: thumb_width,
         height: thumb_height,
     };
-    vertices.extend(thumb.draw(screen_x, screen_y, LIGHT_GRAY));
+    verts.extend(thumb.draw(screen_x, screen_y, LIGHT_GRAY));
+    verts
 }
