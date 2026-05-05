@@ -80,7 +80,7 @@ pub fn init(mut consumer: HeapCons<AudioCommand>, mut producer: HeapProd<UiComma
                     master_volume = volume;
                 }
                 AudioCommand::ChangeTrackVolume(i, vol) => {
-                    instruments[i].data.track_volume = vol;f
+                    instruments[i].data.track_volume = vol;
                 }
                 AudioCommand::ToggleStep(pattern_id, instrument_idx, step_idx) => {
                     let instrument_id = instruments[instrument_idx].data.id;
