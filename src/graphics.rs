@@ -45,7 +45,8 @@ pub enum ClickResult {
     ProjectFileDialog,
     InstrumentFileDialog,
     DeleteTrack(usize),
-    ToggleSequencer,
+    ToggleSequencerWindow,
+    ToggleMixerWindow,
     None,
 }
 pub enum DragResult {
@@ -341,8 +342,9 @@ impl Graphics {
         let mut vertices: Vec<Vertex> = Vec::new();
         let mut text_items: Vec<(glyphon::Buffer, f32, f32)> = Vec::new();
         let mut click_result = ClickResult::None;
-        let sw = self.surface_config.width;
-        let sh = self.surface_config.height;
+
+        let screen_width = self.surface_config.width;
+        let screen_height = self.surface_config.height;
 
         // unload sequencer window information from setup
         let (seq_x, seq_y, seq_w, _, seq_t) = self
@@ -368,7 +370,7 @@ impl Graphics {
                 width: seq_w,
                 height: seq_h,
             };
-            vertices.extend(seq_background.draw(sw, sh, BACKGROUND));
+            vertices.extend(seq_background.draw(screen_width, screen_height, BACKGROUND));
 
             // titlebar rectangle
             let titlebar = Rectangle {
@@ -377,7 +379,7 @@ impl Graphics {
                 width: seq_w,
                 height: TITLEBAR_HEIGHT,
             };
-            vertices.extend(titlebar.draw(sw, sh, DARK_GRAY));
+            vertices.extend(titlebar.draw(screen_width, screen_height, DARK_GRAY));
 
             // titlebar text
             text_items.push((
@@ -412,7 +414,7 @@ impl Graphics {
                         width: BUTTON_WIDTH,
                         height: BUTTON_HEIGHT,
                     };
-                    vertices.extend(background.draw(sw, sh, DARK_GRAY));
+                    vertices.extend(background.draw(screen_width, screen_height, DARK_GRAY));
                     for &velocity in steps_slice {
                         // velocity bar
                         let filled_height = BUTTON_HEIGHT * (velocity / 128.0);
@@ -422,7 +424,7 @@ impl Graphics {
                             width: BUTTON_WIDTH,
                             height: filled_height,
                         };
-                        vertices.extend(bar.draw(sw, sh, BLUE));
+                        vertices.extend(bar.draw(screen_width, screen_height, BLUE));
                     }
                 }
                 // steps view
@@ -436,7 +438,11 @@ impl Graphics {
                             width: BUTTON_WIDTH,
                             height: BUTTON_HEIGHT,
                         };
-                        vertices.extend(step.draw(sw, sh, step.active_step_color(_mouse_x, _mouse_y, j == self.active_step, velocity > 0.0)));
+                        vertices.extend(step.draw(
+                            screen_width,
+                            screen_height,
+                            step.active_step_color(_mouse_x, _mouse_y, j == self.active_step, velocity > 0.0),
+                        ));
 
                         // check if the step was clicked
                         if clicked && step.is_hovered(_mouse_x, _mouse_y) {
@@ -472,7 +478,11 @@ impl Graphics {
                     width: MUTE_SQUARE_LENGTH,
                     height: MUTE_SQUARE_LENGTH,
                 };
-                vertices.extend(mute_button.draw(sw, sh, mute_button.active_color(_mouse_x, _mouse_y, instrument.data.is_muted)));
+                vertices.extend(mute_button.draw(
+                    screen_width,
+                    screen_height,
+                    mute_button.active_color(_mouse_x, _mouse_y, instrument.data.is_muted),
+                ));
                 if clicked && mute_button.is_hovered(_mouse_x, _mouse_y) {
                     instrument.data.is_muted = !instrument.data.is_muted;
                     click_result = ClickResult::Mute(i);
@@ -485,7 +495,11 @@ impl Graphics {
                     width: MUTE_SQUARE_LENGTH,
                     height: MUTE_SQUARE_LENGTH,
                 };
-                vertices.extend(velocity_button.draw(sw, sh, velocity_button.active_color(_mouse_x, _mouse_y, instrument.show_velocity)));
+                vertices.extend(velocity_button.draw(
+                    screen_width,
+                    screen_height,
+                    velocity_button.active_color(_mouse_x, _mouse_y, instrument.show_velocity),
+                ));
                 if clicked && velocity_button.is_hovered(_mouse_x, _mouse_y) {
                     instrument.show_velocity = !instrument.show_velocity;
                 }
@@ -497,7 +511,7 @@ impl Graphics {
                     width: MUTE_SQUARE_LENGTH,
                     height: MUTE_SQUARE_LENGTH,
                 };
-                vertices.extend(delete_button.draw(sw, sh, delete_button.hover_color(_mouse_x, _mouse_y)));
+                vertices.extend(delete_button.draw(screen_width, screen_height, delete_button.hover_color(_mouse_x, _mouse_y)));
                 if clicked && delete_button.is_hovered(_mouse_x, _mouse_y) {
                     click_result = ClickResult::DeleteTrack(i);
                 }
@@ -509,8 +523,8 @@ impl Graphics {
                     seq_y + (i as f32 * TRACK_GAP) + 24.0,
                     KNOB_RADIUS,
                     35,
-                    sw,
-                    sh,
+                    screen_width,
+                    screen_height,
                 ) {
                     vertices.push(vert);
                 }
@@ -540,23 +554,23 @@ impl Graphics {
 
         // component for stacking user created patterns
         let pattern_tray = Rectangle {
-            x: self.surface_config.width as f32 - 128.0,
+            x: screen_width as f32 - 128.0,
             y: TOOLBAR_Y,
             width: 128.0,
             height: self.surface_config.height as f32 - TOOLBAR_THICKNESS,
         };
-        vertices.extend(pattern_tray.draw(sw, sh, PASCAL));
+        vertices.extend(pattern_tray.draw(screen_width, screen_height, PASCAL));
         // Pattern tray label
         text_items.push((
-            make_text_buffer(&mut self.font_system, "Patterns", 18.0, 22.0, Some((255, 255, 255))),
-            self.surface_config.width as f32 - 128.0 + box_padding,
+            make_text_buffer(&mut self.font_system, "Patterns", 18.0, 20.0, Some((255, 255, 255))),
+            screen_width as f32 - 128.0 + box_padding,
             TOOLBAR_Y + box_padding,
         ));
 
         for (i, pattern) in &mut self.patterns.iter_mut().enumerate() {
             // Pattern button
             let pattern_button = Rectangle {
-                x: self.surface_config.width as f32 - 128.0 + padding,
+                x: screen_width as f32 - 128.0 + padding,
                 y: 48.0 + (32.0 * i as f32) + 24.0,
                 width: 96.0,
                 height: 24.0,
@@ -564,11 +578,11 @@ impl Graphics {
             // Pattern label
             text_items.push((
                 make_text_buffer(&mut self.font_system, &pattern.name, 14.0, 22.0, Some((0, 0, 0))),
-                self.surface_config.width as f32 - 96.0,
+                screen_width as f32 - 96.0,
                 48.0 + (32.0 * i as f32) + 24.0,
             ));
             // click to change current pattern on sequencer
-            vertices.extend(pattern_button.draw(sw, sh, pattern_button.hover_color(_mouse_x, _mouse_y)));
+            vertices.extend(pattern_button.draw(screen_width, screen_height, pattern_button.hover_color(_mouse_x, _mouse_y)));
             if clicked && pattern_button.is_hovered(_mouse_x, _mouse_y) {
                 self.active_pattern_id = pattern.id as usize;
             }
@@ -581,7 +595,7 @@ impl Graphics {
             width: 32.0,
             height: 10.0,
         };
-        vertices.extend(bpm_up.draw(sw, sh, LIGHT_GRAY));
+        vertices.extend(bpm_up.draw(screen_width, screen_height, LIGHT_GRAY));
         if clicked && bpm_up.is_hovered(_mouse_x, _mouse_y) {
             self.bpm += 1.0;
             click_result = ClickResult::ChangeBpm(self.bpm);
@@ -593,7 +607,7 @@ impl Graphics {
             width: 32.0,
             height: 10.0,
         };
-        vertices.extend(bpm_down.draw(sw, sh, LIGHT_GRAY));
+        vertices.extend(bpm_down.draw(screen_width, screen_height, LIGHT_GRAY));
         if clicked && bpm_down.is_hovered(_mouse_x, _mouse_y) {
             self.bpm -= 1.0;
             click_result = ClickResult::ChangeBpm(self.bpm);
@@ -618,22 +632,36 @@ impl Graphics {
             width: PLAY_SQUARE_WIDTH,
             height: PLAY_SQUARE_HEIGHT,
         };
-        vertices.extend(sequencer_toggle.draw(sw, sh, sequencer_toggle.hover_color(_mouse_x, _mouse_y)));
+        vertices.extend(sequencer_toggle.draw(screen_width, screen_height, sequencer_toggle.hover_color(_mouse_x, _mouse_y)));
         if clicked && sequencer_toggle.is_hovered(_mouse_x, _mouse_y) {
-            click_result = ClickResult::ToggleSequencer;
+            click_result = ClickResult::ToggleSequencerWindow;
         }
-
         text_items.push((
             make_text_buffer(&mut self.font_system, "sequence", 14.0, 22.0, Some((0, 0, 0))),
             PLAY_X_ORIGIN + 256.0,
             4.0,
         ));
 
-        let user_width = self.surface_config.width as f32;
+        // mixer button
+        let mixer_toggle = Rectangle {
+            x: PLAY_X_ORIGIN + 256.0 + (BUTTON_GAP * 3.0),
+            y: PLAY_Y_ORIGIN,
+            width: PLAY_SQUARE_WIDTH,
+            height: PLAY_SQUARE_HEIGHT,
+        };
+        vertices.extend(mixer_toggle.draw(screen_width, screen_height, mixer_toggle.hover_color(_mouse_x, _mouse_y)));
+        if clicked && mixer_toggle.is_hovered(_mouse_x, _mouse_y) {
+            click_result = ClickResult::ToggleMixerWindow;
+        }
+        text_items.push((
+            make_text_buffer(&mut self.font_system, "mixer", 14.0, 22.0, Some((0, 0, 0))),
+            PLAY_X_ORIGIN + 256.0 + (BUTTON_GAP * 3.0),
+            4.0,
+        ));
 
         // load project
         let load_project = Rectangle {
-            x: user_width - LOAD_PROJECT_ICON_OFFSET,
+            x: screen_width as f32 - LOAD_PROJECT_ICON_OFFSET,
             y: TOOLBAR_MARGIN,
             width: ICON_WIDTH,
             height: ICON_HEIGHT,
@@ -644,7 +672,7 @@ impl Graphics {
 
         // load instrument
         let load_instrument = Rectangle {
-            x: user_width - ADD_INSTRUMENT_ICON_OFFSET,
+            x: screen_width as f32 - ADD_INSTRUMENT_ICON_OFFSET,
             y: TOOLBAR_MARGIN,
             width: ICON_WIDTH,
             height: ICON_HEIGHT,
@@ -654,68 +682,73 @@ impl Graphics {
         }
 
         // mixer window
-        let (mixer_x, mixer_y, mixer_w, mixer_h, mixer_t) = self
+        let mixer_is_open = self
             .mini_windows
             .iter()
             .find(|w| matches!(w.window_kind, WindowKind::Mixer))
-            .map(|w| (w.x, w.y, w.width, w.height, w.title.clone()))
-            .unwrap_or((64.0, 64.0, 1000.0, 600.0, "Title".to_string()));
-        let mixer_background = Rectangle {
-            x: mixer_x,
-            y: mixer_y,
-            width: mixer_w,
-            height: mixer_h,
-        };
-        vertices.extend(mixer_background.draw(sw, sh, BACKGROUND));
-        // titlebar rectangle
-        let titlebar = Rectangle {
-            x: mixer_x,
-            y: mixer_y - TITLEBAR_HEIGHT,
-            width: mixer_w,
-            height: TITLEBAR_HEIGHT,
-        };
-        vertices.extend(titlebar.draw(sw, sh, DARK_GRAY));
-        // titlebar text
-        text_items.push((
-            make_text_buffer(&mut self.font_system, &mixer_t, 14.0, 22.0, None),
-            mixer_x + mixer_w / 2.2,
-            mixer_y - TITLEBAR_HEIGHT + 4.0,
-        ));
+            .map(|w| w.is_open)
+            .unwrap_or(false);
 
-        // draw one slider
-        vertices.extend(draw_slider(
-            &mut self.master_volume,
-            mixer_x,
-            mixer_y,
-            self.surface_config.width as u32,
-            self.surface_config.height as u32,
-        ));
+        if mixer_is_open {
+            let (mixer_x, mixer_y, mixer_w, mixer_h, mixer_t) = self
+                .mini_windows
+                .iter()
+                .find(|w| matches!(w.window_kind, WindowKind::Mixer))
+                .map(|w| (w.x, w.y, w.width, w.height, w.title.clone()))
+                .unwrap_or((64.0, 64.0, 1000.0, 600.0, "Title".to_string()));
+            let mixer_background = Rectangle {
+                x: mixer_x,
+                y: mixer_y,
+                width: mixer_w,
+                height: mixer_h,
+            };
+            vertices.extend(mixer_background.draw(screen_width, screen_height, BACKGROUND));
+            // titlebar rectangle
+            let titlebar = Rectangle {
+                x: mixer_x,
+                y: mixer_y - TITLEBAR_HEIGHT,
+                width: mixer_w,
+                height: TITLEBAR_HEIGHT,
+            };
+            vertices.extend(titlebar.draw(screen_width, screen_height, DARK_GRAY));
+            // titlebar text
+            text_items.push((
+                make_text_buffer(&mut self.font_system, &mixer_t, 14.0, 22.0, None),
+                mixer_x + mixer_w / 2.2,
+                mixer_y - TITLEBAR_HEIGHT + 4.0,
+            ));
 
-        // text buffers
-        let label = &format!("{}", self.master_volume);
-        text_items.push((
-            make_text_buffer(&mut self.font_system, label, 14.0, 22.0, Some((0, 0, 0))),
-            mixer_x,
-            mixer_y,
-        ));
+            // master slider
+            vertices.extend(draw_slider(&mut self.master_volume, mixer_x, mixer_y, screen_width, screen_height));
 
-        // text buffers
+            // text buffers
+            let label = &format!("{}", self.master_volume);
+            text_items.push((
+                make_text_buffer(&mut self.font_system, label, 14.0, 22.0, Some((0, 0, 0))),
+                mixer_x,
+                mixer_y,
+            ));
+        }
+
+        // project file dialog
         text_items.push((
             make_text_buffer(&mut self.font_system, "proj", 14.0, 22.0, Some((0, 0, 0))),
-            self.surface_config.width as f32 - 37.0,
+            screen_width as f32 - 37.0,
             4.0,
         ));
+        // instrument file dialog
         text_items.push((
             make_text_buffer(&mut self.font_system, "instr", 14.0, 22.0, Some((0, 0, 0))),
-            self.surface_config.width as f32 - (37.0 + 40.0 + 1.0),
+            screen_width as f32 - (37.0 + 40.0 + 1.0),
             4.0,
         ));
+        // bpm text
         text_items.push((
             make_text_buffer(&mut self.font_system, &self.bpm.to_string(), 18.0, 22.0, None),
             10.0,
             TOOLBAR_MARGIN,
         ));
-
+        // play and pause label
         let label = if self.is_playing { "❚❚" } else { "  ▶" };
         text_items.push((
             make_text_buffer(&mut self.font_system, label, 18.0, 22.0, None),
@@ -723,6 +756,7 @@ impl Graphics {
             5.0,
         ));
 
+        // render all texts
         let text_areas: Vec<TextArea> = text_items
             .iter()
             .map(|buf| TextArea {
@@ -733,14 +767,13 @@ impl Graphics {
                 bounds: TextBounds {
                     left: 0,
                     top: 0,
-                    right: self.surface_config.width as i32,
+                    right: screen_width as i32,
                     bottom: self.surface_config.height as i32,
                 },
                 default_color: glyphon::Color::rgb(255, 255, 255),
                 custom_glyphs: &[],
             })
             .collect();
-
         self.renderer
             .prepare(
                 &self.device,
@@ -753,8 +786,10 @@ impl Graphics {
             )
             .unwrap();
 
-        draw_toolbar(&mut vertices, sw, sh, _mouse_x, _mouse_y);
+        // draw the toolbar at the top
+        draw_toolbar(&mut vertices, screen_width, screen_height, _mouse_x, _mouse_y);
 
+        // load all vertices from built UI
         self.queue.write_buffer(&self.vertex_buffer, 0, bytemuck::cast_slice(&vertices));
         self.num_vertices = vertices.len() as u32;
 

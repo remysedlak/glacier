@@ -163,8 +163,13 @@ impl App {
 
             // dispatch audio commands based on what was clicked
             match result {
-                ClickResult::ToggleSequencer => {
+                ClickResult::ToggleSequencerWindow => {
                     if let Some(win) = gfx.mini_windows.iter_mut().find(|w| matches!(w.window_kind, WindowKind::Sequencer)) {
+                        win.is_open = !win.is_open;
+                    }
+                }
+                ClickResult::ToggleMixerWindow => {
+                    if let Some(win) = gfx.mini_windows.iter_mut().find(|w| matches!(w.window_kind, WindowKind::Mixer)) {
                         win.is_open = !win.is_open;
                     }
                 }
