@@ -1,3 +1,4 @@
+use crate::project::*;
 use crate::UiCommand;
 use cpal::{
     traits::{DeviceTrait, HostTrait, StreamTrait},
@@ -7,34 +8,10 @@ use ringbuf::{
     traits::{Consumer, Producer},
     {HeapCons, HeapProd},
 };
-use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize)]
-struct ProjectFile {
-    project_name: String,
-    bpm: f32,
-    tracks: Vec<TrackData>,
-}
-
-#[derive(Serialize, Deserialize)]
-struct TrackData {
-    name: String,
-    mute: bool,
-    steps: Vec<f32>,
-    sample_path: String,
-    position: f32,
-    target_volume: f32,
-    track_volume: f32,
-    is_playing: bool,
-}
-
-struct Playlist {
-    pattern_id: u32,
-    bar: usize,
-}
-
+// commands retrieved from the user interface
 pub enum AudioCommand {
-    ToggleStep(usize, usize),
+    ToggleStep(usize, usize, usize),
     ChangeBpm(f32),
     ChangeMasterVolume(f32),
     ToggleMute(usize),
@@ -46,121 +23,76 @@ pub enum AudioCommand {
     ChangeTrackVolume(usize, f32),
 }
 
-// instrument struct: track information about ONE instrument
-struct Instrument {
-    samples: Vec<f32>, // the literal raw buffer of audio
-    position: f32,     // current playback position
-    steps: Vec<f32>,   // the sequence of steps to play back
-    is_playing: bool,
-    name: String,
-    mute: bool,
-    path: String,
-    // audio ramping
-    target_volume: f32,
-    current_volume: f32,
-    track_volume: f32,
-}
-
+/// initialize the audio engine with cpal and data from a project file
 pub fn init(mut consumer: HeapCons<AudioCommand>, mut producer: HeapProd<UiCommand>, project_file: String) -> Stream {
     println!("STARTING REMY'S AUDIO ENGINE");
-
+    // error callback
     let err_fn = |err| eprintln!("an error occurred on the output audio stream: {}", err);
 
-    // use the default host to find devices
+    // cpal setup -> host, device, config
     let host = cpal::default_host();
-
-    // access the devices data streams
     let device = host.default_output_device().expect("no output device available");
-
-    // a config must be defined to use the device properlyz
     let supported_config = device.default_output_config().expect("error getting default config");
-
     let config = supported_config.config();
     let sample_format = supported_config.sample_format();
-
     let sample_rate_f: f32 = config.sample_rate as f32;
 
-    // load raw string data from toml file to handle init.
-    let text: String = std::fs::read_to_string(&project_file).unwrap();
-    let project: ProjectFile = toml::from_str(&text).unwrap();
-
-    let mut bpm: f32 = project.bpm;
-    let mut sample_counter: f32 = 0.0; // tracks how many samples passed, to track when a step passes
-    let mut current_step = 15;
-
-    let mut master_volume = 1.0;
-
-    // user hardware specific
-    println!("SAMPLE RATE: {}", config.sample_rate);
-
-    let project_name = project.project_name;
-    println!("Loading project: {}", project_name);
+    // load project from file path
+    let project = get_project(&project_file);
+    dbg!(&project.project_name);
 
     // load a set of instruments to play
-    let mut instruments: Vec<Instrument> = Vec::new();
-    for track in project.tracks {
-        instruments.push(Instrument {
-            samples: path_to_vector(&track.sample_path),
-            position: track.position,
-            name: track.name,
-            steps: track.steps,
-            is_playing: false,
-            target_volume: track.target_volume,
-            track_volume: track.track_volume,
-            current_volume: 0.0,
-            mute: track.mute,
-            path: track.sample_path,
-        })
+    let mut instruments: Vec<Instrument> = get_instruments(&project);
+    let mut patterns = project.patterns;
+    for pattern in &patterns {
+        producer.try_push(UiCommand::LoadPattern(pattern.clone())).ok();
     }
+    let mut bpm: f32 = project.bpm;
+    let events = project.events;
+    let mut current_step = patterns
+        .iter()
+        .flat_map(|p| p.sequences.iter())
+        .map(|s| s.steps.len())
+        .max()
+        .unwrap_or(16)
+        - 1; // wrap back on first hit
 
-    let max_steps = instruments.iter().map(|i| i.steps.len()).max().unwrap_or(16);
-
-    //  extend all tracks to longest if necesray
-    for instrument in &mut instruments {
-        if instrument.steps.len() < max_steps {
-            instrument.steps.resize(max_steps, 0.0);
-        }
-    }
-
-    // load the stored BPM onto the UI screen
+    // load instruments, bpm, volume to UI
     producer.try_push(UiCommand::LoadBpm(bpm)).ok();
-
-    // load the stored BPM onto the UI screen
-    producer.try_push(UiCommand::LoadMasterVolume(master_volume)).ok();
-
-    // load each instrument individually to the UI screen
-    for (i, instrument) in instruments.iter().enumerate() {
-        producer
-            .try_push(UiCommand::LoadTrack(
-                i,
-                instrument.name.clone(),
-                instrument.steps.clone().try_into().unwrap(),
-                instrument.mute,
-                instrument.track_volume,
-            ))
-            .ok();
+    producer.try_push(UiCommand::LoadMasterVolume(1.0)).ok();
+    for instrument in instruments.iter() {
+        producer.try_push(UiCommand::LoadInstrument(instrument.clone())).ok();
     }
 
     let mut is_playing = false;
     let mut is_shutting_down = false;
-    let mut shutdown_volume: f32 = 1.00; // multiplied by output data. only affects when decremented slowly to fade out audio on exit
+    let mut shutdown_volume: f32 = 1.00;
+    let mut sample_counter: f32 = 0.0; // tracks how many samples passed, to track when a step passes
+    let mut master_volume = 1.0;
+    let project_name = project.project_name.clone();
 
     // audio callback to fill samples requested from CPAL
     let sequencer_callback = move |data: &mut [f32], _: &cpal::OutputCallbackInfo| {
-        // before performing an audio callback, check if UI pushed any commands to pop
+        // parse incoming UI commands before fulfilling data callback
         while let Some(cmd) = consumer.try_pop() {
             match cmd {
                 AudioCommand::ChangeMasterVolume(volume) => {
                     master_volume = volume;
                 }
                 AudioCommand::ChangeTrackVolume(i, vol) => {
-                    instruments[i].track_volume = vol;
+                    instruments[i].data.track_volume = vol;f
                 }
-                AudioCommand::ToggleStep(x, y) => {
-                    if instruments[x].steps[y] > 0.0 {
-                        instruments[x].steps[y] = 0.0;
+                AudioCommand::ToggleStep(pattern_id, instrument_idx, step_idx) => {
+                    let instrument_id = instruments[instrument_idx].data.id;
+                    if let Some(seq) = patterns[pattern_id].sequences.iter_mut().find(|s| s.instrument_id == instrument_id) {
+                        seq.steps[step_idx] = if seq.steps[step_idx] > 0.0 { 0.0 } else { 95.0 };
                     } else {
-                        instruments[x].steps[y] = 95.0;
+                        let mut seq = Sequence {
+                            instrument_id: instrument_idx as u32,
+                            steps: vec![0.0f32; 32],
+                        };
+                        seq.steps[step_idx] = 95.0;
+                        patterns[pattern_id].sequences.push(seq);
                     }
                 }
                 AudioCommand::DeleteTrack(i) => {
@@ -173,33 +105,29 @@ pub fn init(mut consumer: HeapCons<AudioCommand>, mut producer: HeapProd<UiComma
                         .to_str()
                         .unwrap()
                         .to_string();
-                    instruments.push(Instrument {
+                    let instrument = Instrument {
                         samples: path_to_vector(&path),
                         position: 0.0,
-                        name: file_name.clone(),
-                        steps: vec![0.0; max_steps],
+                        data: InstrumentData {
+                            id: (instruments.len() - 1) as u32,
+                            path: path.clone(),
+                            track_volume: 1.0,
+                            target_volume: 1.0,
+                            is_muted: false,
+                            name: file_name.clone(),
+                        },
                         is_playing: false,
-                        target_volume: 1.0,
                         current_volume: 0.0,
-                        track_volume: 1.0,
-                        mute: false,
-                        path: path.clone(),
-                    });
-                    producer
-                        .try_push(UiCommand::LoadTrack(
-                            instruments.len() - 1,
-                            file_name,
-                            vec![0.0; max_steps],
-                            false,
-                            1.0,
-                        ))
-                        .ok();
+                        show_velocity: false,
+                    };
+                    instruments.push(instrument.clone());
+                    producer.try_push(UiCommand::LoadInstrument(instrument)).ok();
                 }
                 AudioCommand::ChangeBpm(new_bpm) => {
                     bpm = new_bpm;
                 }
                 AudioCommand::ToggleMute(i) => {
-                    instruments[i].mute = !instruments[i].mute;
+                    instruments[i].data.is_muted = !instruments[i].data.is_muted;
                     instruments[i].position = 0.0;
                     instruments[i].is_playing = false;
                 }
@@ -209,23 +137,12 @@ pub fn init(mut consumer: HeapCons<AudioCommand>, mut producer: HeapProd<UiComma
                 AudioCommand::SaveProject => {
                     let project = ProjectFile {
                         project_name: project_name.clone(),
-                        bpm,
-                        tracks: instruments
-                            .iter()
-                            .map(|inst| TrackData {
-                                name: inst.name.clone(),
-                                mute: inst.mute,
-                                steps: inst.steps.clone(),
-                                sample_path: inst.path.clone(),
-                                position: 0.0,
-                                target_volume: inst.target_volume,
-                                track_volume: inst.track_volume,
-                                is_playing: false,
-                            })
-                            .collect(),
+                        bpm: bpm,
+                        instruments: instruments.iter().map(|i| i.data.clone()).collect(),
+                        patterns: patterns.clone(),
+                        events: events.clone(),
                     };
-                    let text = toml::to_string(&project).unwrap();
-                    std::fs::write(project_file.clone(), text).unwrap();
+                    save_project(project, project_file.clone());
                     producer.try_push(UiCommand::SaveComplete).ok();
                     println!("saved to {}", project_file.clone());
                 }
@@ -233,22 +150,11 @@ pub fn init(mut consumer: HeapCons<AudioCommand>, mut producer: HeapProd<UiComma
                     let project = ProjectFile {
                         project_name: project_name.clone(),
                         bpm,
-                        tracks: instruments
-                            .iter()
-                            .map(|inst| TrackData {
-                                name: inst.name.clone(),
-                                mute: inst.mute,
-                                steps: inst.steps.clone(),
-                                sample_path: inst.path.clone(),
-                                position: 0.0,
-                                target_volume: inst.target_volume,
-                                track_volume: inst.track_volume,
-                                is_playing: false,
-                            })
-                            .collect(),
+                        instruments: instruments.iter().map(|i| i.data.clone()).collect(),
+                        patterns: patterns.clone(),
+                        events: events.clone(),
                     };
-                    let text = toml::to_string(&project).unwrap();
-                    std::fs::write(project_file.clone(), text).unwrap();
+                    save_project(project, project_file.clone());
 
                     // save is complete
                     producer.try_push(UiCommand::SaveComplete).ok();
@@ -280,7 +186,7 @@ pub fn init(mut consumer: HeapCons<AudioCommand>, mut producer: HeapProd<UiComma
             if is_playing {
                 for instrument in &mut instruments {
                     // ignore muted instruments
-                    if !instrument.mute && instrument.is_playing {
+                    if !instrument.data.is_muted && instrument.is_playing {
                         // if the sample fully played, mark as not playing anymore
                         if instrument.position >= instrument.samples.len() as f32 {
                             instrument.is_playing = false;
@@ -288,20 +194,20 @@ pub fn init(mut consumer: HeapCons<AudioCommand>, mut producer: HeapProd<UiComma
                             instrument.is_playing = true;
 
                             // volume ramping
-                            if instrument.current_volume != instrument.target_volume {
-                                let difference = instrument.target_volume - instrument.current_volume;
+                            if instrument.current_volume != instrument.data.target_volume {
+                                let difference = instrument.data.target_volume - instrument.current_volume;
                                 instrument.current_volume += difference * 0.01;
                             }
 
                             // add current samples to left and right channel and increment instruments position
                             sample[0] += instrument.samples[(instrument.position as f32) as usize]
                                 * instrument.current_volume
-                                * instrument.track_volume
+                                * instrument.data.track_volume
                                 * shutdown_volume
                                 * master_volume;
                             sample[1] += instrument.samples[(instrument.position as f32) as usize + 1]
                                 * instrument.current_volume
-                                * instrument.track_volume
+                                * instrument.data.track_volume
                                 * shutdown_volume
                                 * master_volume;
                             instrument.position += 2.0;
@@ -322,15 +228,39 @@ pub fn init(mut consumer: HeapCons<AudioCommand>, mut producer: HeapProd<UiComma
                 sample_counter = 0.0;
 
                 // current step follows the longest instrument track
-                current_step = (current_step + 1) % instruments.iter().map(|i| i.steps.len()).max().unwrap_or(16);
+                current_step = (current_step + 1)
+                    % patterns
+                        .iter()
+                        .flat_map(|p| p.sequences.iter())
+                        .map(|s| s.steps.len())
+                        .max()
+                        .unwrap_or(16);
+
                 producer.try_push(UiCommand::StepAdvanced(current_step)).ok();
-                // if the instrument plays on the newly incremented step, restart its position, enabling it for the next callback
-                for instrument in &mut instruments {
-                    if instrument.steps[current_step % instrument.steps.len()] > 0.0 {
-                        instrument.position = 0.0;
-                        instrument.is_playing = true;
-                        instrument.target_volume = instrument.steps[current_step % instrument.steps.len()] / 127.0;
-                    }
+
+                let triggers: Vec<(usize, f32)> = events
+                    .iter()
+                    .filter_map(|e| {
+                        if let AudioBlockType::Pattern(pid) = e.block_type {
+                            if current_step >= e.start_step as usize && current_step < (e.start_step + e.length) as usize {
+                                let local_step = current_step - e.start_step as usize;
+                                return patterns.iter().find(|p| p.id == pid).map(|p| (p, local_step));
+                            }
+                        }
+                        None
+                    })
+                    .flat_map(|(p, local_step)| {
+                        p.sequences
+                            .iter()
+                            .filter(move |s| s.steps[local_step % s.steps.len()] > 0.0)
+                            .map(move |s| (s.instrument_id as usize, s.steps[local_step % s.steps.len()]))
+                    })
+                    .collect();
+
+                for (id, vel) in triggers {
+                    instruments[id].position = 0.0;
+                    instruments[id].is_playing = true;
+                    instruments[id].data.target_volume = vel / 127.0;
                 }
             }
         }
@@ -345,27 +275,4 @@ pub fn init(mut consumer: HeapCons<AudioCommand>, mut producer: HeapProd<UiComma
     // start the output stream
     stream.play().expect("Failed to play the output stream.");
     stream
-}
-
-// load an instrument path into a vector of floats
-pub fn path_to_vector(instrument_path: &str) -> Vec<f32> {
-    // Open the WAV file using the hound library
-    let mut reader = match hound::WavReader::open(instrument_path) {
-        Ok(result) => result,
-        Err(err) => panic!("{}", err),
-    };
-
-    // find out how many bits are in a sample to properly normalize values
-    let spec = reader.spec();
-    let divisor = 1 << (spec.bits_per_sample - 1);
-
-    // Read all samples as i32 (32-bit audio)
-    let samples = reader.samples::<i32>();
-
-    // Convert i16 samples to f32 normalized values
-    let vector: Vec<f32> = samples
-        .map(|result| result.unwrap()) // Unwrap each Result<i32>
-        .map(|i32_value| i32_value as f32 / divisor as f32) // Normalize to [-1.0, 1.0]
-        .collect();
-    vector
 }

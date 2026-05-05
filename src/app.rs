@@ -1,5 +1,6 @@
 use crate::audio::{init, AudioCommand};
 use crate::graphics::{create_graphics, ClickResult, DragResult, Graphics, Rc};
+use crate::project::{Instrument, PatternData};
 use crate::ui::WindowKind;
 use cpal::traits::StreamTrait;
 use cpal::Stream;
@@ -23,11 +24,12 @@ use winit::{
 // commands that the audio engine sends to the window
 pub enum UiCommand {
     StepAdvanced(usize),
-    LoadTrack(usize, String, Vec<f32>, bool, f32),
+    LoadInstrument(Instrument),
     LoadBpm(f32),
     LoadMasterVolume(f32),
     ShutdownComplete,
     SaveComplete,
+    LoadPattern(PatternData),
 }
 
 // the app is in initializing state or its ready to draw
@@ -54,6 +56,7 @@ pub struct App {
     project_file_dialog_rx: Option<Receiver<Option<PathBuf>>>,
 }
 
+// app created for the main event loop
 impl App {
     pub fn new(producer: HeapProd<AudioCommand>, consumer: HeapCons<UiCommand>, event_loop: &EventLoop<Graphics>, stream: Stream) -> Self {
         Self {
@@ -74,7 +77,7 @@ impl App {
         }
     }
 
-    // if the state is ready, draw the frame and handle click results
+    // if the state is ready, draw each frame and handle it's click results
     fn draw(&mut self, event_loop: &ActiveEventLoop) {
         let mut should_exit = false;
 
@@ -123,11 +126,14 @@ impl App {
                         gfx.active_step = size;
                         gfx.request_redraw();
                     }
-                    UiCommand::LoadTrack(i, name, steps, mute, vol) => {
-                        gfx.load_track(i, name, steps, mute, vol);
+                    UiCommand::LoadInstrument(instrument) => {
+                        gfx.load_instrument(instrument);
                     }
                     UiCommand::LoadBpm(bpm) => {
                         gfx.bpm = bpm;
+                    }
+                    UiCommand::LoadPattern(pattern) => {
+                        gfx.load_pattern(pattern);
                     }
                     UiCommand::LoadMasterVolume(fl) => {
                         gfx.master_volume = fl;
@@ -138,6 +144,8 @@ impl App {
                     }
                     UiCommand::SaveComplete => {
                         if let Some(path) = self.pending_project.take() {
+                            gfx.instruments.clear();
+                            gfx.patterns.clear();
                             let _ = self.stream.pause();
                             let (audio_prod, audio_cons) = HeapRb::<AudioCommand>::new(64).split();
                             let (ui_prod, ui_cons) = HeapRb::<UiCommand>::new(64).split();
@@ -157,12 +165,11 @@ impl App {
             match result {
                 ClickResult::ToggleSequencer => {
                     if let Some(win) = gfx.mini_windows.iter_mut().find(|w| matches!(w.window_kind, WindowKind::Sequencer)) {
-                        println!("yay");
                         win.is_open = !win.is_open;
                     }
                 }
-                ClickResult::Step(track, step) => {
-                    self.producer.try_push(AudioCommand::ToggleStep(track, step)).ok();
+                ClickResult::Step(pattern_id, instrument_id, step) => {
+                    self.producer.try_push(AudioCommand::ToggleStep(pattern_id, instrument_id, step)).ok();
                 }
                 ClickResult::Mute(track) => {
                     self.producer.try_push(AudioCommand::ToggleMute(track)).ok();
@@ -230,9 +237,7 @@ impl ApplicationHandler<Graphics> for App {
 
                 #[cfg(not(target_arch = "wasm32"))]
                 {
-                    win_attr = win_attr
-                        .with_inner_size(winit::dpi::LogicalSize::new(1400, 800))
-                        .with_title("Glacier");
+                    win_attr = win_attr.with_inner_size(winit::dpi::LogicalSize::new(1400, 800)).with_title("Glacier");
                 }
 
                 #[cfg(target_arch = "wasm32")]

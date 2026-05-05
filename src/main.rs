@@ -2,6 +2,7 @@ mod app;
 mod audio;
 mod colors;
 mod graphics;
+mod project;
 mod ui;
 use crate::{
     app::{App, UiCommand},
@@ -31,12 +32,12 @@ fn main() {
     // dispatched any events. This is ideal for games and similar applications.
     event_loop.set_control_flow(ControlFlow::Poll); // use poll to get 60fs ^^
 
-    // Create ring buffers with capacity of 64 commands for ui and audio engine to communicate data.
+    // Create heap allocated ring buffers, capacity of 64 audio or ui commands for interprocess communication
     let (audio_prod, audio_cons) = HeapRb::<AudioCommand>::new(64).split();
     let (ui_prod, ui_cons) = HeapRb::<UiCommand>::new(64).split();
 
     // start the audio stream with buffers that product ui commands asnd consume in audio commands
-    let stream = audio::init(audio_cons, ui_prod, "projects/example_project.toml".to_string()); // hard coded intro song for dev work
+    let stream = audio::init(audio_cons, ui_prod, "projects/two_songs_project.toml".to_string()); // hard coded intro song for dev work
 
     // start the ui with buffers that produce audio commands and consume in ui commands
     let app = App::new(audio_prod, ui_cons, &event_loop, stream);

@@ -1,50 +1,21 @@
+use crate::project::{Instrument, PatternData, Sequence};
 use crate::ui::{draw_slider, draw_toolbar};
-use glyphon::{
-    Attrs, Cache, Family, FontSystem, Metrics, Resolution, Shaping, SwashCache, TextArea, TextAtlas, TextBounds, TextRenderer, Viewport,
-};
+use glyphon::{Attrs, Cache, Family, FontSystem, Metrics, Resolution, Shaping, SwashCache, TextArea, TextAtlas, TextBounds, TextRenderer, Viewport};
 use std::borrow::Cow;
 use std::f32;
 use wgpu::{
-    Color, CommandEncoderDescriptor, Device, DeviceDescriptor, Features, FragmentState, Instance, Limits, LoadOp, MemoryHints,
-    MultisampleState, Operations, PowerPreference, Queue, RenderPassColorAttachment, RenderPassDescriptor, RenderPipeline,
-    RenderPipelineDescriptor, RequestAdapterOptions, ShaderModuleDescriptor, ShaderSource, StoreOp, Surface, SurfaceConfiguration,
-    TextureFormat, TextureViewDescriptor, VertexState,
+    Color, CommandEncoderDescriptor, Device, DeviceDescriptor, Features, FragmentState, Instance, Limits, LoadOp, MemoryHints, MultisampleState,
+    Operations, PowerPreference, Queue, RenderPassColorAttachment, RenderPassDescriptor, RenderPipeline, RenderPipelineDescriptor,
+    RequestAdapterOptions, ShaderModuleDescriptor, ShaderSource, StoreOp, Surface, SurfaceConfiguration, TextureFormat, TextureViewDescriptor,
+    VertexState,
 };
 use winit::{dpi::PhysicalSize, event_loop::EventLoopProxy, window::Window};
 
 use crate::colors::*;
 use crate::ui::*;
 
-// Click results let the app handle what graphics are clicked
-pub enum ClickResult {
-    Step(usize, usize),
-    Mute(usize),
-    ChangeBpm(f32),
-    TogglePlay,
-    ProjectFileDialog,
-    InstrumentFileDialog,
-    DeleteTrack(usize),
-    ToggleSequencer,
-    None,
-}
-pub enum DragResult {
-    DragVolumeSlider(f32),
-    DragVolumeKnob(usize, f32),
-    None,
-}
-
 #[cfg(not(target_arch = "wasm32"))]
 pub type Rc<T> = std::sync::Arc<T>;
-
-#[derive(Debug)]
-struct Track {
-    pub steps: Vec<StepButton>,
-    name: String,
-    is_muted: bool,
-    is_solo: bool,
-    show_velocity: bool,
-    track_volume: f32,
-}
 
 #[repr(C)]
 #[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
@@ -63,6 +34,24 @@ impl Vertex {
             attributes: &Self::ATTRIBS,
         }
     }
+}
+
+// Click results let the app handle what graphics are clicked
+pub enum ClickResult {
+    Step(usize, usize, usize),
+    Mute(usize),
+    ChangeBpm(f32),
+    TogglePlay,
+    ProjectFileDialog,
+    InstrumentFileDialog,
+    DeleteTrack(usize),
+    ToggleSequencer,
+    None,
+}
+pub enum DragResult {
+    DragVolumeSlider(f32),
+    DragVolumeKnob(usize, f32),
+    None,
 }
 
 fn make_text_buffer(font_system: &mut FontSystem, text: &str, size: f32, line_height: f32, color: Option<(u8, u8, u8)>) -> glyphon::Buffer {
@@ -118,7 +107,7 @@ pub async fn create_graphics(window: Rc<Window>, proxy: EventLoopProxy<Graphics>
     let renderer = TextRenderer::new(&mut atlas, &device, MultisampleState::default(), None);
 
     let vertices: Vec<Vertex> = Vec::new();
-    let rows: Vec<Track> = Vec::new();
+    let patterns: Vec<PatternData> = Vec::new();
 
     let vertex_buffer = device.create_buffer(&wgpu::BufferDescriptor {
         label: Some("Vertex Buffer"),
@@ -130,15 +119,22 @@ pub async fn create_graphics(window: Rc<Window>, proxy: EventLoopProxy<Graphics>
     // instantiate app movable windows
     let mut mini_windows: Vec<MiniWindow> = Vec::new();
 
+    let instruments: Vec<Instrument> = Vec::new();
+
     // declare sequencer
-    let sequencer_window = MiniWindow::new(128.0, 128.0, 900.0, 400.0, "Sequencer", WindowKind::Sequencer);
+    let sequencer_window = MiniWindow::new(128.0, 128.0, 1800.0, 400.0, "Sequencer", WindowKind::Sequencer);
     mini_windows.push(sequencer_window);
+
+    // declare mixer
+    let mixer_window = MiniWindow::new(128.0, 888.0, 900.0, 400.0, "Mixer", WindowKind::Mixer);
+    mini_windows.push(mixer_window);
 
     let gfx = Graphics {
         window: window.clone(),
         surface,
         surface_config,
-        rows,
+        instruments,
+        patterns,
         device,
         queue,
         render_pipeline,
@@ -156,6 +152,7 @@ pub async fn create_graphics(window: Rc<Window>, proxy: EventLoopProxy<Graphics>
         dragging_knob: None,
         mini_windows,
         dragging_window: None,
+        active_pattern_id: 0,
     };
 
     let _ = proxy.send_event(gfx);
@@ -193,6 +190,7 @@ fn create_pipeline(device: &Device, swap_chain_format: TextureFormat) -> RenderP
 
 // Graphics state
 pub struct Graphics {
+    // system state
     window: Rc<Window>,
     surface: Surface<'static>,
     surface_config: SurfaceConfiguration,
@@ -200,20 +198,24 @@ pub struct Graphics {
     queue: Queue,
     render_pipeline: RenderPipeline,
     vertex_buffer: wgpu::Buffer,
-    rows: Vec<Track>,
-    num_vertices: u32,
-    pub active_step: usize,
     font_system: FontSystem,
     viewport: Viewport,
     atlas: TextAtlas,
     swash_cache: SwashCache,
     renderer: TextRenderer,
+
+    // user state
+    pub instruments: Vec<Instrument>,
+    pub patterns: Vec<PatternData>,
+    num_vertices: u32,
+    pub active_step: usize,
     pub bpm: f32,
     pub is_playing: bool,
     pub master_volume: f32,
     pub dragging_knob: Option<usize>,
     pub mini_windows: Vec<MiniWindow>,
     pub dragging_window: Option<usize>,
+    pub active_pattern_id: usize,
 }
 
 impl Graphics {
@@ -222,27 +224,14 @@ impl Graphics {
     }
 
     /// Performs operations to load a new track of instrument steps to the state
-    pub fn load_track(&mut self, i: usize, name: String, steps: Vec<f32>, mute: bool, vol: f32) {
-        if i >= self.rows.len() {
-            let mut buttons = Vec::new();
-            for j in 0..steps.len() {
-                buttons.push(StepButton {
-                    width: BUTTON_WIDTH,
-                    height: BUTTON_HEIGHT,
-                    velocity: steps[j],
-                });
-            }
-            self.rows.push(Track {
-                name,
-                steps: buttons,
-                is_muted: mute,
-                is_solo: false,
-                show_velocity: false,
-                track_volume: vol,
-            });
+    pub fn load_instrument(&mut self, i: Instrument) {
+        if i.data.id >= self.instruments.len() as u32 {
+            self.instruments.push(i);
         }
-        for (j, &step) in steps.iter().enumerate() {
-            self.rows[i].steps[j].velocity = step;
+    }
+    pub fn load_pattern(&mut self, p: PatternData) {
+        if p.id >= self.patterns.len() as u32 {
+            self.patterns.push(p)
         }
     }
 
@@ -267,11 +256,11 @@ impl Graphics {
         }
 
         if let Some(i) = self.dragging_knob {
-            self.rows[i].track_volume = (self.rows[i].track_volume - dy * 0.005).clamp(0.0, 1.0);
-            return DragResult::DragVolumeKnob(i, self.rows[i].track_volume);
+            self.instruments[i].data.track_volume = (self.instruments[i].data.track_volume - dy * 0.005).clamp(0.0, 1.0);
+            return DragResult::DragVolumeKnob(i, self.instruments[i].data.track_volume);
         }
 
-        for (i, track) in &mut self.rows.iter_mut().enumerate() {
+        for (i, track) in &mut self.instruments.iter_mut().enumerate() {
             let knob_rect = Rectangle {
                 x: seq_x + 198.0 - KNOB_RADIUS,
                 y: seq_y + (i as f32 * TRACK_GAP) + 24.0 - KNOB_RADIUS,
@@ -280,8 +269,8 @@ impl Graphics {
             };
             if knob_rect.is_hovered(x, y) {
                 self.dragging_knob = Some(i);
-                track.track_volume = (track.track_volume - dy * 0.01).clamp(0.0, 1.0);
-                return DragResult::DragVolumeKnob(i, track.track_volume);
+                track.data.track_volume = (track.data.track_volume - dy * 0.01).clamp(0.0, 1.0);
+                return DragResult::DragVolumeKnob(i, track.data.track_volume);
             }
         }
 
@@ -324,13 +313,10 @@ impl Graphics {
                 height: self.surface_config.height,
             },
         );
-
+        let box_padding = 8.0;
         let padding = 16.0;
 
-        let frame = self
-            .surface
-            .get_current_texture()
-            .expect("Failed to acquire next swap chain texture.");
+        let frame = self.surface.get_current_texture().expect("Failed to acquire next swap chain texture.");
 
         let view = frame.texture.create_view(&TextureViewDescriptor::default());
 
@@ -357,7 +343,7 @@ impl Graphics {
 
         if seq_is_open {
             // background of sequencer
-            let seq_h = TITLEBAR_HEIGHT + padding + self.rows.len() as f32 * TRACK_GAP;
+            let seq_h = TITLEBAR_HEIGHT + padding + self.instruments.len() as f32 * TRACK_GAP;
             let seq_background = Rectangle {
                 x: seq_x,
                 y: seq_y,
@@ -378,52 +364,83 @@ impl Graphics {
             // titlebar text
             text_items.push((
                 make_text_buffer(&mut self.font_system, &seq_t, 14.0, 22.0, None),
-                seq_x + 8.0,
+                seq_x + seq_w / 2.2,
                 seq_y - TITLEBAR_HEIGHT + 4.0,
             ));
 
-            /* begin per track rendering */
-            for (j, track) in &mut self.rows.iter_mut().enumerate() {
-                for (i, button) in &mut track.steps.iter_mut().enumerate() {
-                    let group = i / 4;
-                    let x = 240.0 + padding + seq_x + i as f32 * BUTTON_GAP + group as f32 * BAR_GAP;
-                    let y = padding + seq_y + j as f32 * TRACK_GAP;
+            let steps_data: Vec<(u32, Vec<f32>)> = self
+                .patterns
+                .get(self.active_pattern_id)
+                .map(|p| p.sequences.iter().map(|s| (s.instrument_id, s.steps.clone())).collect())
+                .unwrap_or_default();
+            // render ever instrument for every pattern
+            for (i, instrument) in self.instruments.iter_mut().enumerate() {
+                let group = i / 4;
+                let x = 240.0 + padding + seq_x + (i as f32 * BUTTON_GAP) + (group as f32 * BAR_GAP);
+                let y = padding + seq_y + (i as f32 * TRACK_GAP);
+                let empty = vec![0.0f32; 32];
+                let steps_slice: &[f32] = steps_data
+                    .iter()
+                    .find(|(id, _)| *id == instrument.data.id)
+                    .map(|(_, s)| s.as_slice())
+                    .unwrap_or(&empty);
 
-                    if track.show_velocity {
-                        // background
-                        let background = Rectangle {
-                            x,
-                            y,
-                            width: button.width,
-                            height: button.height,
-                        };
-                        vertices.extend(background.draw(sw, sh, DARK_GRAY));
-
+                // velocity view
+                if instrument.show_velocity {
+                    // background
+                    let background = Rectangle {
+                        x,
+                        y,
+                        width: BUTTON_WIDTH,
+                        height: BUTTON_HEIGHT,
+                    };
+                    vertices.extend(background.draw(sw, sh, DARK_GRAY));
+                    for &velocity in steps_slice {
                         // velocity bar
-                        let filled_height = button.height * (button.velocity / 128.0);
+                        let filled_height = BUTTON_HEIGHT * (velocity / 128.0);
                         let bar = Rectangle {
                             x,
-                            y: y + button.height - filled_height,
-                            width: button.width,
+                            y: y + BUTTON_HEIGHT - filled_height,
+                            width: BUTTON_WIDTH,
                             height: filled_height,
                         };
                         vertices.extend(bar.draw(sw, sh, BLUE));
-                    } else {
+                    }
+                }
+                // steps view
+                else {
+                    for (j, &velocity) in steps_slice.iter().enumerate() {
+                        // add the button for a step
+                        let step_x = 240.0 + seq_x + (j as f32 * BUTTON_GAP) + ((j / 4) as f32 * BAR_GAP) + padding;
                         let step = Rectangle {
-                            x,
+                            x: step_x,
                             y,
-                            width: button.width,
-                            height: button.height,
+                            width: BUTTON_WIDTH,
+                            height: BUTTON_HEIGHT,
                         };
-                        vertices.extend(step.draw(
-                            sw,
-                            sh,
-                            step.active_step_color(_mouse_x, _mouse_y, i == self.active_step, button.velocity > 0.0),
-                        ));
+                        vertices.extend(step.draw(sw, sh, step.active_step_color(_mouse_x, _mouse_y, j == self.active_step, velocity > 0.0)));
 
+                        // check if the step was clicked
                         if clicked && step.is_hovered(_mouse_x, _mouse_y) {
-                            button.velocity = if button.velocity > 0.0 { 0.0 } else { 95.0 };
-                            click_result = ClickResult::Step(j, i);
+                            // if the click is on an existing sequence
+                            if let Some(seq) = self.patterns[self.active_pattern_id]
+                                .sequences
+                                .iter_mut()
+                                .find(|s| s.instrument_id == instrument.data.id)
+                            {
+                                seq.steps[j] = if seq.steps[j] > 0.0 { 0.0 } else { 95.0 };
+                            }
+                            // if the click is on a nonexisting sequence
+                            else {
+                                // add a new sequence to the active pattern with the instrument used
+                                let mut steps = vec![0.0f32; 32];
+                                steps[j] = 95.0;
+                                self.patterns[self.active_pattern_id].sequences.push(Sequence {
+                                    instrument_id: instrument.data.id,
+                                    steps,
+                                });
+                            }
+                            click_result = ClickResult::Step(self.active_pattern_id, instrument.data.id as usize, j);
                         }
                     }
                 }
@@ -433,45 +450,45 @@ impl Graphics {
                 // mute button
                 let mute_button = Rectangle {
                     x: padding + seq_x,
-                    y: 32.0 + seq_y + (j as f32 * TRACK_GAP),
+                    y: 32.0 + seq_y + (i as f32 * TRACK_GAP),
                     width: MUTE_SQUARE_LENGTH,
                     height: MUTE_SQUARE_LENGTH,
                 };
-                vertices.extend(mute_button.draw(sw, sh, mute_button.active_color(_mouse_x, _mouse_y, track.is_muted)));
+                vertices.extend(mute_button.draw(sw, sh, mute_button.active_color(_mouse_x, _mouse_y, instrument.data.is_muted)));
                 if clicked && mute_button.is_hovered(_mouse_x, _mouse_y) {
-                    track.is_muted = !track.is_muted;
-                    click_result = ClickResult::Mute(j);
+                    instrument.data.is_muted = !instrument.data.is_muted;
+                    click_result = ClickResult::Mute(i);
                 }
 
                 // velocity button
                 let velocity_button = Rectangle {
                     x: padding + seq_x + button_gap,
-                    y: 32.0 + seq_y + (j as f32 * TRACK_GAP),
+                    y: 32.0 + seq_y + (i as f32 * TRACK_GAP),
                     width: MUTE_SQUARE_LENGTH,
                     height: MUTE_SQUARE_LENGTH,
                 };
-                vertices.extend(velocity_button.draw(sw, sh, velocity_button.active_color(_mouse_x, _mouse_y, track.show_velocity)));
+                vertices.extend(velocity_button.draw(sw, sh, velocity_button.active_color(_mouse_x, _mouse_y, instrument.show_velocity)));
                 if clicked && velocity_button.is_hovered(_mouse_x, _mouse_y) {
-                    track.show_velocity = !track.show_velocity;
+                    instrument.show_velocity = !instrument.show_velocity;
                 }
 
                 // delete button
                 let delete_button = Rectangle {
                     x: padding + seq_x + button_gap + 16.0,
-                    y: 32.0 + seq_y + (j as f32 * TRACK_GAP),
+                    y: 32.0 + seq_y + (i as f32 * TRACK_GAP),
                     width: MUTE_SQUARE_LENGTH,
                     height: MUTE_SQUARE_LENGTH,
                 };
                 vertices.extend(delete_button.draw(sw, sh, delete_button.hover_color(_mouse_x, _mouse_y)));
                 if clicked && delete_button.is_hovered(_mouse_x, _mouse_y) {
-                    click_result = ClickResult::DeleteTrack(j);
+                    click_result = ClickResult::DeleteTrack(i);
                 }
 
                 // track volume knob
                 for vert in draw_knob(
-                    track.track_volume,
+                    instrument.data.track_volume,
                     seq_x + 198.0,
-                    seq_y + (j as f32 * TRACK_GAP) + 24.0,
+                    seq_y + (i as f32 * TRACK_GAP) + 24.0,
                     KNOB_RADIUS,
                     35,
                     sw,
@@ -481,14 +498,14 @@ impl Graphics {
                 }
                 // text buffers
                 text_items.push((
-                    make_text_buffer(&mut self.font_system, &track.name, 18.0, 22.0, None),
+                    make_text_buffer(&mut self.font_system, &instrument.data.name, 18.0, 22.0, None),
                     seq_x + 16.0,
-                    seq_y + j as f32 * TRACK_GAP,
+                    seq_y + i as f32 * TRACK_GAP,
                 ));
                 text_items.push((
                     make_text_buffer(&mut self.font_system, "mut", 12.0, 22.0, None),
                     seq_x + 16.0,
-                    seq_y + j as f32 * TRACK_GAP + 40.0,
+                    seq_y + i as f32 * TRACK_GAP + 40.0,
                 ));
                 text_items.push((
                     make_text_buffer(&mut self.font_system, "vel", 12.0, 22.0, None),
@@ -500,7 +517,44 @@ impl Graphics {
 
         // handle delete after loop to avoid borrow issues
         if let ClickResult::DeleteTrack(i) = click_result {
-            self.rows.remove(i);
+            self.instruments.remove(i);
+        }
+
+        // component for stacking user created patterns
+        let pattern_tray = Rectangle {
+            x: self.surface_config.width as f32 - 128.0,
+            y: TOOLBAR_Y,
+            width: 128.0,
+            height: self.surface_config.height as f32 - TOOLBAR_THICKNESS,
+        };
+        vertices.extend(pattern_tray.draw(sw, sh, PASCAL));
+        // Pattern tray label
+        text_items.push((
+            make_text_buffer(&mut self.font_system, "Patterns", 18.0, 22.0, Some((255, 255, 255))),
+            self.surface_config.width as f32 - 128.0 + box_padding,
+            TOOLBAR_Y + box_padding,
+        ));
+
+        for (i, pattern) in &mut self.patterns.iter_mut().enumerate() {
+            // Pattern button
+            let pattern_button = Rectangle {
+                x: self.surface_config.width as f32 - 128.0 + padding,
+                y: 48.0 + (32.0 * i as f32) + 24.0,
+                width: 96.0,
+                height: 24.0,
+            };
+            // Pattern label
+            text_items.push((
+                make_text_buffer(&mut self.font_system, &pattern.name, 14.0, 22.0, Some((0, 0, 0))),
+                self.surface_config.width as f32 - 96.0,
+                48.0 + (32.0 * i as f32) + 24.0,
+            ));
+            // click to change current pattern on sequencer
+            vertices.extend(pattern_button.draw(sw, sh, pattern_button.hover_color(_mouse_x, _mouse_y)));
+            if clicked && pattern_button.is_hovered(_mouse_x, _mouse_y) {
+                self.active_pattern_id = pattern.id as usize;
+                self.window.set_cursor(winit::window::CursorIcon::Pointer)
+            }
         }
 
         // bpm up
@@ -515,7 +569,6 @@ impl Graphics {
             self.bpm += 1.0;
             click_result = ClickResult::ChangeBpm(self.bpm);
         }
-
         // bpm down
         let bpm_down = Rectangle {
             x: 48.0,
@@ -552,6 +605,12 @@ impl Graphics {
         if clicked && sequencer_toggle.is_hovered(_mouse_x, _mouse_y) {
             click_result = ClickResult::ToggleSequencer;
         }
+
+        text_items.push((
+            make_text_buffer(&mut self.font_system, "sequence", 14.0, 22.0, Some((0, 0, 0))),
+            PLAY_X_ORIGIN + 256.0,
+            4.0,
+        ));
 
         let user_width = self.surface_config.width as f32;
 

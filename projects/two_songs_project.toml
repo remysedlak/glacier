@@ -1,0 +1,66 @@
+project_name = "My first song"
+bpm = 118.0
+
+[[events]]
+start_step = 0
+length = 32
+
+[events.block_type]
+kind = "Pattern"
+id = 0
+
+[[events]]
+start_step = 16
+length = 16
+
+[events.block_type]
+kind = "Pattern"
+id = 1
+
+[[instruments]]
+id = 0
+path = "./example_drums/SharpK.wav"
+name = "kick"
+is_muted = false
+target_volume = 0.7480315
+track_volume = 1.0
+
+[[instruments]]
+id = 1
+path = "./example_drums/PopOHH.wav"
+name = "hat"
+is_muted = false
+target_volume = 0.7480315
+track_volume = 0.94312507
+
+[[instruments]]
+id = 2
+path = "./example_drums/AttackS.wav"
+name = "snare"
+is_muted = false
+target_volume = 0.7480315
+track_volume = 0.9376563
+
+[[patterns]]
+id = 0
+name = "Pattern 1"
+
+[[patterns.sequences]]
+instrument_id = 0
+steps = [95.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 95.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 100.0, 100.0, 0.0, 95.0, 0.0, 0.0, 0.0, 95.0, 95.0, 70.0, 0.0, 0.0, 0.0, 0.0, 95.0, 0.0]
+
+[[patterns.sequences]]
+instrument_id = 1
+steps = [95.0, 0.0, 0.0, 0.0, 0.0, 95.0, 0.0, 0.0, 95.0, 0.0, 0.0, 0.0, 100.0, 0.0, 95.0, 95.0, 0.0, 0.0, 0.0, 0.0, 95.0, 0.0, 0.0, 95.0, 0.0, 95.0, 95.0, 0.0, 95.0, 0.0, 95.0, 95.0]
+
+[[patterns.sequences]]
+instrument_id = 2
+steps = [95.0, 0.0, 95.0, 0.0, 95.0, 0.0, 95.0, 0.0, 95.0, 0.0, 95.0, 0.0, 0.0, 0.0, 95.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+
+[[patterns]]
+id = 1
+name = "Pattern 2"
+
+[[patterns.sequences]]
+instrument_id = 2
+steps = [0.0, 0.0, 0.0, 95.0, 0.0, 95.0, 0.0, 0.0, 95.0, 0.0, 0.0, 95.0, 60.0, 0.0, 95.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 95.0, 0.0, 0.0, 0.0]

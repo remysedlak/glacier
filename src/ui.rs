@@ -5,13 +5,11 @@ pub const TOOLBAR_Y: f32 = 32.0;
 pub const TOOLBAR_THICKNESS: f32 = 0.003;
 pub const TOOLBAR_MARGIN: f32 = 4.0;
 
-pub const BUTTON_X_ORIGIN: f32 = 128.0;
-pub const BUTTON_Y_ORIGIN: f32 = 64.0;
-pub const BUTTON_WIDTH: f32 = 24.0;
-pub const BUTTON_HEIGHT: f32 = 64.0;
+pub const BUTTON_WIDTH: f32 = 18.0;
+pub const BUTTON_HEIGHT: f32 = 48.0;
 
-pub const BAR_GAP: f32 = 8.0;
-pub const BUTTON_GAP: f32 = 32.0;
+pub const BAR_GAP: f32 = 12.0;
+pub const BUTTON_GAP: f32 = 24.0;
 pub const TRACK_GAP: f32 = 72.0;
 
 pub const KNOB_RADIUS: f32 = 13.0;
@@ -31,25 +29,16 @@ pub const ADD_INSTRUMENT_ICON_OFFSET: f32 = 80.0;
 
 use std::f32::consts::PI;
 
-use winit::window::Window;
-
 use crate::colors::{BLACK, BLUE, DARK_BLUE, DARK_GRAY, LIGHT_GRAY, LL_GRAY};
 use crate::graphics::Vertex;
-// this file holds my shape abstractions
 
 #[derive(Debug)]
-pub struct StepButton {
-    pub width: f32,
-    pub height: f32,
-    pub velocity: f32,
-}
-
 pub enum WindowKind {
     Sequencer,
-    Playlist,
+    // Playlist,
     Mixer,
-    PianoRoll,
-    InstrumentDetail(usize), // which instrument
+    // PianoRoll,
+    // InstrumentDetail(usize), // which instrument
 }
 
 pub struct MiniWindow {
@@ -75,6 +64,19 @@ impl MiniWindow {
         }
     }
 }
+
+// for the p[la]
+// enum PlaceableKind {
+//     Pattern(usize),    // pattern_id
+//     AudioClip(String), // path to sample
+// }
+
+// struct PlaylistEntry {
+//     kind: PlaceableKind,
+//     bar: usize,
+//     track_row: usize, // which row in the playlist it sits on
+// }
+
 pub struct Rectangle {
     pub x: f32,
     pub y: f32,
@@ -82,9 +84,11 @@ pub struct Rectangle {
     pub height: f32,
 }
 impl Rectangle {
+    // if a rectangle has the mouse hovered
     pub fn is_hovered(&self, mouse_x: f32, mouse_y: f32) -> bool {
         mouse_x > self.x && mouse_x < self.x + self.width && mouse_y > self.y && mouse_y < self.y + self.height
     }
+    // draw vertices with rectangle details
     pub fn draw(&self, screen_w: u32, screen_h: u32, (r, g, b): (f32, f32, f32)) -> Vec<Vertex> {
         draw_rectangle(
             self.x as f32,
@@ -96,6 +100,7 @@ impl Rectangle {
             (r, g, b),
         )
     }
+    // return color for hover logic
     pub fn hover_color(&self, mx: f32, my: f32) -> (f32, f32, f32) {
         if self.is_hovered(mx, my) {
             LL_GRAY
@@ -103,7 +108,7 @@ impl Rectangle {
             LIGHT_GRAY
         }
     }
-
+    // return color if hovering and component is active
     pub fn active_color(&self, mx: f32, my: f32, is_active: bool) -> (f32, f32, f32) {
         let hovered = self.is_hovered(mx, my);
         if hovered && is_active {
@@ -116,6 +121,7 @@ impl Rectangle {
             LIGHT_GRAY
         }
     }
+    // return color for steps with velocity or the active step
     pub fn active_step_color(&self, mx: f32, my: f32, is_active: bool, has_velocity: bool) -> (f32, f32, f32) {
         let hovered = self.is_hovered(mx, my);
         if is_active {
@@ -142,15 +148,8 @@ impl Rectangle {
     }
 }
 
-pub fn draw_rectangle(
-    x: f32,
-    y: f32,
-    width: f32,
-    height: f32,
-    screen_width: u32,
-    screen_height: u32,
-    (r, g, b): (f32, f32, f32),
-) -> Vec<Vertex> {
+// draw one rectangle with one color
+pub fn draw_rectangle(x: f32, y: f32, width: f32, height: f32, screen_width: u32, screen_height: u32, (r, g, b): (f32, f32, f32)) -> Vec<Vertex> {
     // first normalize the coordinates to fit in decimal form.
     let ndc_x: f32 = 2.0 * (x as f32 / screen_width as f32) - 1.0;
     let ndc_y: f32 = 1.0 - (y as f32 / screen_height as f32) * 2.0;
@@ -188,15 +187,7 @@ pub fn draw_rectangle(
 }
 
 // DRAW A CIRCLE USING TRIANGLE SEGMENTS
-pub fn draw_circle(
-    cx: f32,
-    cy: f32,
-    radius: f32,
-    segments: u32,
-    screen_width: u32,
-    screen_height: u32,
-    (r, g, b): (f32, f32, f32),
-) -> Vec<Vertex> {
+pub fn draw_circle(cx: f32, cy: f32, radius: f32, segments: u32, screen_width: u32, screen_height: u32, (r, g, b): (f32, f32, f32)) -> Vec<Vertex> {
     let mut vec: Vec<Vertex> = Vec::new();
 
     // first normalize the coordinates to fit in decimal form.
@@ -231,6 +222,7 @@ pub fn draw_circle(
     vec
 }
 
+// draw a knob using circle and triangles
 pub fn draw_knob(vol: f32, cx: f32, cy: f32, radius: f32, segments: u32, screen_width: u32, screen_height: u32) -> Vec<Vertex> {
     let mut vec: Vec<Vertex> = draw_circle(cx, cy, radius + 3.0, 10, screen_width, screen_height, BLACK);
     for vert in draw_circle(cx, cy, radius, segments, screen_width, screen_height, LL_GRAY) {
@@ -261,6 +253,7 @@ pub fn draw_knob(vol: f32, cx: f32, cy: f32, radius: f32, segments: u32, screen_
     vec
 }
 
+// draw a horizontal line
 pub fn draw_h_line(y: f32, thickness: f32, screen_height: u32) -> Vec<Vertex> {
     // first normalize the coordinates to fit in decimal form.
 
@@ -294,6 +287,7 @@ pub fn draw_h_line(y: f32, thickness: f32, screen_height: u32) -> Vec<Vertex> {
     ];
 }
 
+// draw the top toolbar
 pub fn draw_toolbar(vertices: &mut Vec<Vertex>, screen_x: u32, screen_y: u32, _mouse_x: f32, _mouse_y: f32) {
     // toolbar line
     for vert in draw_h_line(TOOLBAR_Y, TOOLBAR_THICKNESS, screen_y) {
@@ -338,6 +332,7 @@ pub fn draw_toolbar(vertices: &mut Vec<Vertex>, screen_x: u32, screen_y: u32, _m
     vertices.extend(instrument_button.draw(screen_x, screen_y, instrument_button.hover_color(_mouse_x, _mouse_y)));
 }
 
+// draw one slider for master panel
 pub fn draw_slider(screen_x: u32, screen_y: u32, vertices: &mut Vec<Vertex>, master_volume: &mut f32) {
     let x_coord = 64.0;
     let y_ceiling = 416.0;
