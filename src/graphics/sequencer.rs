@@ -1,6 +1,6 @@
 use crate::colors::*;
-use crate::graphics::ClickResult;
 use crate::graphics::{make_text_buffer, Vertex, BACKGROUND};
+use crate::graphics::{ClickResult, ScreenConfig};
 use crate::project::*;
 use crate::ui::*;
 pub fn draw(
@@ -13,8 +13,7 @@ pub fn draw(
     clicked: bool,
     mouse_x: f32,
     mouse_y: f32,
-    screen_width: u32,
-    screen_height: u32,
+    screen_config: &ScreenConfig,
 ) -> (Vec<Vertex>, Vec<(glyphon::Buffer, f32, f32)>, ClickResult) {
     let padding = 16.0;
     let mut vertices: Vec<Vertex> = Vec::new();
@@ -27,7 +26,7 @@ pub fn draw(
         width: window.width,
         height: window.height,
     };
-    vertices.extend(window_background.draw(screen_width, screen_height, BACKGROUND));
+    vertices.extend(window_background.draw(&screen_config, BACKGROUND));
 
     // titlebar rectangle
     let titlebar = Rectangle {
@@ -36,7 +35,7 @@ pub fn draw(
         width: window.width,
         height: TITLEBAR_HEIGHT,
     };
-    vertices.extend(titlebar.draw(screen_width, screen_height, DARK_GRAY));
+    vertices.extend(titlebar.draw(&screen_config, DARK_GRAY));
 
     // titlebar text
     text_items.push((
@@ -74,14 +73,14 @@ pub fn draw(
                     width: BUTTON_WIDTH,
                     height: BUTTON_HEIGHT,
                 };
-                vertices.extend(background.draw(screen_width, screen_height, DARK_GRAY));
+                vertices.extend(background.draw(&screen_config, DARK_GRAY));
                 let bar = Rectangle {
                     x: step_x,
                     y: y + BUTTON_HEIGHT - filled_height,
                     width: BUTTON_WIDTH,
                     height: filled_height,
                 };
-                vertices.extend(bar.draw(screen_width, screen_height, BLUE));
+                vertices.extend(bar.draw(&screen_config, BLUE));
             }
         }
         // steps view
@@ -95,11 +94,7 @@ pub fn draw(
                     width: BUTTON_WIDTH,
                     height: BUTTON_HEIGHT,
                 };
-                vertices.extend(step.draw(
-                    screen_width,
-                    screen_height,
-                    step.active_step_color(mouse_x, mouse_y, j == active_step, velocity > 0.0),
-                ));
+                vertices.extend(step.draw(screen_config, step.active_step_color(mouse_x, mouse_y, j == active_step, velocity > 0.0)));
 
                 // check if the step was clicked
                 if clicked && step.is_hovered(mouse_x, mouse_y) {
@@ -135,11 +130,7 @@ pub fn draw(
             width: MUTE_SQUARE_LENGTH,
             height: MUTE_SQUARE_LENGTH,
         };
-        vertices.extend(mute_button.draw(
-            screen_width,
-            screen_height,
-            mute_button.active_color(mouse_x, mouse_y, instrument.data.is_muted),
-        ));
+        vertices.extend(mute_button.draw(&screen_config, mute_button.active_color(mouse_x, mouse_y, instrument.data.is_muted)));
         text_items.push((
             make_text_buffer(font_system, "mut", 12.0, 22.0, None),
             window.x + 16.0,
@@ -157,11 +148,7 @@ pub fn draw(
             width: MUTE_SQUARE_LENGTH,
             height: MUTE_SQUARE_LENGTH,
         };
-        vertices.extend(velocity_button.draw(
-            screen_width,
-            screen_height,
-            velocity_button.active_color(mouse_x, mouse_y, instrument.show_velocity),
-        ));
+        vertices.extend(velocity_button.draw(&screen_config, velocity_button.active_color(mouse_x, mouse_y, instrument.show_velocity)));
         text_items.push((
             make_text_buffer(font_system, "vel", 12.0, 22.0, None),
             window.x + 50.0,
@@ -178,7 +165,7 @@ pub fn draw(
             width: MUTE_SQUARE_LENGTH,
             height: MUTE_SQUARE_LENGTH,
         };
-        vertices.extend(delete_button.draw(screen_width, screen_height, delete_button.hover_color(mouse_x, mouse_y)));
+        vertices.extend(delete_button.draw(&screen_config, delete_button.hover_color(mouse_x, mouse_y)));
         text_items.push((
             make_text_buffer(font_system, "del", 12.0, 22.0, None),
             padding + window.x + button_gap + 16.0,
@@ -195,8 +182,7 @@ pub fn draw(
             window.y + (i as f32 * TRACK_GAP) + 24.0,
             KNOB_RADIUS,
             35,
-            screen_width,
-            screen_height,
+            screen_config,
         ) {
             vertices.push(vert);
         }

@@ -1,5 +1,5 @@
 use crate::colors::*;
-use crate::graphics::{make_text_buffer, Vertex};
+use crate::graphics::{make_text_buffer, ScreenConfig, Vertex};
 use crate::project::*;
 use crate::ui::*;
 
@@ -8,9 +8,7 @@ pub fn draw(
     events: &[AudioBlock],
     patterns: &[PatternData],
     font_system: &mut glyphon::FontSystem,
-
-    screen_width: u32,
-    screen_height: u32,
+    screen_config: &ScreenConfig,
 ) -> (Vec<Vertex>, Vec<(glyphon::Buffer, f32, f32)>) {
     let padding = 16.0;
     let mut vertices: Vec<Vertex> = Vec::new();
@@ -21,7 +19,7 @@ pub fn draw(
         width: window.width,
         height: window.height,
     };
-    vertices.extend(mixer_background.draw(screen_width, screen_height, BLACK));
+    vertices.extend(mixer_background.draw(&screen_config, BLACK));
     // titlebar rectangle
     let titlebar = Rectangle {
         x: window.x,
@@ -29,7 +27,7 @@ pub fn draw(
         width: window.width,
         height: TITLEBAR_HEIGHT,
     };
-    vertices.extend(titlebar.draw(screen_width, screen_height, DARK_GRAY));
+    vertices.extend(titlebar.draw(&screen_config, DARK_GRAY));
     // titlebar text
     text_items.push((
         make_text_buffer(font_system, &window.title, 14.0, 22.0, None),
@@ -52,7 +50,7 @@ pub fn draw(
                 height: 64.0,
             };
             let color = if group % 2 != 0 { BLUE } else { DARK_BLUE };
-            vertices.extend(pl_step.draw(screen_width, screen_height, color));
+            vertices.extend(pl_step.draw(&screen_config, color));
         }
     }
     // iterate the events to display on the playlist.
@@ -64,7 +62,7 @@ pub fn draw(
                 width: 35.0 * event.length as f32,
                 height: 64.0,
             };
-            vertices.extend(pl_pattern.draw(screen_width, screen_height, LIGHT_GRAY));
+            vertices.extend(pl_pattern.draw(&screen_config, LIGHT_GRAY));
             // titlebar text
             let label: &str = &patterns[id as usize].name;
             text_items.push((

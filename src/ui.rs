@@ -30,7 +30,7 @@ pub const ADD_INSTRUMENT_ICON_OFFSET: f32 = 80.0;
 use std::f32::consts::PI;
 
 use crate::colors::{BLACK, BLUE, DARK_BLUE, DARK_GRAY, LIGHT_GRAY, LL_GRAY};
-use crate::graphics::Vertex;
+use crate::graphics::{ScreenConfig, Vertex};
 
 #[derive(Debug)]
 pub enum WindowKind {
@@ -42,7 +42,6 @@ pub enum WindowKind {
 }
 
 pub struct MiniWindow {
-    pub id: usize,
     pub x: f32,
     pub y: f32,
     pub width: f32,
@@ -53,9 +52,8 @@ pub struct MiniWindow {
 }
 impl MiniWindow {
     /// Creates a movable new window
-    pub fn new(id: usize, x: f32, y: f32, width: f32, height: f32, title: &str, window_kind: WindowKind, is_open: bool) -> Self {
+    pub fn new(x: f32, y: f32, width: f32, height: f32, title: &str, window_kind: WindowKind, is_open: bool) -> Self {
         Self {
-            id,
             x,
             y,
             width,
@@ -82,14 +80,13 @@ impl Rectangle {
         mouse_x > self.x && mouse_x < self.x + self.width && mouse_y > self.y && mouse_y < self.y + self.height
     }
     // draw vertices with rectangle details
-    pub fn draw(&self, screen_w: u32, screen_h: u32, (r, g, b): (f32, f32, f32)) -> Vec<Vertex> {
+    pub fn draw(&self, screen_config: &ScreenConfig, (r, g, b): (f32, f32, f32)) -> Vec<Vertex> {
         draw_rectangle(
             self.x as f32,
             self.y as f32,
             self.width as f32,
             self.height as f32,
-            screen_w,
-            screen_h,
+            screen_config,
             (r, g, b),
         )
     }
@@ -143,13 +140,13 @@ impl Rectangle {
 }
 
 // draw one rectangle with one color
-pub fn draw_rectangle(x: f32, y: f32, width: f32, height: f32, screen_width: u32, screen_height: u32, (r, g, b): (f32, f32, f32)) -> Vec<Vertex> {
+pub fn draw_rectangle(x: f32, y: f32, width: f32, height: f32, screen_config: &ScreenConfig, (r, g, b): (f32, f32, f32)) -> Vec<Vertex> {
     // first normalize the coordinates to fit in decimal form.
-    let ndc_x: f32 = 2.0 * (x as f32 / screen_width as f32) - 1.0;
-    let ndc_y: f32 = 1.0 - (y as f32 / screen_height as f32) * 2.0;
+    let ndc_x: f32 = 2.0 * (x as f32 / screen_config.width as f32) - 1.0;
+    let ndc_y: f32 = 1.0 - (y as f32 / screen_config.height as f32) * 2.0;
 
-    let ndc_width: f32 = (width as f32 / screen_width as f32) * 2.0;
-    let ndc_height: f32 = (height as f32 / screen_height as f32) * 2.0;
+    let ndc_width: f32 = (width as f32 / screen_config.width as f32) * 2.0;
+    let ndc_height: f32 = (height as f32 / screen_config.height as f32) * 2.0;
 
     // next add the verticies based on these origins
     return vec![
@@ -181,14 +178,14 @@ pub fn draw_rectangle(x: f32, y: f32, width: f32, height: f32, screen_width: u32
 }
 
 // DRAW A CIRCLE USING TRIANGLE SEGMENTS
-pub fn draw_circle(cx: f32, cy: f32, radius: f32, segments: u32, screen_width: u32, screen_height: u32, (r, g, b): (f32, f32, f32)) -> Vec<Vertex> {
+pub fn draw_circle(cx: f32, cy: f32, radius: f32, segments: u32, screen_config: &ScreenConfig, (r, g, b): (f32, f32, f32)) -> Vec<Vertex> {
     let mut vec: Vec<Vertex> = Vec::new();
 
     // first normalize the coordinates to fit in decimal form.
-    let ncx: f32 = 2.0 * (cx as f32 / screen_width as f32) - 1.0;
-    let ncy: f32 = 1.0 - (cy as f32 / screen_height as f32) * 2.0;
-    let nrx = (radius / screen_width as f32) * 2.0;
-    let nry = (radius / screen_height as f32) * 2.0;
+    let ncx: f32 = 2.0 * (cx as f32 / screen_config.width as f32) - 1.0;
+    let ncy: f32 = 1.0 - (cy as f32 / screen_config.height as f32) * 2.0;
+    let nrx = (radius / screen_config.width as f32) * 2.0;
+    let nry = (radius / screen_config.height as f32) * 2.0;
 
     // draw the circle
     for k in 0..segments {
@@ -217,13 +214,13 @@ pub fn draw_circle(cx: f32, cy: f32, radius: f32, segments: u32, screen_width: u
 }
 
 // draw a knob using circle and triangles
-pub fn draw_knob(vol: f32, cx: f32, cy: f32, radius: f32, segments: u32, screen_width: u32, screen_height: u32) -> Vec<Vertex> {
-    let mut vec: Vec<Vertex> = draw_circle(cx, cy, radius + 3.0, 10, screen_width, screen_height, BLACK);
-    for vert in draw_circle(cx, cy, radius, segments, screen_width, screen_height, LL_GRAY) {
+pub fn draw_knob(vol: f32, cx: f32, cy: f32, radius: f32, segments: u32, screen_config: &ScreenConfig) -> Vec<Vertex> {
+    let mut vec: Vec<Vertex> = draw_circle(cx, cy, radius + 3.0, 10, screen_config, BLACK);
+    for vert in draw_circle(cx, cy, radius, segments, screen_config, LL_GRAY) {
         vec.push(vert);
     }
-    let ncx = |x: f32| 2.0 * (x as f32 / screen_width as f32) - 1.0;
-    let ncy = |y: f32| 1.0 - (y as f32 / screen_height as f32) * 2.0;
+    let ncx = |x: f32| 2.0 * (x as f32 / screen_config.width as f32) - 1.0;
+    let ncy = |y: f32| 1.0 - (y as f32 / screen_config.height as f32) * 2.0;
     let radians = |degree: f32| (degree * PI) / 180.0;
 
     let angle: f32 = 210.0 - vol * 270.0; // Linear interpolation
@@ -248,10 +245,10 @@ pub fn draw_knob(vol: f32, cx: f32, cy: f32, radius: f32, segments: u32, screen_
 }
 
 // draw a horizontal line
-pub fn draw_h_line(y: f32, thickness: f32, screen_height: u32) -> Vec<Vertex> {
+pub fn draw_h_line(y: f32, thickness: f32, screen_config: &ScreenConfig) -> Vec<Vertex> {
     // first normalize the coordinates to fit in decimal form.
 
-    let ndc_y: f32 = 1.0 - (y as f32 / screen_height as f32) * 2.0;
+    let ndc_y: f32 = 1.0 - (y as f32 / screen_config.height as f32) * 2.0;
 
     return vec![
         Vertex {
@@ -282,19 +279,19 @@ pub fn draw_h_line(y: f32, thickness: f32, screen_height: u32) -> Vec<Vertex> {
 }
 
 // draw the top toolbar
-pub fn draw_toolbar(vertices: &mut Vec<Vertex>, screen_x: u32, screen_y: u32, _mouse_x: f32, _mouse_y: f32) {
+pub fn draw_toolbar(vertices: &mut Vec<Vertex>, screen_config: &ScreenConfig, _mouse_x: f32, _mouse_y: f32) {
     // toolbar line
-    for vert in draw_h_line(TOOLBAR_Y, TOOLBAR_THICKNESS, screen_y) {
+    for vert in draw_h_line(TOOLBAR_Y, TOOLBAR_THICKNESS, screen_config) {
         vertices.push(vert);
     }
 
     // bpm up button
-    for vert in draw_rectangle(48.0, 4.0, 32.0, 10.0, screen_x, screen_y, LIGHT_GRAY) {
+    for vert in draw_rectangle(48.0, 4.0, 32.0, 10.0, screen_config, LIGHT_GRAY) {
         vertices.push(vert);
     }
 
     // bpm down button
-    for vert in draw_rectangle(48.0, 16.0, 32.0, 10.0, screen_x, screen_y, LIGHT_GRAY) {
+    for vert in draw_rectangle(48.0, 16.0, 32.0, 10.0, screen_config, LIGHT_GRAY) {
         vertices.push(vert);
     }
 
@@ -305,29 +302,29 @@ pub fn draw_toolbar(vertices: &mut Vec<Vertex>, screen_x: u32, screen_y: u32, _m
         width: PLAY_SQUARE_WIDTH as f32,
         height: PLAY_SQUARE_HEIGHT as f32,
     };
-    vertices.extend(play_button.draw(screen_x, screen_y, play_button.hover_color(_mouse_x, _mouse_y)));
+    vertices.extend(play_button.draw(screen_config, play_button.hover_color(_mouse_x, _mouse_y)));
 
     // load a file
     let load_file_button = Rectangle {
-        x: screen_x as f32 - LOAD_PROJECT_ICON_OFFSET,
+        x: screen_config.width as f32 - LOAD_PROJECT_ICON_OFFSET,
         y: TOOLBAR_MARGIN,
         width: ICON_WIDTH,
         height: ICON_HEIGHT,
     };
-    vertices.extend(load_file_button.draw(screen_x, screen_y, load_file_button.hover_color(_mouse_x, _mouse_y)));
+    vertices.extend(load_file_button.draw(screen_config, load_file_button.hover_color(_mouse_x, _mouse_y)));
 
     // load an instrument
     let instrument_button = Rectangle {
-        x: screen_x as f32 - ADD_INSTRUMENT_ICON_OFFSET,
+        x: screen_config.width as f32 - ADD_INSTRUMENT_ICON_OFFSET,
         y: TOOLBAR_MARGIN as f32,
         width: ICON_WIDTH as f32,
         height: ICON_HEIGHT as f32,
     };
-    vertices.extend(instrument_button.draw(screen_x, screen_y, instrument_button.hover_color(_mouse_x, _mouse_y)));
+    vertices.extend(instrument_button.draw(screen_config, instrument_button.hover_color(_mouse_x, _mouse_y)));
 }
 
 /// draw one slider for master panel
-pub fn draw_slider(master_volume: &mut f32, x: f32, y: f32, screen_x: u32, screen_y: u32) -> Vec<Vertex> {
+pub fn draw_slider(master_volume: &mut f32, x: f32, y: f32, screen_config: &ScreenConfig) -> Vec<Vertex> {
     let x_coord = x + PADDING;
     let y_ceiling = y + PADDING;
     let track_height = 164.0;
@@ -344,7 +341,7 @@ pub fn draw_slider(master_volume: &mut f32, x: f32, y: f32, screen_x: u32, scree
         width: track_width,
         height: track_height,
     };
-    verts.extend(track.draw(screen_x, screen_y, BLACK));
+    verts.extend(track.draw(screen_config, BLACK));
 
     let thumb = Rectangle {
         x: x_coord,
@@ -352,6 +349,6 @@ pub fn draw_slider(master_volume: &mut f32, x: f32, y: f32, screen_x: u32, scree
         width: thumb_width,
         height: thumb_height,
     };
-    verts.extend(thumb.draw(screen_x, screen_y, LIGHT_GRAY));
+    verts.extend(thumb.draw(screen_config, LIGHT_GRAY));
     verts
 }

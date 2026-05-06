@@ -42,6 +42,11 @@ impl Vertex {
     }
 }
 
+pub struct ScreenConfig {
+    pub width: u32,
+    pub height: u32,
+}
+
 // Click results let the app handle what graphics are clicked
 pub enum ClickResult {
     Step(usize, usize, usize),
@@ -130,15 +135,15 @@ pub async fn create_graphics(window: Rc<Window>, proxy: EventLoopProxy<Graphics>
     let instruments: Vec<Instrument> = Vec::new();
 
     // declare sequencer
-    let sequencer_window = MiniWindow::new(SEQUENCER_ID, 256.0, 128.0, 1300.0, 400.0, "Sequencer", WindowKind::Sequencer, true);
+    let sequencer_window = MiniWindow::new(256.0, 128.0, 1300.0, 400.0, "Sequencer", WindowKind::Sequencer, true);
     mini_windows.push(sequencer_window);
 
     // declare playlist
-    let playlist_window = MiniWindow::new(PLAYLIST_ID, 64.0, 64.0, 1300.0, 800.0, "Playlist", WindowKind::Playlist, true);
+    let playlist_window = MiniWindow::new(64.0, 64.0, 1300.0, 800.0, "Playlist", WindowKind::Playlist, true);
     mini_windows.push(playlist_window);
 
     // declare mixer
-    let mixer_window = MiniWindow::new(MIXER_ID, 128.0, 500.0, 800.0, 300.0, "Mixer", WindowKind::Mixer, false);
+    let mixer_window = MiniWindow::new(128.0, 500.0, 800.0, 300.0, "Mixer", WindowKind::Mixer, false);
     mini_windows.push(mixer_window);
 
     let events: Vec<AudioBlock> = Vec::new();
@@ -359,8 +364,10 @@ impl Graphics {
         let mut text_items: Vec<(glyphon::Buffer, f32, f32)> = Vec::new();
         let mut click_result = ClickResult::None;
 
-        let screen_width = self.surface_config.width;
-        let screen_height = self.surface_config.height;
+        let screen_config = ScreenConfig {
+            width: self.surface_config.width,
+            height: self.surface_config.height,
+        };
 
         // handle window re-ordering
         if clicked {
@@ -388,8 +395,7 @@ impl Graphics {
                         clicked,
                         _mouse_x,
                         _mouse_y,
-                        screen_width,
-                        screen_height,
+                        &screen_config,
                     );
                     vertices.extend(verts);
                     text_items.extend(texts);
@@ -397,13 +403,13 @@ impl Graphics {
                 }
                 PLAYLIST_ID if self.mini_windows[PLAYLIST_ID].is_open => {
                     let window = &self.mini_windows[PLAYLIST_ID];
-                    let (verts, texts) = playlist::draw(window, &self.events, &self.patterns, &mut self.font_system, screen_width, screen_height);
+                    let (verts, texts) = playlist::draw(window, &self.events, &self.patterns, &mut self.font_system, &screen_config);
                     vertices.extend(verts);
                     text_items.extend(texts);
                 }
                 MIXER_ID if self.mini_windows[MIXER_ID].is_open => {
                     let window = &self.mini_windows[MIXER_ID];
-                    let (verts, texts) = mixer::draw(window, &mut self.master_volume, &mut self.font_system, screen_width, screen_height);
+                    let (verts, texts) = mixer::draw(window, &mut self.master_volume, &mut self.font_system, &screen_config);
                     vertices.extend(verts);
                     text_items.extend(texts);
                 }
@@ -418,44 +424,44 @@ impl Graphics {
 
         // component for stacking user created patterns
         let pattern_tray = Rectangle {
-            x: screen_width as f32 - 128.0,
+            x: screen_config.width as f32 - 128.0,
             y: TOOLBAR_Y,
             width: 128.0,
             height: self.surface_config.height as f32 - TOOLBAR_THICKNESS,
         };
-        vertices.extend(pattern_tray.draw(screen_width, screen_height, PASCAL));
+        vertices.extend(pattern_tray.draw(&screen_config, PASCAL));
         // Pattern tray label
         text_items.push((
             make_text_buffer(&mut self.font_system, "Patterns", 18.0, 20.0, Some((255, 255, 255))),
-            screen_width as f32 - 128.0 + box_padding,
+            screen_config.width as f32 - 128.0 + box_padding,
             TOOLBAR_Y + box_padding,
         ));
 
         for (i, pattern) in &mut self.patterns.iter_mut().enumerate() {
             // Pattern button
             let pattern_button = Rectangle {
-                x: screen_width as f32 - 128.0 + padding,
+                x: screen_config.width as f32 - 128.0 + padding,
                 y: 48.0 + (32.0 * i as f32) + 24.0,
                 width: 96.0,
                 height: 24.0,
             };
             if i == self.active_pattern_id {
                 let indicator = Rectangle {
-                    x: screen_width as f32 - 128.0 + box_padding,
+                    x: screen_config.width as f32 - 128.0 + box_padding,
                     y: 48.0 + (32.0 * i as f32) + 24.0 + box_padding,
                     width: 4.0,
                     height: 4.0,
                 };
-                vertices.extend(indicator.draw(screen_width, screen_height, ORANGE));
+                vertices.extend(indicator.draw(&screen_config, ORANGE));
             }
             // Pattern label
             text_items.push((
                 make_text_buffer(&mut self.font_system, &pattern.name, 14.0, 22.0, Some((0, 0, 0))),
-                screen_width as f32 - 96.0,
+                screen_config.width as f32 - 96.0,
                 48.0 + (32.0 * i as f32) + 24.0,
             ));
             // click to change current pattern on sequencer
-            vertices.extend(pattern_button.draw(screen_width, screen_height, pattern_button.hover_color(_mouse_x, _mouse_y)));
+            vertices.extend(pattern_button.draw(&screen_config, pattern_button.hover_color(_mouse_x, _mouse_y)));
             if clicked && pattern_button.is_hovered(_mouse_x, _mouse_y) {
                 self.active_pattern_id = pattern.id as usize;
             }
@@ -468,7 +474,7 @@ impl Graphics {
             width: 32.0,
             height: 10.0,
         };
-        vertices.extend(bpm_up.draw(screen_width, screen_height, LIGHT_GRAY));
+        vertices.extend(bpm_up.draw(&screen_config, LIGHT_GRAY));
         if clicked && bpm_up.is_hovered(_mouse_x, _mouse_y) {
             self.bpm += 1.0;
             click_result = ClickResult::ChangeBpm(self.bpm);
@@ -480,7 +486,7 @@ impl Graphics {
             width: 32.0,
             height: 10.0,
         };
-        vertices.extend(bpm_down.draw(screen_width, screen_height, LIGHT_GRAY));
+        vertices.extend(bpm_down.draw(&screen_config, LIGHT_GRAY));
         if clicked && bpm_down.is_hovered(_mouse_x, _mouse_y) {
             self.bpm -= 1.0;
             click_result = ClickResult::ChangeBpm(self.bpm);
@@ -505,7 +511,7 @@ impl Graphics {
             width: PLAY_SQUARE_WIDTH,
             height: PLAY_SQUARE_HEIGHT,
         };
-        vertices.extend(sequencer_toggle.draw(screen_width, screen_height, sequencer_toggle.hover_color(_mouse_x, _mouse_y)));
+        vertices.extend(sequencer_toggle.draw(&screen_config, sequencer_toggle.hover_color(_mouse_x, _mouse_y)));
         if clicked && sequencer_toggle.is_hovered(_mouse_x, _mouse_y) {
             click_result = ClickResult::ToggleSequencerWindow;
         }
@@ -522,7 +528,7 @@ impl Graphics {
             width: PLAY_SQUARE_WIDTH,
             height: PLAY_SQUARE_HEIGHT,
         };
-        vertices.extend(mixer_toggle.draw(screen_width, screen_height, mixer_toggle.hover_color(_mouse_x, _mouse_y)));
+        vertices.extend(mixer_toggle.draw(&screen_config, mixer_toggle.hover_color(_mouse_x, _mouse_y)));
         if clicked && mixer_toggle.is_hovered(_mouse_x, _mouse_y) {
             click_result = ClickResult::ToggleMixerWindow;
         }
@@ -539,7 +545,7 @@ impl Graphics {
             width: PLAY_SQUARE_WIDTH,
             height: PLAY_SQUARE_HEIGHT,
         };
-        vertices.extend(playlist_toggle.draw(screen_width, screen_height, playlist_toggle.hover_color(_mouse_x, _mouse_y)));
+        vertices.extend(playlist_toggle.draw(&screen_config, playlist_toggle.hover_color(_mouse_x, _mouse_y)));
         if clicked && playlist_toggle.is_hovered(_mouse_x, _mouse_y) {
             click_result = ClickResult::TogglePlaylistWindow;
         }
@@ -551,7 +557,7 @@ impl Graphics {
 
         // load project
         let load_project = Rectangle {
-            x: screen_width as f32 - LOAD_PROJECT_ICON_OFFSET,
+            x: screen_config.width as f32 - LOAD_PROJECT_ICON_OFFSET,
             y: TOOLBAR_MARGIN,
             width: ICON_WIDTH,
             height: ICON_HEIGHT,
@@ -562,7 +568,7 @@ impl Graphics {
 
         // load instrument
         let load_instrument = Rectangle {
-            x: screen_width as f32 - ADD_INSTRUMENT_ICON_OFFSET,
+            x: screen_config.width as f32 - ADD_INSTRUMENT_ICON_OFFSET,
             y: TOOLBAR_MARGIN,
             width: ICON_WIDTH,
             height: ICON_HEIGHT,
@@ -574,13 +580,13 @@ impl Graphics {
         // project file dialog
         text_items.push((
             make_text_buffer(&mut self.font_system, "proj", 14.0, 22.0, Some((0, 0, 0))),
-            screen_width as f32 - 37.0,
+            screen_config.width as f32 - 37.0,
             4.0,
         ));
         // instrument file dialog
         text_items.push((
             make_text_buffer(&mut self.font_system, "instr", 14.0, 22.0, Some((0, 0, 0))),
-            screen_width as f32 - (37.0 + 40.0 + 1.0),
+            screen_config.width as f32 - (37.0 + 40.0 + 1.0),
             4.0,
         ));
         // bpm text
@@ -608,7 +614,7 @@ impl Graphics {
                 bounds: TextBounds {
                     left: 0,
                     top: 0,
-                    right: screen_width as i32,
+                    right: screen_config.width as i32,
                     bottom: self.surface_config.height as i32,
                 },
                 default_color: glyphon::Color::rgb(255, 255, 255),
@@ -628,7 +634,7 @@ impl Graphics {
             .unwrap();
 
         // draw the toolbar at the top
-        draw_toolbar(&mut vertices, screen_width, screen_height, _mouse_x, _mouse_y);
+        draw_toolbar(&mut vertices, &screen_config, _mouse_x, _mouse_y);
 
         // load all vertices from built UI
         self.queue.write_buffer(&self.vertex_buffer, 0, bytemuck::cast_slice(&vertices));
