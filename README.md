@@ -1,27 +1,23 @@
-# remdaw
+# glacier_daw
 
-<img width="1431" height="854" alt="image" src="https://github.com/user-attachments/assets/8e0dacc7-71fd-49b1-a7dd-3c9485f2ad88" />
+A DAW built from scratch in Rust as a learning project. No frameworks — raw wgpu, CPAL, and winit.
 
-audio
-- 16 step music sequencer
-- loads .wav files into memory
-- configure audio output device with CPAL
-- mix instruments with volume ramping
+## features
 
-graphics
-- all logic related to drawing graphics
-- setup vertex buffer
-- redraw on user input / events
+- step sequencer with per-pattern sequences and MIDI velocity
+- load .wav instruments at runtime
+- multiple patterns, switchable from the UI
+- playlist view — arrange patterns across a timeline
+- mixer window with master volume slider
+- per-track volume knobs and mute controls
+- draggable windows (sequencer, mixer)
+- play/pause, BPM control, keyboard shortcuts
+- project save/load via TOML
 
-render
-- structs for shape abstractions
+## modules
 
-shader
-- setup graphics for start
-- respond to user events by redrawing stuff
-
-app
-- initialize the graphics and window with `winit`
-- setup the user event loop
-- track mouse movement
-- handle graphics methods
+- `audio` — CPAL stream, sequencer callback, event-driven trigger resolution
+- `graphics` — wgpu setup, draw loop, window manager
+- `ui` — shape primitives, layout constants, widget helpers
+- `project` — serialization structs, WAV loading
+- `app` — winit event loop, input handling, ring buffer dispatch

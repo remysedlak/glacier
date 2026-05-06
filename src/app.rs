@@ -123,10 +123,6 @@ impl App {
             // consume audio -> ui commands
             while let Some(cmd) = self.consumer.try_pop() {
                 match cmd {
-                    UiCommand::StepAdvanced(size) => {
-                        gfx.active_step = size;
-                        gfx.request_redraw();
-                    }
                     UiCommand::LoadInstrument(instrument) => {
                         gfx.load_instrument(instrument);
                     }
@@ -141,6 +137,10 @@ impl App {
                     }
                     UiCommand::LoadMasterVolume(fl) => {
                         gfx.master_volume = fl;
+                    }
+                    UiCommand::StepAdvanced(size) => {
+                        gfx.active_step = size;
+                        gfx.request_redraw();
                     }
                     UiCommand::ShutdownComplete => {
                         let _ = self.stream.pause();
