@@ -130,15 +130,15 @@ pub async fn create_graphics(window: Rc<Window>, proxy: EventLoopProxy<Graphics>
     let instruments: Vec<Instrument> = Vec::new();
 
     // declare sequencer
-    let sequencer_window = MiniWindow::new(0, 256.0, 128.0, 1300.0, 400.0, "Sequencer", WindowKind::Sequencer);
+    let sequencer_window = MiniWindow::new(SEQUENCER_ID, 256.0, 128.0, 1300.0, 400.0, "Sequencer", WindowKind::Sequencer, true);
     mini_windows.push(sequencer_window);
 
     // declare playlist
-    let playlist_window = MiniWindow::new(PLAYLIST_ID, 64.0, 64.0, 1300.0, 800.0, "Playlist", WindowKind::Playlist);
+    let playlist_window = MiniWindow::new(PLAYLIST_ID, 64.0, 64.0, 1300.0, 800.0, "Playlist", WindowKind::Playlist, true);
     mini_windows.push(playlist_window);
 
     // declare mixer
-    let mixer_window = MiniWindow::new(2, 128.0, 500.0, 800.0, 300.0, "Mixer", WindowKind::Mixer);
+    let mixer_window = MiniWindow::new(MIXER_ID, 128.0, 500.0, 800.0, 300.0, "Mixer", WindowKind::Mixer, false);
     mini_windows.push(mixer_window);
 
     let events: Vec<AudioBlock> = Vec::new();

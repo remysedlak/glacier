@@ -53,7 +53,7 @@ pub struct MiniWindow {
 }
 impl MiniWindow {
     /// Creates a movable new window
-    pub fn new(id: usize, x: f32, y: f32, width: f32, height: f32, title: &str, window_kind: WindowKind) -> Self {
+    pub fn new(id: usize, x: f32, y: f32, width: f32, height: f32, title: &str, window_kind: WindowKind, is_open: bool) -> Self {
         Self {
             id,
             x,
@@ -61,7 +61,7 @@ impl MiniWindow {
             width,
             height,
             title: title.to_string(),
-            is_open: true,
+            is_open,
             window_kind,
         }
     }
@@ -69,18 +69,6 @@ impl MiniWindow {
         mouse_x > self.x && mouse_x < self.x + self.width && mouse_y > self.y - TITLEBAR_HEIGHT && mouse_y < self.y + self.height
     }
 }
-
-// for the p[la]
-// enum PlaceableKind {
-//     Pattern(usize),    // pattern_id
-//     AudioClip(String), // path to sample
-// }
-
-// struct PlaylistEntry {
-//     kind: PlaceableKind,
-//     bar: usize,
-//     track_row: usize, // which row in the playlist it sits on
-// }
 
 pub struct Rectangle {
     pub x: f32,
