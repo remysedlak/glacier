@@ -65,6 +65,9 @@ impl MiniWindow {
             window_kind,
         }
     }
+    pub fn is_hovered(&self, mouse_x: f32, mouse_y: f32) -> bool {
+        mouse_x > self.x && mouse_x < self.x + self.width && mouse_y > self.y - TITLEBAR_HEIGHT && mouse_y < self.y + self.height
+    }
 }
 
 // for the p[la]

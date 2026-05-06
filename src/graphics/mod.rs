@@ -169,6 +169,7 @@ pub async fn create_graphics(window: Rc<Window>, proxy: EventLoopProxy<Graphics>
         active_pattern_id: 0,
         dragging: false,
         events,
+        z_order: vec![SEQUENCER_ID, PLAYLIST_ID, MIXER_ID],
     };
 
     let _ = proxy.send_event(gfx);
@@ -234,6 +235,12 @@ pub struct Graphics {
     pub dragging_window: Option<usize>,
     pub dragging: bool,
     pub active_pattern_id: usize,
+    pub z_order: Vec<usize>,
+}
+
+pub fn bring_to_front(z_order: &mut Vec<usize>, id: usize) {
+    z_order.retain(|&x| x != id);
+    z_order.push(id);
 }
 
 impl Graphics {
@@ -355,28 +362,55 @@ impl Graphics {
         let screen_width = self.surface_config.width;
         let screen_height = self.surface_config.height;
 
-        // sequencer window
-        let sequencer_is_open = self.mini_windows[SEQUENCER_ID].is_open;
-        if sequencer_is_open {
-            dbg!(&self.mini_windows[SEQUENCER_ID].width);
-            let window = &self.mini_windows[SEQUENCER_ID];
-            let (verts, texts, result) = sequencer::draw(
-                window,
-                &mut self.patterns,
-                &mut self.font_system,
-                &mut self.instruments,
-                self.active_pattern_id,
-                self.active_step,
-                clicked,
-                _mouse_x,
-                _mouse_y,
-                screen_width,
-                screen_height,
-            );
-            vertices.extend(verts);
-            text_items.extend(texts);
-            click_result = result;
+        // handle window re-ordering
+        if clicked {
+            let z_order = self.z_order.clone();
+            for &id in z_order.iter().rev() {
+                if self.mini_windows[id].is_open && self.mini_windows[id].is_hovered(_mouse_x, _mouse_y) {
+                    bring_to_front(&mut self.z_order, id);
+                    break;
+                }
+            }
         }
+
+        // render each window in order (painter's algorithm)
+        for &id in &self.z_order {
+            match id {
+                SEQUENCER_ID if self.mini_windows[SEQUENCER_ID].is_open => {
+                    let window = &self.mini_windows[SEQUENCER_ID];
+                    let (verts, texts, result) = sequencer::draw(
+                        window,
+                        &mut self.patterns,
+                        &mut self.font_system,
+                        &mut self.instruments,
+                        self.active_pattern_id,
+                        self.active_step,
+                        clicked,
+                        _mouse_x,
+                        _mouse_y,
+                        screen_width,
+                        screen_height,
+                    );
+                    vertices.extend(verts);
+                    text_items.extend(texts);
+                    click_result = result;
+                }
+                PLAYLIST_ID if self.mini_windows[PLAYLIST_ID].is_open => {
+                    let window = &self.mini_windows[PLAYLIST_ID];
+                    let (verts, texts) = playlist::draw(window, &self.events, &self.patterns, &mut self.font_system, screen_width, screen_height);
+                    vertices.extend(verts);
+                    text_items.extend(texts);
+                }
+                MIXER_ID if self.mini_windows[MIXER_ID].is_open => {
+                    let window = &self.mini_windows[MIXER_ID];
+                    let (verts, texts) = mixer::draw(window, &mut self.master_volume, &mut self.font_system, screen_width, screen_height);
+                    vertices.extend(verts);
+                    text_items.extend(texts);
+                }
+                _ => {}
+            }
+        }
+
         // handle delete after loop to avoid borrow issues
         if let ClickResult::DeleteTrack(i) = click_result {
             self.instruments.remove(i);
@@ -535,25 +569,6 @@ impl Graphics {
         };
         if clicked && load_instrument.is_hovered(_mouse_x, _mouse_y) {
             click_result = ClickResult::InstrumentFileDialog;
-        }
-
-        // playlist window
-        let playlist_is_open = self.mini_windows[PLAYLIST_ID].is_open;
-        if playlist_is_open {
-            let window = &self.mini_windows[PLAYLIST_ID];
-            let (verts, texts) = playlist::draw(window, &self.events, &self.patterns, &mut self.font_system, screen_width, screen_height);
-            vertices.extend(verts);
-            text_items.extend(texts);
-        }
-
-        // mixer window
-        let mixer_is_open = self.mini_windows[MIXER_ID].is_open;
-
-        if mixer_is_open {
-            let window = &self.mini_windows[MIXER_ID];
-            let (verts, texts) = mixer::draw(window, &mut self.master_volume, &mut self.font_system, screen_width, screen_height);
-            vertices.extend(verts);
-            text_items.extend(texts);
         }
 
         // project file dialog
