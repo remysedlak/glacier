@@ -124,15 +124,15 @@ pub async fn create_graphics(window: Rc<Window>, proxy: EventLoopProxy<Graphics>
     let instruments: Vec<Instrument> = Vec::new();
 
     // declare sequencer
-    let sequencer_window = MiniWindow::new(256.0, 128.0, 1200.0, 400.0, "Sequencer", WindowKind::Sequencer);
+    let sequencer_window = MiniWindow::new(0, 256.0, 128.0, 1200.0, 400.0, "Sequencer", WindowKind::Sequencer);
     mini_windows.push(sequencer_window);
 
     // declare playlist
-    let playlist_window = MiniWindow::new(64.0, 64.0, 1300.0, 800.0, "Playlist", WindowKind::Playlist);
+    let playlist_window = MiniWindow::new(1, 64.0, 64.0, 1300.0, 800.0, "Playlist", WindowKind::Playlist);
     mini_windows.push(playlist_window);
 
     // declare mixer
-    let mixer_window = MiniWindow::new(128.0, 500.0, 900.0, 300.0, "Mixer", WindowKind::Mixer);
+    let mixer_window = MiniWindow::new(2, 128.0, 500.0, 900.0, 300.0, "Mixer", WindowKind::Mixer);
     mini_windows.push(mixer_window);
 
     let events: Vec<AudioBlock> = Vec::new();
@@ -242,7 +242,7 @@ impl Graphics {
         }
     }
     pub fn load_pattern(&mut self, p: PatternData) {
-        if p.id >= self.patterns.len() as u32 {
+        if p.id >= self.patterns.len() {
             self.patterns.push(p)
         }
     }
@@ -717,73 +717,7 @@ impl Graphics {
             .map(|w| w.is_open)
             .unwrap_or(false);
 
-        if playlist_is_open {
-            let (playlist_x, playlist_y, playlist_w, playlist_h, playlist_t) = self
-                .mini_windows
-                .iter()
-                .find(|w| matches!(w.window_kind, WindowKind::Playlist))
-                .map(|w| (w.x, w.y, w.width, w.height, w.title.clone()))
-                .unwrap_or((64.0, 64.0, 1000.0, 600.0, "Title".to_string()));
-            let mixer_background = Rectangle {
-                x: playlist_x,
-                y: playlist_y,
-                width: playlist_w,
-                height: playlist_h,
-            };
-            vertices.extend(mixer_background.draw(screen_width, screen_height, BLACK));
-            // titlebar rectangle
-            let titlebar = Rectangle {
-                x: playlist_x,
-                y: playlist_y - TITLEBAR_HEIGHT,
-                width: playlist_w,
-                height: TITLEBAR_HEIGHT,
-            };
-            vertices.extend(titlebar.draw(screen_width, screen_height, DARK_GRAY));
-            // titlebar text
-            text_items.push((
-                make_text_buffer(&mut self.font_system, &playlist_t, 14.0, 22.0, None),
-                playlist_x + playlist_w / 2.2,
-                playlist_y - TITLEBAR_HEIGHT + 4.0,
-            ));
-
-            let steps = 32;
-            let tracks = 4;
-
-            // for each instrument loaded into a project
-            for track in 0..tracks {
-                // for each step in the project playlist
-                for step in 0..steps {
-                    let group = step / 4;
-                    let pl_step = Rectangle {
-                        x: playlist_x + (step as f32 * 35.0) + padding,
-                        y: playlist_y + (track as f32 * 70.0) + padding,
-                        width: 32.0,
-                        height: 64.0,
-                    };
-                    let color = if group % 2 != 0 { BLUE } else { DARK_BLUE };
-                    vertices.extend(pl_step.draw(screen_width, screen_height, color));
-                }
-            }
-            // iterate the events to display on the playlist.
-            for event in &mut self.events {
-                if let AudioBlockType::Pattern(id) = event.block_type {
-                    let pl_pattern = Rectangle {
-                        x: playlist_x + (event.start_step as f32 * 35.0) + padding,
-                        y: playlist_y + (id as f32 * 70.0) + padding,
-                        width: 35.0 * event.length as f32,
-                        height: 64.0,
-                    };
-                    vertices.extend(pl_pattern.draw(screen_width, screen_height, LIGHT_GRAY));
-                    // titlebar text
-                    let label: &str = &self.patterns[id as usize].name;
-                    text_items.push((
-                        make_text_buffer(&mut self.font_system, label, 14.0, 22.0, Some((0, 0, 0))),
-                        playlist_x + (event.start_step as f32 * 35.0) + padding,
-                        playlist_y + (id as f32 * 70.0) + padding,
-                    ));
-                }
-            }
-        }
+        if playlist_is_open {}
 
         // mixer window
         let mixer_is_open = self
