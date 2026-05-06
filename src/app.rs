@@ -1,6 +1,6 @@
 use crate::audio::{init, AudioCommand};
 use crate::graphics::{create_graphics, ClickResult, DragResult, Graphics, Rc};
-use crate::project::{Instrument, PatternData};
+use crate::project::{AudioBlock, Instrument, PatternData};
 use crate::ui::WindowKind;
 use cpal::traits::StreamTrait;
 use cpal::Stream;
@@ -30,6 +30,7 @@ pub enum UiCommand {
     ShutdownComplete,
     SaveComplete,
     LoadPattern(PatternData),
+    LoadEvent(AudioBlock),
 }
 
 // the app is in initializing state or its ready to draw
@@ -132,6 +133,9 @@ impl App {
                     UiCommand::LoadBpm(bpm) => {
                         gfx.bpm = bpm;
                     }
+                    UiCommand::LoadEvent(event) => {
+                        gfx.load_event(event);
+                    }
                     UiCommand::LoadPattern(pattern) => {
                         gfx.load_pattern(pattern);
                     }
@@ -170,6 +174,11 @@ impl App {
                 }
                 ClickResult::ToggleMixerWindow => {
                     if let Some(win) = gfx.mini_windows.iter_mut().find(|w| matches!(w.window_kind, WindowKind::Mixer)) {
+                        win.is_open = !win.is_open;
+                    }
+                }
+                ClickResult::TogglePlaylistWindow => {
+                    if let Some(win) = gfx.mini_windows.iter_mut().find(|w| matches!(w.window_kind, WindowKind::Playlist)) {
                         win.is_open = !win.is_open;
                     }
                 }

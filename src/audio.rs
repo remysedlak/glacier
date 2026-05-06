@@ -49,6 +49,9 @@ pub fn init(mut consumer: HeapCons<AudioCommand>, mut producer: HeapProd<UiComma
     }
     let mut bpm: f32 = project.bpm;
     let events = project.events;
+    for event in &events {
+        producer.try_push(UiCommand::LoadEvent(event.clone())).ok();
+    }
     let mut current_step = patterns
         .iter()
         .flat_map(|p| p.sequences.iter())

@@ -35,7 +35,7 @@ use crate::graphics::Vertex;
 #[derive(Debug)]
 pub enum WindowKind {
     Sequencer,
-    // Playlist,
+    Playlist,
     Mixer,
     // PianoRoll,
     // InstrumentDetail(usize), // which instrument
@@ -108,7 +108,6 @@ impl Rectangle {
             LIGHT_GRAY
         }
     }
-
 
     // return color if hovering and component is active
     pub fn active_color(&self, mx: f32, my: f32, is_active: bool) -> (f32, f32, f32) {
