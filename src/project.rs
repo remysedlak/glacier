@@ -15,8 +15,8 @@ pub struct ProjectFile {
 #[derive(Serialize, Deserialize, Clone)]
 #[serde(tag = "kind", content = "id")]
 pub enum AudioBlockType {
-    Sample(u32),
-    Pattern(u32),
+    Sample(usize),
+    Pattern(usize),
     Mixing, // later for automating audio
 }
 
@@ -31,7 +31,7 @@ pub struct AudioBlock {
 /// Patterns store a set of sequences
 #[derive(Serialize, Deserialize, Clone)]
 pub struct PatternData {
-    pub id: u32,
+    pub id: usize,
     pub name: String,
     pub sequences: Vec<Sequence>,
 }

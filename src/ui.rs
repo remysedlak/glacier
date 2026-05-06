@@ -42,6 +42,7 @@ pub enum WindowKind {
 }
 
 pub struct MiniWindow {
+    pub id: usize,
     pub x: f32,
     pub y: f32,
     pub width: f32,
@@ -52,8 +53,9 @@ pub struct MiniWindow {
 }
 impl MiniWindow {
     /// Creates a movable new window
-    pub fn new(x: f32, y: f32, width: f32, height: f32, title: &str, window_kind: WindowKind) -> Self {
+    pub fn new(id: usize, x: f32, y: f32, width: f32, height: f32, title: &str, window_kind: WindowKind) -> Self {
         Self {
+            id,
             x,
             y,
             width,
