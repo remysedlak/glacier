@@ -21,6 +21,7 @@ pub enum AudioCommand {
     AddInstrument(String),
     DeleteTrack(usize),
     ChangeTrackVolume(usize, f32),
+    DeleteAudioBlock(usize),
 }
 
 /// initialize the audio engine with cpal and data from a project file
@@ -48,7 +49,7 @@ pub fn init(mut consumer: HeapCons<AudioCommand>, mut producer: HeapProd<UiComma
         producer.try_push(UiCommand::LoadPattern(pattern.clone())).ok();
     }
     let mut bpm: f32 = project.bpm;
-    let events = project.events;
+    let mut events = project.events;
     for event in &events {
         producer.try_push(UiCommand::LoadEvent(event.clone())).ok();
     }
@@ -79,6 +80,9 @@ pub fn init(mut consumer: HeapCons<AudioCommand>, mut producer: HeapProd<UiComma
         // parse incoming UI commands before fulfilling data callback
         while let Some(cmd) = consumer.try_pop() {
             match cmd {
+                AudioCommand::DeleteAudioBlock(id) => {
+                    events.retain(|e| e.id != id);
+                }
                 AudioCommand::ChangeMasterVolume(volume) => {
                     master_volume = volume;
                 }

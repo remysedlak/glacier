@@ -1,7 +1,7 @@
 use crate::color::*;
+use crate::graphics::ui::draw_toolbar;
+use crate::graphics::ui::*;
 use crate::project::{AudioBlock, Instrument, PatternData};
-use crate::ui::draw_toolbar;
-use crate::ui::*;
 use std::borrow::Cow;
 use std::collections::HashMap;
 use std::f32;
@@ -16,6 +16,7 @@ pub mod font;
 pub mod mixer;
 pub mod playlist;
 pub mod sequencer;
+pub mod ui;
 
 pub const SEQUENCER_ID: usize = 0;
 pub const PLAYLIST_ID: usize = 1;
@@ -57,6 +58,7 @@ pub enum ClickResult {
     ProjectFileDialog,
     InstrumentFileDialog,
     DeleteTrack(usize),
+    DeletePlaylistPattern(usize),
     ToggleSequencerWindow,
     ToggleMixerWindow,
     TogglePlaylistWindow,
@@ -309,7 +311,7 @@ impl Graphics {
         self.surface.configure(&self.device, &self.surface_config);
     }
 
-    pub fn draw(&mut self, _mouse_x: f32, _mouse_y: f32, clicked: bool) -> ClickResult {
+    pub fn draw(&mut self, mouse_state: &MouseState) -> ClickResult {
         let box_padding = 8.0;
         let padding = 16.0;
 
@@ -325,10 +327,10 @@ impl Graphics {
         };
 
         // handle window re-ordering
-        if clicked {
+        if mouse_state.left_clicked {
             let z_order = self.z_order.clone();
             for &id in z_order.iter().rev() {
-                if self.mini_windows[id].is_open && self.mini_windows[id].is_hovered(_mouse_x, _mouse_y) {
+                if self.mini_windows[id].is_open && self.mini_windows[id].is_hovered(mouse_state.x, mouse_state.y) {
                     bring_to_front(&mut self.z_order, id);
                     break;
                 }
@@ -357,9 +359,7 @@ impl Graphics {
                         &mut self.instruments,
                         self.active_pattern_id,
                         self.active_step,
-                        clicked,
-                        _mouse_x,
-                        _mouse_y,
+                        &mouse_state,
                         &screen_config,
                     );
                     vertices.extend(verts);
@@ -382,7 +382,7 @@ impl Graphics {
                 }
                 PLAYLIST_ID if self.mini_windows[PLAYLIST_ID].is_open => {
                     let window = &self.mini_windows[PLAYLIST_ID];
-                    let (verts, texts) = playlist::draw(window, &self.events, &self.patterns, &screen_config);
+                    let (verts, texts, result) = playlist::draw(window, &self.events, &self.patterns, &mouse_state, &screen_config);
                     vertices.extend(verts);
                     for (text, x, y) in &texts {
                         let mut layout = Layout::new(CoordinateSystem::PositiveYDown);
@@ -399,6 +399,7 @@ impl Graphics {
                             }
                         }
                     }
+                    click_result = result;
                 }
                 MIXER_ID if self.mini_windows[MIXER_ID].is_open => {
                     let window = &self.mini_windows[MIXER_ID];
@@ -435,6 +436,9 @@ impl Graphics {
         if let ClickResult::DeleteTrack(i) = click_result {
             self.instruments.remove(i);
         }
+        if let ClickResult::DeletePlaylistPattern(id) = click_result {
+            self.events.retain(|e| e.id != id);
+        }
 
         // --- toolbar / UI layer (always on top) ---
         let toolbar_vert_start = vertices.len() as u32;
@@ -463,8 +467,8 @@ impl Graphics {
                 };
                 vertices.extend(indicator.draw(&screen_config, ORANGE));
             }
-            vertices.extend(pattern_button.draw(&screen_config, pattern_button.hover_color(_mouse_x, _mouse_y)));
-            if clicked && pattern_button.is_hovered(_mouse_x, _mouse_y) {
+            vertices.extend(pattern_button.draw(&screen_config, pattern_button.hover_color(mouse_state.x, mouse_state.y)));
+            if mouse_state.left_clicked && pattern_button.is_hovered(mouse_state.x, mouse_state.y) {
                 self.active_pattern_id = pattern.id as usize;
             }
         }
@@ -476,7 +480,7 @@ impl Graphics {
             height: 10.0,
         };
         vertices.extend(bpm_up.draw(&screen_config, LIGHT_GRAY));
-        if clicked && bpm_up.is_hovered(_mouse_x, _mouse_y) {
+        if mouse_state.left_clicked && bpm_up.is_hovered(mouse_state.x, mouse_state.y) {
             self.bpm += 1.0;
             click_result = ClickResult::ChangeBpm(self.bpm);
         }
@@ -488,7 +492,7 @@ impl Graphics {
             height: 10.0,
         };
         vertices.extend(bpm_down.draw(&screen_config, LIGHT_GRAY));
-        if clicked && bpm_down.is_hovered(_mouse_x, _mouse_y) {
+        if mouse_state.left_clicked && bpm_down.is_hovered(mouse_state.x, mouse_state.y) {
             self.bpm -= 1.0;
             click_result = ClickResult::ChangeBpm(self.bpm);
         }
@@ -499,7 +503,7 @@ impl Graphics {
             width: PLAY_SQUARE_WIDTH,
             height: PLAY_SQUARE_HEIGHT,
         };
-        if clicked && play_button.is_hovered(_mouse_x, _mouse_y) {
+        if mouse_state.left_clicked && play_button.is_hovered(mouse_state.x, mouse_state.y) {
             self.is_playing = !self.is_playing;
             click_result = ClickResult::TogglePlay;
         }
@@ -510,8 +514,8 @@ impl Graphics {
             width: PLAY_SQUARE_WIDTH,
             height: PLAY_SQUARE_HEIGHT,
         };
-        vertices.extend(sequencer_toggle.draw(&screen_config, sequencer_toggle.hover_color(_mouse_x, _mouse_y)));
-        if clicked && sequencer_toggle.is_hovered(_mouse_x, _mouse_y) {
+        vertices.extend(sequencer_toggle.draw(&screen_config, sequencer_toggle.hover_color(mouse_state.x, mouse_state.y)));
+        if mouse_state.left_clicked && sequencer_toggle.is_hovered(mouse_state.x, mouse_state.y) {
             click_result = ClickResult::ToggleSequencerWindow;
         }
 
@@ -521,8 +525,8 @@ impl Graphics {
             width: PLAY_SQUARE_WIDTH,
             height: PLAY_SQUARE_HEIGHT,
         };
-        vertices.extend(mixer_toggle.draw(&screen_config, mixer_toggle.hover_color(_mouse_x, _mouse_y)));
-        if clicked && mixer_toggle.is_hovered(_mouse_x, _mouse_y) {
+        vertices.extend(mixer_toggle.draw(&screen_config, mixer_toggle.hover_color(mouse_state.x, mouse_state.y)));
+        if mouse_state.left_clicked && mixer_toggle.is_hovered(mouse_state.x, mouse_state.y) {
             click_result = ClickResult::ToggleMixerWindow;
         }
 
@@ -532,8 +536,8 @@ impl Graphics {
             width: PLAY_SQUARE_WIDTH,
             height: PLAY_SQUARE_HEIGHT,
         };
-        vertices.extend(playlist_toggle.draw(&screen_config, playlist_toggle.hover_color(_mouse_x, _mouse_y)));
-        if clicked && playlist_toggle.is_hovered(_mouse_x, _mouse_y) {
+        vertices.extend(playlist_toggle.draw(&screen_config, playlist_toggle.hover_color(mouse_state.x, mouse_state.y)));
+        if mouse_state.left_clicked && playlist_toggle.is_hovered(mouse_state.x, mouse_state.y) {
             click_result = ClickResult::TogglePlaylistWindow;
         }
 
@@ -543,7 +547,7 @@ impl Graphics {
             width: ICON_WIDTH,
             height: ICON_HEIGHT,
         };
-        if clicked && load_project.is_hovered(_mouse_x, _mouse_y) {
+        if mouse_state.left_clicked && load_project.is_hovered(mouse_state.x, mouse_state.y) {
             click_result = ClickResult::ProjectFileDialog;
         }
 
@@ -553,11 +557,11 @@ impl Graphics {
             width: ICON_WIDTH,
             height: ICON_HEIGHT,
         };
-        if clicked && load_instrument.is_hovered(_mouse_x, _mouse_y) {
+        if mouse_state.left_clicked && load_instrument.is_hovered(mouse_state.x, mouse_state.y) {
             click_result = ClickResult::InstrumentFileDialog;
         }
 
-        draw_toolbar(&mut vertices, &screen_config, _mouse_x, _mouse_y);
+        draw_toolbar(&mut vertices, &screen_config, mouse_state.x, mouse_state.y);
 
         // build toolbar text items
         let toolbar_char_start = char_draws.len();

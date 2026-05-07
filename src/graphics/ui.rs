@@ -41,6 +41,13 @@ pub enum WindowKind {
     // InstrumentDetail(usize), // which instrument
 }
 
+pub struct MouseState {
+    pub x: f32,
+    pub y: f32,
+    pub left_clicked: bool,
+    pub right_clicked: bool,
+}
+
 pub struct MiniWindow {
     pub x: f32,
     pub y: f32,

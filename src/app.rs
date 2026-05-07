@@ -1,7 +1,7 @@
 use crate::audio::{init, AudioCommand};
-use crate::graphics::{bring_to_front, create_graphics, ClickResult, DragResult, Graphics, Rc, MIXER_ID, PLAYLIST_ID, SEQUENCER_ID};
+use crate::graphics::ui::MouseState;
+use crate::graphics::{bring_to_front, create_graphics, ui::WindowKind, ClickResult, DragResult, Graphics, Rc, MIXER_ID, PLAYLIST_ID, SEQUENCER_ID};
 use crate::project::{AudioBlock, Instrument, PatternData};
-use crate::ui::WindowKind;
 use cpal::traits::StreamTrait;
 use cpal::Stream;
 use rfd::FileDialog;
@@ -44,15 +44,18 @@ pub struct App {
     producer: HeapProd<AudioCommand>,
     consumer: HeapCons<UiCommand>,
     state: State,
-    mouse_x: f32,
-    mouse_y: f32,
-    prev_mouse_x: f32,
-    prev_mouse_y: f32,
+
     stream: Stream,
     pending_project: Option<String>,
     ctrl_pressed: bool,
-    clicked: bool,
+
+    // mouse state
+    mouse_state: MouseState,
+    prev_mouse_x: f32,
+    prev_mouse_y: f32,
     left_click_held: bool,
+    right_click_held: bool,
+
     instrument_file_dialog_rx: Option<Receiver<Option<PathBuf>>>,
     project_file_dialog_rx: Option<Receiver<Option<PathBuf>>>,
 }
@@ -64,17 +67,23 @@ impl App {
             producer,
             consumer,
             state: State::Init(Some(event_loop.create_proxy())),
-            mouse_x: 0.0,
-            mouse_y: 0.0,
-            prev_mouse_x: 0.0,
-            prev_mouse_y: 0.0,
             stream,
             pending_project: None,
             ctrl_pressed: false,
-            left_click_held: false,
-            clicked: false,
             instrument_file_dialog_rx: None,
             project_file_dialog_rx: None,
+
+            // mouse state
+            prev_mouse_x: 0.0,
+            prev_mouse_y: 0.0,
+            left_click_held: false,
+            right_click_held: false,
+            mouse_state: MouseState {
+                x: 0.0,
+                y: 0.0,
+                left_clicked: false,
+                right_clicked: false,
+            },
         }
     }
 
@@ -162,11 +171,15 @@ impl App {
             }
 
             // single draw call — returns click result
-            let result = gfx.draw(self.mouse_x, self.mouse_y, self.clicked);
-            self.clicked = false; // consume the click
+            let result = gfx.draw(&self.mouse_state);
+            self.mouse_state.left_clicked = false;
+            self.mouse_state.right_clicked = false;
 
             // dispatch audio commands based on what was clicked
             match result {
+                ClickResult::DeletePlaylistPattern(id) => {
+                    self.producer.try_push(AudioCommand::DeleteAudioBlock(id)).ok();
+                }
                 ClickResult::ToggleSequencerWindow => {
                     if let Some(win) = gfx.mini_windows.iter_mut().find(|w| matches!(w.window_kind, WindowKind::Sequencer)) {
                         if !win.is_open {
@@ -331,24 +344,38 @@ impl ApplicationHandler<Graphics> for App {
 
             WindowEvent::MouseInput { state, button, .. } => {
                 if state.is_pressed() && button == MouseButton::Left {
+                    // change state
                     self.left_click_held = true;
-                    self.clicked = true;
-                    self.draw(&event_loop); // single draw, result handled inside
-                } else {
-                    self.left_click_held = false;
+                    self.mouse_state.left_clicked = true;
 
-                    self.clicked = false;
+                    // redraw
+                    self.draw(&event_loop);
+                } else {
+                    // change state
+                    self.left_click_held = false;
+                    self.mouse_state.left_clicked = false;
                     if let State::Ready(gfx) = &mut self.state {
                         gfx.dragging = false;
                         gfx.dragging_window = None; // is this here?
                         gfx.dragging_knob = None;
                     }
                 }
+                if state.is_pressed() && button == MouseButton::Right {
+                    // change state
+                    self.mouse_state.right_clicked = true;
+                    self.right_click_held = true;
+                    // redraw
+                    self.draw(&event_loop);
+                } else {
+                    // change state
+                    self.right_click_held = false;
+                    self.mouse_state.right_clicked = false;
+                }
             }
 
             WindowEvent::CursorMoved { position, .. } => {
-                self.mouse_x = position.x as f32;
-                self.mouse_y = position.y as f32;
+                self.mouse_state.x = position.x as f32;
+                self.mouse_state.y = position.y as f32;
                 let delta_y = position.y as f32 - self.prev_mouse_y;
                 let delta_x = position.x as f32 - self.prev_mouse_x;
                 self.prev_mouse_y = position.y as f32;

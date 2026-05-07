@@ -1,15 +1,16 @@
 use crate::color::*;
+use crate::graphics::{ui::*, ClickResult};
 use crate::graphics::{ScreenConfig, Vertex};
 use crate::project::*;
-use crate::ui::*;
 
 pub fn draw(
     window: &MiniWindow,
     events: &[AudioBlock],
     patterns: &[PatternData],
+    mouse_state: &MouseState,
 
     screen_config: &ScreenConfig,
-) -> (Vec<Vertex>, Vec<(String, f32, f32)>) {
+) -> (Vec<Vertex>, Vec<(String, f32, f32)>, ClickResult) {
     let padding = 16.0;
     let mut vertices: Vec<Vertex> = Vec::new();
     let mut text_items: Vec<(String, f32, f32)> = Vec::new();
@@ -35,6 +36,8 @@ pub fn draw(
     let steps = 32;
     let tracks = 4;
 
+    let mut click_result = ClickResult::None;
+
     // for each instrument loaded into a project
     for track in 0..tracks {
         // for each step in the project playlist
@@ -59,6 +62,9 @@ pub fn draw(
                 width: 35.0 * event.length as f32,
                 height: 64.0,
             };
+            if pl_pattern.is_hovered(mouse_state.x, mouse_state.y) && mouse_state.right_clicked {
+                click_result = ClickResult::DeletePlaylistPattern(event.id);
+            }
             vertices.extend(pl_pattern.draw(&screen_config, LIGHT_GRAY));
             // titlebar text
             let label: &str = &patterns[id as usize].name;
@@ -70,5 +76,5 @@ pub fn draw(
             ));
         }
     }
-    (vertices, text_items)
+    (vertices, text_items, click_result)
 }

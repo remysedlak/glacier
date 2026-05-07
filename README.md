@@ -21,7 +21,7 @@ A DAW built from scratch in Rust as a deliberate learning project. No frameworks
 - `graphics` — wgpu pipeline, fontdue glyph cache, per-window draw ranges, painter's algorithm
 - `graphics/font` — glyph rasterization, texture upload, NDC quad generation
 - `graphics/sequencer`, `mixer`, `playlist` — per-window geometry and text
-- `ui` — shape primitives, layout constants, widget helpers
+- `graphics/ui` — shape primitives, layout constants, widget helpers
 - `project` — serialization structs, WAV loading
 - `app` — winit event loop, input handling, ring buffer dispatch
 

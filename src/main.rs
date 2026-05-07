@@ -3,7 +3,7 @@ mod audio;
 mod color;
 mod graphics;
 mod project;
-mod ui;
+
 use crate::{
     app::{App, UiCommand},
     audio::AudioCommand,

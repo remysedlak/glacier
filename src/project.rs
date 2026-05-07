@@ -23,6 +23,7 @@ pub enum AudioBlockType {
 /// AudioBlocks are how patterns are timed within a playlist
 #[derive(Serialize, Deserialize, Clone)]
 pub struct AudioBlock {
+    pub id: usize,
     pub start_step: u32,
     pub length: u32,
     pub block_type: AudioBlockType,

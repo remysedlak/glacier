@@ -1,6 +1,6 @@
 use crate::color::*;
+use crate::graphics::ui::*;
 use crate::graphics::{ScreenConfig, Vertex};
-use crate::ui::*;
 
 pub fn draw(window: &MiniWindow, master_volume: &mut f32, screen_config: &ScreenConfig) -> (Vec<Vertex>, Vec<(String, f32, f32)>) {
     let mut vertices: Vec<Vertex> = Vec::new();

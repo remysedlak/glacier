@@ -1,8 +1,9 @@
 use crate::color::*;
+use crate::graphics::ui::*;
 use crate::graphics::{ClickResult, ScreenConfig};
 use crate::graphics::{Vertex, BACKGROUND};
 use crate::project::*;
-use crate::ui::*;
+
 pub fn draw(
     window: &MiniWindow,
     patterns: &mut [PatternData],
@@ -10,9 +11,7 @@ pub fn draw(
     instruments: &mut [Instrument],
     active_pattern_id: usize,
     active_step: usize,
-    clicked: bool,
-    mouse_x: f32,
-    mouse_y: f32,
+    mouse_state: &MouseState,
     screen_config: &ScreenConfig,
 ) -> (Vec<Vertex>, Vec<(String, f32, f32)>, ClickResult) {
     let padding = 16.0;
@@ -89,10 +88,13 @@ pub fn draw(
                     width: BUTTON_WIDTH,
                     height: BUTTON_HEIGHT,
                 };
-                vertices.extend(step.draw(screen_config, step.active_step_color(mouse_x, mouse_y, j == active_step, velocity > 0.0)));
+                vertices.extend(step.draw(
+                    screen_config,
+                    step.active_step_color(mouse_state.x, mouse_state.y, j == active_step, velocity > 0.0),
+                ));
 
                 // check if the step was clicked
-                if clicked && step.is_hovered(mouse_x, mouse_y) {
+                if mouse_state.left_clicked && step.is_hovered(mouse_state.x, mouse_state.y) {
                     // if the click is on an existing sequence
                     if let Some(seq) = patterns[active_pattern_id]
                         .sequences
@@ -125,11 +127,14 @@ pub fn draw(
             width: MUTE_SQUARE_LENGTH,
             height: MUTE_SQUARE_LENGTH,
         };
-        vertices.extend(mute_button.draw(&screen_config, mute_button.active_color(mouse_x, mouse_y, instrument.data.is_muted)));
+        vertices.extend(mute_button.draw(
+            &screen_config,
+            mute_button.active_color(mouse_state.x, mouse_state.y, instrument.data.is_muted),
+        ));
 
         text_items.push(("mut".to_string(), window.x + 16.0, window.y + i as f32 * TRACK_GAP + 40.0));
 
-        if clicked && mute_button.is_hovered(mouse_x, mouse_y) {
+        if mouse_state.left_clicked && mute_button.is_hovered(mouse_state.x, mouse_state.y) {
             instrument.data.is_muted = !instrument.data.is_muted;
             click_result = ClickResult::Mute(i);
         }
@@ -141,10 +146,13 @@ pub fn draw(
             width: MUTE_SQUARE_LENGTH,
             height: MUTE_SQUARE_LENGTH,
         };
-        vertices.extend(velocity_button.draw(&screen_config, velocity_button.active_color(mouse_x, mouse_y, instrument.show_velocity)));
+        vertices.extend(velocity_button.draw(
+            &screen_config,
+            velocity_button.active_color(mouse_state.x, mouse_state.y, instrument.show_velocity),
+        ));
 
         text_items.push(("vel".to_string(), window.x + 50.0, window.y + (i as f32 * TRACK_GAP) + 40.0));
-        if clicked && velocity_button.is_hovered(mouse_x, mouse_y) {
+        if mouse_state.left_clicked && velocity_button.is_hovered(mouse_state.x, mouse_state.y) {
             instrument.show_velocity = !instrument.show_velocity;
         }
 
@@ -155,14 +163,14 @@ pub fn draw(
             width: MUTE_SQUARE_LENGTH,
             height: MUTE_SQUARE_LENGTH,
         };
-        vertices.extend(delete_button.draw(&screen_config, delete_button.hover_color(mouse_x, mouse_y)));
+        vertices.extend(delete_button.draw(&screen_config, delete_button.hover_color(mouse_state.x, mouse_state.y)));
 
         text_items.push((
             "del".to_string(),
             padding + window.x + button_gap + 16.0,
             window.y + (i as f32 * TRACK_GAP) + 40.0,
         ));
-        if clicked && delete_button.is_hovered(mouse_x, mouse_y) {
+        if mouse_state.left_clicked && delete_button.is_hovered(mouse_state.x, mouse_state.y) {
             click_result = ClickResult::DeleteTrack(i);
         }
 
