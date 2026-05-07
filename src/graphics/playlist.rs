@@ -1,5 +1,5 @@
-use crate::colors::*;
-use crate::graphics::{make_text_buffer, ScreenConfig, Vertex};
+use crate::color::*;
+use crate::graphics::{ScreenConfig, Vertex};
 use crate::project::*;
 use crate::ui::*;
 
@@ -7,12 +7,12 @@ pub fn draw(
     window: &MiniWindow,
     events: &[AudioBlock],
     patterns: &[PatternData],
-    font_system: &mut glyphon::FontSystem,
+
     screen_config: &ScreenConfig,
-) -> (Vec<Vertex>, Vec<(glyphon::Buffer, f32, f32)>) {
+) -> (Vec<Vertex>, Vec<(String, f32, f32)>) {
     let padding = 16.0;
     let mut vertices: Vec<Vertex> = Vec::new();
-    let mut text_items: Vec<(glyphon::Buffer, f32, f32)> = Vec::new();
+    let mut text_items: Vec<(String, f32, f32)> = Vec::new();
     let mixer_background = Rectangle {
         x: window.x,
         y: window.y,
@@ -29,11 +29,8 @@ pub fn draw(
     };
     vertices.extend(titlebar.draw(&screen_config, DARK_GRAY));
     // titlebar text
-    text_items.push((
-        make_text_buffer(font_system, &window.title, 14.0, 22.0, None),
-        window.x + window.width / 2.2,
-        window.y - TITLEBAR_HEIGHT + 4.0,
-    ));
+
+    text_items.push((window.title.to_string(), window.x + window.width / 2.2, window.y - TITLEBAR_HEIGHT + 4.0));
 
     let steps = 32;
     let tracks = 4;
@@ -65,8 +62,9 @@ pub fn draw(
             vertices.extend(pl_pattern.draw(&screen_config, LIGHT_GRAY));
             // titlebar text
             let label: &str = &patterns[id as usize].name;
+
             text_items.push((
-                make_text_buffer(font_system, label, 14.0, 22.0, Some((0, 0, 0))),
+                label.to_string(),
                 window.x + (event.start_step as f32 * 35.0) + padding,
                 window.y + (id as f32 * 70.0) + padding,
             ));

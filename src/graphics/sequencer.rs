@@ -1,12 +1,12 @@
-use crate::colors::*;
-use crate::graphics::{make_text_buffer, Vertex, BACKGROUND};
+use crate::color::*;
 use crate::graphics::{ClickResult, ScreenConfig};
+use crate::graphics::{Vertex, BACKGROUND};
 use crate::project::*;
 use crate::ui::*;
 pub fn draw(
     window: &MiniWindow,
     patterns: &mut [PatternData],
-    font_system: &mut glyphon::FontSystem,
+
     instruments: &mut [Instrument],
     active_pattern_id: usize,
     active_step: usize,
@@ -14,10 +14,10 @@ pub fn draw(
     mouse_x: f32,
     mouse_y: f32,
     screen_config: &ScreenConfig,
-) -> (Vec<Vertex>, Vec<(glyphon::Buffer, f32, f32)>, ClickResult) {
+) -> (Vec<Vertex>, Vec<(String, f32, f32)>, ClickResult) {
     let padding = 16.0;
     let mut vertices: Vec<Vertex> = Vec::new();
-    let mut text_items: Vec<(glyphon::Buffer, f32, f32)> = Vec::new();
+    let mut text_items: Vec<(String, f32, f32)> = Vec::new();
     let mut click_result = ClickResult::None;
     // background of sequencer
     let window_background = Rectangle {
@@ -37,12 +37,7 @@ pub fn draw(
     };
     vertices.extend(titlebar.draw(&screen_config, DARK_GRAY));
 
-    // titlebar text
-    text_items.push((
-        make_text_buffer(font_system, &window.title, 14.0, 22.0, None),
-        window.x + window.width / 2.2,
-        window.y - TITLEBAR_HEIGHT + 4.0,
-    ));
+    text_items.push((window.title.to_string(), window.x + window.width / 2.2, window.y - TITLEBAR_HEIGHT + 4.0));
 
     let steps_data: Vec<(u32, Vec<f32>)> = patterns
         .get(active_pattern_id)
@@ -131,11 +126,9 @@ pub fn draw(
             height: MUTE_SQUARE_LENGTH,
         };
         vertices.extend(mute_button.draw(&screen_config, mute_button.active_color(mouse_x, mouse_y, instrument.data.is_muted)));
-        text_items.push((
-            make_text_buffer(font_system, "mut", 12.0, 22.0, None),
-            window.x + 16.0,
-            window.y + i as f32 * TRACK_GAP + 40.0,
-        ));
+
+        text_items.push(("mut".to_string(), window.x + 16.0, window.y + i as f32 * TRACK_GAP + 40.0));
+
         if clicked && mute_button.is_hovered(mouse_x, mouse_y) {
             instrument.data.is_muted = !instrument.data.is_muted;
             click_result = ClickResult::Mute(i);
@@ -149,11 +142,8 @@ pub fn draw(
             height: MUTE_SQUARE_LENGTH,
         };
         vertices.extend(velocity_button.draw(&screen_config, velocity_button.active_color(mouse_x, mouse_y, instrument.show_velocity)));
-        text_items.push((
-            make_text_buffer(font_system, "vel", 12.0, 22.0, None),
-            window.x + 50.0,
-            window.y + (i as f32 * TRACK_GAP) + 40.0,
-        ));
+
+        text_items.push(("vel".to_string(), window.x + 50.0, window.y + (i as f32 * TRACK_GAP) + 40.0));
         if clicked && velocity_button.is_hovered(mouse_x, mouse_y) {
             instrument.show_velocity = !instrument.show_velocity;
         }
@@ -166,8 +156,9 @@ pub fn draw(
             height: MUTE_SQUARE_LENGTH,
         };
         vertices.extend(delete_button.draw(&screen_config, delete_button.hover_color(mouse_x, mouse_y)));
+
         text_items.push((
-            make_text_buffer(font_system, "del", 12.0, 22.0, None),
+            "del".to_string(),
             padding + window.x + button_gap + 16.0,
             window.y + (i as f32 * TRACK_GAP) + 40.0,
         ));
@@ -186,12 +177,8 @@ pub fn draw(
         ) {
             vertices.push(vert);
         }
-        // text buffers
-        text_items.push((
-            make_text_buffer(font_system, &instrument.data.name, 18.0, 22.0, None),
-            window.x + 16.0,
-            window.y + i as f32 * TRACK_GAP,
-        ));
+
+        text_items.push((instrument.data.name.to_string(), window.x + 16.0, window.y + i as f32 * TRACK_GAP));
     }
     (vertices, text_items, click_result)
 }

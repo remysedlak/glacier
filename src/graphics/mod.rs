@@ -1,25 +1,26 @@
+use crate::color::*;
 use crate::project::{AudioBlock, Instrument, PatternData};
 use crate::ui::draw_toolbar;
-use glyphon::{Attrs, Cache, Family, FontSystem, Metrics, Resolution, Shaping, SwashCache, TextArea, TextAtlas, TextBounds, TextRenderer, Viewport};
+use crate::ui::*;
 use std::borrow::Cow;
+use std::collections::HashMap;
 use std::f32;
 use wgpu::{
-    Color, CommandEncoderDescriptor, Device, DeviceDescriptor, Features, FragmentState, Instance, Limits, LoadOp, MemoryHints, MultisampleState,
-    Operations, PowerPreference, Queue, RenderPassColorAttachment, RenderPassDescriptor, RenderPipeline, RenderPipelineDescriptor,
-    RequestAdapterOptions, ShaderModuleDescriptor, ShaderSource, StoreOp, Surface, SurfaceConfiguration, TextureFormat, TextureViewDescriptor,
-    VertexState,
+    Color, CommandEncoderDescriptor, Device, DeviceDescriptor, Features, FragmentState, Instance, Limits, LoadOp, MemoryHints, Operations,
+    PowerPreference, Queue, RenderPassColorAttachment, RenderPassDescriptor, RenderPipeline, RenderPipelineDescriptor, RequestAdapterOptions,
+    ShaderModuleDescriptor, ShaderSource, StoreOp, Surface, SurfaceConfiguration, TextureFormat, TextureViewDescriptor, VertexState,
 };
 use winit::{dpi::PhysicalSize, event_loop::EventLoopProxy, window::Window};
 
+pub mod font;
 pub mod mixer;
 pub mod playlist;
 pub mod sequencer;
 
-use crate::colors::*;
-use crate::ui::*;
 pub const SEQUENCER_ID: usize = 0;
 pub const PLAYLIST_ID: usize = 1;
 pub const MIXER_ID: usize = 2;
+
 #[cfg(not(target_arch = "wasm32"))]
 pub type Rc<T> = std::sync::Arc<T>;
 
@@ -28,9 +29,10 @@ pub type Rc<T> = std::sync::Arc<T>;
 pub struct Vertex {
     pub position: [f32; 3],
     pub color: [f32; 3],
+    pub uv: [f32; 2],
 }
 impl Vertex {
-    const ATTRIBS: [wgpu::VertexAttribute; 2] = wgpu::vertex_attr_array![0 => Float32x3, 1 => Float32x3];
+    const ATTRIBS: [wgpu::VertexAttribute; 3] = wgpu::vertex_attr_array![0 => Float32x3, 1 => Float32x3, 2 => Float32x2];
 
     fn desc() -> wgpu::VertexBufferLayout<'static> {
         use std::mem;
@@ -42,12 +44,18 @@ impl Vertex {
     }
 }
 
+struct WindowDrawRange {
+    vert_start: u32,
+    vert_end: u32,
+    char_start: usize,
+    char_end: usize,
+}
+
 pub struct ScreenConfig {
     pub width: u32,
     pub height: u32,
 }
 
-// Click results let the app handle what graphics are clicked
 pub enum ClickResult {
     Step(usize, usize, usize),
     Mute(usize),
@@ -65,20 +73,6 @@ pub enum DragResult {
     DragVolumeSlider(f32),
     DragVolumeKnob(usize, f32),
     None,
-}
-
-fn make_text_buffer(font_system: &mut FontSystem, text: &str, size: f32, line_height: f32, color: Option<(u8, u8, u8)>) -> glyphon::Buffer {
-    let (r, g, b) = color.unwrap_or((255, 255, 255));
-    let mut buffer = glyphon::Buffer::new(font_system, Metrics::new(size, line_height));
-    buffer.set_size(font_system, Some(400.0), Some(50.0));
-    buffer.set_text(
-        font_system,
-        text,
-        &Attrs::new().family(Family::SansSerif).color(glyphon::Color::rgb(r, g, b)),
-        Shaping::Advanced,
-    );
-    buffer.shape_until_scroll(font_system, false);
-    buffer
 }
 
 /// Initialize the graphics with default/loaded state and find driver/display info
@@ -110,14 +104,6 @@ pub async fn create_graphics(window: Rc<Window>, proxy: EventLoopProxy<Graphics>
     let height = size.height.max(1);
     let surface_config = surface.get_default_config(&adapter, width, height).unwrap();
     surface.configure(&device, &surface_config);
-    let render_pipeline = create_pipeline(&device, surface_config.format);
-
-    let font_system = FontSystem::new();
-    let swash_cache = SwashCache::new();
-    let cache = Cache::new(&device);
-    let viewport = Viewport::new(&device, &cache);
-    let mut atlas = TextAtlas::new(&device, &queue, &cache, surface_config.format);
-    let renderer = TextRenderer::new(&mut atlas, &device, MultisampleState::default(), None);
 
     let vertices: Vec<Vertex> = Vec::new();
     let patterns: Vec<PatternData> = Vec::new();
@@ -129,24 +115,23 @@ pub async fn create_graphics(window: Rc<Window>, proxy: EventLoopProxy<Graphics>
         mapped_at_creation: false,
     });
 
-    // instantiate app movable windows
     let mut mini_windows: Vec<MiniWindow> = Vec::new();
-
     let instruments: Vec<Instrument> = Vec::new();
 
-    // declare sequencer
     let sequencer_window = MiniWindow::new(256.0, 128.0, 1300.0, 400.0, "Sequencer", WindowKind::Sequencer, true);
     mini_windows.push(sequencer_window);
-
-    // declare playlist
     let playlist_window = MiniWindow::new(64.0, 64.0, 1300.0, 800.0, "Playlist", WindowKind::Playlist, true);
     mini_windows.push(playlist_window);
-
-    // declare mixer
     let mixer_window = MiniWindow::new(128.0, 500.0, 800.0, 300.0, "Mixer", WindowKind::Mixer, false);
     mini_windows.push(mixer_window);
 
     let events: Vec<AudioBlock> = Vec::new();
+
+    let font_data = include_bytes!("Roboto-VariableFont_wdth,wght.ttf") as &[u8];
+    let font = fontdue::Font::from_bytes(font_data, fontdue::FontSettings::default()).unwrap();
+    let bind_group_layout = font::create_bind_group_layout(&device);
+    let render_pipeline = create_pipeline(&device, surface_config.format, &bind_group_layout);
+    let glyph_cache = font::build_glyph_cache(&device, &queue, &font, 18.0);
 
     let gfx = Graphics {
         window: window.clone(),
@@ -155,16 +140,14 @@ pub async fn create_graphics(window: Rc<Window>, proxy: EventLoopProxy<Graphics>
         instruments,
         patterns,
         device,
+        glyph_cache,
+        font,
         queue,
         render_pipeline,
         vertex_buffer,
         num_vertices: vertices.len() as u32,
         active_step: 0,
-        font_system,
-        viewport,
-        atlas,
-        swash_cache,
-        renderer,
+
         bpm: 120.0,
         is_playing: false,
         master_volume: 0.5,
@@ -180,8 +163,7 @@ pub async fn create_graphics(window: Rc<Window>, proxy: EventLoopProxy<Graphics>
     let _ = proxy.send_event(gfx);
 }
 
-/// Creates a WGSL render pipeline
-fn create_pipeline(device: &Device, swap_chain_format: TextureFormat) -> RenderPipeline {
+fn create_pipeline(device: &Device, swap_chain_format: TextureFormat, bind_group_layout: &wgpu::BindGroupLayout) -> RenderPipeline {
     let shader = device.create_shader_module(ShaderModuleDescriptor {
         label: None,
         source: ShaderSource::Wgsl(Cow::Borrowed(include_str!("../shader.wgsl"))),
@@ -189,7 +171,11 @@ fn create_pipeline(device: &Device, swap_chain_format: TextureFormat) -> RenderP
 
     device.create_render_pipeline(&RenderPipelineDescriptor {
         label: None,
-        layout: None,
+        layout: Some(&device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+            label: None,
+            bind_group_layouts: &[bind_group_layout],
+            push_constant_ranges: &[],
+        })),
         vertex: VertexState {
             module: &shader,
             entry_point: Some("vs_main"),
@@ -199,7 +185,11 @@ fn create_pipeline(device: &Device, swap_chain_format: TextureFormat) -> RenderP
         fragment: Some(FragmentState {
             module: &shader,
             entry_point: Some("fs_main"),
-            targets: &[Some(swap_chain_format.into())],
+            targets: &[Some(wgpu::ColorTargetState {
+                format: swap_chain_format,
+                blend: Some(wgpu::BlendState::ALPHA_BLENDING),
+                write_mask: wgpu::ColorWrites::ALL,
+            })],
             compilation_options: Default::default(),
         }),
         primitive: Default::default(),
@@ -210,9 +200,7 @@ fn create_pipeline(device: &Device, swap_chain_format: TextureFormat) -> RenderP
     })
 }
 
-// Graphics state
 pub struct Graphics {
-    // system state
     window: Rc<Window>,
     surface: Surface<'static>,
     surface_config: SurfaceConfiguration,
@@ -220,13 +208,9 @@ pub struct Graphics {
     queue: Queue,
     render_pipeline: RenderPipeline,
     vertex_buffer: wgpu::Buffer,
-    font_system: FontSystem,
-    viewport: Viewport,
-    atlas: TextAtlas,
-    swash_cache: SwashCache,
-    renderer: TextRenderer,
 
-    // user state
+    glyph_cache: HashMap<char, (wgpu::Texture, wgpu::BindGroup, fontdue::Metrics)>,
+    font: fontdue::Font,
     pub instruments: Vec<Instrument>,
     pub patterns: Vec<PatternData>,
     pub events: Vec<AudioBlock>,
@@ -253,7 +237,6 @@ impl Graphics {
         self.window.request_redraw();
     }
 
-    /// Performs operations to load a new track of instrument steps to the state
     pub fn load_instrument(&mut self, i: Instrument) {
         if i.data.id >= self.instruments.len() as u32 {
             self.instruments.push(i);
@@ -264,25 +247,18 @@ impl Graphics {
             self.patterns.push(p)
         }
     }
-
     pub fn load_event(&mut self, a: AudioBlock) {
         self.events.push(a);
     }
 
-    /// handles dragging operations and returns location/result to app
     pub fn handle_drag(&mut self, x: f32, y: f32, dy: f32, dx: f32) -> DragResult {
-        // find the sequencer position
         let sequencer_window = &self.mini_windows[SEQUENCER_ID];
-
-        // mixer window
         let mixer_window = &self.mini_windows[MIXER_ID];
 
-        // master/mixer
         if self.dragging_knob == None {
             let y_ceiling: f32 = mixer_window.y;
             let track_height: f32 = 164.0;
             let padding = 32.0;
-            // replace "+ 24.0" with "i * 24.0", when multiple sliders are added to mixer
             if x > mixer_window.x - padding + 24.0 && x < mixer_window.x + padding + 24.0 && y > mixer_window.y && y < mixer_window.y + track_height {
                 self.master_volume = 1.0 - ((y - y_ceiling) / track_height).clamp(0.0, 1.0);
                 self.dragging = true;
@@ -296,7 +272,6 @@ impl Graphics {
             return DragResult::DragVolumeKnob(i, self.instruments[i].data.track_volume);
         }
 
-        // track(instrument) volume
         for (i, track) in &mut self.instruments.iter_mut().enumerate() {
             let knob_rect = Rectangle {
                 x: sequencer_window.x + 198.0 - KNOB_RADIUS,
@@ -312,14 +287,12 @@ impl Graphics {
             }
         }
 
-        // if already dragging a window, just move it
         if let Some(i) = self.dragging_window {
             self.mini_windows[i].x += dx;
             self.mini_windows[i].y += dy;
             return DragResult::None;
         }
 
-        // only check titlebar hit if not already dragging
         if !self.dragging {
             for (i, win) in self.mini_windows.iter().enumerate() {
                 let titlebar = Rectangle {
@@ -337,31 +310,20 @@ impl Graphics {
         DragResult::None
     }
 
-    /// Resize the user's main window
     pub fn resize(&mut self, new_size: PhysicalSize<u32>) {
         self.surface_config.width = new_size.width.max(1);
         self.surface_config.height = new_size.height.max(1);
         self.surface.configure(&self.device, &self.surface_config);
     }
 
-    // called every frame — returns ClickResult so app.rs can dispatch audio commands
     pub fn draw(&mut self, _mouse_x: f32, _mouse_y: f32, clicked: bool) -> ClickResult {
-        self.viewport.update(
-            &self.queue,
-            Resolution {
-                width: self.surface_config.width,
-                height: self.surface_config.height,
-            },
-        );
         let box_padding = 8.0;
         let padding = 16.0;
 
         let frame = self.surface.get_current_texture().expect("Failed to acquire next swap chain texture.");
-
         let view = frame.texture.create_view(&TextureViewDescriptor::default());
 
         let mut vertices: Vec<Vertex> = Vec::new();
-        let mut text_items: Vec<(glyphon::Buffer, f32, f32)> = Vec::new();
         let mut click_result = ClickResult::None;
 
         let screen_config = ScreenConfig {
@@ -380,15 +342,25 @@ impl Graphics {
             }
         }
 
-        // render each window in order (painter's algorithm)
+        use fontdue::layout::{CoordinateSystem, Layout, TextStyle};
+        use wgpu::util::DeviceExt;
+
+        let mut char_draws: Vec<(wgpu::Buffer, &wgpu::BindGroup)> = Vec::new();
+        let mut window_ranges: Vec<WindowDrawRange> = Vec::new();
+
+        // helper closure to convert text items into char_draws
+        // (inlined per window below)
+
         for &id in &self.z_order {
+            let vert_start = vertices.len() as u32;
+            let char_start = char_draws.len();
+
             match id {
                 SEQUENCER_ID if self.mini_windows[SEQUENCER_ID].is_open => {
                     let window = &self.mini_windows[SEQUENCER_ID];
                     let (verts, texts, result) = sequencer::draw(
                         window,
                         &mut self.patterns,
-                        &mut self.font_system,
                         &mut self.instruments,
                         self.active_pattern_id,
                         self.active_step,
@@ -398,23 +370,72 @@ impl Graphics {
                         &screen_config,
                     );
                     vertices.extend(verts);
-                    text_items.extend(texts);
+                    for (text, x, y) in &texts {
+                        let mut layout = Layout::new(CoordinateSystem::PositiveYDown);
+                        layout.append(&[&self.font], &TextStyle::new(text, 18.0, 0));
+                        for glyph in layout.glyphs() {
+                            if let Some((_, bind_group, _)) = self.glyph_cache.get(&glyph.parent) {
+                                let gverts = font::draw_glyph(*x + glyph.x, *y + glyph.y, glyph.width as f32, glyph.height as f32, &screen_config);
+                                let buf = self.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                                    label: None,
+                                    contents: bytemuck::cast_slice(&gverts),
+                                    usage: wgpu::BufferUsages::VERTEX,
+                                });
+                                char_draws.push((buf, bind_group));
+                            }
+                        }
+                    }
                     click_result = result;
                 }
                 PLAYLIST_ID if self.mini_windows[PLAYLIST_ID].is_open => {
                     let window = &self.mini_windows[PLAYLIST_ID];
-                    let (verts, texts) = playlist::draw(window, &self.events, &self.patterns, &mut self.font_system, &screen_config);
+                    let (verts, texts) = playlist::draw(window, &self.events, &self.patterns, &screen_config);
                     vertices.extend(verts);
-                    text_items.extend(texts);
+                    for (text, x, y) in &texts {
+                        let mut layout = Layout::new(CoordinateSystem::PositiveYDown);
+                        layout.append(&[&self.font], &TextStyle::new(text, 18.0, 0));
+                        for glyph in layout.glyphs() {
+                            if let Some((_, bind_group, _)) = self.glyph_cache.get(&glyph.parent) {
+                                let gverts = font::draw_glyph(*x + glyph.x, *y + glyph.y, glyph.width as f32, glyph.height as f32, &screen_config);
+                                let buf = self.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                                    label: None,
+                                    contents: bytemuck::cast_slice(&gverts),
+                                    usage: wgpu::BufferUsages::VERTEX,
+                                });
+                                char_draws.push((buf, bind_group));
+                            }
+                        }
+                    }
                 }
                 MIXER_ID if self.mini_windows[MIXER_ID].is_open => {
                     let window = &self.mini_windows[MIXER_ID];
-                    let (verts, texts) = mixer::draw(window, &mut self.master_volume, &mut self.font_system, &screen_config);
+                    let (verts, texts) = mixer::draw(window, &mut self.master_volume, &screen_config);
                     vertices.extend(verts);
-                    text_items.extend(texts);
+                    for (text, x, y) in &texts {
+                        let mut layout = Layout::new(CoordinateSystem::PositiveYDown);
+                        layout.append(&[&self.font], &TextStyle::new(text, 18.0, 0));
+                        for glyph in layout.glyphs() {
+                            if let Some((_, bind_group, _)) = self.glyph_cache.get(&glyph.parent) {
+                                let gverts = font::draw_glyph(*x + glyph.x, *y + glyph.y, glyph.width as f32, glyph.height as f32, &screen_config);
+                                let buf = self.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                                    label: None,
+                                    contents: bytemuck::cast_slice(&gverts),
+                                    usage: wgpu::BufferUsages::VERTEX,
+                                });
+                                char_draws.push((buf, bind_group));
+                            }
+                        }
+                    }
                 }
                 _ => {}
             }
+
+            window_ranges.push(WindowDrawRange {
+                vert_start,
+                vert_end: vertices.len() as u32,
+                char_start,
+                char_end: char_draws.len(),
+            });
         }
 
         // handle delete after loop to avoid borrow issues
@@ -422,7 +443,9 @@ impl Graphics {
             self.instruments.remove(i);
         }
 
-        // component for stacking user created patterns
+        // --- toolbar / UI layer (always on top) ---
+        let toolbar_vert_start = vertices.len() as u32;
+
         let pattern_tray = Rectangle {
             x: screen_config.width as f32 - 128.0,
             y: TOOLBAR_Y,
@@ -430,15 +453,8 @@ impl Graphics {
             height: self.surface_config.height as f32 - TOOLBAR_THICKNESS,
         };
         vertices.extend(pattern_tray.draw(&screen_config, PASCAL));
-        // Pattern tray label
-        text_items.push((
-            make_text_buffer(&mut self.font_system, "Patterns", 18.0, 20.0, Some((255, 255, 255))),
-            screen_config.width as f32 - 128.0 + box_padding,
-            TOOLBAR_Y + box_padding,
-        ));
 
         for (i, pattern) in &mut self.patterns.iter_mut().enumerate() {
-            // Pattern button
             let pattern_button = Rectangle {
                 x: screen_config.width as f32 - 128.0 + padding,
                 y: 48.0 + (32.0 * i as f32) + 24.0,
@@ -454,20 +470,12 @@ impl Graphics {
                 };
                 vertices.extend(indicator.draw(&screen_config, ORANGE));
             }
-            // Pattern label
-            text_items.push((
-                make_text_buffer(&mut self.font_system, &pattern.name, 14.0, 22.0, Some((0, 0, 0))),
-                screen_config.width as f32 - 96.0,
-                48.0 + (32.0 * i as f32) + 24.0,
-            ));
-            // click to change current pattern on sequencer
             vertices.extend(pattern_button.draw(&screen_config, pattern_button.hover_color(_mouse_x, _mouse_y)));
             if clicked && pattern_button.is_hovered(_mouse_x, _mouse_y) {
                 self.active_pattern_id = pattern.id as usize;
             }
         }
 
-        // bpm up
         let bpm_up = Rectangle {
             x: 48.0,
             y: 4.0,
@@ -479,7 +487,7 @@ impl Graphics {
             self.bpm += 1.0;
             click_result = ClickResult::ChangeBpm(self.bpm);
         }
-        // bpm down
+
         let bpm_down = Rectangle {
             x: 48.0,
             y: 16.0,
@@ -492,7 +500,6 @@ impl Graphics {
             click_result = ClickResult::ChangeBpm(self.bpm);
         }
 
-        // play / pause
         let play_button = Rectangle {
             x: PLAY_X_ORIGIN,
             y: PLAY_Y_ORIGIN,
@@ -504,7 +511,6 @@ impl Graphics {
             click_result = ClickResult::TogglePlay;
         }
 
-        // sequencer button
         let sequencer_toggle = Rectangle {
             x: PLAY_X_ORIGIN + 256.0,
             y: PLAY_Y_ORIGIN,
@@ -515,13 +521,7 @@ impl Graphics {
         if clicked && sequencer_toggle.is_hovered(_mouse_x, _mouse_y) {
             click_result = ClickResult::ToggleSequencerWindow;
         }
-        text_items.push((
-            make_text_buffer(&mut self.font_system, "sequence", 14.0, 22.0, Some((0, 0, 0))),
-            PLAY_X_ORIGIN + 256.0,
-            4.0,
-        ));
 
-        // mixer button
         let mixer_toggle = Rectangle {
             x: PLAY_X_ORIGIN + 256.0 + (BUTTON_GAP * 3.0),
             y: PLAY_Y_ORIGIN,
@@ -532,13 +532,7 @@ impl Graphics {
         if clicked && mixer_toggle.is_hovered(_mouse_x, _mouse_y) {
             click_result = ClickResult::ToggleMixerWindow;
         }
-        text_items.push((
-            make_text_buffer(&mut self.font_system, "mixer", 14.0, 22.0, Some((0, 0, 0))),
-            PLAY_X_ORIGIN + 256.0 + (BUTTON_GAP * 3.0),
-            4.0,
-        ));
 
-        // playlist button
         let playlist_toggle = Rectangle {
             x: PLAY_X_ORIGIN + 256.0 + (BUTTON_GAP * 3.0) * 2.0,
             y: PLAY_Y_ORIGIN,
@@ -549,13 +543,7 @@ impl Graphics {
         if clicked && playlist_toggle.is_hovered(_mouse_x, _mouse_y) {
             click_result = ClickResult::TogglePlaylistWindow;
         }
-        text_items.push((
-            make_text_buffer(&mut self.font_system, "pl", 14.0, 22.0, Some((0, 0, 0))),
-            PLAY_X_ORIGIN + 256.0 + (BUTTON_GAP * 3.0) * 2.0,
-            4.0,
-        ));
 
-        // load project
         let load_project = Rectangle {
             x: screen_config.width as f32 - LOAD_PROJECT_ICON_OFFSET,
             y: TOOLBAR_MARGIN,
@@ -566,7 +554,6 @@ impl Graphics {
             click_result = ClickResult::ProjectFileDialog;
         }
 
-        // load instrument
         let load_instrument = Rectangle {
             x: screen_config.width as f32 - ADD_INSTRUMENT_ICON_OFFSET,
             y: TOOLBAR_MARGIN,
@@ -577,66 +564,49 @@ impl Graphics {
             click_result = ClickResult::InstrumentFileDialog;
         }
 
-        // project file dialog
-        text_items.push((
-            make_text_buffer(&mut self.font_system, "proj", 14.0, 22.0, Some((0, 0, 0))),
-            screen_config.width as f32 - 37.0,
-            4.0,
-        ));
-        // instrument file dialog
-        text_items.push((
-            make_text_buffer(&mut self.font_system, "instr", 14.0, 22.0, Some((0, 0, 0))),
-            screen_config.width as f32 - (37.0 + 40.0 + 1.0),
-            4.0,
-        ));
-        // bpm text
-        text_items.push((
-            make_text_buffer(&mut self.font_system, &self.bpm.to_string(), 18.0, 22.0, None),
-            10.0,
-            TOOLBAR_MARGIN,
-        ));
-        // play and pause label
-        let label = if self.is_playing { "❚❚" } else { "  ▶" };
-        text_items.push((
-            make_text_buffer(&mut self.font_system, label, 18.0, 22.0, None),
-            PLAY_X_ORIGIN + (PLAY_SQUARE_WIDTH / 4.0),
-            5.0,
-        ));
-
-        // render all texts
-        let text_areas: Vec<TextArea> = text_items
-            .iter()
-            .map(|buf| TextArea {
-                buffer: &buf.0,
-                left: buf.1,
-                top: buf.2,
-                scale: 1.0,
-                bounds: TextBounds {
-                    left: 0,
-                    top: 0,
-                    right: screen_config.width as i32,
-                    bottom: self.surface_config.height as i32,
-                },
-                default_color: glyphon::Color::rgb(255, 255, 255),
-                custom_glyphs: &[],
-            })
-            .collect();
-        self.renderer
-            .prepare(
-                &self.device,
-                &self.queue,
-                &mut self.font_system,
-                &mut self.atlas,
-                &self.viewport,
-                text_areas,
-                &mut self.swash_cache,
-            )
-            .unwrap();
-
-        // draw the toolbar at the top
         draw_toolbar(&mut vertices, &screen_config, _mouse_x, _mouse_y);
 
-        // load all vertices from built UI
+        // build toolbar text items
+        let toolbar_char_start = char_draws.len();
+
+        let mut toolbar_texts: Vec<(String, f32, f32)> = Vec::new();
+        toolbar_texts.push((
+            "Patterns".to_string(),
+            screen_config.width as f32 - 128.0 + box_padding,
+            TOOLBAR_Y + box_padding,
+        ));
+        for (i, pattern) in self.patterns.iter().enumerate() {
+            toolbar_texts.push((
+                pattern.name.to_string(),
+                screen_config.width as f32 - 96.0,
+                48.0 + (32.0 * i as f32) + 24.0,
+            ));
+        }
+        toolbar_texts.push(("sequence".to_string(), PLAY_X_ORIGIN + 256.0, 4.0));
+        toolbar_texts.push(("mixer".to_string(), PLAY_X_ORIGIN + 256.0 + (BUTTON_GAP * 3.0), 4.0));
+        toolbar_texts.push(("pl".to_string(), PLAY_X_ORIGIN + 256.0 + (BUTTON_GAP * 3.0) * 2.0, 4.0));
+        toolbar_texts.push(("proj".to_string(), screen_config.width as f32 - 37.0, 4.0));
+        toolbar_texts.push(("instr".to_string(), screen_config.width as f32 - (37.0 + 40.0 + 1.0), 4.0));
+        toolbar_texts.push((self.bpm.to_string(), 10.0, TOOLBAR_MARGIN));
+        let label = if self.is_playing { "pause" } else { "play" };
+        toolbar_texts.push((label.to_string(), PLAY_X_ORIGIN + (PLAY_SQUARE_WIDTH / 4.0), 5.0));
+
+        for (text, x, y) in &toolbar_texts {
+            let mut layout = Layout::new(CoordinateSystem::PositiveYDown);
+            layout.append(&[&self.font], &TextStyle::new(text, 18.0, 0));
+            for glyph in layout.glyphs() {
+                if let Some((_, bind_group, _)) = self.glyph_cache.get(&glyph.parent) {
+                    let gverts = font::draw_glyph(*x + glyph.x, *y + glyph.y, glyph.width as f32, glyph.height as f32, &screen_config);
+                    let buf = self.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                        label: None,
+                        contents: bytemuck::cast_slice(&gverts),
+                        usage: wgpu::BufferUsages::VERTEX,
+                    });
+                    char_draws.push((buf, bind_group));
+                }
+            }
+        }
+
         self.queue.write_buffer(&self.vertex_buffer, 0, bytemuck::cast_slice(&vertices));
         self.num_vertices = vertices.len() as u32;
 
@@ -661,10 +631,35 @@ impl Graphics {
                 timestamp_writes: None,
                 occlusion_query_set: None,
             });
+
             r_pass.set_pipeline(&self.render_pipeline);
-            r_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
-            r_pass.draw(0..self.num_vertices, 0..1);
-            self.renderer.render(&self.atlas, &self.viewport, &mut r_pass).unwrap();
+            let any_bg = self.glyph_cache.values().next().unwrap();
+
+            // draw each window: geometry then its text (painter's algorithm)
+            for range in &window_ranges {
+                if range.vert_start < range.vert_end {
+                    r_pass.set_bind_group(0, &any_bg.1, &[]);
+                    r_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
+                    r_pass.draw(range.vert_start..range.vert_end, 0..1);
+                }
+                for i in range.char_start..range.char_end {
+                    r_pass.set_bind_group(0, char_draws[i].1, &[]);
+                    r_pass.set_vertex_buffer(0, char_draws[i].0.slice(..));
+                    r_pass.draw(0..6, 0..1);
+                }
+            }
+
+            // toolbar on top of everything
+            if toolbar_vert_start < self.num_vertices {
+                r_pass.set_bind_group(0, &any_bg.1, &[]);
+                r_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
+                r_pass.draw(toolbar_vert_start..self.num_vertices, 0..1);
+            }
+            for i in toolbar_char_start..char_draws.len() {
+                r_pass.set_bind_group(0, char_draws[i].1, &[]);
+                r_pass.set_vertex_buffer(0, char_draws[i].0.slice(..));
+                r_pass.draw(0..6, 0..1);
+            }
         }
 
         self.queue.submit(Some(encoder.finish()));

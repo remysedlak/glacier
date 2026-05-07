@@ -1,6 +1,6 @@
 mod app;
 mod audio;
-mod colors;
+mod color;
 mod graphics;
 mod project;
 mod ui;

@@ -29,7 +29,7 @@ pub const ADD_INSTRUMENT_ICON_OFFSET: f32 = 80.0;
 
 use std::f32::consts::PI;
 
-use crate::colors::{BLACK, BLUE, DARK_BLUE, DARK_GRAY, LIGHT_GRAY, LL_GRAY};
+use crate::color::{BLACK, BLUE, DARK_BLUE, DARK_GRAY, LIGHT_GRAY, LL_GRAY};
 use crate::graphics::{ScreenConfig, Vertex};
 
 #[derive(Debug)]
@@ -153,26 +153,32 @@ pub fn draw_rectangle(x: f32, y: f32, width: f32, height: f32, screen_config: &S
         Vertex {
             position: [ndc_x, ndc_y, 0.0],
             color: [r, g, b],
+            uv: [-1.0, -1.0],
         },
         Vertex {
             position: [ndc_x, ndc_y - ndc_height, 0.0],
             color: [r, g, b],
+            uv: [-1.0, -1.0],
         },
         Vertex {
             position: [ndc_x + ndc_width, ndc_y, 0.0],
             color: [r, g, b],
+            uv: [-1.0, -1.0],
         },
         Vertex {
             position: [ndc_x + ndc_width, ndc_y, 0.0],
             color: [r, g, b],
+            uv: [-1.0, -1.0],
         },
         Vertex {
             position: [ndc_x, ndc_y - ndc_height, 0.0],
             color: [r, g, b],
+            uv: [-1.0, -1.0],
         },
         Vertex {
             position: [ndc_x + ndc_width, ndc_y - ndc_height, 0.0],
             color: [r, g, b],
+            uv: [-1.0, -1.0],
         },
     ];
 }
@@ -200,14 +206,17 @@ pub fn draw_circle(cx: f32, cy: f32, radius: f32, segments: u32, screen_config: 
         vec.push(Vertex {
             position: [ncx, ncy, 0.0],
             color: [r, g, b],
+            uv: [-1.0, -1.0],
         });
         vec.push(Vertex {
             position: [x1, y1, 0.0],
             color: [r, g, b],
+            uv: [-1.0, -1.0],
         });
         vec.push(Vertex {
             position: [x2, y2, 0.0],
             color: [r, g, b],
+            uv: [-1.0, -1.0],
         });
     }
     vec
@@ -231,15 +240,18 @@ pub fn draw_knob(vol: f32, cx: f32, cy: f32, radius: f32, segments: u32, screen_
     vec.push(Vertex {
         position: [ncx(cx), ncy(cy), 0.0], // center
         color: [0.0, 0.0, 1.0],
+        uv: [-1.0, -1.0],
     });
     vec.push(Vertex {
         position: [ncx(x), ncy(y), 0.0], // hits circumfrence
         color: [0.0, 0.0, 1.0],
+        uv: [-1.0, -1.0],
     });
     let perp = radians(angle + 90.0);
     vec.push(Vertex {
         position: [ncx(x) + 0.01 * perp.cos(), ncy(y) + 0.01 * perp.sin(), 0.0],
         color: [0.0, 0.0, 1.0],
+        uv: [-1.0, -1.0],
     });
     vec
 }
@@ -254,26 +266,32 @@ pub fn draw_h_line(y: f32, thickness: f32, screen_config: &ScreenConfig) -> Vec<
         Vertex {
             position: [-1.0, ndc_y, 0.0],
             color: [0.0, 0.0, 0.0],
+            uv: [-1.0, -1.0],
         },
         Vertex {
             position: [1.0, ndc_y, 0.0],
             color: [0.0, 0.0, 0.0],
+            uv: [-1.0, -1.0],
         },
         Vertex {
             position: [1.0, ndc_y - thickness, 0.0],
             color: [0.0, 0.0, 0.0],
+            uv: [-1.0, -1.0],
         },
         Vertex {
             position: [-1.0, ndc_y, 0.0],
             color: [0.0, 0.0, 0.0],
+            uv: [-1.0, -1.0],
         },
         Vertex {
             position: [1.0, ndc_y - thickness, 0.0],
             color: [0.0, 0.0, 0.0],
+            uv: [-1.0, -1.0],
         },
         Vertex {
             position: [-1.0, ndc_y - thickness, 0.0],
             color: [0.0, 0.0, 0.0],
+            uv: [-1.0, -1.0],
         },
     ];
 }
