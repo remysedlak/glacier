@@ -35,9 +35,10 @@ pub fn draw(
     text_items.push((window.title.to_string(), window.x + window.width / 2.2, window.y - TITLEBAR_HEIGHT + 4.0));
 
     let steps = 32;
-    let tracks = 4;
+    let tracks = 10;
 
     let mut click_result = ClickResult::None;
+    let step_padding = 32.0;
 
     // for each instrument loaded into a project
     for track in 0..tracks {
@@ -45,8 +46,8 @@ pub fn draw(
         for step in 0..steps {
             let group = step / 4;
             let pl_step = Rectangle {
-                x: window.x + (step as f32 * 35.0) + padding,
-                y: window.y + (track as f32 * 70.0) + padding,
+                x: window.x + (step as f32 * 35.0) + padding + step_padding * 4.0,
+                y: window.y + (track as f32 * 70.0) + padding + step_padding,
                 width: 32.0,
                 height: 64.0,
             };
@@ -63,14 +64,28 @@ pub fn draw(
             let color = if group % 2 != 0 { BLUE } else { DARK_BLUE };
             vertices.extend(pl_step.draw(&screen_config, color));
         }
+
+        let background = Rectangle {
+            x: window.x + 16.0,
+            y: window.y + (track as f32 * 70.0) + padding + step_padding,
+            width: 124.0,
+            height: 64.0,
+        };
+        vertices.extend(background.draw(&screen_config, PASCAL));
+        let label = format!("Track {}", track);
+        text_items.push((
+            label.to_string(),
+            window.x + 16.0,
+            window.y + (track as f32 * 70.0) + padding + step_padding,
+        ));
     }
     // iterate the events to display on the playlist.
     for event in events {
         if let AudioBlockType::Pattern(id) = event.block_type {
             // dbg!(event.length);
             let pl_pattern = Rectangle {
-                x: window.x + (event.start_step as f32 * 35.0) + padding,
-                y: window.y + (event.track as f32 * 70.0) + padding,
+                x: window.x + (event.start_step as f32 * 35.0) + padding + step_padding * 4.0,
+                y: window.y + (event.track as f32 * 70.0) + padding + step_padding,
                 width: 32.0 * event.length as f32,
                 height: 64.0,
             };
@@ -84,8 +99,8 @@ pub fn draw(
 
             text_items.push((
                 label.to_string(),
-                window.x + (event.start_step as f32 * 35.0) + padding,
-                window.y + (event.track as f32 * 70.0) + padding,
+                window.x + (event.start_step as f32 * 35.0) + padding + step_padding * 4.0,
+                window.y + (event.track as f32 * 70.0) + padding + step_padding,
             ));
         }
     }
