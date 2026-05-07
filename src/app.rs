@@ -180,6 +180,18 @@ impl App {
                 ClickResult::DeletePlaylistPattern(id) => {
                     self.producer.try_push(AudioCommand::DeleteAudioBlock(id)).ok();
                 }
+                ClickResult::AddPlaylistPattern(track, start_step, length, block_type) => {
+                    self.producer
+                        .try_push(AudioCommand::CreateAudioBlock(track, start_step, length, block_type.clone()))
+                        .ok();
+                    gfx.events.push(AudioBlock {
+                        id: gfx.events.len(),
+                        track: track,
+                        start_step,
+                        length: length as u32,
+                        block_type,
+                    })
+                }
                 ClickResult::ToggleSequencerWindow => {
                     if let Some(win) = gfx.mini_windows.iter_mut().find(|w| matches!(w.window_kind, WindowKind::Sequencer)) {
                         if !win.is_open {

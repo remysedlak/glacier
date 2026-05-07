@@ -81,7 +81,7 @@ pub struct WindowDrawRange {
     pub char_start: usize,
     pub char_end: usize,
 }
-
+#[derive(Debug)]
 pub struct Rectangle {
     pub x: f32,
     pub y: f32,

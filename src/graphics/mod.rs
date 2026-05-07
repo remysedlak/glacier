@@ -1,7 +1,7 @@
-use crate::color::*;
 use crate::graphics::ui::draw_toolbar;
 use crate::graphics::ui::*;
-use crate::project::{AudioBlock, Instrument, PatternData};
+use crate::project::{AudioBlock, AudioBlockType, Instrument, PatternData};
+use crate::{color::*, graphics};
 use std::borrow::Cow;
 use std::collections::HashMap;
 use std::f32;
@@ -50,6 +50,7 @@ pub struct ScreenConfig {
     pub height: u32,
 }
 
+#[derive(Debug)]
 pub enum ClickResult {
     Step(usize, usize, usize),
     Mute(usize),
@@ -59,6 +60,7 @@ pub enum ClickResult {
     InstrumentFileDialog,
     DeleteTrack(usize),
     DeletePlaylistPattern(usize),
+    AddPlaylistPattern(usize, u32, usize, AudioBlockType),
     ToggleSequencerWindow,
     ToggleMixerWindow,
     TogglePlaylistWindow,
@@ -243,6 +245,7 @@ impl Graphics {
         }
     }
     pub fn load_event(&mut self, a: AudioBlock) {
+        dbg!(&a);
         self.events.push(a);
     }
 
@@ -303,6 +306,10 @@ impl Graphics {
             }
         }
         DragResult::None
+    }
+
+    pub fn get_pattern_length(&mut self, id: usize) -> usize {
+        return self.patterns[id].sequences.len();
     }
 
     pub fn resize(&mut self, new_size: PhysicalSize<u32>) {
@@ -382,7 +389,8 @@ impl Graphics {
                 }
                 PLAYLIST_ID if self.mini_windows[PLAYLIST_ID].is_open => {
                     let window = &self.mini_windows[PLAYLIST_ID];
-                    let (verts, texts, result) = playlist::draw(window, &self.events, &self.patterns, &mouse_state, &screen_config);
+                    let (verts, texts, result) =
+                        playlist::draw(window, &self.events, &self.patterns, &mouse_state, self.active_pattern_id, &screen_config);
                     vertices.extend(verts);
                     for (text, x, y) in &texts {
                         let mut layout = Layout::new(CoordinateSystem::PositiveYDown);
@@ -439,6 +447,16 @@ impl Graphics {
         if let ClickResult::DeletePlaylistPattern(id) = click_result {
             self.events.retain(|e| e.id != id);
         }
+
+        // if let ClickResult::AddPlaylistPattern(track, start_step, length, ref block) = click_result {
+        //     self.events.push(AudioBlock {
+        //         id: self.events.len(),
+        //         track,
+        //         start_step,
+        //         length: length as u32,
+        //         block_type: block.clone(),
+        //     });
+        // }
 
         // --- toolbar / UI layer (always on top) ---
         let toolbar_vert_start = vertices.len() as u32;

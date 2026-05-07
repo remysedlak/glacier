@@ -12,7 +12,7 @@ pub struct ProjectFile {
 }
 
 // types of blocks to be placed
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(tag = "kind", content = "id")]
 pub enum AudioBlockType {
     Sample(usize),
@@ -21,9 +21,10 @@ pub enum AudioBlockType {
 }
 
 /// AudioBlocks are how patterns are timed within a playlist
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct AudioBlock {
     pub id: usize,
+    pub track: usize,
     pub start_step: u32,
     pub length: u32,
     pub block_type: AudioBlockType,

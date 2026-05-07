@@ -1,18 +1,20 @@
+//  CPU Vertex IO : Each vertex has a position in 3D space, an RGB color, and UV texture coordinates.
 struct VertexInput {
     @location(0) position: vec3<f32>,
     @location(1) color: vec3<f32>,
     @location(2) uv: vec2<f32>,
 };
-
 struct VertexOutput {
     @builtin(position) clip_position: vec4<f32>,
     @location(0) color: vec3<f32>,
     @location(1) uv: vec2<f32>,
 };
 
+// texture binding
 @group(0) @binding(0) var glyph_tex: texture_2d<f32>;
 @group(0) @binding(1) var glyph_sampler: sampler;
 
+// vertex shader : shape
 @vertex
 fn vs_main(model: VertexInput) -> VertexOutput {
     var out: VertexOutput;
@@ -22,8 +24,11 @@ fn vs_main(model: VertexInput) -> VertexOutput {
     return out;
 }
 
+
+// fragment shader : color
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
+    // uv.x < 0.0 signals non-textured geometry (no valid atlas coordinate)
     if in.uv.x < 0.0 {
         // regular colored geometry
         return vec4<f32>(in.color, 1.0);

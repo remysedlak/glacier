@@ -22,11 +22,11 @@ pub enum AudioCommand {
     DeleteTrack(usize),
     ChangeTrackVolume(usize, f32),
     DeleteAudioBlock(usize),
+    CreateAudioBlock(usize, u32, usize, AudioBlockType),
 }
 
 /// initialize the audio engine with cpal and data from a project file
 pub fn init(mut consumer: HeapCons<AudioCommand>, mut producer: HeapProd<UiCommand>, project_file: String) -> Stream {
-    println!("STARTING REMY'S AUDIO ENGINE");
     // error callback
     let err_fn = |err| eprintln!("an error occurred on the output audio stream: {}", err);
 
@@ -82,6 +82,16 @@ pub fn init(mut consumer: HeapCons<AudioCommand>, mut producer: HeapProd<UiComma
             match cmd {
                 AudioCommand::DeleteAudioBlock(id) => {
                     events.retain(|e| e.id != id);
+                }
+                AudioCommand::CreateAudioBlock(track, start_step, length, block_type) => {
+                    // add new event to playlist
+                    events.push(AudioBlock {
+                        id: events.len(),
+                        track: track,
+                        start_step,
+                        length: length as u32,
+                        block_type,
+                    });
                 }
                 AudioCommand::ChangeMasterVolume(volume) => {
                     master_volume = volume;

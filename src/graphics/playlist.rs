@@ -8,6 +8,7 @@ pub fn draw(
     events: &[AudioBlock],
     patterns: &[PatternData],
     mouse_state: &MouseState,
+    active_pattern_id: usize,
 
     screen_config: &ScreenConfig,
 ) -> (Vec<Vertex>, Vec<(String, f32, f32)>, ClickResult) {
@@ -49,6 +50,16 @@ pub fn draw(
                 width: 32.0,
                 height: 64.0,
             };
+            if pl_step.is_hovered(mouse_state.x, mouse_state.y) && mouse_state.left_clicked {
+                // add a new sequence with the active pattern at this step
+                dbg!(&patterns[active_pattern_id].sequences[0].steps.len());
+                click_result = ClickResult::AddPlaylistPattern(
+                    track,
+                    step,
+                    patterns[active_pattern_id].sequences[0].steps.len(),
+                    AudioBlockType::Pattern(active_pattern_id),
+                );
+            }
             let color = if group % 2 != 0 { BLUE } else { DARK_BLUE };
             vertices.extend(pl_step.draw(&screen_config, color));
         }
@@ -56,12 +67,14 @@ pub fn draw(
     // iterate the events to display on the playlist.
     for event in events {
         if let AudioBlockType::Pattern(id) = event.block_type {
+            // dbg!(event.length);
             let pl_pattern = Rectangle {
                 x: window.x + (event.start_step as f32 * 35.0) + padding,
-                y: window.y + (id as f32 * 70.0) + padding,
-                width: 35.0 * event.length as f32,
+                y: window.y + (event.track as f32 * 70.0) + padding,
+                width: 32.0 * event.length as f32,
                 height: 64.0,
             };
+            // dbg!(&pl_pattern);
             if pl_pattern.is_hovered(mouse_state.x, mouse_state.y) && mouse_state.right_clicked {
                 click_result = ClickResult::DeletePlaylistPattern(event.id);
             }
@@ -72,7 +85,7 @@ pub fn draw(
             text_items.push((
                 label.to_string(),
                 window.x + (event.start_step as f32 * 35.0) + padding,
-                window.y + (id as f32 * 70.0) + padding,
+                window.y + (event.track as f32 * 70.0) + padding,
             ));
         }
     }
