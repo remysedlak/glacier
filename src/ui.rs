@@ -68,6 +68,13 @@ impl MiniWindow {
     }
 }
 
+pub struct WindowDrawRange {
+    pub vert_start: u32,
+    pub vert_end: u32,
+    pub char_start: usize,
+    pub char_end: usize,
+}
+
 pub struct Rectangle {
     pub x: f32,
     pub y: f32,

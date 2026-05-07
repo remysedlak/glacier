@@ -44,13 +44,6 @@ impl Vertex {
     }
 }
 
-struct WindowDrawRange {
-    vert_start: u32,
-    vert_end: u32,
-    char_start: usize,
-    char_end: usize,
-}
-
 pub struct ScreenConfig {
     pub width: u32,
     pub height: u32,

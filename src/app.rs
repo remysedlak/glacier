@@ -1,5 +1,5 @@
 use crate::audio::{init, AudioCommand};
-use crate::graphics::{create_graphics, ClickResult, DragResult, Graphics, Rc};
+use crate::graphics::{bring_to_front, create_graphics, ClickResult, DragResult, Graphics, Rc, MIXER_ID, PLAYLIST_ID, SEQUENCER_ID};
 use crate::project::{AudioBlock, Instrument, PatternData};
 use crate::ui::WindowKind;
 use cpal::traits::StreamTrait;
@@ -169,16 +169,26 @@ impl App {
             match result {
                 ClickResult::ToggleSequencerWindow => {
                     if let Some(win) = gfx.mini_windows.iter_mut().find(|w| matches!(w.window_kind, WindowKind::Sequencer)) {
+                        if !win.is_open {
+                            bring_to_front(&mut gfx.z_order, SEQUENCER_ID);
+                        }
                         win.is_open = !win.is_open;
                     }
                 }
                 ClickResult::ToggleMixerWindow => {
                     if let Some(win) = gfx.mini_windows.iter_mut().find(|w| matches!(w.window_kind, WindowKind::Mixer)) {
+                        if !win.is_open {
+                            bring_to_front(&mut gfx.z_order, MIXER_ID);
+                        }
+
                         win.is_open = !win.is_open;
                     }
                 }
                 ClickResult::TogglePlaylistWindow => {
                     if let Some(win) = gfx.mini_windows.iter_mut().find(|w| matches!(w.window_kind, WindowKind::Playlist)) {
+                        if !win.is_open {
+                            bring_to_front(&mut gfx.z_order, PLAYLIST_ID);
+                        }
                         win.is_open = !win.is_open;
                     }
                 }
