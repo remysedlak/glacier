@@ -126,7 +126,7 @@ pub fn init(mut consumer: HeapCons<AudioCommand>, mut producer: HeapProd<UiComma
                         samples: path_to_vector(&path),
                         position: 0.0,
                         data: InstrumentData {
-                            id: (instruments.len() - 1) as u32,
+                            id: (instruments.len()) as u32,
                             path: path.clone(),
                             track_volume: 1.0,
                             target_volume: 1.0,
