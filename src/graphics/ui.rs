@@ -46,6 +46,8 @@ pub struct MouseState {
     pub y: f32,
     pub left_clicked: bool,
     pub right_clicked: bool,
+    pub scroll_x: f32,
+    pub scroll_y: f32,
 }
 
 pub struct MiniWindow {

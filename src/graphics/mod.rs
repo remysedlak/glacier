@@ -1,14 +1,12 @@
-use crate::graphics::ui::draw_toolbar;
+use crate::color::*;
 use crate::graphics::ui::*;
 use crate::project::{AudioBlock, AudioBlockType, Instrument, PatternData};
-use crate::{color::*, graphics};
-use std::borrow::Cow;
-use std::collections::HashMap;
-use std::f32;
+use fontdue::layout::{CoordinateSystem, Layout, TextStyle};
+use std::{borrow::Cow, collections::HashMap};
 use wgpu::{
-    Color, CommandEncoderDescriptor, Device, DeviceDescriptor, Features, FragmentState, Instance, Limits, LoadOp, MemoryHints, Operations,
-    PowerPreference, Queue, RenderPassColorAttachment, RenderPassDescriptor, RenderPipeline, RenderPipelineDescriptor, RequestAdapterOptions,
-    ShaderModuleDescriptor, ShaderSource, StoreOp, Surface, SurfaceConfiguration, TextureFormat, TextureViewDescriptor, VertexState,
+    util::DeviceExt, Color, CommandEncoderDescriptor, DeviceDescriptor, Features, FragmentState, Instance, Limits, LoadOp, MemoryHints, Operations,
+    PowerPreference, RenderPassColorAttachment, RenderPassDescriptor, RenderPipeline, RenderPipelineDescriptor, RequestAdapterOptions,
+    ShaderModuleDescriptor, ShaderSource, StoreOp, SurfaceConfiguration, TextureFormat, TextureViewDescriptor, VertexState,
 };
 use winit::{dpi::PhysicalSize, event_loop::EventLoopProxy, window::Window};
 
@@ -155,12 +153,15 @@ pub async fn create_graphics(window: Rc<Window>, proxy: EventLoopProxy<Graphics>
         dragging: false,
         events,
         z_order: vec![SEQUENCER_ID, PLAYLIST_ID, MIXER_ID],
+
+        playlist_scroll_x: 0.0,
+        playlist_scroll_y: 0.0,
     };
 
     let _ = proxy.send_event(gfx);
 }
 
-fn create_pipeline(device: &Device, swap_chain_format: TextureFormat, bind_group_layout: &wgpu::BindGroupLayout) -> RenderPipeline {
+fn create_pipeline(device: &wgpu::Device, swap_chain_format: TextureFormat, bind_group_layout: &wgpu::BindGroupLayout) -> RenderPipeline {
     let shader = device.create_shader_module(ShaderModuleDescriptor {
         label: None,
         source: ShaderSource::Wgsl(Cow::Borrowed(include_str!("../shader.wgsl"))),
@@ -198,19 +199,23 @@ fn create_pipeline(device: &Device, swap_chain_format: TextureFormat, bind_group
 }
 
 pub struct Graphics {
+    //wgpu
     window: Rc<Window>,
-    surface: Surface<'static>,
+    surface: wgpu::Surface<'static>,
     surface_config: SurfaceConfiguration,
-    device: Device,
-    queue: Queue,
+    device: wgpu::Device,
+    queue: wgpu::Queue,
     render_pipeline: RenderPipeline,
     vertex_buffer: wgpu::Buffer,
 
+    // text
     glyph_cache: HashMap<char, (wgpu::Texture, wgpu::BindGroup, fontdue::Metrics)>,
     font: fontdue::Font,
+
     pub instruments: Vec<Instrument>,
     pub patterns: Vec<PatternData>,
     pub events: Vec<AudioBlock>,
+
     num_vertices: u32,
     pub active_step: usize,
     pub bpm: f32,
@@ -222,6 +227,10 @@ pub struct Graphics {
     pub dragging: bool,
     pub active_pattern_id: usize,
     pub z_order: Vec<usize>,
+
+    // scrolling
+    pub playlist_scroll_x: f32,
+    pub playlist_scroll_y: f32,
 }
 
 pub fn bring_to_front(z_order: &mut Vec<usize>, id: usize) {
@@ -308,10 +317,6 @@ impl Graphics {
         DragResult::None
     }
 
-    pub fn get_pattern_length(&mut self, id: usize) -> usize {
-        return self.patterns[id].sequences.len();
-    }
-
     pub fn resize(&mut self, new_size: PhysicalSize<u32>) {
         self.surface_config.width = new_size.width.max(1);
         self.surface_config.height = new_size.height.max(1);
@@ -319,15 +324,21 @@ impl Graphics {
     }
 
     pub fn draw(&mut self, mouse_state: &MouseState) -> ClickResult {
+        // accumulate the mouse input
+
+        if self.playlist_scroll_y == 0.0 && mouse_state.scroll_y > 0.0 {
+        } else {
+            self.playlist_scroll_y -= mouse_state.scroll_y * 35.0;
+        }
+        self.playlist_scroll_x += mouse_state.scroll_x * 35.0;
+
         let box_padding = 8.0;
         let padding = 16.0;
 
         let frame = self.surface.get_current_texture().expect("Failed to acquire next swap chain texture.");
         let view = frame.texture.create_view(&TextureViewDescriptor::default());
-
         let mut vertices: Vec<Vertex> = Vec::new();
         let mut click_result = ClickResult::None;
-
         let screen_config = ScreenConfig {
             width: self.surface_config.width,
             height: self.surface_config.height,
@@ -343,10 +354,6 @@ impl Graphics {
                 }
             }
         }
-
-        use fontdue::layout::{CoordinateSystem, Layout, TextStyle};
-        use wgpu::util::DeviceExt;
-
         let mut char_draws: Vec<(wgpu::Buffer, &wgpu::BindGroup)> = Vec::new();
         let mut window_ranges: Vec<WindowDrawRange> = Vec::new();
 
@@ -389,8 +396,16 @@ impl Graphics {
                 }
                 PLAYLIST_ID if self.mini_windows[PLAYLIST_ID].is_open => {
                     let window = &self.mini_windows[PLAYLIST_ID];
-                    let (verts, texts, result) =
-                        playlist::draw(window, &self.events, &self.patterns, &mouse_state, self.active_pattern_id, &screen_config);
+                    let (verts, texts, result) = playlist::draw(
+                        window,
+                        &self.events,
+                        &self.patterns,
+                        &mouse_state,
+                        self.active_pattern_id,
+                        self.playlist_scroll_x,
+                        self.playlist_scroll_y,
+                        &screen_config,
+                    );
                     vertices.extend(verts);
                     for (text, x, y) in &texts {
                         let mut layout = Layout::new(CoordinateSystem::PositiveYDown);
@@ -447,16 +462,6 @@ impl Graphics {
         if let ClickResult::DeletePlaylistPattern(id) = click_result {
             self.events.retain(|e| e.id != id);
         }
-
-        // if let ClickResult::AddPlaylistPattern(track, start_step, length, ref block) = click_result {
-        //     self.events.push(AudioBlock {
-        //         id: self.events.len(),
-        //         track,
-        //         start_step,
-        //         length: length as u32,
-        //         block_type: block.clone(),
-        //     });
-        // }
 
         // --- toolbar / UI layer (always on top) ---
         let toolbar_vert_start = vertices.len() as u32;
@@ -651,7 +656,18 @@ impl Graphics {
             let any_bg = self.glyph_cache.values().next().unwrap();
 
             // draw each window: geometry then its text (painter's algorithm)
-            for range in &window_ranges {
+            for (idx, range) in window_ranges.iter().enumerate() {
+                let is_playlist = self.z_order[idx] == PLAYLIST_ID;
+
+                if is_playlist {
+                    let win = &self.mini_windows[PLAYLIST_ID];
+                    let x = (win.x as u32).min(self.surface_config.width);
+                    let y = ((win.y - TITLEBAR_HEIGHT) as u32).min(self.surface_config.height);
+                    let w = (win.width as u32).min(self.surface_config.width - x);
+                    let h = (win.height as u32 + TITLEBAR_HEIGHT as u32).min(self.surface_config.height - y);
+                    r_pass.set_scissor_rect(x, y, w, h);
+                }
+
                 if range.vert_start < range.vert_end {
                     r_pass.set_bind_group(0, &any_bg.1, &[]);
                     r_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
@@ -662,18 +678,11 @@ impl Graphics {
                     r_pass.set_vertex_buffer(0, char_draws[i].0.slice(..));
                     r_pass.draw(0..6, 0..1);
                 }
-            }
 
-            // toolbar on top of everything
-            if toolbar_vert_start < self.num_vertices {
-                r_pass.set_bind_group(0, &any_bg.1, &[]);
-                r_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
-                r_pass.draw(toolbar_vert_start..self.num_vertices, 0..1);
-            }
-            for i in toolbar_char_start..char_draws.len() {
-                r_pass.set_bind_group(0, char_draws[i].1, &[]);
-                r_pass.set_vertex_buffer(0, char_draws[i].0.slice(..));
-                r_pass.draw(0..6, 0..1);
+                if is_playlist {
+                    // reset to full surface
+                    r_pass.set_scissor_rect(0, 0, self.surface_config.width, self.surface_config.height);
+                }
             }
         }
 

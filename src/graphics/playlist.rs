@@ -9,7 +9,8 @@ pub fn draw(
     patterns: &[PatternData],
     mouse_state: &MouseState,
     active_pattern_id: usize,
-
+    scroll_x: f32,
+    scroll_y: f32,
     screen_config: &ScreenConfig,
 ) -> (Vec<Vertex>, Vec<(String, f32, f32)>, ClickResult) {
     let padding = 16.0;
@@ -34,7 +35,7 @@ pub fn draw(
 
     text_items.push((window.title.to_string(), window.x + window.width / 2.2, window.y - TITLEBAR_HEIGHT + 4.0));
 
-    let steps = 32;
+    let steps = 64;
     let tracks = 10;
 
     let mut click_result = ClickResult::None;
@@ -46,11 +47,12 @@ pub fn draw(
         for step in 0..steps {
             let group = step / 4;
             let pl_step = Rectangle {
-                x: window.x + (step as f32 * 35.0) + padding + step_padding * 4.0,
+                x: window.x + (step as f32 * 35.0) + padding + (step_padding * 4.0) - scroll_y,
                 y: window.y + (track as f32 * 70.0) + padding + step_padding,
                 width: 32.0,
                 height: 64.0,
             };
+
             if pl_step.is_hovered(mouse_state.x, mouse_state.y) && mouse_state.left_clicked {
                 // add a new sequence with the active pattern at this step
                 dbg!(&patterns[active_pattern_id].sequences[0].steps.len());
@@ -82,9 +84,9 @@ pub fn draw(
     // iterate the events to display on the playlist.
     for event in events {
         if let AudioBlockType::Pattern(id) = event.block_type {
-            // dbg!(event.length);
+            
             let pl_pattern = Rectangle {
-                x: window.x + (event.start_step as f32 * 35.0) + padding + step_padding * 4.0,
+                x: window.x + (event.start_step as f32 * 35.0) + padding + (step_padding * 4.0) - scroll_y,
                 y: window.y + (event.track as f32 * 70.0) + padding + step_padding,
                 width: 32.0 * event.length as f32,
                 height: 64.0,
@@ -99,7 +101,7 @@ pub fn draw(
 
             text_items.push((
                 label.to_string(),
-                window.x + (event.start_step as f32 * 35.0) + padding + step_padding * 4.0,
+                window.x + (event.start_step as f32 * 35.0) + padding + (step_padding * 4.0) - scroll_y,
                 window.y + (event.track as f32 * 70.0) + padding + step_padding,
             ));
         }

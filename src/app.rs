@@ -83,6 +83,8 @@ impl App {
                 y: 0.0,
                 left_clicked: false,
                 right_clicked: false,
+                scroll_x: 0.0,
+                scroll_y: 0.0,
             },
         }
     }
@@ -172,8 +174,12 @@ impl App {
 
             // single draw call — returns click result
             let result = gfx.draw(&self.mouse_state);
+
+            // consume the interactions
             self.mouse_state.left_clicked = false;
             self.mouse_state.right_clicked = false;
+            self.mouse_state.scroll_x = 0.0;
+            self.mouse_state.scroll_y = 0.0;
 
             // dispatch audio commands based on what was clicked
             match result {
@@ -323,6 +329,7 @@ impl ApplicationHandler<Graphics> for App {
             WindowEvent::Resized(size) => self.resized(size),
             WindowEvent::RedrawRequested => self.draw(&event_loop),
 
+            // keyboard event
             WindowEvent::KeyboardInput { event, .. } => {
                 if !event.state.is_pressed() {
                     match event.physical_key {
@@ -354,6 +361,26 @@ impl ApplicationHandler<Graphics> for App {
                 }
             }
 
+            // scroll wheel on mouse
+            WindowEvent::MouseWheel { delta, .. } => {
+                // delta
+                match delta {
+                    winit::event::MouseScrollDelta::LineDelta(x, y) => {
+                    
+                        // x = horizontal, y = vertical
+                        // y is negative when scrolling down
+                        self.mouse_state.scroll_x = x;
+                        self.mouse_state.scroll_y = y;
+                    }
+                    winit::event::MouseScrollDelta::PixelDelta(pos) => {
+                        // pos.x, pos.y — from trackpads
+                        self.mouse_state.scroll_x = pos.x as f32;
+                        self.mouse_state.scroll_y = pos.y as f32;
+                    }
+                }
+            }
+
+            // mouse event
             WindowEvent::MouseInput { state, button, .. } => {
                 if state.is_pressed() && button == MouseButton::Left {
                     // change state
@@ -385,6 +412,7 @@ impl ApplicationHandler<Graphics> for App {
                 }
             }
 
+            // moving mouse on the mouse pad
             WindowEvent::CursorMoved { position, .. } => {
                 self.mouse_state.x = position.x as f32;
                 self.mouse_state.y = position.y as f32;
