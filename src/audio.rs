@@ -18,6 +18,7 @@ pub enum AudioCommand {
     TogglePlay,
     ShutDown,
     SaveProject,
+    AddPattern,
     AddInstrument(String),
     DeleteTrack(usize),
     ChangeTrackVolume(usize, f32),
@@ -80,6 +81,23 @@ pub fn init(mut consumer: HeapCons<AudioCommand>, mut producer: HeapProd<UiComma
         // parse incoming UI commands before fulfilling data callback
         while let Some(cmd) = consumer.try_pop() {
             match cmd {
+                AudioCommand::AddPattern => {
+                    let name = format!("Pattern {}", patterns.len() + 1);
+                    let sequences = instruments
+                        .iter()
+                        .map(|instr| Sequence {
+                            instrument_id: instr.data.id,
+                            steps: vec![0.0; 16],
+                        })
+                        .collect();
+                    let p = PatternData {
+                        id: patterns.len(),
+                        name,
+                        sequences,
+                    };
+                    patterns.push(p.clone());
+                    producer.try_push(UiCommand::LoadPattern(p)).ok();
+                }
                 AudioCommand::DeleteAudioBlock(id) => {
                     events.retain(|e| e.id != id);
                 }

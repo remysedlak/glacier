@@ -186,6 +186,9 @@ impl App {
 
             // dispatch audio commands based on what was clicked
             match result {
+                ClickResult::AddPlaylist => {
+                    self.producer.try_push(AudioCommand::AddPattern).ok();
+                }
                 ClickResult::DeletePlaylistPattern(id) => {
                     self.producer.try_push(AudioCommand::DeleteAudioBlock(id)).ok();
                 }

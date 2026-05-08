@@ -60,6 +60,7 @@ pub enum ClickResult {
     DeleteTrack(usize),
     DeletePlaylistPattern(usize),
     AddPlaylistPattern(usize, u32, usize, AudioBlockType),
+    AddPlaylist,
     ToggleSequencerWindow,
     ToggleMixerWindow,
     TogglePlaylistWindow,
@@ -518,6 +519,7 @@ impl Graphics {
         // --- toolbar / UI layer (always on top) ---
         let toolbar_vert_start = vertices.len() as u32;
 
+        // patterns tray
         let pattern_tray = Rectangle {
             x: screen_config.width as f32 - 128.0,
             y: TOOLBAR_Y,
@@ -525,6 +527,18 @@ impl Graphics {
             height: self.surface_config.height as f32 - TOOLBAR_THICKNESS,
         };
         vertices.extend(pattern_tray.draw(&screen_config, PASCAL));
+
+        // add pattern button
+        let add_pattern_button = Rectangle {
+            x: screen_config.width as f32 - 32.0,
+            y: TOOLBAR_Y + 12.0,
+            width: 16.0,
+            height: 16.0,
+        };
+        vertices.extend(add_pattern_button.draw(&screen_config, add_pattern_button.hover_color(mouse_state.x, mouse_state.y)));
+        if add_pattern_button.is_hovered(mouse_state.x, mouse_state.y) && mouse_state.left_clicked {
+            click_result = ClickResult::AddPlaylist;
+        }
 
         for (i, pattern) in &mut self.patterns.iter_mut().enumerate() {
             let pattern_button = Rectangle {
@@ -647,6 +661,7 @@ impl Graphics {
             screen_config.width as f32 - 128.0 + box_padding,
             TOOLBAR_Y + box_padding,
         ));
+
         for (i, pattern) in self.patterns.iter().enumerate() {
             toolbar_texts.push((
                 pattern.name.to_string(),
