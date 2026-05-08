@@ -684,6 +684,17 @@ impl Graphics {
                     r_pass.set_scissor_rect(0, 0, self.surface_config.width, self.surface_config.height);
                 }
             }
+            // toolbar on top of everything
+            if toolbar_vert_start < self.num_vertices {
+                r_pass.set_bind_group(0, &any_bg.1, &[]);
+                r_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
+                r_pass.draw(toolbar_vert_start..self.num_vertices, 0..1);
+            }
+            for i in toolbar_char_start..char_draws.len() {
+                r_pass.set_bind_group(0, char_draws[i].1, &[]);
+                r_pass.set_vertex_buffer(0, char_draws[i].0.slice(..));
+                r_pass.draw(0..6, 0..1);
+            }
         }
 
         self.queue.submit(Some(encoder.finish()));
