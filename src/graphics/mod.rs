@@ -116,7 +116,7 @@ pub async fn create_graphics(window: Rc<Window>, proxy: EventLoopProxy<Graphics>
 
     let sequencer_window = MiniWindow::new(256.0, 128.0, 1300.0, 400.0, "Sequencer", WindowKind::Sequencer, true);
     mini_windows.push(sequencer_window);
-    let playlist_window = MiniWindow::new(64.0, 64.0, 1300.0, 800.0, "Playlist", WindowKind::Playlist, true);
+    let playlist_window = MiniWindow::new(900.0, 900.0, 1500.0, 1000.0, "Playlist", WindowKind::Playlist, true);
     mini_windows.push(playlist_window);
     let mixer_window = MiniWindow::new(128.0, 500.0, 800.0, 300.0, "Mixer", WindowKind::Mixer, false);
     mini_windows.push(mixer_window);

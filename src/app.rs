@@ -295,7 +295,7 @@ impl ApplicationHandler<Graphics> for App {
 
                 #[cfg(not(target_arch = "wasm32"))]
                 {
-                    win_attr = win_attr.with_inner_size(winit::dpi::LogicalSize::new(1400, 800)).with_title("Glacier");
+                    win_attr = win_attr.with_inner_size(winit::dpi::LogicalSize::new(1800, 1200)).with_title("Glacier");
                 }
 
                 #[cfg(target_arch = "wasm32")]
