@@ -53,6 +53,7 @@ pub struct ScreenConfig {
 pub enum ClickResult {
     Step(usize, usize, usize),
     Mute(usize),
+    Stop,
     ChangeBpm(f32),
     TogglePlay,
     ProjectFileDialog,
@@ -574,6 +575,7 @@ impl Graphics {
             click_result = ClickResult::ChangeBpm(self.bpm);
         }
 
+        // play / pauses button
         let play_button = Rectangle {
             x: PLAY_X_ORIGIN,
             y: PLAY_Y_ORIGIN,
@@ -584,6 +586,21 @@ impl Graphics {
             self.is_playing = !self.is_playing;
             click_result = ClickResult::TogglePlay;
         }
+        vertices.extend(play_button.draw(&screen_config, play_button.hover_color(mouse_state.x, mouse_state.y)));
+
+        // stop button
+        let stop_button = Rectangle {
+            x: PLAY_X_ORIGIN + 64.0,
+            y: PLAY_Y_ORIGIN,
+            width: PLAY_SQUARE_WIDTH,
+            height: PLAY_SQUARE_HEIGHT,
+        };
+        if mouse_state.left_clicked && stop_button.is_hovered(mouse_state.x, mouse_state.y) && self.active_step != 0 {
+            self.is_playing = !self.is_playing;
+            self.active_step = 0;
+            click_result = ClickResult::Stop;
+        }
+        vertices.extend(stop_button.draw(&screen_config, stop_button.hover_color(mouse_state.x, mouse_state.y)));
 
         let sequencer_toggle = Rectangle {
             x: PLAY_X_ORIGIN + 256.0,
@@ -657,6 +674,7 @@ impl Graphics {
                 48.0 + (32.0 * i as f32) + 24.0,
             ));
         }
+        toolbar_texts.push(("stop".to_string(), PLAY_X_ORIGIN + 64.0 + (PLAY_SQUARE_WIDTH / 4.0), 5.0));
         toolbar_texts.push(("sequence".to_string(), PLAY_X_ORIGIN + 256.0, 4.0));
         toolbar_texts.push(("mixer".to_string(), PLAY_X_ORIGIN + 256.0 + (BUTTON_GAP * 3.0), 4.0));
         toolbar_texts.push(("pl".to_string(), PLAY_X_ORIGIN + 256.0 + (BUTTON_GAP * 3.0) * 2.0, 4.0));

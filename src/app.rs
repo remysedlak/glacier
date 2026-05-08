@@ -165,9 +165,9 @@ impl App {
                             gfx.instruments.clear();
                             gfx.patterns.clear();
                             let _ = self.stream.pause();
-                            let (audio_prod, audio_cons) = HeapRb::<AudioCommand>::new(64).split();
+                            let (_prod, audio_cons) = HeapRb::<AudioCommand>::new(64).split();
                             let (ui_prod, ui_cons) = HeapRb::<UiCommand>::new(64).split();
-                            self.producer = audio_prod;
+                            self.producer = _prod;
                             self.consumer = ui_cons;
                             self.stream = init(audio_cons, ui_prod, path);
                         }
@@ -231,6 +231,10 @@ impl App {
                 }
                 ClickResult::Step(pattern_id, instrument_id, step) => {
                     self.producer.try_push(AudioCommand::ToggleStep(pattern_id, instrument_id, step)).ok();
+                }
+                ClickResult::Stop => {
+                    // reset song to 0:00
+                    self.producer.try_push(AudioCommand::Stop).ok();
                 }
                 ClickResult::Mute(track) => {
                     self.producer.try_push(AudioCommand::ToggleMute(track)).ok();

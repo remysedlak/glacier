@@ -16,6 +16,7 @@ pub enum AudioCommand {
     ChangeMasterVolume(f32),
     ToggleMute(usize),
     TogglePlay,
+    Stop,
     ShutDown,
     SaveProject,
     AddPattern,
@@ -100,6 +101,10 @@ pub fn init(mut consumer: HeapCons<AudioCommand>, mut producer: HeapProd<UiComma
                 }
                 AudioCommand::DeleteAudioBlock(id) => {
                     events.retain(|e| e.id != id);
+                }
+                AudioCommand::Stop => {
+                    is_playing = false;
+                    current_step = 0;
                 }
                 AudioCommand::CreateAudioBlock(track, start_step, length, block_type) => {
                     // add new event to playlist
