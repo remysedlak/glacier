@@ -14,6 +14,7 @@ pub fn draw(
     screen_config: &ScreenConfig,
 ) -> (Vec<Vertex>, Vec<(String, f32, f32)>, ClickResult) {
     let padding = 16.0;
+    let mini_pad = (padding / 2.0, padding / 4.0);
     let mut vertices: Vec<Vertex> = Vec::new();
     let mut text_items: Vec<(String, f32, f32)> = Vec::new();
     let mixer_background = Rectangle {
@@ -33,7 +34,11 @@ pub fn draw(
     vertices.extend(titlebar.draw(&screen_config, DARK_GRAY));
     // titlebar text
 
-    text_items.push((window.title.to_string(), window.x + window.width / 2.2, window.y - TITLEBAR_HEIGHT + 4.0));
+    text_items.push((
+        window.title.to_string(),
+        window.x + (window.width / 2.2),
+        window.y - TITLEBAR_HEIGHT + 4.0,
+    ));
 
     let steps = 64;
     let tracks = 10;
@@ -47,8 +52,8 @@ pub fn draw(
         for step in 0..steps {
             let group = step / 4;
             let pl_step = Rectangle {
-                x: window.x + (step as f32 * 35.0) + padding + (step_padding * 4.0) - scroll_y,
-                y: window.y + (track as f32 * 70.0) + padding + step_padding,
+                x: window.x + (step as f32 * 35.0) + padding + (step_padding * 4.0) - scroll_x,
+                y: window.y + (track as f32 * 70.0) + padding + step_padding - scroll_y,
                 width: 32.0,
                 height: 64.0,
             };
@@ -71,23 +76,22 @@ pub fn draw(
             x: window.x + 16.0,
             y: window.y + (track as f32 * 70.0) + padding + step_padding,
             width: 124.0,
-            height: 64.0,
+            height: 64.0 - scroll_y,
         };
         vertices.extend(background.draw(&screen_config, PASCAL));
         let label = format!("Track {}", track);
         text_items.push((
             label.to_string(),
-            window.x + 16.0,
-            window.y + (track as f32 * 70.0) + padding + step_padding,
+            window.x + 16.0 + mini_pad.0,
+            window.y + (track as f32 * 70.0) + padding + step_padding + mini_pad.1 - scroll_y,
         ));
     }
     // iterate the events to display on the playlist.
     for event in events {
         if let AudioBlockType::Pattern(id) = event.block_type {
-            
             let pl_pattern = Rectangle {
-                x: window.x + (event.start_step as f32 * 35.0) + padding + (step_padding * 4.0) - scroll_y,
-                y: window.y + (event.track as f32 * 70.0) + padding + step_padding,
+                x: window.x + (event.start_step as f32 * 35.0) + padding + (step_padding * 4.0) - scroll_x,
+                y: window.y + (event.track as f32 * 70.0) + padding + step_padding - scroll_y,
                 width: 32.0 * event.length as f32,
                 height: 64.0,
             };
@@ -95,14 +99,14 @@ pub fn draw(
             if pl_pattern.is_hovered(mouse_state.x, mouse_state.y) && mouse_state.right_clicked {
                 click_result = ClickResult::DeletePlaylistPattern(event.id);
             }
-            vertices.extend(pl_pattern.draw(&screen_config, LIGHT_GRAY));
+            vertices.extend(pl_pattern.draw(&screen_config, pl_pattern.hover_color(mouse_state.x, mouse_state.y)));
             // titlebar text
             let label: &str = &patterns[id as usize].name;
 
             text_items.push((
                 label.to_string(),
-                window.x + (event.start_step as f32 * 35.0) + padding + (step_padding * 4.0) - scroll_y,
-                window.y + (event.track as f32 * 70.0) + padding + step_padding,
+                window.x + (event.start_step as f32 * 35.0) + padding + (step_padding * 4.0) - scroll_x + mini_pad.0,
+                window.y + (event.track as f32 * 70.0) + padding + step_padding - scroll_y + mini_pad.1,
             ));
         }
     }

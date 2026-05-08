@@ -326,11 +326,20 @@ impl Graphics {
     pub fn draw(&mut self, mouse_state: &MouseState) -> ClickResult {
         // accumulate the mouse input
 
-        if self.playlist_scroll_y == 0.0 && mouse_state.scroll_y > 0.0 {
-        } else {
-            self.playlist_scroll_y -= mouse_state.scroll_y * 35.0;
+        // shift + mousewheel = x_delta
+        if mouse_state.shift_pressed {
+            if self.playlist_scroll_y == 0.0 && mouse_state.scroll_x > 0.0 {
+            } else {
+                self.playlist_scroll_x += mouse_state.scroll_x * 35.0;
+            }
         }
-        self.playlist_scroll_x += mouse_state.scroll_x * 35.0;
+        // mousewheel = y_delta
+        else {
+            if self.playlist_scroll_y == 0.0 && mouse_state.scroll_y > 0.0 {
+            } else {
+                self.playlist_scroll_y -= mouse_state.scroll_y * 35.0;
+            }
+        }
 
         let box_padding = 8.0;
         let padding = 16.0;

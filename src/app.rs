@@ -47,6 +47,8 @@ pub struct App {
 
     stream: Stream,
     pending_project: Option<String>,
+
+    // keyboard state
     ctrl_pressed: bool,
 
     // mouse state
@@ -85,6 +87,7 @@ impl App {
                 right_clicked: false,
                 scroll_x: 0.0,
                 scroll_y: 0.0,
+                shift_pressed: false,
             },
         }
     }
@@ -336,6 +339,9 @@ impl ApplicationHandler<Graphics> for App {
                         PhysicalKey::Code(KeyCode::ControlLeft) => {
                             self.ctrl_pressed = false;
                         }
+                        PhysicalKey::Code(KeyCode::ShiftLeft | KeyCode::ShiftRight) => {
+                            self.mouse_state.shift_pressed = false;
+                        }
                         _ => {}
                     }
                 }
@@ -350,6 +356,9 @@ impl ApplicationHandler<Graphics> for App {
                         }
                         PhysicalKey::Code(KeyCode::ControlLeft) => {
                             self.ctrl_pressed = true;
+                        }
+                        PhysicalKey::Code(KeyCode::ShiftLeft | KeyCode::ShiftRight) => {
+                            self.mouse_state.shift_pressed = true;
                         }
                         PhysicalKey::Code(KeyCode::KeyS) => {
                             if self.ctrl_pressed {
@@ -366,7 +375,6 @@ impl ApplicationHandler<Graphics> for App {
                 // delta
                 match delta {
                     winit::event::MouseScrollDelta::LineDelta(x, y) => {
-                    
                         // x = horizontal, y = vertical
                         // y is negative when scrolling down
                         self.mouse_state.scroll_x = x;
