@@ -255,7 +255,6 @@ impl Graphics {
         }
     }
     pub fn load_event(&mut self, a: AudioBlock) {
-        dbg!(&a);
         self.events.push(a);
     }
 
@@ -423,6 +422,7 @@ impl Graphics {
                         self.active_pattern_id,
                         self.playlist_scroll_x,
                         self.playlist_scroll_y,
+                        self.active_step,
                         &screen_config,
                     );
 

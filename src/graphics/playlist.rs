@@ -11,6 +11,7 @@ pub fn draw(
     active_pattern_id: usize,
     scroll_x: f32,
     scroll_y: f32,
+    current_step: usize,
     screen_config: &ScreenConfig,
 ) -> (
     Vec<Vertex>,
@@ -78,7 +79,6 @@ pub fn draw(
 
             if pl_step.is_hovered(mouse_state.x, mouse_state.y) && mouse_state.left_clicked {
                 // add a new sequence with the active pattern at this step
-                dbg!(&patterns[active_pattern_id].sequences[0].steps.len());
                 click_result = ClickResult::AddPlaylistPattern(
                     track,
                     step,
@@ -104,7 +104,7 @@ pub fn draw(
             window.y + (track as f32 * 70.0) + padding + step_padding + mini_pad.1 - scroll_y,
         ));
     }
-    // iterate the events to display on the playlist.
+
     for event in events {
         if let AudioBlockType::Pattern(id) = event.block_type {
             let pl_pattern = Rectangle {
@@ -113,7 +113,6 @@ pub fn draw(
                 width: 32.0 * event.length as f32,
                 height: 64.0,
             };
-            // dbg!(&pl_pattern);
             if pl_pattern.is_hovered(mouse_state.x, mouse_state.y) && mouse_state.right_clicked {
                 click_result = ClickResult::DeletePlaylistPattern(event.id);
             }
@@ -128,6 +127,13 @@ pub fn draw(
             ));
         }
     }
+    let playhead = Rectangle {
+        x: window.x + (current_step as f32 * 35.0) + padding + (step_padding * 4.0) - scroll_x,
+        y: window.y,
+        width: 4.0,
+        height: window.height,
+    };
+    timeline_vertices.extend(playhead.draw(&screen_config, ORANGE));
     (
         static_vertices,
         static_text_items,

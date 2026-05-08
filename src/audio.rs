@@ -253,6 +253,8 @@ pub fn init(mut consumer: HeapCons<AudioCommand>, mut producer: HeapProd<UiComma
                         .max()
                         .unwrap_or(16);
 
+                dbg!(current_step);
+
                 producer.try_push(UiCommand::StepAdvanced(current_step)).ok();
 
                 let triggers: Vec<(usize, f32)> = events
