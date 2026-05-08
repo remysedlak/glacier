@@ -389,6 +389,22 @@ impl ApplicationHandler<Graphics> for App {
                         self.mouse_state.scroll_y = pos.y as f32;
                     }
                 }
+
+                // handle playlist scrolling
+                if let State::Ready(gfx) = &mut self.state {
+                    let playlist_win = &gfx.mini_windows[PLAYLIST_ID];
+                    if playlist_win.is_open && playlist_win.is_hovered(self.mouse_state.x, self.mouse_state.y) {
+                        if self.mouse_state.shift_pressed {
+                            if !(gfx.playlist_scroll_x == 0.0 && self.mouse_state.scroll_y < 0.0) {
+                                gfx.playlist_scroll_x += self.mouse_state.scroll_y * 35.0;
+                            }
+                        } else {
+                            if !(gfx.playlist_scroll_y == 0.0 && self.mouse_state.scroll_y < 0.0) {
+                                gfx.playlist_scroll_y += self.mouse_state.scroll_y * 35.0;
+                            }
+                        }
+                    }
+                }
             }
 
             // mouse event

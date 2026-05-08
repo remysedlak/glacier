@@ -117,7 +117,7 @@ pub async fn create_graphics(window: Rc<Window>, proxy: EventLoopProxy<Graphics>
 
     let sequencer_window = MiniWindow::new(256.0, 128.0, 1300.0, 400.0, "Sequencer", WindowKind::Sequencer, true);
     mini_windows.push(sequencer_window);
-    let playlist_window = MiniWindow::new(900.0, 900.0, 1500.0, 1000.0, "Playlist", WindowKind::Playlist, true);
+    let playlist_window = MiniWindow::new(900.0, 600.0, 1500.0, 900.0, "Playlist", WindowKind::Playlist, true);
     mini_windows.push(playlist_window);
     let mixer_window = MiniWindow::new(128.0, 500.0, 800.0, 300.0, "Mixer", WindowKind::Mixer, false);
     mini_windows.push(mixer_window);
@@ -351,19 +351,6 @@ impl Graphics {
     }
 
     pub fn draw(&mut self, mouse_state: &MouseState) -> ClickResult {
-        // accumulate the mouse input
-
-        // shift + mousewheel = x_delta
-        if mouse_state.shift_pressed {
-            if !(self.playlist_scroll_x == 0.0 && mouse_state.scroll_y < 0.0) {
-                self.playlist_scroll_x += mouse_state.scroll_y * 35.0;
-            }
-        } else {
-            if !(self.playlist_scroll_y == 0.0 && mouse_state.scroll_y < 0.0) {
-                self.playlist_scroll_y += mouse_state.scroll_y * 35.0;
-            }
-        }
-
         let box_padding = 8.0;
         let padding = 16.0;
 
@@ -386,6 +373,7 @@ impl Graphics {
                 }
             }
         }
+
         let mut char_draws: Vec<(wgpu::Buffer, &wgpu::BindGroup)> = Vec::new();
         let mut window_ranges: Vec<WindowDrawRange> = Vec::new();
         let mut playlist_window_ranges: Option<PlaylistDrawRanges> = None;
