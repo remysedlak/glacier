@@ -99,23 +99,18 @@ pub fn save_project(project: ProjectFile, project_file: String) {
 
 /// load an instrument's float data from it's file path
 pub fn path_to_vector(instrument_path: &str) -> Vec<f32> {
-    // Open the WAV file using the hound library
     let mut reader = match hound::WavReader::open(instrument_path) {
-        Ok(result) => result,
-        Err(err) => panic!("{}", err),
+        Ok(r) => r,
+        Err(e) => {
+            eprintln!("Failed to load {}: {}", instrument_path, e);
+            return Vec::new();
+        }
     };
-
-    // find out how many bits are in a sample to properly normalize values
     let spec = reader.spec();
     let divisor = 1 << (spec.bits_per_sample - 1);
-
-    // Read all samples as i32 (32-bit audio)
-    let samples = reader.samples::<i32>();
-
-    // Convert i16 samples to f32 normalized values
-    let vector: Vec<f32> = samples
-        .map(|result| result.unwrap()) // Unwrap each Result<i32>
-        .map(|i32_value| i32_value as f32 / divisor as f32) // Normalize to [-1.0, 1.0]
-        .collect();
-    vector
+    reader
+        .samples::<i32>()
+        .filter_map(|s| s.ok())
+        .map(|s| s as f32 / divisor as f32)
+        .collect()
 }
