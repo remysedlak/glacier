@@ -3,6 +3,7 @@ bpm = 118.0
 
 [[events]]
 id = 0
+track = 0
 start_step = 0
 length = 32
 
@@ -12,6 +13,7 @@ id = 0
 
 [[events]]
 id = 1
+track = 2
 start_step = 16
 length = 16
 
