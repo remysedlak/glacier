@@ -84,6 +84,12 @@ pub struct WindowDrawRange {
     pub char_start: usize,
     pub char_end: usize,
 }
+pub struct PlaylistDrawRanges {
+    pub static_range: WindowDrawRange,
+    pub header_range: WindowDrawRange,
+    pub timeline_range: WindowDrawRange,
+}
+
 #[derive(Debug)]
 pub struct Rectangle {
     pub x: f32,

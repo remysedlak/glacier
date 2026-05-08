@@ -3,10 +3,11 @@ use crate::graphics::ui::*;
 use crate::project::{AudioBlock, AudioBlockType, Instrument, PatternData};
 use fontdue::layout::{CoordinateSystem, Layout, TextStyle};
 use std::{borrow::Cow, collections::HashMap};
+use wgpu::util::DeviceExt;
 use wgpu::{
-    util::DeviceExt, Color, CommandEncoderDescriptor, DeviceDescriptor, Features, FragmentState, Instance, Limits, LoadOp, MemoryHints, Operations,
-    PowerPreference, RenderPassColorAttachment, RenderPassDescriptor, RenderPipeline, RenderPipelineDescriptor, RequestAdapterOptions,
-    ShaderModuleDescriptor, ShaderSource, StoreOp, SurfaceConfiguration, TextureFormat, TextureViewDescriptor, VertexState,
+    Color, CommandEncoderDescriptor, DeviceDescriptor, Features, FragmentState, Instance, Limits, LoadOp, MemoryHints, Operations, PowerPreference,
+    RenderPassColorAttachment, RenderPassDescriptor, RenderPipeline, RenderPipelineDescriptor, RequestAdapterOptions, ShaderModuleDescriptor,
+    ShaderSource, StoreOp, SurfaceConfiguration, TextureFormat, TextureViewDescriptor, VertexState,
 };
 use winit::{dpi::PhysicalSize, event_loop::EventLoopProxy, window::Window};
 
@@ -297,6 +298,7 @@ impl Graphics {
         if let Some(i) = self.dragging_window {
             self.mini_windows[i].x += dx;
             self.mini_windows[i].y += dy;
+
             return DragResult::None;
         }
 
@@ -323,21 +325,42 @@ impl Graphics {
         self.surface.configure(&self.device, &self.surface_config);
     }
 
+    fn push_text_draws<'a>(
+        texts: &[(String, f32, f32)],
+        font: &fontdue::Font,
+        glyph_cache: &'a HashMap<char, (wgpu::Texture, wgpu::BindGroup, fontdue::Metrics)>,
+        device: &wgpu::Device,
+        screen_config: &ScreenConfig,
+        char_draws: &mut Vec<(wgpu::Buffer, &'a wgpu::BindGroup)>,
+    ) {
+        for (text, x, y) in texts {
+            let mut layout = Layout::new(CoordinateSystem::PositiveYDown);
+            layout.append(&[font], &TextStyle::new(text, 18.0, 0));
+            for glyph in layout.glyphs() {
+                if let Some((_, bind_group, _)) = glyph_cache.get(&glyph.parent) {
+                    let gverts = font::draw_glyph(*x + glyph.x, *y + glyph.y, glyph.width as f32, glyph.height as f32, screen_config);
+                    let buf = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                        label: None,
+                        contents: bytemuck::cast_slice(&gverts),
+                        usage: wgpu::BufferUsages::VERTEX,
+                    });
+                    char_draws.push((buf, bind_group));
+                }
+            }
+        }
+    }
+
     pub fn draw(&mut self, mouse_state: &MouseState) -> ClickResult {
         // accumulate the mouse input
 
         // shift + mousewheel = x_delta
         if mouse_state.shift_pressed {
-            if self.playlist_scroll_y == 0.0 && mouse_state.scroll_x > 0.0 {
-            } else {
-                self.playlist_scroll_x += mouse_state.scroll_x * 35.0;
+            if !(self.playlist_scroll_x == 0.0 && mouse_state.scroll_y < 0.0) {
+                self.playlist_scroll_x += mouse_state.scroll_y * 35.0;
             }
-        }
-        // mousewheel = y_delta
-        else {
-            if self.playlist_scroll_y == 0.0 && mouse_state.scroll_y > 0.0 {
-            } else {
-                self.playlist_scroll_y -= mouse_state.scroll_y * 35.0;
+        } else {
+            if !(self.playlist_scroll_y == 0.0 && mouse_state.scroll_y < 0.0) {
+                self.playlist_scroll_y += mouse_state.scroll_y * 35.0;
             }
         }
 
@@ -365,6 +388,7 @@ impl Graphics {
         }
         let mut char_draws: Vec<(wgpu::Buffer, &wgpu::BindGroup)> = Vec::new();
         let mut window_ranges: Vec<WindowDrawRange> = Vec::new();
+        let mut playlist_window_ranges: Option<PlaylistDrawRanges> = None;
 
         // helper closure to convert text items into char_draws
         // (inlined per window below)
@@ -386,26 +410,12 @@ impl Graphics {
                         &screen_config,
                     );
                     vertices.extend(verts);
-                    for (text, x, y) in &texts {
-                        let mut layout = Layout::new(CoordinateSystem::PositiveYDown);
-                        layout.append(&[&self.font], &TextStyle::new(text, 18.0, 0));
-                        for glyph in layout.glyphs() {
-                            if let Some((_, bind_group, _)) = self.glyph_cache.get(&glyph.parent) {
-                                let gverts = font::draw_glyph(*x + glyph.x, *y + glyph.y, glyph.width as f32, glyph.height as f32, &screen_config);
-                                let buf = self.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                                    label: None,
-                                    contents: bytemuck::cast_slice(&gverts),
-                                    usage: wgpu::BufferUsages::VERTEX,
-                                });
-                                char_draws.push((buf, bind_group));
-                            }
-                        }
-                    }
+                    Graphics::push_text_draws(&texts, &self.font, &self.glyph_cache, &self.device, &screen_config, &mut char_draws);
                     click_result = result;
                 }
                 PLAYLIST_ID if self.mini_windows[PLAYLIST_ID].is_open => {
                     let window = &self.mini_windows[PLAYLIST_ID];
-                    let (verts, texts, result) = playlist::draw(
+                    let (static_verts, static_texts, timeline_verts, timeline_texts, header_verts, header_texts, result) = playlist::draw(
                         window,
                         &self.events,
                         &self.patterns,
@@ -415,43 +425,76 @@ impl Graphics {
                         self.playlist_scroll_y,
                         &screen_config,
                     );
-                    vertices.extend(verts);
-                    for (text, x, y) in &texts {
-                        let mut layout = Layout::new(CoordinateSystem::PositiveYDown);
-                        layout.append(&[&self.font], &TextStyle::new(text, 18.0, 0));
-                        for glyph in layout.glyphs() {
-                            if let Some((_, bind_group, _)) = self.glyph_cache.get(&glyph.parent) {
-                                let gverts = font::draw_glyph(*x + glyph.x, *y + glyph.y, glyph.width as f32, glyph.height as f32, &screen_config);
-                                let buf = self.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                                    label: None,
-                                    contents: bytemuck::cast_slice(&gverts),
-                                    usage: wgpu::BufferUsages::VERTEX,
-                                });
-                                char_draws.push((buf, bind_group));
-                            }
-                        }
-                    }
+
+                    // static shapes
+                    let static_vert_start = vertices.len() as u32;
+                    let static_char_start = char_draws.len();
+                    vertices.extend(static_verts);
+                    Graphics::push_text_draws(
+                        &static_texts,
+                        &self.font,
+                        &self.glyph_cache,
+                        &self.device,
+                        &screen_config,
+                        &mut char_draws,
+                    );
+                    let static_range: WindowDrawRange = WindowDrawRange {
+                        vert_start: static_vert_start,
+                        vert_end: vertices.len() as u32,
+                        char_start: static_char_start,
+                        char_end: char_draws.len(),
+                    };
+
+                    // track block scissor rectangle
+                    let header_vert_start = vertices.len() as u32;
+                    let header_char_start = char_draws.len();
+                    vertices.extend(header_verts);
+                    Graphics::push_text_draws(
+                        &header_texts,
+                        &self.font,
+                        &self.glyph_cache,
+                        &self.device,
+                        &screen_config,
+                        &mut char_draws,
+                    );
+                    let header_range: WindowDrawRange = WindowDrawRange {
+                        vert_start: header_vert_start,
+                        vert_end: vertices.len() as u32,
+                        char_start: header_char_start,
+                        char_end: char_draws.len(),
+                    };
+
+                    // timeline scissor rectangle
+                    let timeline_vert_start = vertices.len() as u32;
+                    let timeline_char_start = char_draws.len();
+                    vertices.extend(timeline_verts);
+                    Graphics::push_text_draws(
+                        &timeline_texts,
+                        &self.font,
+                        &self.glyph_cache,
+                        &self.device,
+                        &screen_config,
+                        &mut char_draws,
+                    );
+                    let timeline_range: WindowDrawRange = WindowDrawRange {
+                        vert_start: timeline_vert_start,
+                        vert_end: vertices.len() as u32,
+                        char_start: timeline_char_start,
+                        char_end: char_draws.len(),
+                    };
+
+                    playlist_window_ranges = Some(PlaylistDrawRanges {
+                        static_range,
+                        header_range,
+                        timeline_range,
+                    });
                     click_result = result;
                 }
                 MIXER_ID if self.mini_windows[MIXER_ID].is_open => {
                     let window = &self.mini_windows[MIXER_ID];
                     let (verts, texts) = mixer::draw(window, &mut self.master_volume, &screen_config);
                     vertices.extend(verts);
-                    for (text, x, y) in &texts {
-                        let mut layout = Layout::new(CoordinateSystem::PositiveYDown);
-                        layout.append(&[&self.font], &TextStyle::new(text, 18.0, 0));
-                        for glyph in layout.glyphs() {
-                            if let Some((_, bind_group, _)) = self.glyph_cache.get(&glyph.parent) {
-                                let gverts = font::draw_glyph(*x + glyph.x, *y + glyph.y, glyph.width as f32, glyph.height as f32, &screen_config);
-                                let buf = self.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                                    label: None,
-                                    contents: bytemuck::cast_slice(&gverts),
-                                    usage: wgpu::BufferUsages::VERTEX,
-                                });
-                                char_draws.push((buf, bind_group));
-                            }
-                        }
-                    }
+                    Graphics::push_text_draws(&texts, &self.font, &self.glyph_cache, &self.device, &screen_config, &mut char_draws);
                 }
                 _ => {}
             }
@@ -620,21 +663,14 @@ impl Graphics {
         let label = if self.is_playing { "pause" } else { "play" };
         toolbar_texts.push((label.to_string(), PLAY_X_ORIGIN + (PLAY_SQUARE_WIDTH / 4.0), 5.0));
 
-        for (text, x, y) in &toolbar_texts {
-            let mut layout = Layout::new(CoordinateSystem::PositiveYDown);
-            layout.append(&[&self.font], &TextStyle::new(text, 18.0, 0));
-            for glyph in layout.glyphs() {
-                if let Some((_, bind_group, _)) = self.glyph_cache.get(&glyph.parent) {
-                    let gverts = font::draw_glyph(*x + glyph.x, *y + glyph.y, glyph.width as f32, glyph.height as f32, &screen_config);
-                    let buf = self.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                        label: None,
-                        contents: bytemuck::cast_slice(&gverts),
-                        usage: wgpu::BufferUsages::VERTEX,
-                    });
-                    char_draws.push((buf, bind_group));
-                }
-            }
-        }
+        Graphics::push_text_draws(
+            &toolbar_texts,
+            &self.font,
+            &self.glyph_cache,
+            &self.device,
+            &screen_config,
+            &mut char_draws,
+        );
 
         self.queue.write_buffer(&self.vertex_buffer, 0, bytemuck::cast_slice(&vertices));
         self.num_vertices = vertices.len() as u32;
@@ -669,12 +705,74 @@ impl Graphics {
                 let is_playlist = self.z_order[idx] == PLAYLIST_ID;
 
                 if is_playlist {
-                    let win = &self.mini_windows[PLAYLIST_ID];
-                    let x = (win.x as u32).min(self.surface_config.width);
-                    let y = ((win.y - TITLEBAR_HEIGHT) as u32).min(self.surface_config.height);
-                    let w = (win.width as u32).min(self.surface_config.width - x);
-                    let h = (win.height as u32 + TITLEBAR_HEIGHT as u32).min(self.surface_config.height - y);
-                    r_pass.set_scissor_rect(x, y, w, h);
+                    if let Some(ref pl) = playlist_window_ranges {
+                        let win = &self.mini_windows[PLAYLIST_ID];
+                        let win_right = ((win.x + win.width) as u32).min(self.surface_config.width);
+                        let wx = if win.x < 0.0 { 0u32 } else { win.x as u32 };
+                        let ww = win_right.saturating_sub(wx);
+                        let wy = if (win.y - TITLEBAR_HEIGHT) < 0.0 {
+                            0u32
+                        } else {
+                            ((win.y - TITLEBAR_HEIGHT) as u32).min(self.surface_config.height)
+                        };
+                        let wh = (win.height as u32 + TITLEBAR_HEIGHT as u32).min(self.surface_config.height.saturating_sub(wy));
+
+                        let content_y = (win.y as u32 + 48).min(self.surface_config.height);
+                        let win_bottom = ((win.y + win.height) as u32).min(self.surface_config.height);
+                        let content_h = win_bottom.saturating_sub(content_y);
+
+                        let header_width = 144u32;
+                        let step_start_x = win.x + header_width as f32;
+                        let tx = if step_start_x < 0.0 {
+                            0u32
+                        } else {
+                            (step_start_x as u32).min(self.surface_config.width)
+                        };
+                        let tw = win_right.saturating_sub(tx);
+                        let header_tw = tx.saturating_sub(wx);
+
+                        // static — full window scissor
+                        r_pass.set_scissor_rect(wx, wy, ww, wh);
+                        if pl.static_range.vert_start < pl.static_range.vert_end {
+                            r_pass.set_bind_group(0, &any_bg.1, &[]);
+                            r_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
+                            r_pass.draw(pl.static_range.vert_start..pl.static_range.vert_end, 0..1);
+                        }
+                        for i in pl.static_range.char_start..pl.static_range.char_end {
+                            r_pass.set_bind_group(0, char_draws[i].1, &[]);
+                            r_pass.set_vertex_buffer(0, char_draws[i].0.slice(..));
+                            r_pass.draw(0..6, 0..1);
+                        }
+
+                        // header — only covers header column width
+                        r_pass.set_scissor_rect(wx, content_y, header_tw.max(1), content_h);
+                        if pl.header_range.vert_start < pl.header_range.vert_end {
+                            r_pass.set_bind_group(0, &any_bg.1, &[]);
+                            r_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
+                            r_pass.draw(pl.header_range.vert_start..pl.header_range.vert_end, 0..1);
+                        }
+                        for i in pl.header_range.char_start..pl.header_range.char_end {
+                            r_pass.set_bind_group(0, char_draws[i].1, &[]);
+                            r_pass.set_vertex_buffer(0, char_draws[i].0.slice(..));
+                            r_pass.draw(0..6, 0..1);
+                        }
+
+                        // timeline — starts where steps actually begin
+                        r_pass.set_scissor_rect(tx, content_y, tw.max(1), content_h);
+                        if pl.timeline_range.vert_start < pl.timeline_range.vert_end {
+                            r_pass.set_bind_group(0, &any_bg.1, &[]);
+                            r_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
+                            r_pass.draw(pl.timeline_range.vert_start..pl.timeline_range.vert_end, 0..1);
+                        }
+                        for i in pl.timeline_range.char_start..pl.timeline_range.char_end {
+                            r_pass.set_bind_group(0, char_draws[i].1, &[]);
+                            r_pass.set_vertex_buffer(0, char_draws[i].0.slice(..));
+                            r_pass.draw(0..6, 0..1);
+                        }
+                    }
+                    r_pass.set_scissor_rect(0, 0, self.surface_config.width, self.surface_config.height); // add this
+
+                    continue;
                 }
 
                 if range.vert_start < range.vert_end {
