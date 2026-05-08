@@ -2,6 +2,9 @@
 
 A DAW built from scratch in Rust as a deliberate learning project. No frameworks — raw wgpu, CPAL, and winit.
 
+<img width="1401" height="843" alt="image" src="https://github.com/user-attachments/assets/8b94340e-6f57-417f-9d06-5f1110c69270" />
+
+
 ## features
 
 - step sequencer with per-pattern sequences and MIDI velocity
