@@ -1,7 +1,9 @@
 use crate::color::*;
-use crate::graphics::ui::*;
-use crate::graphics::widgets::{draw_slider, window_background, window_title_bar};
-use crate::graphics::{ScreenConfig, TextItem, Vertex};
+use crate::graphics::{
+    ui::*,
+    widgets::{draw_slider, window_background, window_title_bar},
+    ScreenConfig, TextItem, Vertex,
+};
 
 pub fn draw(window: &MiniWindow, master_volume: f32, screen_config: &ScreenConfig) -> (Vec<Vertex>, Vec<TextItem>) {
     let mut vertices: Vec<Vertex> = Vec::new();

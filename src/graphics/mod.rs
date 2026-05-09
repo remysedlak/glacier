@@ -14,7 +14,7 @@ use wgpu::{
     RenderPassColorAttachment, RenderPassDescriptor, RenderPipeline, RenderPipelineDescriptor, RequestAdapterOptions, ShaderModuleDescriptor,
     ShaderSource, StoreOp, SurfaceConfiguration, TextureFormat, TextureViewDescriptor, VertexState,
 };
-use widgets::{draw_toolbar, Rectangle, TextItem};
+use widgets::{Rectangle, TextItem};
 use winit::{dpi::PhysicalSize, event_loop::EventLoopProxy, window::Window};
 
 pub mod font;
@@ -22,6 +22,7 @@ pub mod mixer;
 pub mod playlist;
 pub mod primitives;
 pub mod sequencer;
+pub mod toolbar;
 pub mod ui;
 pub mod widgets;
 
@@ -346,9 +347,6 @@ impl Graphics {
     }
 
     pub fn draw(&mut self, mouse_state: &MouseState) -> ClickResult {
-        let box_padding = 8.0;
-        let padding = 16.0;
-
         let frame = self.surface.get_current_texture().expect("Failed to acquire next swap chain texture.");
         let view = frame.texture.create_view(&TextureViewDescriptor::default());
         let mut vertices: Vec<Vertex> = Vec::new();
@@ -525,15 +523,15 @@ impl Graphics {
 
         for (i, pattern) in &mut self.patterns.iter_mut().enumerate() {
             let pattern_button = Rectangle {
-                x: screen_config.width as f32 - 128.0 + padding,
+                x: screen_config.width as f32 - 128.0 + PAD_16,
                 y: 48.0 + (32.0 * i as f32) + 24.0,
                 width: 96.0,
                 height: 24.0,
             };
             if i == self.active_pattern_id {
                 let indicator = Rectangle {
-                    x: screen_config.width as f32 - 128.0 + box_padding,
-                    y: 48.0 + (32.0 * i as f32) + 24.0 + box_padding,
+                    x: screen_config.width as f32 - 128.0 + PAD_4,
+                    y: 48.0 + (32.0 * i as f32) + 24.0 + PAD_4,
                     width: 4.0,
                     height: 4.0,
                 };
@@ -545,170 +543,11 @@ impl Graphics {
             }
         }
 
-        let bpm_up = Rectangle {
-            x: 48.0,
-            y: 4.0,
-            width: 32.0,
-            height: 10.0,
-        };
-        vertices.extend(bpm_up.draw(&screen_config, LIGHT_GRAY));
-        if mouse_state.left_clicked && bpm_up.is_hovered(mouse_state.x, mouse_state.y) {
-            self.bpm += 1.0;
-            click_result = ClickResult::ChangeBpm(self.bpm);
-        }
-
-        let bpm_down = Rectangle {
-            x: 48.0,
-            y: 16.0,
-            width: 32.0,
-            height: 10.0,
-        };
-        vertices.extend(bpm_down.draw(&screen_config, LIGHT_GRAY));
-        if mouse_state.left_clicked && bpm_down.is_hovered(mouse_state.x, mouse_state.y) {
-            self.bpm -= 1.0;
-            click_result = ClickResult::ChangeBpm(self.bpm);
-        }
-
-        // play / pauses button
-        let play_button = Rectangle {
-            x: PLAY_X_ORIGIN,
-            y: PLAY_Y_ORIGIN,
-            width: PLAY_SQUARE_WIDTH,
-            height: PLAY_SQUARE_HEIGHT,
-        };
-        if mouse_state.left_clicked && play_button.is_hovered(mouse_state.x, mouse_state.y) {
-            self.is_playing = !self.is_playing;
-            click_result = ClickResult::TogglePlay;
-        }
-        vertices.extend(play_button.draw(&screen_config, play_button.hover_color(mouse_state.x, mouse_state.y)));
-
-        // stop button
-        let stop_button = Rectangle {
-            x: PLAY_X_ORIGIN + 64.0,
-            y: PLAY_Y_ORIGIN,
-            width: PLAY_SQUARE_WIDTH,
-            height: PLAY_SQUARE_HEIGHT,
-        };
-        if mouse_state.left_clicked && stop_button.is_hovered(mouse_state.x, mouse_state.y) && self.active_step != 0 {
-            self.is_playing = !self.is_playing;
-            self.active_step = 0;
-            click_result = ClickResult::Stop;
-        }
-        vertices.extend(stop_button.draw(&screen_config, stop_button.hover_color(mouse_state.x, mouse_state.y)));
-
-        let sequencer_toggle = Rectangle {
-            x: PLAY_X_ORIGIN + 256.0,
-            y: PLAY_Y_ORIGIN,
-            width: PLAY_SQUARE_WIDTH,
-            height: PLAY_SQUARE_HEIGHT,
-        };
-        vertices.extend(sequencer_toggle.draw(&screen_config, sequencer_toggle.hover_color(mouse_state.x, mouse_state.y)));
-        if mouse_state.left_clicked && sequencer_toggle.is_hovered(mouse_state.x, mouse_state.y) {
-            click_result = ClickResult::ToggleSequencerWindow;
-        }
-
-        let mixer_toggle = Rectangle {
-            x: PLAY_X_ORIGIN + 256.0 + (BUTTON_GAP * 3.0),
-            y: PLAY_Y_ORIGIN,
-            width: PLAY_SQUARE_WIDTH,
-            height: PLAY_SQUARE_HEIGHT,
-        };
-        vertices.extend(mixer_toggle.draw(&screen_config, mixer_toggle.hover_color(mouse_state.x, mouse_state.y)));
-        if mouse_state.left_clicked && mixer_toggle.is_hovered(mouse_state.x, mouse_state.y) {
-            click_result = ClickResult::ToggleMixerWindow;
-        }
-
-        let playlist_toggle = Rectangle {
-            x: PLAY_X_ORIGIN + 256.0 + (BUTTON_GAP * 3.0) * 2.0,
-            y: PLAY_Y_ORIGIN,
-            width: PLAY_SQUARE_WIDTH,
-            height: PLAY_SQUARE_HEIGHT,
-        };
-        vertices.extend(playlist_toggle.draw(&screen_config, playlist_toggle.hover_color(mouse_state.x, mouse_state.y)));
-        if mouse_state.left_clicked && playlist_toggle.is_hovered(mouse_state.x, mouse_state.y) {
-            click_result = ClickResult::TogglePlaylistWindow;
-        }
-
-        let load_project = Rectangle {
-            x: screen_config.width as f32 - LOAD_PROJECT_ICON_OFFSET,
-            y: TOOLBAR_MARGIN,
-            width: ICON_WIDTH,
-            height: ICON_HEIGHT,
-        };
-        if mouse_state.left_clicked && load_project.is_hovered(mouse_state.x, mouse_state.y) {
-            click_result = ClickResult::ProjectFileDialog;
-        }
-
-        let load_instrument = Rectangle {
-            x: screen_config.width as f32 - ADD_INSTRUMENT_ICON_OFFSET,
-            y: TOOLBAR_MARGIN,
-            width: ICON_WIDTH,
-            height: ICON_HEIGHT,
-        };
-        if mouse_state.left_clicked && load_instrument.is_hovered(mouse_state.x, mouse_state.y) {
-            click_result = ClickResult::InstrumentFileDialog;
-        }
-
-        draw_toolbar(&mut vertices, &screen_config, mouse_state.x, mouse_state.y);
-
+        let (toolbar_verts, toolbar_texts, click_result) =
+            toolbar::draw_toolbar(mouse_state, &screen_config, self.bpm, &self.patterns, self.is_playing, self.active_step);
+        vertices.extend(toolbar_verts);
         // build toolbar text items
         let toolbar_char_start = char_draws.len();
-
-        let mut toolbar_texts: Vec<TextItem> = Vec::new();
-        toolbar_texts.push(TextItem {
-            text: "Patterns".to_string(),
-            y: screen_config.width as f32 - 128.0 + box_padding,
-            x: TOOLBAR_Y + box_padding,
-        });
-
-        for (i, pattern) in self.patterns.iter().enumerate() {
-            toolbar_texts.push(TextItem {
-                text: pattern.name.to_string(),
-                x: screen_config.width as f32 - 96.0,
-                y: 48.0 + (32.0 * i as f32) + 24.0,
-            });
-        }
-        toolbar_texts.push(TextItem {
-            text: "stop".to_string(),
-            x: PLAY_X_ORIGIN + 64.0 + (PLAY_SQUARE_WIDTH / 4.0),
-            y: 5.0,
-        });
-        toolbar_texts.push(TextItem {
-            text: "sequence".to_string(),
-            x: PLAY_X_ORIGIN + 256.0,
-            y: 4.0,
-        });
-        toolbar_texts.push(TextItem {
-            text: "mixer".to_string(),
-            x: PLAY_X_ORIGIN + 256.0 + (BUTTON_GAP * 3.0),
-            y: 4.0,
-        });
-        toolbar_texts.push(TextItem {
-            text: "pl".to_string(),
-            x: PLAY_X_ORIGIN + 256.0 + (BUTTON_GAP * 3.0) * 2.0,
-            y: 4.0,
-        });
-        toolbar_texts.push(TextItem {
-            text: "proj".to_string(),
-            x: screen_config.width as f32 - 37.0,
-            y: 4.0,
-        });
-        toolbar_texts.push(TextItem {
-            text: "instr".to_string(),
-            x: screen_config.width as f32 - (37.0 + 40.0 + 1.0),
-            y: 4.0,
-        });
-        toolbar_texts.push(TextItem {
-            text: self.bpm.to_string(),
-            x: 10.0,
-            y: TOOLBAR_MARGIN,
-        });
-        let label = if self.is_playing { "pause" } else { "play" };
-        toolbar_texts.push(TextItem {
-            text: label.to_string(),
-            x: PLAY_X_ORIGIN + (PLAY_SQUARE_WIDTH / 4.0),
-            y: 5.0,
-        });
 
         Graphics::push_text_draws(
             &toolbar_texts,

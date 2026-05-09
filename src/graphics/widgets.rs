@@ -128,50 +128,6 @@ pub fn draw_slider(master_volume: f32, x: f32, y: f32, screen_config: &ScreenCon
     verts.extend(thumb.draw(screen_config, LIGHT_GRAY));
     verts
 }
-// draw the top toolbar
-pub fn draw_toolbar(vertices: &mut Vec<Vertex>, screen_config: &ScreenConfig, _mouse_x: f32, _mouse_y: f32) {
-    // toolbar line
-    for vert in draw_h_line(TOOLBAR_Y, TOOLBAR_THICKNESS, screen_config) {
-        vertices.push(vert);
-    }
-
-    // bpm up button
-    for vert in draw_rectangle(48.0, 4.0, 32.0, 10.0, screen_config, LIGHT_GRAY) {
-        vertices.push(vert);
-    }
-
-    // bpm down button
-    for vert in draw_rectangle(48.0, 16.0, 32.0, 10.0, screen_config, LIGHT_GRAY) {
-        vertices.push(vert);
-    }
-
-    // play or pause
-    let play_button = Rectangle {
-        x: PLAY_X_ORIGIN as f32,
-        y: PLAY_Y_ORIGIN as f32,
-        width: PLAY_SQUARE_WIDTH as f32,
-        height: PLAY_SQUARE_HEIGHT as f32,
-    };
-    vertices.extend(play_button.draw(screen_config, play_button.hover_color(_mouse_x, _mouse_y)));
-
-    // load a file
-    let load_file_button = Rectangle {
-        x: screen_config.width as f32 - LOAD_PROJECT_ICON_OFFSET,
-        y: TOOLBAR_MARGIN,
-        width: ICON_WIDTH,
-        height: ICON_HEIGHT,
-    };
-    vertices.extend(load_file_button.draw(screen_config, load_file_button.hover_color(_mouse_x, _mouse_y)));
-
-    // load an instrument
-    let instrument_button = Rectangle {
-        x: screen_config.width as f32 - ADD_INSTRUMENT_ICON_OFFSET,
-        y: TOOLBAR_MARGIN as f32,
-        width: ICON_WIDTH as f32,
-        height: ICON_HEIGHT as f32,
-    };
-    vertices.extend(instrument_button.draw(screen_config, instrument_button.hover_color(_mouse_x, _mouse_y)));
-}
 
 pub fn window_title_bar(window: &MiniWindow) -> (Rectangle, TextItem) {
     (
