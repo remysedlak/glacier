@@ -1,5 +1,5 @@
 use crate::color::*;
-use crate::graphics::primitives::{draw_h_line, draw_rectangle, Vertex};
+use crate::graphics::primitives::{draw_rectangle, Vertex};
 use crate::graphics::ui::{MiniWindow, PAD_16, PAD_4};
 use crate::graphics::ScreenConfig;
 

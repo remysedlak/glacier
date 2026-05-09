@@ -9,7 +9,7 @@ use crate::project::PatternData;
 use crate::{
     color::LIGHT_GRAY,
     graphics::{
-        ui::{MouseState, PAD_16, PAD_4},
+        ui::{MouseState, PAD_4},
         widgets::{Rectangle, TextItem, PLAY_SQUARE_HEIGHT, PLAY_SQUARE_WIDTH, PLAY_X_ORIGIN, PLAY_Y_ORIGIN, TOOLBAR_Y},
         ClickResult, ScreenConfig,
     },
@@ -20,7 +20,7 @@ pub fn draw_toolbar(
     mut bpm: f32,
     patterns: &[PatternData],
     mut is_playing: bool,
-    mut active_step: usize,
+    active_step: usize,
 ) -> (Vec<Vertex>, Vec<TextItem>, ClickResult) {
     let mut vertices: Vec<Vertex> = Vec::new();
     let mut click_result = ClickResult::None;
@@ -69,8 +69,6 @@ pub fn draw_toolbar(
         height: PLAY_SQUARE_HEIGHT,
     };
     if mouse_state.left_clicked && stop_button.is_hovered(mouse_state.x, mouse_state.y) && active_step != 0 {
-        is_playing = !is_playing;
-        active_step = 0;
         click_result = ClickResult::Stop;
     }
     vertices.extend(stop_button.draw(&screen_config, stop_button.hover_color(mouse_state.x, mouse_state.y)));

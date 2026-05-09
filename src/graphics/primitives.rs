@@ -33,7 +33,8 @@ pub fn draw_rectangle(x: f32, y: f32, width: f32, height: f32, screen_config: &S
     // first normalize the coordinates to fit in decimal form.
     let ndc_x: f32 = 2.0 * (x as f32 / screen_config.width as f32) - 1.0;
     let ndc_y: f32 = 1.0 - (y as f32 / screen_config.height as f32) * 2.0;
-
+    // let ndc_x = to_ndc_x(x, width);
+    // let ndc_y = to_ndc_y(y, height);
     let ndc_width: f32 = (width as f32 / screen_config.width as f32) * 2.0;
     let ndc_height: f32 = (height as f32 / screen_config.height as f32) * 2.0;
 

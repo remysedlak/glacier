@@ -1,9 +1,6 @@
 use crate::color::*;
 use crate::graphics::ui::*;
-use crate::graphics::widgets::{
-    ADD_INSTRUMENT_ICON_OFFSET, ICON_HEIGHT, ICON_WIDTH, LOAD_PROJECT_ICON_OFFSET, PLAY_SQUARE_HEIGHT, PLAY_SQUARE_WIDTH, PLAY_X_ORIGIN,
-    PLAY_Y_ORIGIN, TITLEBAR_HEIGHT, TOOLBAR_MARGIN, TOOLBAR_THICKNESS, TOOLBAR_Y,
-};
+use crate::graphics::widgets::{LOAD_PROJECT_ICON_OFFSET, TITLEBAR_HEIGHT, TOOLBAR_THICKNESS, TOOLBAR_Y};
 use crate::project::{AudioBlock, AudioBlockType, Instrument, PatternData};
 use fontdue::layout::{CoordinateSystem, Layout, TextStyle};
 use primitives::Vertex;
@@ -32,11 +29,6 @@ pub const MIXER_ID: usize = 2;
 
 #[cfg(not(target_arch = "wasm32"))]
 pub type Rc<T> = std::sync::Arc<T>;
-
-pub struct ScreenConfig {
-    pub width: u32,
-    pub height: u32,
-}
 
 #[derive(Debug)]
 pub enum ClickResult {
@@ -543,11 +535,17 @@ impl Graphics {
             }
         }
 
-        let (toolbar_verts, toolbar_texts, click_result) =
+        // toolbar
+        let (toolbar_verts, toolbar_texts, result) =
             toolbar::draw_toolbar(mouse_state, &screen_config, self.bpm, &self.patterns, self.is_playing, self.active_step);
         vertices.extend(toolbar_verts);
         // build toolbar text items
         let toolbar_char_start = char_draws.len();
+
+        if let ClickResult::Stop = result {
+            self.is_playing = !self.is_playing;
+            self.active_step = 0;
+        }
 
         Graphics::push_text_draws(
             &toolbar_texts,

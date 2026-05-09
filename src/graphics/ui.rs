@@ -72,3 +72,8 @@ pub struct PlaylistDrawRanges {
     pub header_range: WindowDrawRange,
     pub timeline_range: WindowDrawRange,
 }
+
+pub struct ScreenConfig {
+    pub width: u32,
+    pub height: u32,
+}
