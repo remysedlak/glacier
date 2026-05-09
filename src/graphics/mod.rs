@@ -1,7 +1,12 @@
 use crate::color::*;
 use crate::graphics::ui::*;
+use crate::graphics::widgets::{
+    ADD_INSTRUMENT_ICON_OFFSET, ICON_HEIGHT, ICON_WIDTH, LOAD_PROJECT_ICON_OFFSET, PLAY_SQUARE_HEIGHT, PLAY_SQUARE_WIDTH, PLAY_X_ORIGIN,
+    PLAY_Y_ORIGIN, TITLEBAR_HEIGHT, TOOLBAR_MARGIN, TOOLBAR_THICKNESS, TOOLBAR_Y,
+};
 use crate::project::{AudioBlock, AudioBlockType, Instrument, PatternData};
 use fontdue::layout::{CoordinateSystem, Layout, TextStyle};
+use primitives::Vertex;
 use std::{borrow::Cow, collections::HashMap};
 use wgpu::util::DeviceExt;
 use wgpu::{
@@ -9,13 +14,16 @@ use wgpu::{
     RenderPassColorAttachment, RenderPassDescriptor, RenderPipeline, RenderPipelineDescriptor, RequestAdapterOptions, ShaderModuleDescriptor,
     ShaderSource, StoreOp, SurfaceConfiguration, TextureFormat, TextureViewDescriptor, VertexState,
 };
+use widgets::{draw_toolbar, Rectangle, TextItem};
 use winit::{dpi::PhysicalSize, event_loop::EventLoopProxy, window::Window};
 
 pub mod font;
 pub mod mixer;
 pub mod playlist;
+pub mod primitives;
 pub mod sequencer;
 pub mod ui;
+pub mod widgets;
 
 pub const SEQUENCER_ID: usize = 0;
 pub const PLAYLIST_ID: usize = 1;
@@ -23,26 +31,6 @@ pub const MIXER_ID: usize = 2;
 
 #[cfg(not(target_arch = "wasm32"))]
 pub type Rc<T> = std::sync::Arc<T>;
-
-#[repr(C)]
-#[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
-pub struct Vertex {
-    pub position: [f32; 3],
-    pub color: [f32; 3],
-    pub uv: [f32; 2],
-}
-impl Vertex {
-    const ATTRIBS: [wgpu::VertexAttribute; 3] = wgpu::vertex_attr_array![0 => Float32x3, 1 => Float32x3, 2 => Float32x2];
-
-    fn desc() -> wgpu::VertexBufferLayout<'static> {
-        use std::mem;
-        wgpu::VertexBufferLayout {
-            array_stride: mem::size_of::<Self>() as wgpu::BufferAddress,
-            step_mode: wgpu::VertexStepMode::Vertex,
-            attributes: &Self::ATTRIBS,
-        }
-    }
-}
 
 pub struct ScreenConfig {
     pub width: u32,
@@ -327,19 +315,25 @@ impl Graphics {
     }
 
     fn push_text_draws<'a>(
-        texts: &[(String, f32, f32)],
+        texts: &[TextItem],
         font: &fontdue::Font,
         glyph_cache: &'a HashMap<char, (wgpu::Texture, wgpu::BindGroup, fontdue::Metrics)>,
         device: &wgpu::Device,
         screen_config: &ScreenConfig,
         char_draws: &mut Vec<(wgpu::Buffer, &'a wgpu::BindGroup)>,
     ) {
-        for (text, x, y) in texts {
+        for text_item in texts {
             let mut layout = Layout::new(CoordinateSystem::PositiveYDown);
-            layout.append(&[font], &TextStyle::new(text, 18.0, 0));
+            layout.append(&[font], &TextStyle::new(&text_item.text, 18.0, 0));
             for glyph in layout.glyphs() {
                 if let Some((_, bind_group, _)) = glyph_cache.get(&glyph.parent) {
-                    let gverts = font::draw_glyph(*x + glyph.x, *y + glyph.y, glyph.width as f32, glyph.height as f32, screen_config);
+                    let gverts = font::draw_glyph(
+                        text_item.x + glyph.x,
+                        text_item.y + glyph.y,
+                        glyph.width as f32,
+                        glyph.height as f32,
+                        screen_config,
+                    );
                     let buf = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
                         label: None,
                         contents: bytemuck::cast_slice(&gverts),
@@ -482,7 +476,7 @@ impl Graphics {
                 }
                 MIXER_ID if self.mini_windows[MIXER_ID].is_open => {
                     let window = &self.mini_windows[MIXER_ID];
-                    let (verts, texts) = mixer::draw(window, &mut self.master_volume, &screen_config);
+                    let (verts, texts) = mixer::draw(window, self.master_volume, &screen_config);
                     vertices.extend(verts);
                     Graphics::push_text_draws(&texts, &self.font, &self.glyph_cache, &self.device, &screen_config, &mut char_draws);
                 }
@@ -660,29 +654,61 @@ impl Graphics {
         // build toolbar text items
         let toolbar_char_start = char_draws.len();
 
-        let mut toolbar_texts: Vec<(String, f32, f32)> = Vec::new();
-        toolbar_texts.push((
-            "Patterns".to_string(),
-            screen_config.width as f32 - 128.0 + box_padding,
-            TOOLBAR_Y + box_padding,
-        ));
+        let mut toolbar_texts: Vec<TextItem> = Vec::new();
+        toolbar_texts.push(TextItem {
+            text: "Patterns".to_string(),
+            y: screen_config.width as f32 - 128.0 + box_padding,
+            x: TOOLBAR_Y + box_padding,
+        });
 
         for (i, pattern) in self.patterns.iter().enumerate() {
-            toolbar_texts.push((
-                pattern.name.to_string(),
-                screen_config.width as f32 - 96.0,
-                48.0 + (32.0 * i as f32) + 24.0,
-            ));
+            toolbar_texts.push(TextItem {
+                text: pattern.name.to_string(),
+                x: screen_config.width as f32 - 96.0,
+                y: 48.0 + (32.0 * i as f32) + 24.0,
+            });
         }
-        toolbar_texts.push(("stop".to_string(), PLAY_X_ORIGIN + 64.0 + (PLAY_SQUARE_WIDTH / 4.0), 5.0));
-        toolbar_texts.push(("sequence".to_string(), PLAY_X_ORIGIN + 256.0, 4.0));
-        toolbar_texts.push(("mixer".to_string(), PLAY_X_ORIGIN + 256.0 + (BUTTON_GAP * 3.0), 4.0));
-        toolbar_texts.push(("pl".to_string(), PLAY_X_ORIGIN + 256.0 + (BUTTON_GAP * 3.0) * 2.0, 4.0));
-        toolbar_texts.push(("proj".to_string(), screen_config.width as f32 - 37.0, 4.0));
-        toolbar_texts.push(("instr".to_string(), screen_config.width as f32 - (37.0 + 40.0 + 1.0), 4.0));
-        toolbar_texts.push((self.bpm.to_string(), 10.0, TOOLBAR_MARGIN));
+        toolbar_texts.push(TextItem {
+            text: "stop".to_string(),
+            x: PLAY_X_ORIGIN + 64.0 + (PLAY_SQUARE_WIDTH / 4.0),
+            y: 5.0,
+        });
+        toolbar_texts.push(TextItem {
+            text: "sequence".to_string(),
+            x: PLAY_X_ORIGIN + 256.0,
+            y: 4.0,
+        });
+        toolbar_texts.push(TextItem {
+            text: "mixer".to_string(),
+            x: PLAY_X_ORIGIN + 256.0 + (BUTTON_GAP * 3.0),
+            y: 4.0,
+        });
+        toolbar_texts.push(TextItem {
+            text: "pl".to_string(),
+            x: PLAY_X_ORIGIN + 256.0 + (BUTTON_GAP * 3.0) * 2.0,
+            y: 4.0,
+        });
+        toolbar_texts.push(TextItem {
+            text: "proj".to_string(),
+            x: screen_config.width as f32 - 37.0,
+            y: 4.0,
+        });
+        toolbar_texts.push(TextItem {
+            text: "instr".to_string(),
+            x: screen_config.width as f32 - (37.0 + 40.0 + 1.0),
+            y: 4.0,
+        });
+        toolbar_texts.push(TextItem {
+            text: self.bpm.to_string(),
+            x: 10.0,
+            y: TOOLBAR_MARGIN,
+        });
         let label = if self.is_playing { "pause" } else { "play" };
-        toolbar_texts.push((label.to_string(), PLAY_X_ORIGIN + (PLAY_SQUARE_WIDTH / 4.0), 5.0));
+        toolbar_texts.push(TextItem {
+            text: label.to_string(),
+            x: PLAY_X_ORIGIN + (PLAY_SQUARE_WIDTH / 4.0),
+            y: 5.0,
+        });
 
         Graphics::push_text_draws(
             &toolbar_texts,

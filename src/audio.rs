@@ -41,8 +41,10 @@ pub fn init(mut consumer: HeapCons<AudioCommand>, mut producer: HeapProd<UiComma
     let sample_rate_f: f32 = config.sample_rate as f32;
 
     // load project from file path
-    let project = get_project(&project_file);
-    dbg!(&project.project_name);
+    let project = match get_project(&project_file) {
+        Some(p) => p,
+        None => panic!("{} not found!", &project_file),
+    };
 
     // load a set of instruments to play
     let mut instruments: Vec<Instrument> = get_instruments(&project);

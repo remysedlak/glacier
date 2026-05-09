@@ -1,8 +1,19 @@
 use crate::color::*;
-use crate::graphics::ui::*;
-use crate::graphics::{ClickResult, ScreenConfig};
-use crate::graphics::{Vertex, BACKGROUND};
+use crate::graphics::{
+    primitives::{draw_knob, Vertex},
+    ui::*,
+    widgets::{window_background, window_title_bar},
+    ClickResult, Rectangle, ScreenConfig, TextItem,
+};
 use crate::project::*;
+
+pub const SEQUENCER_X_ORIGIN: f32 = 200.0;
+pub const ACTIONS_BUTTON_GAP: f32 = 40.0;
+pub const KNOB_OFFSET: f32 = 140.0;
+pub const ACTIONS_Y_OFFSET: f32 = 40.0;
+
+pub const SEQUENCER_STEP_WIDTH: f32 = 18.0;
+pub const SEQUENCER_STEP_HEIGHT: f32 = 48.0;
 
 pub fn draw(
     window: &MiniWindow,
@@ -13,31 +24,22 @@ pub fn draw(
     active_step: usize,
     mouse_state: &MouseState,
     screen_config: &ScreenConfig,
-) -> (Vec<Vertex>, Vec<(String, f32, f32)>, ClickResult) {
-    let padding = 16.0;
+) -> (Vec<Vertex>, Vec<TextItem>, ClickResult) {
+    // buckets
     let mut vertices: Vec<Vertex> = Vec::new();
-    let mut text_items: Vec<(String, f32, f32)> = Vec::new();
+    let mut text_items: Vec<TextItem> = Vec::new();
     let mut click_result = ClickResult::None;
-    // background of sequencer
-    let window_background = Rectangle {
-        x: window.x,
-        y: window.y,
-        width: window.width,
-        height: window.height,
-    };
+
+    // window background
+    let window_background = window_background(&window);
     vertices.extend(window_background.draw(&screen_config, BACKGROUND));
 
-    // titlebar rectangle
-    let titlebar = Rectangle {
-        x: window.x,
-        y: window.y - TITLEBAR_HEIGHT,
-        width: window.width,
-        height: TITLEBAR_HEIGHT,
-    };
-    vertices.extend(titlebar.draw(&screen_config, DARK_GRAY));
+    // titlebar
+    let (titlebar_verts, titlebar_texts) = window_title_bar(&window);
+    vertices.extend(titlebar_verts.draw(&screen_config, DARK_GRAY));
+    text_items.push(titlebar_texts);
 
-    text_items.push((window.title.to_string(), window.x + window.width / 2.2, window.y - TITLEBAR_HEIGHT + 4.0));
-
+    // collect steps values for each row
     let steps_data: Vec<(u32, Vec<f32>)> = patterns
         .get(active_pattern_id)
         .map(|p| p.sequences.iter().map(|s| (s.instrument_id, s.steps.clone())).collect())
@@ -45,7 +47,7 @@ pub fn draw(
 
     // render ever instrument for every pattern
     for (i, instrument) in instruments.iter_mut().enumerate() {
-        let y = padding + window.y + (i as f32 * TRACK_GAP);
+        let y = PAD_16 + window.y + (i as f32 * TRACK_GAP);
         let empty = vec![0.0f32; 32];
         let steps_slice: &[f32] = steps_data
             .iter()
@@ -58,20 +60,21 @@ pub fn draw(
             // for each step
             for (j, &velocity) in steps_slice.iter().enumerate() {
                 // velocity bar
-                let step_x = 240.0 + window.x + (j as f32 * BUTTON_GAP) + ((j / 4) as f32 * BAR_GAP) + padding;
-                let filled_height = BUTTON_HEIGHT * (velocity / 128.0);
+                let step_x = SEQUENCER_X_ORIGIN + window.x + (j as f32 * BUTTON_GAP) + ((j / 4) as f32 * BAR_GAP) + PAD_16;
+                let filled_height = SEQUENCER_STEP_HEIGHT * (velocity / 128.0);
+
                 // background
                 let background = Rectangle {
                     x: step_x,
                     y,
-                    width: BUTTON_WIDTH,
-                    height: BUTTON_HEIGHT,
+                    width: SEQUENCER_STEP_WIDTH,
+                    height: SEQUENCER_STEP_HEIGHT,
                 };
                 vertices.extend(background.draw(&screen_config, DARK_GRAY));
                 let bar = Rectangle {
                     x: step_x,
-                    y: y + BUTTON_HEIGHT - filled_height,
-                    width: BUTTON_WIDTH,
+                    y: y + SEQUENCER_STEP_HEIGHT - filled_height,
+                    width: SEQUENCER_STEP_WIDTH,
                     height: filled_height,
                 };
                 vertices.extend(bar.draw(&screen_config, BLUE));
@@ -81,12 +84,12 @@ pub fn draw(
         else {
             for (j, &velocity) in steps_slice.iter().enumerate() {
                 // add the button for a step
-                let step_x = 240.0 + window.x + (j as f32 * BUTTON_GAP) + ((j / 4) as f32 * BAR_GAP) + padding;
+                let step_x = SEQUENCER_X_ORIGIN + window.x + (j as f32 * BUTTON_GAP) + ((j / 4) as f32 * BAR_GAP) + PAD_16;
                 let step = Rectangle {
                     x: step_x,
                     y,
-                    width: BUTTON_WIDTH,
-                    height: BUTTON_HEIGHT,
+                    width: SEQUENCER_STEP_WIDTH,
+                    height: SEQUENCER_STEP_HEIGHT,
                 };
                 vertices.extend(step.draw(
                     screen_config,
@@ -118,12 +121,12 @@ pub fn draw(
             }
         }
 
-        let button_gap = 40.0;
+        // ACTIONS FOR EACH TRACK /////////////////
 
         // mute button
         let mute_button = Rectangle {
-            x: padding + window.x,
-            y: 32.0 + window.y + (i as f32 * TRACK_GAP),
+            x: PAD_16 + window.x,
+            y: PAD_32 + window.y + (i as f32 * TRACK_GAP),
             width: MUTE_SQUARE_LENGTH,
             height: MUTE_SQUARE_LENGTH,
         };
@@ -132,7 +135,11 @@ pub fn draw(
             mute_button.active_color(mouse_state.x, mouse_state.y, instrument.data.is_muted),
         ));
 
-        text_items.push(("mut".to_string(), window.x + 16.0, window.y + i as f32 * TRACK_GAP + 40.0));
+        text_items.push(TextItem {
+            text: "mut".to_string(),
+            x: window.x + PAD_16,
+            y: window.y + i as f32 * TRACK_GAP + ACTIONS_Y_OFFSET,
+        });
 
         if mouse_state.left_clicked && mute_button.is_hovered(mouse_state.x, mouse_state.y) {
             instrument.data.is_muted = !instrument.data.is_muted;
@@ -141,8 +148,8 @@ pub fn draw(
 
         // velocity button
         let velocity_button = Rectangle {
-            x: padding + window.x + button_gap,
-            y: 32.0 + window.y + (i as f32 * TRACK_GAP),
+            x: PAD_16 + window.x + BUTTON_GAP,
+            y: PAD_32 + window.y + (i as f32 * TRACK_GAP),
             width: MUTE_SQUARE_LENGTH,
             height: MUTE_SQUARE_LENGTH,
         };
@@ -151,25 +158,29 @@ pub fn draw(
             velocity_button.active_color(mouse_state.x, mouse_state.y, instrument.show_velocity),
         ));
 
-        text_items.push(("vel".to_string(), window.x + 50.0, window.y + (i as f32 * TRACK_GAP) + 40.0));
+        text_items.push(TextItem {
+            text: "vel".to_string(),
+            x: window.x + 50.0,
+            y: window.y + (i as f32 * TRACK_GAP) + ACTIONS_Y_OFFSET,
+        });
         if mouse_state.left_clicked && velocity_button.is_hovered(mouse_state.x, mouse_state.y) {
             instrument.show_velocity = !instrument.show_velocity;
         }
 
         // delete button
         let delete_button = Rectangle {
-            x: padding + window.x + button_gap + 16.0,
-            y: 32.0 + window.y + (i as f32 * TRACK_GAP),
+            x: PAD_32 + window.x + ACTIONS_BUTTON_GAP,
+            y: PAD_32 + window.y + (i as f32 * TRACK_GAP),
             width: MUTE_SQUARE_LENGTH,
             height: MUTE_SQUARE_LENGTH,
         };
         vertices.extend(delete_button.draw(&screen_config, delete_button.hover_color(mouse_state.x, mouse_state.y)));
 
-        text_items.push((
-            "del".to_string(),
-            padding + window.x + button_gap + 16.0,
-            window.y + (i as f32 * TRACK_GAP) + 40.0,
-        ));
+        text_items.push(TextItem {
+            text: "del".to_string(),
+            x: PAD_16 + window.x + ACTIONS_BUTTON_GAP + PAD_32,
+            y: window.y + (i as f32 * TRACK_GAP) + ACTIONS_Y_OFFSET,
+        });
         if mouse_state.left_clicked && delete_button.is_hovered(mouse_state.x, mouse_state.y) {
             click_result = ClickResult::DeleteTrack(i);
         }
@@ -177,16 +188,20 @@ pub fn draw(
         // track volume knob
         for vert in draw_knob(
             instrument.data.track_volume,
-            window.x + 198.0,
-            window.y + (i as f32 * TRACK_GAP) + 24.0,
+            window.x + KNOB_OFFSET,
+            window.y + (i as f32 * TRACK_GAP) + ACTIONS_Y_OFFSET,
             KNOB_RADIUS,
-            35,
+            35, // segments for a circle
             screen_config,
         ) {
             vertices.push(vert);
         }
 
-        text_items.push((instrument.data.name.to_string(), window.x + 16.0, window.y + i as f32 * TRACK_GAP));
+        text_items.push(TextItem {
+            text: instrument.data.name.to_string(),
+            x: window.x + PAD_16,
+            y: window.y + i as f32 * TRACK_GAP,
+        });
     }
     (vertices, text_items, click_result)
 }

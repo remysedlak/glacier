@@ -69,10 +69,9 @@ pub struct Sequence {
 }
 
 /// Load project details into memory from file path
-pub fn get_project(project_file: &String) -> ProjectFile {
-    let text: String = std::fs::read_to_string(&project_file).unwrap();
-    let project: ProjectFile = toml::from_str(&text).unwrap();
-    project
+pub fn get_project(project_file: &str) -> Option<ProjectFile> {
+    let text = std::fs::read_to_string(project_file).ok()?;
+    toml::from_str(&text).ok()
 }
 
 /// Create instrument's from convering saved metadata
