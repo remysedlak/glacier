@@ -50,6 +50,9 @@ pub fn draw(
     let mut static_vertices: Vec<Vertex> = Vec::new();
     let mut static_text_items: Vec<TextItem> = Vec::new();
 
+    let mut click_result = ClickResult::None;
+    let mut cursor_icon = CursorIcon::Default;
+
     // temporary constants
     let steps = 64;
     let tracks = 32;
@@ -61,9 +64,6 @@ pub fn draw(
     let (titlebar_verts, titlebar_texts) = window_title_bar(&window);
     static_vertices.extend(titlebar_verts.draw(&screen_config, DARK_GRAY));
     static_text_items.push(titlebar_texts);
-
-    let mut click_result = ClickResult::None;
-    let mut cursor_icon = CursorIcon::Default;
 
     static_text_items.push(TextItem {
         text: "this is my toolbar!!@!!!!".to_string(),
@@ -83,8 +83,8 @@ pub fn draw(
                 height: PLAYLIST_STEP_HEIGHT,
             };
 
+            // add a new event with the active pattern at this step
             if pl_step.is_hovered(mouse_state.x, mouse_state.y) && mouse_state.left_clicked {
-                // add a new sequence with the active pattern at this step
                 click_result = ClickResult::AddPlaylistPattern(
                     track,
                     step,
@@ -92,6 +92,7 @@ pub fn draw(
                     AudioBlockType::Pattern(active_pattern_id),
                 );
             }
+
             let color = if group % 2 != 0 { BLUE } else { DARK_BLUE };
             timeline_vertices.extend(pl_step.draw(&screen_config, color));
 
@@ -129,6 +130,8 @@ pub fn draw(
                 width: PLAYLIST_STEP_GAP * event.length as f32,
                 height: PLAYLIST_STEP_HEIGHT,
             };
+
+            // delete a placed pattern
             if pl_pattern.is_hovered(mouse_state.x, mouse_state.y) {
                 cursor_icon = CursorIcon::Pointer;
                 if mouse_state.right_clicked {

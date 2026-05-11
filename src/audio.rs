@@ -6,7 +6,7 @@ use cpal::{
 };
 use ringbuf::{
     traits::{Consumer, Producer},
-    {HeapCons, HeapProd},
+    HeapCons, HeapProd,
 };
 
 // commands retrieved from the user interface
@@ -59,13 +59,7 @@ pub fn init(mut consumer: HeapCons<AudioCommand>, mut producer: HeapProd<UiComma
     }
 
     // wrap back on first hit (start on 0)
-    let mut current_step = patterns
-        .iter()
-        .flat_map(|p| p.sequences.iter())
-        .map(|s| s.steps.len())
-        .max()
-        .unwrap_or(16)
-        - 1;
+    let mut current_step = events.iter().map(|e| e.start_step + e.length).max().unwrap_or(16) as usize - 1;
 
     // load instruments, bpm, volume to UI
     producer.try_push(UiCommand::LoadBpm(bpm)).ok();
@@ -208,7 +202,7 @@ pub fn init(mut consumer: HeapCons<AudioCommand>, mut producer: HeapProd<UiComma
                     is_shutting_down = true;
                 }
             }
-        }
+        } // finish matching of commands sent from the UI
 
         // for each sample requested, mix in the appropriate instrument samples
         for sample in data.chunks_mut(2) {
@@ -266,14 +260,17 @@ pub fn init(mut consumer: HeapCons<AudioCommand>, mut producer: HeapProd<UiComma
             if sample_counter >= samples_per_step {
                 sample_counter = 0.0;
 
-                // current step follows the longest instrument track
-                current_step = (current_step + 1)
-                    % patterns
-                        .iter()
-                        .flat_map(|p| p.sequences.iter())
-                        .map(|s| s.steps.len())
-                        .max()
-                        .unwrap_or(16);
+                // // current step follows the longest instrument track
+                // current_step = (current_step + 1)
+                //     % patterns
+                //         .iter()
+                //         .flat_map(|p| p.sequences.iter())
+                //         .map(|s| s.steps.len())
+                //         .max()
+                //         .unwrap_or(16);
+                let total_steps = events.iter().map(|e| e.start_step + e.length).max().unwrap_or(16) as usize;
+                current_step = (current_step + 1) % total_steps;
+
                 producer.try_push(UiCommand::StepAdvanced(current_step)).ok();
 
                 // store composition from list of song events
