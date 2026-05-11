@@ -624,7 +624,7 @@ impl Graphics {
                         };
                         let wh = (win.height as u32 + TITLEBAR_HEIGHT as u32).min(self.surface_config.height.saturating_sub(wy));
 
-                        let content_y = (win.y as u32 + 48).min(self.surface_config.height);
+                        let content_y = (win.y as u32 + 64).min(self.surface_config.height);
                         let win_bottom = ((win.y + win.height) as u32).min(self.surface_config.height);
                         let content_h = win_bottom.saturating_sub(content_y);
 

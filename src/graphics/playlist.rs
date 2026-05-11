@@ -78,7 +78,7 @@ pub fn draw(
             let group = step / 4;
             let pl_step = Rectangle {
                 x: window.x + (step as f32 * PLAYLIST_STEP_GAP) + PAD_16 + (TIMELINE_X_ORIGIN) - scroll_x,
-                y: window.y + (track as f32 * PLAYLIST_TRACK_GAP) + PAD_16 + PAD_32 - scroll_y,
+                y: window.y + (track as f32 * PLAYLIST_TRACK_GAP) + PAD_64 - scroll_y,
                 width: PLAYLIST_STEP_WIDTH,
                 height: PLAYLIST_STEP_HEIGHT,
             };
@@ -94,12 +94,21 @@ pub fn draw(
             }
             let color = if group % 2 != 0 { BLUE } else { DARK_BLUE };
             timeline_vertices.extend(pl_step.draw(&screen_config, color));
+
+            // every 4 measure display the measure (zoom feature later shows more measure labels)
+            if step % 16 == 0 {
+                static_text_items.push(TextItem {
+                    text: format!("{group}").to_string(),
+                    x: window.x + (step as f32 * PLAYLIST_STEP_GAP) + PAD_16 + (TIMELINE_X_ORIGIN) - scroll_x,
+                    y: window.y + (track as f32 * PLAYLIST_TRACK_GAP) + PAD_32,
+                });
+            }
         }
 
         // Track header
         let background = Rectangle {
             x: window.x + PAD_16,
-            y: window.y + (track as f32 * PLAYLIST_TRACK_GAP) + PAD_32 + PAD_16 - scroll_y,
+            y: window.y + (track as f32 * PLAYLIST_TRACK_GAP) + PAD_64 - scroll_y,
             width: TIMELINE_X_ORIGIN - PAD_4,
             height: PLAYLIST_STEP_HEIGHT,
         };
@@ -107,7 +116,7 @@ pub fn draw(
         header_text_items.push(TextItem {
             text: format!("Track {}", track).to_string(),
             x: window.x + PAD_16 + PAD_8,
-            y: window.y + (track as f32 * PLAYLIST_TRACK_GAP) + PAD_32 + PAD_16 + PAD_4 - scroll_y,
+            y: window.y + (track as f32 * PLAYLIST_TRACK_GAP) + PAD_64 + PAD_4 - scroll_y,
         });
     }
 
@@ -116,7 +125,7 @@ pub fn draw(
         if let AudioBlockType::Pattern(id) = event.block_type {
             let pl_pattern = Rectangle {
                 x: window.x + (event.start_step as f32 * PLAYLIST_STEP_GAP) + PAD_16 + (TIMELINE_X_ORIGIN) - scroll_x,
-                y: window.y + (event.track as f32 * PLAYLIST_TRACK_GAP) + PAD_32 + PAD_16 - scroll_y,
+                y: window.y + (event.track as f32 * PLAYLIST_TRACK_GAP) + PAD_64 - scroll_y,
                 width: PLAYLIST_STEP_GAP * event.length as f32,
                 height: PLAYLIST_STEP_HEIGHT,
             };
@@ -133,13 +142,13 @@ pub fn draw(
             timeline_text_items.push(TextItem {
                 text: label.to_string(),
                 x: window.x + (event.start_step as f32 * PLAYLIST_STEP_GAP) + PAD_16 + (TIMELINE_X_ORIGIN) + PAD_8 - scroll_x,
-                y: window.y + (event.track as f32 * PLAYLIST_TRACK_GAP) + PAD_32 + PAD_16 + PAD_4 - scroll_y,
+                y: window.y + (event.track as f32 * PLAYLIST_TRACK_GAP) + PAD_64 + PAD_4 - scroll_y,
             });
         }
     }
     let playhead = Rectangle {
         x: window.x + (current_step as f32 * PLAYLIST_STEP_GAP) + PAD_16 + (TIMELINE_X_ORIGIN) - scroll_x,
-        y: window.y,
+        y: window.y + PAD_64,
         width: PLAYHEAD_WIDTH,
         height: window.height,
     };
