@@ -21,12 +21,12 @@ impl Vertex {
     }
 }
 
-fn to_ndc_x(x: f32, width: f32) -> f32 {
-    2.0 * (x / width) - 1.0
-}
-fn to_ndc_y(y: f32, height: f32) -> f32 {
-    1.0 - (y / height) * 2.0
-}
+// fn to_ndc_x(x: f32, width: f32) -> f32 {
+//     2.0 * (x / width) - 1.0
+// }
+// fn to_ndc_y(y: f32, height: f32) -> f32 {
+//     1.0 - (y / height) * 2.0
+// }
 
 // draw one rectangle with one color
 pub fn draw_rectangle(x: f32, y: f32, width: f32, height: f32, screen_config: &ScreenConfig, (r, g, b): (f32, f32, f32)) -> Vec<Vertex> {

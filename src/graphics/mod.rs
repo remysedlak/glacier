@@ -542,9 +542,16 @@ impl Graphics {
         // build toolbar text items
         let toolbar_char_start = char_draws.len();
 
-        if let ClickResult::Stop = result {
-            self.is_playing = !self.is_playing;
-            self.active_step = 0;
+        match result {
+            ClickResult::Stop => {
+                self.is_playing = !self.is_playing;
+                self.active_step = 0;
+                click_result = result;
+            }
+            ClickResult::None => {}
+            other => {
+                click_result = other;
+            }
         }
 
         Graphics::push_text_draws(

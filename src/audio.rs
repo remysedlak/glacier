@@ -27,7 +27,7 @@ pub enum AudioCommand {
     CreateAudioBlock(usize, u32, usize, AudioBlockType),
 }
 
-/// initialize the audio engine with cpal and data from a project file
+/// initialize the CPAL engine with project file data and return the audio stream
 pub fn init(mut consumer: HeapCons<AudioCommand>, mut producer: HeapProd<UiCommand>, project_file: String) -> Stream {
     // error callback
     let err_fn = |err| eprintln!("an error occurred on the output audio stream: {}", err);
@@ -57,13 +57,15 @@ pub fn init(mut consumer: HeapCons<AudioCommand>, mut producer: HeapProd<UiComma
     for event in &events {
         producer.try_push(UiCommand::LoadEvent(event.clone())).ok();
     }
+
+    // wrap back on first hit (start on 0)
     let mut current_step = patterns
         .iter()
         .flat_map(|p| p.sequences.iter())
         .map(|s| s.steps.len())
         .max()
         .unwrap_or(16)
-        - 1; // wrap back on first hit
+        - 1;
 
     // load instruments, bpm, volume to UI
     producer.try_push(UiCommand::LoadBpm(bpm)).ok();
@@ -207,16 +209,13 @@ pub fn init(mut consumer: HeapCons<AudioCommand>, mut producer: HeapProd<UiComma
                 }
             }
         }
-        // UI commands are over; deal with the audio samples requested
-        //
-        //
 
         // for each sample requested, mix in the appropriate instrument samples
         for sample in data.chunks_mut(2) {
             sample[0] = 0.0; // left channel
             sample[1] = 0.0; // right channel
 
-            // for each sample, decrement the shutdown volume slowly
+            // fade out volume on shutdown
             if is_shutting_down {
                 shutdown_volume -= 0.0001;
                 if shutdown_volume <= 0.0 {
@@ -224,17 +223,15 @@ pub fn init(mut consumer: HeapCons<AudioCommand>, mut producer: HeapProd<UiComma
                 }
             }
 
-            // only if the audio is not currently paused
+            // return audio data only when the song is actively playing
             if is_playing {
                 for instrument in &mut instruments {
                     // ignore muted instruments
                     if !instrument.data.is_muted && instrument.is_playing {
-                        // if the sample fully played, mark as not playing anymore
+                        // if the sample has fully played, mark it as not playing anymore
                         if instrument.position >= instrument.samples.len() as f32 {
                             instrument.is_playing = false;
                         } else {
-                            instrument.is_playing = true;
-
                             // volume ramping
                             if instrument.current_volume != instrument.data.target_volume {
                                 let difference = instrument.data.target_volume - instrument.current_volume;
@@ -277,11 +274,9 @@ pub fn init(mut consumer: HeapCons<AudioCommand>, mut producer: HeapProd<UiComma
                         .map(|s| s.steps.len())
                         .max()
                         .unwrap_or(16);
-
-                dbg!(current_step);
-
                 producer.try_push(UiCommand::StepAdvanced(current_step)).ok();
 
+                // store composition from list of song events
                 let triggers: Vec<(usize, f32)> = events
                     .iter()
                     .filter_map(|e| {
@@ -310,13 +305,14 @@ pub fn init(mut consumer: HeapCons<AudioCommand>, mut producer: HeapProd<UiComma
         }
     };
 
+    // attempt to create an output stream with device config
     let stream = match sample_format {
         SampleFormat::F32 => device.build_output_stream(&config, sequencer_callback, err_fn, None),
         sample_format => panic!("Unsupported sample format '{sample_format}'"),
     }
     .expect("Failed to build the output stream.");
 
-    // start the output stream
+    // start the output stream and return it
     stream.play().expect("Failed to play the output stream.");
     stream
 }
