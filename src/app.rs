@@ -176,8 +176,8 @@ impl App {
             }
 
             // single draw call — returns click result
-            let result = gfx.draw(&self.mouse_state);
-
+            let (result, icon) = gfx.draw(&self.mouse_state);
+            gfx.window.set_cursor(icon);
             // consume the interactions
             self.mouse_state.left_clicked = false;
             self.mouse_state.right_clicked = false;

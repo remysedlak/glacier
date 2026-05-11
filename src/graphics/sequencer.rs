@@ -1,3 +1,5 @@
+use winit::window::CursorIcon;
+
 use crate::color::*;
 use crate::graphics::{
     primitives::{draw_knob, Vertex},
@@ -24,11 +26,12 @@ pub fn draw(
     active_step: usize,
     mouse_state: &MouseState,
     screen_config: &ScreenConfig,
-) -> (Vec<Vertex>, Vec<TextItem>, ClickResult) {
+) -> (Vec<Vertex>, Vec<TextItem>, ClickResult, CursorIcon) {
     // buckets
     let mut vertices: Vec<Vertex> = Vec::new();
     let mut text_items: Vec<TextItem> = Vec::new();
     let mut click_result = ClickResult::None;
+    let mut cursor_icon = CursorIcon::Default;
 
     // window background
     let window_background = window_background(&window);
@@ -141,9 +144,12 @@ pub fn draw(
             y: window.y + i as f32 * TRACK_GAP + ACTIONS_Y_OFFSET,
         });
 
-        if mouse_state.left_clicked && mute_button.is_hovered(mouse_state.x, mouse_state.y) {
-            instrument.data.is_muted = !instrument.data.is_muted;
-            click_result = ClickResult::Mute(i);
+        if mute_button.is_hovered(mouse_state.x, mouse_state.y) {
+            cursor_icon = CursorIcon::Pointer;
+            if mouse_state.left_clicked {
+                instrument.data.is_muted = !instrument.data.is_muted;
+                click_result = ClickResult::Mute(i);
+            }
         }
 
         // velocity button
@@ -163,8 +169,11 @@ pub fn draw(
             x: window.x + 50.0,
             y: window.y + (i as f32 * TRACK_GAP) + ACTIONS_Y_OFFSET,
         });
-        if mouse_state.left_clicked && velocity_button.is_hovered(mouse_state.x, mouse_state.y) {
-            instrument.show_velocity = !instrument.show_velocity;
+        if velocity_button.is_hovered(mouse_state.x, mouse_state.y) {
+            cursor_icon = CursorIcon::Pointer;
+            if mouse_state.left_clicked {
+                instrument.show_velocity = !instrument.show_velocity;
+            }
         }
 
         // delete button
@@ -181,8 +190,11 @@ pub fn draw(
             x: PAD_16 + window.x + ACTIONS_BUTTON_GAP + PAD_32,
             y: window.y + (i as f32 * TRACK_GAP) + ACTIONS_Y_OFFSET,
         });
-        if mouse_state.left_clicked && delete_button.is_hovered(mouse_state.x, mouse_state.y) {
-            click_result = ClickResult::DeleteTrack(i);
+        if delete_button.is_hovered(mouse_state.x, mouse_state.y) {
+            cursor_icon = CursorIcon::Pointer;
+            if mouse_state.left_clicked {
+                click_result = ClickResult::DeleteTrack(i);
+            }
         }
 
         // track volume knob
@@ -203,5 +215,5 @@ pub fn draw(
             y: window.y + i as f32 * TRACK_GAP,
         });
     }
-    (vertices, text_items, click_result)
+    (vertices, text_items, click_result, cursor_icon)
 }

@@ -1,3 +1,5 @@
+use winit::window::CursorIcon;
+
 use crate::color::*;
 use crate::graphics::primitives::Vertex;
 use crate::graphics::widgets::{window_background, window_title_bar, TextItem};
@@ -37,6 +39,7 @@ pub fn draw(
     Vec<Vertex>,
     Vec<TextItem>,
     ClickResult,
+    CursorIcon,
 ) {
     let mut header_vertices: Vec<Vertex> = Vec::new();
     let mut header_text_items: Vec<TextItem> = Vec::new();
@@ -60,6 +63,7 @@ pub fn draw(
     static_text_items.push(titlebar_texts);
 
     let mut click_result = ClickResult::None;
+    let mut cursor_icon = CursorIcon::Default;
 
     static_text_items.push(TextItem {
         text: "this is my toolbar!!@!!!!".to_string(),
@@ -116,8 +120,11 @@ pub fn draw(
                 width: PLAYLIST_STEP_GAP * event.length as f32,
                 height: PLAYLIST_STEP_HEIGHT,
             };
-            if pl_pattern.is_hovered(mouse_state.x, mouse_state.y) && mouse_state.right_clicked {
-                click_result = ClickResult::DeletePlaylistPattern(event.id);
+            if pl_pattern.is_hovered(mouse_state.x, mouse_state.y) {
+                cursor_icon = CursorIcon::Pointer;
+                if mouse_state.right_clicked {
+                    click_result = ClickResult::DeletePlaylistPattern(event.id);
+                }
             }
             timeline_vertices.extend(pl_pattern.draw(&screen_config, pl_pattern.hover_color(mouse_state.x, mouse_state.y)));
             // titlebar text
@@ -145,5 +152,6 @@ pub fn draw(
         header_vertices,
         header_text_items,
         click_result,
+        cursor_icon,
     )
 }

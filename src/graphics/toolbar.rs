@@ -1,19 +1,16 @@
-use crate::graphics::primitives::draw_h_line;
-use crate::graphics::primitives::draw_rectangle;
-use crate::graphics::widgets::{ADD_INSTRUMENT_ICON_OFFSET, ICON_HEIGHT, ICON_WIDTH, TOOLBAR_MARGIN};
-use crate::graphics::Vertex;
-use crate::graphics::BUTTON_GAP;
-use crate::graphics::LOAD_PROJECT_ICON_OFFSET;
-use crate::graphics::TOOLBAR_THICKNESS;
-use crate::project::PatternData;
-use crate::{
-    color::LIGHT_GRAY,
-    graphics::{
-        ui::{MouseState, PAD_4},
-        widgets::{Rectangle, TextItem, PLAY_SQUARE_HEIGHT, PLAY_SQUARE_WIDTH, PLAY_X_ORIGIN, PLAY_Y_ORIGIN, TOOLBAR_Y},
-        ClickResult, ScreenConfig,
+use winit::window::CursorIcon;
+
+use crate::color::LIGHT_GRAY;
+use crate::graphics::{
+    primitives::{draw_h_line, draw_rectangle},
+    ui::{MouseState, PAD_4},
+    widgets::{
+        Rectangle, TextItem, ADD_INSTRUMENT_ICON_OFFSET, ICON_HEIGHT, ICON_WIDTH, PLAY_SQUARE_HEIGHT, PLAY_SQUARE_WIDTH, PLAY_X_ORIGIN,
+        PLAY_Y_ORIGIN, TOOLBAR_MARGIN, TOOLBAR_Y,
     },
+    ClickResult, ScreenConfig, Vertex, BUTTON_GAP, LOAD_PROJECT_ICON_OFFSET, TOOLBAR_THICKNESS,
 };
+use crate::project::PatternData;
 pub fn draw_toolbar(
     mouse_state: &MouseState,
     screen_config: &ScreenConfig,
@@ -21,9 +18,12 @@ pub fn draw_toolbar(
     patterns: &[PatternData],
     mut is_playing: bool,
     active_step: usize,
-) -> (Vec<Vertex>, Vec<TextItem>, ClickResult) {
+) -> (Vec<Vertex>, Vec<TextItem>, ClickResult, CursorIcon) {
     let mut vertices: Vec<Vertex> = Vec::new();
+
     let mut click_result = ClickResult::None;
+    let mut cursor_icon = CursorIcon::Default;
+
     let bpm_up = Rectangle {
         x: 48.0,
         y: 4.0,
@@ -31,9 +31,12 @@ pub fn draw_toolbar(
         height: 10.0,
     };
     vertices.extend(bpm_up.draw(&screen_config, LIGHT_GRAY));
-    if mouse_state.left_clicked && bpm_up.is_hovered(mouse_state.x, mouse_state.y) {
-        bpm += 1.0;
-        click_result = ClickResult::ChangeBpm(bpm);
+    if bpm_up.is_hovered(mouse_state.x, mouse_state.y) {
+        cursor_icon = CursorIcon::Pointer;
+        if mouse_state.left_clicked {
+            bpm += 1.0;
+            click_result = ClickResult::ChangeBpm(bpm);
+        }
     }
 
     let bpm_down = Rectangle {
@@ -43,9 +46,12 @@ pub fn draw_toolbar(
         height: 10.0,
     };
     vertices.extend(bpm_down.draw(&screen_config, LIGHT_GRAY));
-    if mouse_state.left_clicked && bpm_down.is_hovered(mouse_state.x, mouse_state.y) {
-        bpm -= 1.0;
-        click_result = ClickResult::ChangeBpm(bpm);
+    if bpm_down.is_hovered(mouse_state.x, mouse_state.y) {
+        cursor_icon = CursorIcon::Pointer;
+        if mouse_state.left_clicked {
+            bpm -= 1.0;
+            click_result = ClickResult::ChangeBpm(bpm);
+        }
     }
 
     // play / pauses button
@@ -55,9 +61,12 @@ pub fn draw_toolbar(
         width: PLAY_SQUARE_WIDTH,
         height: PLAY_SQUARE_HEIGHT,
     };
-    if mouse_state.left_clicked && play_button.is_hovered(mouse_state.x, mouse_state.y) {
-        is_playing = !is_playing;
-        click_result = ClickResult::TogglePlay;
+    if play_button.is_hovered(mouse_state.x, mouse_state.y) {
+        cursor_icon = CursorIcon::Pointer;
+        if mouse_state.left_clicked {
+            is_playing = !is_playing;
+            click_result = ClickResult::TogglePlay;
+        }
     }
     vertices.extend(play_button.draw(&screen_config, play_button.hover_color(mouse_state.x, mouse_state.y)));
 
@@ -68,8 +77,11 @@ pub fn draw_toolbar(
         width: PLAY_SQUARE_WIDTH,
         height: PLAY_SQUARE_HEIGHT,
     };
-    if mouse_state.left_clicked && stop_button.is_hovered(mouse_state.x, mouse_state.y) && active_step != 0 {
-        click_result = ClickResult::Stop;
+    if stop_button.is_hovered(mouse_state.x, mouse_state.y) {
+        cursor_icon = CursorIcon::Pointer;
+        if mouse_state.left_clicked && active_step != 0 {
+            click_result = ClickResult::Stop;
+        }
     }
     vertices.extend(stop_button.draw(&screen_config, stop_button.hover_color(mouse_state.x, mouse_state.y)));
 
@@ -80,8 +92,11 @@ pub fn draw_toolbar(
         height: PLAY_SQUARE_HEIGHT,
     };
     vertices.extend(sequencer_toggle.draw(&screen_config, sequencer_toggle.hover_color(mouse_state.x, mouse_state.y)));
-    if mouse_state.left_clicked && sequencer_toggle.is_hovered(mouse_state.x, mouse_state.y) {
-        click_result = ClickResult::ToggleSequencerWindow;
+    if sequencer_toggle.is_hovered(mouse_state.x, mouse_state.y) {
+        cursor_icon = CursorIcon::Pointer;
+        if mouse_state.left_clicked {
+            click_result = ClickResult::ToggleSequencerWindow;
+        }
     }
 
     let mixer_toggle = Rectangle {
@@ -91,8 +106,11 @@ pub fn draw_toolbar(
         height: PLAY_SQUARE_HEIGHT,
     };
     vertices.extend(mixer_toggle.draw(&screen_config, mixer_toggle.hover_color(mouse_state.x, mouse_state.y)));
-    if mouse_state.left_clicked && mixer_toggle.is_hovered(mouse_state.x, mouse_state.y) {
-        click_result = ClickResult::ToggleMixerWindow;
+    if mixer_toggle.is_hovered(mouse_state.x, mouse_state.y) {
+        cursor_icon = CursorIcon::Pointer;
+        if mouse_state.left_clicked {
+            click_result = ClickResult::ToggleMixerWindow;
+        }
     }
 
     let playlist_toggle = Rectangle {
@@ -102,8 +120,11 @@ pub fn draw_toolbar(
         height: PLAY_SQUARE_HEIGHT,
     };
     vertices.extend(playlist_toggle.draw(&screen_config, playlist_toggle.hover_color(mouse_state.x, mouse_state.y)));
-    if mouse_state.left_clicked && playlist_toggle.is_hovered(mouse_state.x, mouse_state.y) {
-        click_result = ClickResult::TogglePlaylistWindow;
+    if playlist_toggle.is_hovered(mouse_state.x, mouse_state.y) {
+        cursor_icon = CursorIcon::Pointer;
+        if mouse_state.left_clicked {
+            click_result = ClickResult::TogglePlaylistWindow;
+        }
     }
 
     let load_project = Rectangle {
@@ -112,8 +133,11 @@ pub fn draw_toolbar(
         width: ICON_WIDTH,
         height: ICON_HEIGHT,
     };
-    if mouse_state.left_clicked && load_project.is_hovered(mouse_state.x, mouse_state.y) {
-        click_result = ClickResult::ProjectFileDialog;
+    if load_project.is_hovered(mouse_state.x, mouse_state.y) {
+        cursor_icon = CursorIcon::Pointer;
+        if mouse_state.left_clicked {
+            click_result = ClickResult::ProjectFileDialog;
+        }
     }
 
     let load_instrument = Rectangle {
@@ -122,8 +146,11 @@ pub fn draw_toolbar(
         width: ICON_WIDTH,
         height: ICON_HEIGHT,
     };
-    if mouse_state.left_clicked && load_instrument.is_hovered(mouse_state.x, mouse_state.y) {
-        click_result = ClickResult::InstrumentFileDialog;
+    if load_instrument.is_hovered(mouse_state.x, mouse_state.y) {
+        cursor_icon = CursorIcon::Pointer;
+        if mouse_state.left_clicked {
+            click_result = ClickResult::InstrumentFileDialog;
+        }
     }
 
     //     // toolbar line
@@ -277,5 +304,5 @@ pub fn draw_toolbar(
         x: PLAY_X_ORIGIN + (PLAY_SQUARE_WIDTH / 4.0),
         y: 5.0,
     });
-    (vertices, toolbar_texts, click_result)
+    (vertices, toolbar_texts, click_result, cursor_icon)
 }

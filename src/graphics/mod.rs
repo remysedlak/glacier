@@ -12,6 +12,7 @@ use wgpu::{
     ShaderSource, StoreOp, SurfaceConfiguration, TextureFormat, TextureViewDescriptor, VertexState,
 };
 use widgets::{Rectangle, TextItem};
+use winit::window::CursorIcon;
 use winit::{dpi::PhysicalSize, event_loop::EventLoopProxy, window::Window};
 
 pub mod font;
@@ -184,7 +185,7 @@ fn create_pipeline(device: &wgpu::Device, swap_chain_format: TextureFormat, bind
 
 pub struct Graphics {
     //wgpu
-    window: Rc<Window>,
+    pub window: Rc<Window>,
     surface: wgpu::Surface<'static>,
     surface_config: SurfaceConfiguration,
     device: wgpu::Device,
@@ -338,11 +339,14 @@ impl Graphics {
         }
     }
 
-    pub fn draw(&mut self, mouse_state: &MouseState) -> ClickResult {
+    pub fn draw(&mut self, mouse_state: &MouseState) -> (ClickResult, CursorIcon) {
         let frame = self.surface.get_current_texture().expect("Failed to acquire next swap chain texture.");
         let view = frame.texture.create_view(&TextureViewDescriptor::default());
         let mut vertices: Vec<Vertex> = Vec::new();
+
         let mut click_result = ClickResult::None;
+        let mut cursor_icon = CursorIcon::Default;
+
         let screen_config = ScreenConfig {
             width: self.surface_config.width,
             height: self.surface_config.height,
@@ -373,7 +377,7 @@ impl Graphics {
             match id {
                 SEQUENCER_ID if self.mini_windows[SEQUENCER_ID].is_open => {
                     let window = &self.mini_windows[SEQUENCER_ID];
-                    let (verts, texts, result) = sequencer::draw(
+                    let (verts, texts, result, cursor) = sequencer::draw(
                         window,
                         &mut self.patterns,
                         &mut self.instruments,
@@ -384,11 +388,12 @@ impl Graphics {
                     );
                     vertices.extend(verts);
                     Graphics::push_text_draws(&texts, &self.font, &self.glyph_cache, &self.device, &screen_config, &mut char_draws);
+                    cursor_icon = cursor;
                     click_result = result;
                 }
                 PLAYLIST_ID if self.mini_windows[PLAYLIST_ID].is_open => {
                     let window = &self.mini_windows[PLAYLIST_ID];
-                    let (static_verts, static_texts, timeline_verts, timeline_texts, header_verts, header_texts, result) = playlist::draw(
+                    let (static_verts, static_texts, timeline_verts, timeline_texts, header_verts, header_texts, result, cursor) = playlist::draw(
                         window,
                         &self.events,
                         &self.patterns,
@@ -462,6 +467,7 @@ impl Graphics {
                         header_range,
                         timeline_range,
                     });
+                    cursor_icon = cursor;
                     click_result = result;
                 }
                 MIXER_ID if self.mini_windows[MIXER_ID].is_open => {
@@ -509,8 +515,11 @@ impl Graphics {
             height: 16.0,
         };
         vertices.extend(add_pattern_button.draw(&screen_config, add_pattern_button.hover_color(mouse_state.x, mouse_state.y)));
-        if add_pattern_button.is_hovered(mouse_state.x, mouse_state.y) && mouse_state.left_clicked {
-            click_result = ClickResult::AddPlaylist;
+        if add_pattern_button.is_hovered(mouse_state.x, mouse_state.y) {
+            cursor_icon = CursorIcon::Pointer;
+            if mouse_state.left_clicked {
+                click_result = ClickResult::AddPlaylist;
+            }
         }
 
         for (i, pattern) in &mut self.patterns.iter_mut().enumerate() {
@@ -530,17 +539,24 @@ impl Graphics {
                 vertices.extend(indicator.draw(&screen_config, ORANGE));
             }
             vertices.extend(pattern_button.draw(&screen_config, pattern_button.hover_color(mouse_state.x, mouse_state.y)));
-            if mouse_state.left_clicked && pattern_button.is_hovered(mouse_state.x, mouse_state.y) {
-                self.active_pattern_id = pattern.id as usize;
+            if pattern_button.is_hovered(mouse_state.x, mouse_state.y) {
+                cursor_icon = CursorIcon::Pointer;
+                if mouse_state.left_clicked {
+                    self.active_pattern_id = pattern.id as usize;
+                }
             }
         }
 
         // toolbar
-        let (toolbar_verts, toolbar_texts, result) =
+        let (toolbar_verts, toolbar_texts, result, cursor) =
             toolbar::draw_toolbar(mouse_state, &screen_config, self.bpm, &self.patterns, self.is_playing, self.active_step);
         vertices.extend(toolbar_verts);
         // build toolbar text items
         let toolbar_char_start = char_draws.len();
+
+        if cursor != CursorIcon::Default {
+            cursor_icon = cursor;
+        }
 
         match result {
             ClickResult::Stop => {
@@ -698,6 +714,6 @@ impl Graphics {
         self.queue.submit(Some(encoder.finish()));
         frame.present();
 
-        click_result
+        (click_result, cursor_icon)
     }
 }
