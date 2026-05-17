@@ -1,13 +1,11 @@
 use winit::window::CursorIcon;
 
-use crate::color::*;
-use crate::graphics::{
-    primitives::{draw_knob, Vertex},
-    ui::*,
-    widgets::{window_background, window_title_bar},
-    ClickResult, Rectangle, ScreenConfig, TextItem,
-};
-use crate::project::*;
+use crate::color::{BACKGROUND, BLUE, DARK_GRAY};
+use crate::graphics::primitives::{draw_knob, Vertex};
+use crate::graphics::ui::*;
+use crate::graphics::widgets::{window_background, window_title_bar};
+use crate::graphics::{ClickResult, Rectangle, ScreenConfig, TextItem};
+use crate::project::{Instrument, PatternData, Sequence};
 
 pub const SEQUENCER_X_ORIGIN: f32 = 200.0;
 pub const ACTIONS_BUTTON_GAP: f32 = 40.0;
@@ -100,26 +98,28 @@ pub fn draw(
                 ));
 
                 // check if the step was clicked
-                if mouse_state.left_clicked && step.is_hovered(mouse_state.x, mouse_state.y) {
-                    // if the click is on an existing sequence
-                    if let Some(seq) = patterns[active_pattern_id]
-                        .sequences
-                        .iter_mut()
-                        .find(|s| s.instrument_id == instrument.data.id)
-                    {
-                        seq.steps[j] = if seq.steps[j] > 0.0 { 0.0 } else { 95.0 };
+                if step.is_hovered(mouse_state.x, mouse_state.y) {
+                    if mouse_state.left_clicked {
+                        // if the click is on an existing sequence
+                        if let Some(seq) = patterns[active_pattern_id]
+                            .sequences
+                            .iter_mut()
+                            .find(|s| s.instrument_id == instrument.data.id)
+                        {
+                            seq.steps[j] = if seq.steps[j] > 0.0 { 0.0 } else { 95.0 };
+                        }
+                        // if the click is on a nonexisting sequence
+                        else {
+                            // add a new sequence to the active pattern with the instrument used
+                            let mut steps = vec![0.0f32; 32];
+                            steps[j] = 95.0;
+                            patterns[active_pattern_id].sequences.push(Sequence {
+                                instrument_id: instrument.data.id,
+                                steps,
+                            });
+                        }
+                        click_result = ClickResult::Step(active_pattern_id, instrument.data.id as usize, j);
                     }
-                    // if the click is on a nonexisting sequence
-                    else {
-                        // add a new sequence to the active pattern with the instrument used
-                        let mut steps = vec![0.0f32; 32];
-                        steps[j] = 95.0;
-                        patterns[active_pattern_id].sequences.push(Sequence {
-                            instrument_id: instrument.data.id,
-                            steps,
-                        });
-                    }
-                    click_result = ClickResult::Step(active_pattern_id, instrument.data.id as usize, j);
                 }
             }
         }

@@ -1,6 +1,6 @@
 use crate::color::*;
 use crate::graphics::primitives::{draw_rectangle, Vertex};
-use crate::graphics::ui::{MiniWindow, PAD_16, PAD_4};
+use crate::graphics::ui::{MiniWindow, PAD_16, PAD_4, PAD_8};
 use crate::graphics::ScreenConfig;
 
 pub const ADD_INSTRUMENT_ICON_OFFSET: f32 = 80.0;
@@ -38,6 +38,12 @@ impl Rectangle {
     // if a rectangle has the mouse hovered
     pub fn is_hovered(&self, mouse_x: f32, mouse_y: f32) -> bool {
         mouse_x > self.x && mouse_x < self.x + self.width && mouse_y > self.y && mouse_y < self.y + self.height
+    }
+    pub fn is_hovered_edge(&self, mouse_x: f32, mouse_y: f32) -> bool {
+        mouse_x > self.x + self.width - PAD_8
+            && mouse_x < self.x + self.width + PAD_8
+            && mouse_y > self.y - TITLEBAR_HEIGHT
+            && mouse_y < self.y + self.height
     }
     // draw vertices with rectangle details
     pub fn draw(&self, screen_config: &ScreenConfig, (r, g, b): (f32, f32, f32)) -> Vec<Vertex> {

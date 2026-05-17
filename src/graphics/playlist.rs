@@ -138,6 +138,9 @@ pub fn draw(
                     click_result = ClickResult::DeletePlaylistPattern(event.id);
                 }
             }
+            if pl_pattern.is_hovered_edge(mouse_state.x, mouse_state.y) {
+                cursor_icon = CursorIcon::ColResize
+            }
             timeline_vertices.extend(pl_pattern.draw(&screen_config, pl_pattern.hover_color(mouse_state.x, mouse_state.y)));
             // titlebar text
             let label: &str = &patterns[id as usize].name;
