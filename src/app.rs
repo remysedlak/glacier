@@ -1,17 +1,17 @@
 use crate::audio::{init, AudioCommand};
-use crate::graphics::ui::MouseState;
-use crate::graphics::{bring_to_front, create_graphics, ui::WindowKind, ClickResult, DragResult, Graphics, Rc, MIXER_ID, PLAYLIST_ID, SEQUENCER_ID};
+use crate::graphics::{
+    windows::WindowKind,
+    {bring_to_front, create_graphics, ClickResult, DragResult, Graphics, Rc, MIXER_ID, PLAYLIST_ID, SEQUENCER_ID},
+};
 use crate::project::{AudioBlock, Instrument, PatternData};
-use cpal::traits::StreamTrait;
-use cpal::Stream;
+
+use cpal::{traits::StreamTrait, Stream};
 use rfd::FileDialog;
 use ringbuf::{
     traits::{Consumer, Producer, Split},
     {HeapCons, HeapProd, HeapRb},
 };
-use std::path::PathBuf;
-use std::sync::mpsc::{Receiver, TryRecvError};
-use std::thread;
+
 use winit::{
     application::ApplicationHandler,
     dpi::PhysicalSize,
@@ -20,6 +20,21 @@ use winit::{
     keyboard::{KeyCode, PhysicalKey},
     window::{Window, WindowId},
 };
+
+// std lib
+use std::path::PathBuf;
+use std::sync::mpsc::{Receiver, TryRecvError};
+use std::thread;
+
+pub struct MouseState {
+    pub x: f32,
+    pub y: f32,
+    pub left_clicked: bool,
+    pub right_clicked: bool,
+    pub scroll_x: f32,
+    pub scroll_y: f32,
+    pub shift_pressed: bool,
+}
 
 // commands that the audio engine sends to the window
 pub enum UiCommand {

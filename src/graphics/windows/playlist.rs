@@ -1,11 +1,13 @@
-use winit::window::CursorIcon;
-
-use crate::color::*;
-use crate::graphics::primitives::Vertex;
-use crate::graphics::widgets::{window_background, window_title_bar, TextItem};
-use crate::graphics::Rectangle;
-use crate::graphics::{ui::*, ClickResult, ScreenConfig, PAD_16, PAD_4, PAD_8};
+use crate::app::MouseState;
+use crate::graphics::{
+    color::*,
+    primitives::{ScreenConfig, Vertex, PAD_16, PAD_32, PAD_4, PAD_64, PAD_8},
+    widgets::{window_background, window_title_bar, TextItem},
+    windows::MiniWindow,
+    ClickResult, Rectangle,
+};
 use crate::project::*;
+use winit::window::CursorIcon;
 
 // dimensions of a step
 const PLAYLIST_STEP_WIDTH: f32 = 32.0;

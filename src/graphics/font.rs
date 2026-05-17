@@ -1,5 +1,4 @@
-use crate::graphics::primitives::Vertex;
-use crate::graphics::ScreenConfig;
+use crate::graphics::primitives::{ScreenConfig, Vertex};
 use std::collections::HashMap;
 
 pub fn create_bind_group_layout(device: &wgpu::Device) -> wgpu::BindGroupLayout {

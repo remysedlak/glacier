@@ -1,7 +1,14 @@
-use crate::color::*;
-use crate::graphics::primitives::{draw_rectangle, Vertex};
-use crate::graphics::ui::{MiniWindow, PAD_16, PAD_4, PAD_8};
-use crate::graphics::ScreenConfig;
+use crate::graphics::{
+    color::*,
+    primitives::{draw_rectangle, Vertex, PAD_16, PAD_4, PAD_8},
+    windows::MiniWindow,
+    ScreenConfig,
+};
+
+/*
+ * This file contains widgets.
+ * Each method returns Vec<Vertex>
+ */
 
 pub const ADD_INSTRUMENT_ICON_OFFSET: f32 = 80.0;
 pub const LOAD_PROJECT_ICON_OFFSET: f32 = 40.0;

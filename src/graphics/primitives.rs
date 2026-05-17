@@ -1,5 +1,30 @@
-use crate::color::*;
-use crate::graphics::ScreenConfig;
+use crate::graphics::color::*;
+
+/*
+ *  This file contains the most primitive graphics operations, directly manipulating Vertex's.
+ *  These methods may be used on their own, or drawn by widgets requiring them.
+ */
+
+pub const ONE_MEGABYTE: u64 = 1024 * 1024;
+pub const BAR_GAP: f32 = 12.0;
+pub const BUTTON_GAP: f32 = 24.0;
+pub const TRACK_GAP: f32 = 72.0;
+
+pub const KNOB_RADIUS: f32 = 13.0;
+
+pub const MUTE_SQUARE_LENGTH: f32 = 12.0;
+
+// padding constants
+pub const PAD_64: f32 = 64.0;
+pub const PAD_32: f32 = 32.0;
+pub const PAD_16: f32 = 16.0;
+pub const PAD_8: f32 = 8.0;
+pub const PAD_4: f32 = 4.0;
+
+pub struct ScreenConfig {
+    pub width: u32,
+    pub height: u32,
+}
 
 #[repr(C)]
 #[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]

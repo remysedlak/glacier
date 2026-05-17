@@ -1,11 +1,13 @@
-use winit::window::CursorIcon;
-
-use crate::color::{BACKGROUND, BLUE, DARK_GRAY};
-use crate::graphics::primitives::{draw_knob, Vertex};
-use crate::graphics::ui::*;
-use crate::graphics::widgets::{window_background, window_title_bar};
-use crate::graphics::{ClickResult, Rectangle, ScreenConfig, TextItem};
+use crate::app::MouseState;
+use crate::graphics::{
+    color::{BACKGROUND, BLUE, DARK_GRAY},
+    primitives::{draw_knob, ScreenConfig, Vertex, BAR_GAP, BUTTON_GAP, KNOB_RADIUS, MUTE_SQUARE_LENGTH, PAD_16, PAD_32, TRACK_GAP},
+    widgets::{window_background, window_title_bar},
+    windows::MiniWindow,
+    {ClickResult, Rectangle, TextItem},
+};
 use crate::project::{Instrument, PatternData, Sequence};
+use winit::window::CursorIcon;
 
 pub const SEQUENCER_X_ORIGIN: f32 = 200.0;
 pub const ACTIONS_BUTTON_GAP: f32 = 40.0;
@@ -125,6 +127,15 @@ pub fn draw(
         }
 
         // ACTIONS FOR EACH TRACK /////////////////
+
+        // background
+        // let background = Rectangle {
+        //     x: PAD_4 + window.x,
+        //     y: PAD_4 + window.y + (i as f32 * TRACK_GAP),
+        //     width: 172.0,
+        //     height: 80.0,
+        // };
+        // vertices.extend(background.draw(&screen_config, DARK_GRAY));
 
         // mute button
         let mute_button = Rectangle {

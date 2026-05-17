@@ -1,28 +1,31 @@
-use crate::color::*;
-use crate::graphics::ui::*;
-use crate::graphics::widgets::{LOAD_PROJECT_ICON_OFFSET, TITLEBAR_HEIGHT, TOOLBAR_THICKNESS, TOOLBAR_Y};
+use crate::app::MouseState;
+use crate::graphics::{
+    color::{ORANGE, PASCAL},
+    primitives::{ScreenConfig, Vertex, KNOB_RADIUS, ONE_MEGABYTE, PAD_16, PAD_4, TRACK_GAP},
+    widgets::{LOAD_PROJECT_ICON_OFFSET, TITLEBAR_HEIGHT, TOOLBAR_THICKNESS, TOOLBAR_Y},
+    windows::{mixer, playlist, sequencer, MiniWindow, PlaylistDrawRanges, WindowDrawRange, WindowKind},
+};
 use crate::project::{AudioBlock, AudioBlockType, Instrument, PatternData};
 use fontdue::layout::{CoordinateSystem, Layout, TextStyle};
-use primitives::Vertex;
 use std::{borrow::Cow, collections::HashMap};
-use wgpu::util::DeviceExt;
 use wgpu::{
-    Color, CommandEncoderDescriptor, DeviceDescriptor, Features, FragmentState, Instance, Limits, LoadOp, MemoryHints, Operations, PowerPreference,
-    RenderPassColorAttachment, RenderPassDescriptor, RenderPipeline, RenderPipelineDescriptor, RequestAdapterOptions, ShaderModuleDescriptor,
-    ShaderSource, StoreOp, SurfaceConfiguration, TextureFormat, TextureViewDescriptor, VertexState,
+    util::DeviceExt, Color, CommandEncoderDescriptor, DeviceDescriptor, Features, FragmentState, Instance, Limits, LoadOp, MemoryHints, Operations,
+    PowerPreference, RenderPassColorAttachment, RenderPassDescriptor, RenderPipeline, RenderPipelineDescriptor, RequestAdapterOptions,
+    ShaderModuleDescriptor, ShaderSource, StoreOp, SurfaceConfiguration, TextureFormat, TextureViewDescriptor, VertexState,
 };
 use widgets::{Rectangle, TextItem};
-use winit::window::CursorIcon;
-use winit::{dpi::PhysicalSize, event_loop::EventLoopProxy, window::Window};
+use winit::{
+    dpi::PhysicalSize,
+    event_loop::EventLoopProxy,
+    window::{CursorIcon, Window},
+};
 
+pub mod color;
 pub mod font;
-pub mod mixer;
-pub mod playlist;
 pub mod primitives;
-pub mod sequencer;
 pub mod toolbar;
-pub mod ui;
 pub mod widgets;
+pub mod windows;
 
 pub const SEQUENCER_ID: usize = 0;
 pub const PLAYLIST_ID: usize = 1;

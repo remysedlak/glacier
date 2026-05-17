@@ -1,8 +1,9 @@
-use crate::color::*;
 use crate::graphics::{
-    ui::*,
+    color::*,
+    primitives::ScreenConfig,
     widgets::{draw_slider, window_background, window_title_bar},
-    ScreenConfig, TextItem, Vertex,
+    windows::MiniWindow,
+    TextItem, Vertex,
 };
 
 pub fn draw(window: &MiniWindow, master_volume: f32, screen_config: &ScreenConfig) -> (Vec<Vertex>, Vec<TextItem>) {

@@ -1,16 +1,16 @@
-use winit::window::CursorIcon;
-
-use crate::color::LIGHT_GRAY;
+use crate::app::MouseState;
 use crate::graphics::{
-    primitives::{draw_h_line, draw_rectangle},
-    ui::{MouseState, PAD_4},
+    color::LIGHT_GRAY,
+    primitives::{draw_h_line, draw_rectangle, BUTTON_GAP, PAD_4},
     widgets::{
         Rectangle, TextItem, ADD_INSTRUMENT_ICON_OFFSET, ICON_HEIGHT, ICON_WIDTH, PLAY_SQUARE_HEIGHT, PLAY_SQUARE_WIDTH, PLAY_X_ORIGIN,
         PLAY_Y_ORIGIN, TOOLBAR_MARGIN, TOOLBAR_Y,
     },
-    ClickResult, ScreenConfig, Vertex, BUTTON_GAP, LOAD_PROJECT_ICON_OFFSET, TOOLBAR_THICKNESS,
+    ClickResult, ScreenConfig, Vertex, LOAD_PROJECT_ICON_OFFSET, TOOLBAR_THICKNESS,
 };
 use crate::project::PatternData;
+use winit::window::CursorIcon;
+
 pub fn draw_toolbar(
     mouse_state: &MouseState,
     screen_config: &ScreenConfig,
