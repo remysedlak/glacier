@@ -38,6 +38,8 @@ pub enum ClickResult {
     Step(usize, usize, usize),
     Mute(usize),
     Stop,
+    ChangeBpmUp,
+    ChangeBpmDown,
     ChangeBpm(f32),
     TogglePlay,
     ProjectFileDialog,
@@ -328,7 +330,7 @@ impl Graphics {
     ) {
         for text_item in texts {
             let mut layout = Layout::new(CoordinateSystem::PositiveYDown);
-            layout.append(&[font], &TextStyle::new(&text_item.text, 18.0, 0));
+            layout.append(&[font], &TextStyle::new(&text_item.text, text_item.size, 0));
             for glyph in layout.glyphs() {
                 if let Some((_, bind_group, _)) = glyph_cache.get(&glyph.parent) {
                     let gverts = font::draw_glyph(
@@ -519,21 +521,20 @@ impl Graphics {
 
         // --- toolbar / UI layer (always on top) ---
         let toolbar_vert_start = vertices.len() as u32;
-
+        let toolbar_char_start = char_draws.len();
         // draw the patterns tray
-        let (verts, result, icon) = pattern_tray::draw(&screen_config, &self.patterns, self.active_pattern_id, mouse_state);
+        let (verts, texts, result, icon) = pattern_tray::draw(&screen_config, &self.patterns, self.active_pattern_id, mouse_state);
         vertices.extend(verts);
         if icon != CursorIcon::Default {
             cursor_icon = icon;
         };
+        Graphics::push_text_draws(&texts, &self.font, &self.glyph_cache, &self.device, &screen_config, &mut char_draws);
         click_result = result;
 
         // draw the toolbar
         let (toolbar_verts, toolbar_texts, result, cursor) =
-            components::toolbar::draw_toolbar(mouse_state, &screen_config, self.bpm, &self.patterns, self.is_playing, self.active_step);
+            components::toolbar::draw_toolbar(mouse_state, &screen_config, self.bpm, self.is_playing, self.active_step);
         vertices.extend(toolbar_verts);
-
-        let toolbar_char_start = char_draws.len();
 
         if cursor != CursorIcon::Default {
             cursor_icon = cursor;

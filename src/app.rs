@@ -202,6 +202,14 @@ impl App {
 
             // dispatch audio commands based on what was clicked
             match result {
+                ClickResult::ChangeBpmDown => {
+                    gfx.bpm -= 1.0;
+                    self.producer.try_push(AudioCommand::ChangeBpm(gfx.bpm)).ok();
+                }
+                ClickResult::ChangeBpmUp => {
+                    gfx.bpm += 1.0;
+                    self.producer.try_push(AudioCommand::ChangeBpm(gfx.bpm)).ok();
+                }
                 ClickResult::SelectPattern(id) => {
                     gfx.active_pattern_id = id;
                 }
@@ -275,6 +283,8 @@ impl App {
                     self.producer.try_push(AudioCommand::ChangeBpm(bpm)).ok();
                 }
                 ClickResult::TogglePlay => {
+                    gfx.is_playing = !gfx.is_playing;
+
                     self.producer.try_push(AudioCommand::TogglePlay).ok();
                 }
                 ClickResult::DeleteTrack(i) => {

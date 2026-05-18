@@ -1,15 +1,17 @@
 use crate::app::MouseState;
 use crate::graphics::primitives::{ScreenConfig, PAD_8};
+use crate::graphics::widgets::TextItem;
 use crate::graphics::{ClickResult, CursorIcon, PatternData, Rectangle, Vertex, PAD_16, PAD_4, TOOLBAR_THICKNESS, TOOLBAR_Y};
 
 pub fn draw(
     screen_config: &ScreenConfig,
     patterns: &[PatternData],
-    mut active_pattern_id: usize,
+    active_pattern_id: usize,
     mouse_state: &MouseState,
-) -> (Vec<Vertex>, ClickResult, CursorIcon) {
+) -> (Vec<Vertex>, Vec<TextItem>, ClickResult, CursorIcon) {
     // setup return
     let mut vertices: Vec<Vertex> = Vec::new();
+    let mut texts: Vec<TextItem> = Vec::new();
     let mut click_result = ClickResult::None;
     let mut cursor_icon = CursorIcon::Default;
 
@@ -21,6 +23,15 @@ pub fn draw(
         height: screen_config.height as f32 - TOOLBAR_THICKNESS,
     };
     vertices.extend(pattern_tray.draw(&screen_config, crate::graphics::color::PASCAL));
+
+    for (i, pattern) in patterns.iter().enumerate() {
+        texts.push(TextItem {
+            text: pattern.name.to_string(),
+            x: screen_config.width as f32 - 96.0,
+            y: 48.0 + (32.0 * i as f32) + 24.0,
+            size: 18.0,
+        });
+    }
 
     // add pattern button
     let add_pattern_button = Rectangle {
@@ -62,5 +73,12 @@ pub fn draw(
             }
         }
     }
-    (vertices, click_result, cursor_icon)
+    texts.push(TextItem {
+        text: "Patterns".to_string(),
+        x: screen_config.width as f32 - 128.0 + PAD_4,
+        y: TOOLBAR_Y + PAD_4,
+        size: 18.0,
+    });
+
+    (vertices, texts, click_result, cursor_icon)
 }
