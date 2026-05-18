@@ -391,7 +391,10 @@ impl Graphics {
                     );
                     vertices.extend(verts);
                     Graphics::push_text_draws(&texts, &self.font, &self.glyph_cache, &self.device, &screen_config, &mut char_draws);
-                    cursor_icon = cursor;
+                    if cursor != CursorIcon::Default {
+                        cursor_icon = cursor;
+                    }
+
                     click_result = result;
                 }
                 PLAYLIST_ID if self.mini_windows[PLAYLIST_ID].is_open => {
@@ -470,7 +473,9 @@ impl Graphics {
                         header_range,
                         timeline_range,
                     });
-                    cursor_icon = cursor;
+                    if cursor != CursorIcon::Default {
+                        cursor_icon = cursor;
+                    }
                     click_result = result;
                 }
                 MIXER_ID if self.mini_windows[MIXER_ID].is_open => {
