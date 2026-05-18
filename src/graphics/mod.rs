@@ -3,7 +3,7 @@ use crate::graphics::{
     color::{ORANGE, PASCAL},
     primitives::{ScreenConfig, Vertex, KNOB_RADIUS, ONE_MEGABYTE, PAD_16, PAD_4, TRACK_GAP},
     widgets::{LOAD_PROJECT_ICON_OFFSET, TITLEBAR_HEIGHT, TOOLBAR_THICKNESS, TOOLBAR_Y},
-    windows::{mixer, playlist, sequencer, MiniWindow, PlaylistDrawRanges, WindowDrawRange, WindowKind},
+    windows::{instrument, mixer, playlist, sequencer, MiniWindow, PlaylistDrawRanges, WindowDrawRange, WindowKind},
 };
 use crate::project::{AudioBlock, AudioBlockType, Instrument, PatternData};
 use fontdue::layout::{CoordinateSystem, Layout, TextStyle};
@@ -50,6 +50,7 @@ pub enum ClickResult {
     ToggleSequencerWindow,
     ToggleMixerWindow,
     TogglePlaylistWindow,
+    AddInstrumentWindow(usize),
     None,
 }
 pub enum DragResult {
@@ -484,7 +485,14 @@ impl Graphics {
                     vertices.extend(verts);
                     Graphics::push_text_draws(&texts, &self.font, &self.glyph_cache, &self.device, &screen_config, &mut char_draws);
                 }
-                _ => {}
+                instrument => {
+                    let window = &self.mini_windows[instrument];
+                    if let WindowKind::InstrumentDetail(track) = window.window_kind {
+                        let (verts, texts, result, cursor) = instrument::draw(window, &mouse_state, &screen_config, &self.instruments[track]);
+                        vertices.extend(verts);
+                        Graphics::push_text_draws(&texts, &self.font, &self.glyph_cache, &self.device, &screen_config, &mut char_draws);
+                    }
+                }
             }
 
             window_ranges.push(WindowDrawRange {

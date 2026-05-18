@@ -1,6 +1,8 @@
+pub mod instrument;
 pub mod mixer;
 pub mod playlist;
 pub mod sequencer;
+
 use crate::graphics::TITLEBAR_HEIGHT;
 
 #[derive(Debug)]
@@ -9,7 +11,7 @@ pub enum WindowKind {
     Playlist,
     Mixer,
     // PianoRoll,
-    // InstrumentDetail(usize), // which instrument
+    InstrumentDetail(usize), // which instrument
 }
 
 pub struct MiniWindow {

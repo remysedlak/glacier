@@ -139,6 +139,9 @@ pub fn draw(
         vertices.extend(track_background.draw(&screen_config, track_background.dark_hover_color(mouse_state.x, mouse_state.y)));
         if track_background.is_hovered(mouse_state.x, mouse_state.y) {
             cursor_icon = CursorIcon::Pointer;
+            if mouse_state.left_clicked {
+                click_result = ClickResult::AddInstrumentWindow(i)
+            }
         }
 
         // mute button

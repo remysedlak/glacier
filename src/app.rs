@@ -1,4 +1,5 @@
 use crate::audio::{init, AudioCommand};
+use crate::graphics::windows::MiniWindow;
 use crate::graphics::{
     windows::WindowKind,
     {bring_to_front, create_graphics, ClickResult, DragResult, Graphics, Rc, MIXER_ID, PLAYLIST_ID, SEQUENCER_ID},
@@ -201,6 +202,19 @@ impl App {
 
             // dispatch audio commands based on what was clicked
             match result {
+                ClickResult::AddInstrumentWindow(track) => {
+                    gfx.mini_windows.push(MiniWindow {
+                        x: 64.0,
+                        y: 64.0,
+                        width: 400.0,
+                        height: 300.0,
+                        title: gfx.instruments[track].data.name.clone(),
+                        is_open: true,
+                        window_kind: WindowKind::InstrumentDetail(track),
+                    });
+                    let new_id = gfx.mini_windows.len() - 1;
+                    gfx.z_order.push(new_id);
+                }
                 ClickResult::AddPlaylist => {
                     self.producer.try_push(AudioCommand::AddPattern).ok();
                 }
