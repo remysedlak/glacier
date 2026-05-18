@@ -1,7 +1,6 @@
 use crate::app::MouseState;
 use crate::graphics::primitives::ScreenConfig;
-use crate::graphics::ORANGE;
-use crate::graphics::{ClickResult, CursorIcon, PatternData, Rectangle, Vertex, PAD_16, PAD_4, PASCAL, TOOLBAR_THICKNESS, TOOLBAR_Y};
+use crate::graphics::{ClickResult, CursorIcon, PatternData, Rectangle, Vertex, PAD_16, PAD_4, TOOLBAR_THICKNESS, TOOLBAR_Y};
 
 pub fn draw(
     screen_config: &ScreenConfig,
@@ -21,7 +20,7 @@ pub fn draw(
         width: 128.0,
         height: screen_config.height as f32 - TOOLBAR_THICKNESS,
     };
-    vertices.extend(pattern_tray.draw(&screen_config, PASCAL));
+    vertices.extend(pattern_tray.draw(&screen_config, crate::graphics::color::PASCAL));
 
     // add pattern button
     let add_pattern_button = Rectangle {
@@ -52,7 +51,7 @@ pub fn draw(
                 width: 4.0,
                 height: 4.0,
             };
-            vertices.extend(indicator.draw(&screen_config, ORANGE));
+            vertices.extend(indicator.draw(&screen_config, crate::graphics::color::ORANGE));
         }
         vertices.extend(pattern_button.draw(&screen_config, pattern_button.hover_color(mouse_state.x, mouse_state.y)));
         if pattern_button.is_hovered(mouse_state.x, mouse_state.y) {

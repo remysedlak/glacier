@@ -1,7 +1,6 @@
 use crate::app::MouseState;
-use crate::graphics::components::playlist_tray;
+use crate::graphics::components::pattern_tray;
 use crate::graphics::{
-    color::{ORANGE, PASCAL},
     primitives::{ScreenConfig, Vertex, KNOB_RADIUS, ONE_MEGABYTE, PAD_16, PAD_4, TRACK_GAP},
     widgets::{TITLEBAR_HEIGHT, TOOLBAR_THICKNESS, TOOLBAR_Y},
     windows::{instrument, mixer, playlist, sequencer, MiniWindow, PlaylistDrawRanges, WindowDrawRange, WindowKind},
@@ -285,17 +284,13 @@ impl Graphics {
 
         // update window dragging
         if let Some(i) = self.dragging_window {
-            // stop window from going off of surface
-            if (dx < 0.0 && self.mini_windows[i].x > 0.0)
-                || dx > 0.0 && (self.mini_windows[i].x + self.mini_windows[i].width) < self.surface_config.width as f32
-            {
-                self.mini_windows[i].x += dx;
-            }
-            if (dy < 0.0 && self.mini_windows[i].y > TITLEBAR_HEIGHT + TOOLBAR_Y)
-                || dy > 0.0 && (self.mini_windows[i].y + self.mini_windows[i].height) < self.surface_config.height as f32
-            {
-                self.mini_windows[i].y += dy;
-            }
+            let win = &mut self.mini_windows[i];
+
+            // only enforce that the titlebar stays reachable
+            let max_y = self.surface_config.height as f32 - TITLEBAR_HEIGHT;
+
+            win.x = (win.x + dx).clamp(-(win.width - 64.0), self.surface_config.width as f32 - 246.0);
+            win.y = (win.y + dy).clamp(TITLEBAR_HEIGHT + TOOLBAR_Y, max_y);
 
             return DragResult::None;
         }
@@ -526,7 +521,7 @@ impl Graphics {
         let toolbar_vert_start = vertices.len() as u32;
 
         // draw the patterns tray
-        let (verts, result, icon) = playlist_tray::draw(&screen_config, &self.patterns, self.active_pattern_id, mouse_state);
+        let (verts, result, icon) = pattern_tray::draw(&screen_config, &self.patterns, self.active_pattern_id, mouse_state);
         vertices.extend(verts);
         if icon != CursorIcon::Default {
             cursor_icon = icon;

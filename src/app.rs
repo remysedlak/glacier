@@ -207,8 +207,8 @@ impl App {
                 }
                 ClickResult::AddInstrumentWindow(track) => {
                     gfx.mini_windows.push(MiniWindow {
-                        x: 64.0,
-                        y: 64.0,
+                        x: 128.0,
+                        y: 128.0,
                         width: 400.0,
                         height: 300.0,
                         title: gfx.instruments[track].data.name.clone(),

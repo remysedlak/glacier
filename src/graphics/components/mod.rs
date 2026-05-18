@@ -1,2 +1,2 @@
-pub mod playlist_tray;
+pub mod pattern_tray;
 pub mod toolbar;
