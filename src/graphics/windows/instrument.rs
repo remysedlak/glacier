@@ -41,6 +41,7 @@ pub fn draw(
         text: track.data.path.clone(),
         x: window.x + PAD_16,
         y: window.y + PAD_16,
+        size: 18.0,
     });
     vertices.extend(rectangle.draw(&screen_config, DARK_GRAY));
     (vertices, text_items, click_result, cursor_icon)

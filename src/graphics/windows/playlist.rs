@@ -71,6 +71,7 @@ pub fn draw(
         text: "this is my toolbar!!@!!!!".to_string(),
         x: window.x + 274.0,
         y: window.y + PAD_4,
+        size: 18.0,
     });
 
     // for each instrument loaded into a project
@@ -104,6 +105,7 @@ pub fn draw(
                     text: format!("{group}").to_string(),
                     x: window.x + (step as f32 * PLAYLIST_STEP_GAP) + PAD_16 + (TIMELINE_X_ORIGIN) - scroll_x,
                     y: window.y + (track as f32 * PLAYLIST_TRACK_GAP) + PAD_32,
+                    size: 18.0,
                 });
             }
         }
@@ -120,6 +122,7 @@ pub fn draw(
             text: format!("Track {}", track).to_string(),
             x: window.x + PAD_16 + PAD_8,
             y: window.y + (track as f32 * PLAYLIST_TRACK_GAP) + PAD_64 + PAD_4 - scroll_y,
+            size: 18.0,
         });
     }
 
@@ -151,6 +154,7 @@ pub fn draw(
                 text: label.to_string(),
                 x: window.x + (event.start_step as f32 * PLAYLIST_STEP_GAP) + PAD_16 + (TIMELINE_X_ORIGIN) + PAD_8 - scroll_x,
                 y: window.y + (event.track as f32 * PLAYLIST_TRACK_GAP) + PAD_64 + PAD_4 - scroll_y,
+                size: 18.0,
             });
         }
     }

@@ -1,5 +1,5 @@
 use crate::app::MouseState;
-use crate::graphics::primitives::ScreenConfig;
+use crate::graphics::primitives::{ScreenConfig, PAD_8};
 use crate::graphics::{ClickResult, CursorIcon, PatternData, Rectangle, Vertex, PAD_16, PAD_4, TOOLBAR_THICKNESS, TOOLBAR_Y};
 
 pub fn draw(
@@ -46,10 +46,10 @@ pub fn draw(
         };
         if i == active_pattern_id {
             let indicator = Rectangle {
-                x: screen_config.width as f32 - 128.0 + PAD_4,
-                y: 48.0 + (32.0 * i as f32) + 24.0 + PAD_4,
+                x: screen_config.width as f32 - 128.0 + PAD_8,
+                y: 48.0 + (32.0 * i as f32) + 24.0,
                 width: 4.0,
-                height: 4.0,
+                height: 24.0,
             };
             vertices.extend(indicator.draw(&screen_config, crate::graphics::color::ORANGE));
         }

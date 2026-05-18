@@ -34,7 +34,8 @@ pub fn draw(
     let mut click_result = ClickResult::None;
     let mut cursor_icon = CursorIcon::Default;
 
-    // window background
+    //  size: 18.0,window backgro
+    // und
     let window_background = window_background(&window);
     vertices.extend(window_background.draw(&screen_config, BACKGROUND));
 
@@ -160,6 +161,7 @@ pub fn draw(
             text: "mut".to_string(),
             x: window.x + PAD_16,
             y: window.y + i as f32 * TRACK_GAP + ACTIONS_Y_OFFSET,
+            size: 18.0,
         });
 
         if mute_button.is_hovered(mouse_state.x, mouse_state.y) {
@@ -186,6 +188,7 @@ pub fn draw(
             text: "vel".to_string(),
             x: window.x + 50.0,
             y: window.y + (i as f32 * TRACK_GAP) + ACTIONS_Y_OFFSET,
+            size: 18.0,
         });
         if velocity_button.is_hovered(mouse_state.x, mouse_state.y) {
             cursor_icon = CursorIcon::Pointer;
@@ -207,6 +210,7 @@ pub fn draw(
             text: "del".to_string(),
             x: PAD_16 + window.x + ACTIONS_BUTTON_GAP + PAD_32,
             y: window.y + (i as f32 * TRACK_GAP) + ACTIONS_Y_OFFSET,
+            size: 18.0,
         });
         if delete_button.is_hovered(mouse_state.x, mouse_state.y) {
             cursor_icon = CursorIcon::Pointer;
@@ -231,6 +235,7 @@ pub fn draw(
             text: instrument.data.name.to_string(),
             x: window.x + PAD_16,
             y: window.y + i as f32 * TRACK_GAP + PAD_16,
+            size: 18.0,
         });
     }
     (vertices, text_items, click_result, cursor_icon)

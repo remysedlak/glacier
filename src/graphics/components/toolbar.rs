@@ -34,7 +34,7 @@ pub fn draw_toolbar(
         width: screen_config.width as f32,
         height: TOOLBAR_Y,
     };
-    vertices.extend(toolbar_background.draw(&screen_config, DARK_GRAY));
+    vertices.extend(toolbar_background.draw(&screen_config, crate::graphics::color::PASCAL));
 
     // bpm button increment
     let bpm_up = Rectangle {
@@ -214,6 +214,7 @@ pub fn draw_toolbar(
         text: "Patterns".to_string(),
         y: screen_config.width as f32 - 128.0 + PAD_4,
         x: TOOLBAR_Y + PAD_4,
+        size: 18.0,
     });
 
     for (i, pattern) in patterns.iter().enumerate() {
@@ -221,53 +222,63 @@ pub fn draw_toolbar(
             text: pattern.name.to_string(),
             x: screen_config.width as f32 - 96.0,
             y: 48.0 + (32.0 * i as f32) + 24.0,
+            size: 18.0,
         });
     }
     toolbar_texts.push(TextItem {
         text: "stop".to_string(),
         x: PLAY_X_ORIGIN + 64.0 + (PLAY_SQUARE_WIDTH / 4.0),
         y: 5.0,
+        size: 18.0,
     });
     toolbar_texts.push(TextItem {
         text: "sequence".to_string(),
         x: PLAY_X_ORIGIN + 256.0,
         y: 4.0,
+        size: 18.0,
     });
     toolbar_texts.push(TextItem {
         text: "mixer".to_string(),
         x: PLAY_X_ORIGIN + 256.0 + (BUTTON_GAP * 3.0),
         y: 4.0,
+        size: 18.0,
     });
     toolbar_texts.push(TextItem {
         text: "pl".to_string(),
         x: PLAY_X_ORIGIN + 256.0 + (BUTTON_GAP * 3.0) * 2.0,
         y: 4.0,
+        size: 18.0,
     });
     toolbar_texts.push(TextItem {
         text: "proj".to_string(),
         x: screen_config.width as f32 - 37.0,
         y: 4.0,
+        size: 18.0,
     });
     toolbar_texts.push(TextItem {
         text: "instr".to_string(),
         x: screen_config.width as f32 - (37.0 + 40.0 + 1.0),
         y: 4.0,
+        size: 18.0,
     });
     toolbar_texts.push(TextItem {
         text: bpm.to_string(),
         x: 10.0,
         y: TOOLBAR_MARGIN,
+        size: 18.0,
     });
     let label = if is_playing { "pause" } else { "play" };
     toolbar_texts.push(TextItem {
         text: label.to_string(),
         x: PLAY_X_ORIGIN + (PLAY_SQUARE_WIDTH / 4.0),
         y: 5.0,
+        size: 18.0,
     });
     toolbar_texts.push(TextItem {
         text: "Patterns".to_string(),
         y: screen_config.width as f32 - 128.0 + PAD_4,
         x: TOOLBAR_Y + PAD_4,
+        size: 18.0,
     });
 
     for (i, pattern) in patterns.iter().enumerate() {
@@ -275,48 +286,57 @@ pub fn draw_toolbar(
             text: pattern.name.to_string(),
             x: screen_config.width as f32 - 96.0,
             y: 48.0 + (32.0 * i as f32) + 24.0,
+            size: 18.0,
         });
     }
     toolbar_texts.push(TextItem {
         text: "stop".to_string(),
         x: PLAY_X_ORIGIN + 64.0 + (PLAY_SQUARE_WIDTH / 4.0),
         y: 5.0,
+        size: 18.0,
     });
     toolbar_texts.push(TextItem {
         text: "sequence".to_string(),
         x: PLAY_X_ORIGIN + 256.0,
         y: 4.0,
+        size: 18.0,
     });
     toolbar_texts.push(TextItem {
         text: "mixer".to_string(),
         x: PLAY_X_ORIGIN + 256.0 + (BUTTON_GAP * 3.0),
         y: 4.0,
+        size: 18.0,
     });
     toolbar_texts.push(TextItem {
         text: "pl".to_string(),
         x: PLAY_X_ORIGIN + 256.0 + (BUTTON_GAP * 3.0) * 2.0,
         y: 4.0,
+        size: 18.0,
     });
     toolbar_texts.push(TextItem {
         text: "proj".to_string(),
         x: screen_config.width as f32 - 37.0,
         y: 4.0,
+        size: 18.0,
     });
     toolbar_texts.push(TextItem {
         text: "instr".to_string(),
         x: screen_config.width as f32 - (37.0 + 40.0 + 1.0),
         y: 4.0,
+        size: 18.0,
     });
     toolbar_texts.push(TextItem {
         text: bpm.to_string(),
         x: 10.0,
         y: TOOLBAR_MARGIN,
+        size: 18.0,
     });
     let label = if is_playing { "pause" } else { "play" };
     toolbar_texts.push(TextItem {
         text: label.to_string(),
         x: PLAY_X_ORIGIN + (PLAY_SQUARE_WIDTH / 4.0),
         y: 5.0,
+        size: 18.0,
     });
     (vertices, toolbar_texts, click_result, cursor_icon)
 }
