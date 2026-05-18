@@ -1,4 +1,5 @@
 use crate::app::MouseState;
+use crate::graphics::primitives::PAD_8;
 use crate::graphics::{
     color::{BACKGROUND, BLUE, DARK_GRAY},
     primitives::{draw_knob, ScreenConfig, Vertex, BAR_GAP, BUTTON_GAP, KNOB_RADIUS, MUTE_SQUARE_LENGTH, PAD_16, PAD_32, TRACK_GAP},
@@ -12,7 +13,7 @@ use winit::window::CursorIcon;
 pub const SEQUENCER_X_ORIGIN: f32 = 200.0;
 pub const ACTIONS_BUTTON_GAP: f32 = 40.0;
 pub const KNOB_OFFSET: f32 = 140.0;
-pub const ACTIONS_Y_OFFSET: f32 = 40.0;
+pub const ACTIONS_Y_OFFSET: f32 = 50.0;
 
 pub const SEQUENCER_STEP_WIDTH: f32 = 18.0;
 pub const SEQUENCER_STEP_HEIGHT: f32 = 48.0;
@@ -129,18 +130,21 @@ pub fn draw(
         // ACTIONS FOR EACH TRACK /////////////////
 
         // background
-        // let background = Rectangle {
-        //     x: PAD_4 + window.x,
-        //     y: PAD_4 + window.y + (i as f32 * TRACK_GAP),
-        //     width: 172.0,
-        //     height: 80.0,
-        // };
-        // vertices.extend(background.draw(&screen_config, DARK_GRAY));
+        let track_background = Rectangle {
+            x: PAD_8 + window.x,
+            y: PAD_16 + window.y + (i as f32 * TRACK_GAP),
+            width: 172.0,
+            height: 24.0,
+        };
+        vertices.extend(track_background.draw(&screen_config, track_background.dark_hover_color(mouse_state.x, mouse_state.y)));
+        if track_background.is_hovered(mouse_state.x, mouse_state.y) {
+            cursor_icon = CursorIcon::Pointer;
+        }
 
         // mute button
         let mute_button = Rectangle {
             x: PAD_16 + window.x,
-            y: PAD_32 + window.y + (i as f32 * TRACK_GAP),
+            y: PAD_32 + PAD_8 + window.y + (i as f32 * TRACK_GAP),
             width: MUTE_SQUARE_LENGTH,
             height: MUTE_SQUARE_LENGTH,
         };
@@ -166,7 +170,7 @@ pub fn draw(
         // velocity button
         let velocity_button = Rectangle {
             x: PAD_16 + window.x + BUTTON_GAP,
-            y: PAD_32 + window.y + (i as f32 * TRACK_GAP),
+            y: PAD_32 + PAD_8 + window.y + (i as f32 * TRACK_GAP),
             width: MUTE_SQUARE_LENGTH,
             height: MUTE_SQUARE_LENGTH,
         };
@@ -190,7 +194,7 @@ pub fn draw(
         // delete button
         let delete_button = Rectangle {
             x: PAD_32 + window.x + ACTIONS_BUTTON_GAP,
-            y: PAD_32 + window.y + (i as f32 * TRACK_GAP),
+            y: PAD_32 + PAD_8 + window.y + (i as f32 * TRACK_GAP),
             width: MUTE_SQUARE_LENGTH,
             height: MUTE_SQUARE_LENGTH,
         };
@@ -223,7 +227,7 @@ pub fn draw(
         text_items.push(TextItem {
             text: instrument.data.name.to_string(),
             x: window.x + PAD_16,
-            y: window.y + i as f32 * TRACK_GAP,
+            y: window.y + i as f32 * TRACK_GAP + PAD_16,
         });
     }
     (vertices, text_items, click_result, cursor_icon)
