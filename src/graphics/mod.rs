@@ -1,8 +1,9 @@
 use crate::app::MouseState;
+use crate::graphics::components::playlist_tray;
 use crate::graphics::{
     color::{ORANGE, PASCAL},
     primitives::{ScreenConfig, Vertex, KNOB_RADIUS, ONE_MEGABYTE, PAD_16, PAD_4, TRACK_GAP},
-    widgets::{LOAD_PROJECT_ICON_OFFSET, TITLEBAR_HEIGHT, TOOLBAR_THICKNESS, TOOLBAR_Y},
+    widgets::{TITLEBAR_HEIGHT, TOOLBAR_THICKNESS, TOOLBAR_Y},
     windows::{instrument, mixer, playlist, sequencer, MiniWindow, PlaylistDrawRanges, WindowDrawRange, WindowKind},
 };
 use crate::project::{AudioBlock, AudioBlockType, Instrument, PatternData};
@@ -19,11 +20,10 @@ use winit::{
     event_loop::EventLoopProxy,
     window::{CursorIcon, Window},
 };
-
 pub mod color;
+pub mod components;
 pub mod font;
 pub mod primitives;
-pub mod toolbar;
 pub mod widgets;
 pub mod windows;
 
@@ -51,6 +51,7 @@ pub enum ClickResult {
     ToggleMixerWindow,
     TogglePlaylistWindow,
     AddInstrumentWindow(usize),
+    SelectPattern(usize),
     None,
 }
 pub enum DragResult {
@@ -246,10 +247,12 @@ impl Graphics {
         self.events.push(a);
     }
 
+    /// Track if/where the user's mouse is dragging a component
     pub fn handle_drag(&mut self, x: f32, y: f32, dy: f32, dx: f32) -> DragResult {
         let sequencer_window = &self.mini_windows[SEQUENCER_ID];
         let mixer_window = &self.mini_windows[MIXER_ID];
 
+        // volume knobs
         if self.dragging_knob == None {
             let y_ceiling: f32 = mixer_window.y;
             let track_height: f32 = 164.0;
@@ -260,13 +263,11 @@ impl Graphics {
                 return DragResult::DragVolumeSlider(self.master_volume);
             }
         }
-
         if let Some(i) = self.dragging_knob {
             self.instruments[i].data.track_volume = (self.instruments[i].data.track_volume - dy * 0.005).clamp(0.0, 1.0);
             self.dragging = true;
             return DragResult::DragVolumeKnob(i, self.instruments[i].data.track_volume);
         }
-
         for (i, track) in &mut self.instruments.iter_mut().enumerate() {
             let knob_rect = Rectangle {
                 x: sequencer_window.x + 198.0 - KNOB_RADIUS,
@@ -282,9 +283,19 @@ impl Graphics {
             }
         }
 
+        // update window dragging
         if let Some(i) = self.dragging_window {
-            self.mini_windows[i].x += dx;
-            self.mini_windows[i].y += dy;
+            // stop window from going off of surface
+            if (dx < 0.0 && self.mini_windows[i].x > 0.0)
+                || dx > 0.0 && (self.mini_windows[i].x + self.mini_windows[i].width) < self.surface_config.width as f32
+            {
+                self.mini_windows[i].x += dx;
+            }
+            if (dy < 0.0 && self.mini_windows[i].y > TITLEBAR_HEIGHT + TOOLBAR_Y)
+                || dy > 0.0 && (self.mini_windows[i].y + self.mini_windows[i].height) < self.surface_config.height as f32
+            {
+                self.mini_windows[i].y += dy;
+            }
 
             return DragResult::None;
         }
@@ -514,60 +525,19 @@ impl Graphics {
         // --- toolbar / UI layer (always on top) ---
         let toolbar_vert_start = vertices.len() as u32;
 
-        // patterns tray
-        let pattern_tray = Rectangle {
-            x: screen_config.width as f32 - 128.0,
-            y: TOOLBAR_Y,
-            width: 128.0,
-            height: self.surface_config.height as f32 - TOOLBAR_THICKNESS,
+        // draw the patterns tray
+        let (verts, result, icon) = playlist_tray::draw(&screen_config, &self.patterns, self.active_pattern_id, mouse_state);
+        vertices.extend(verts);
+        if icon != CursorIcon::Default {
+            cursor_icon = icon;
         };
-        vertices.extend(pattern_tray.draw(&screen_config, PASCAL));
+        click_result = result;
 
-        // add pattern button
-        let add_pattern_button = Rectangle {
-            x: screen_config.width as f32 - 32.0,
-            y: TOOLBAR_Y + 12.0,
-            width: 16.0,
-            height: 16.0,
-        };
-        vertices.extend(add_pattern_button.draw(&screen_config, add_pattern_button.hover_color(mouse_state.x, mouse_state.y)));
-        if add_pattern_button.is_hovered(mouse_state.x, mouse_state.y) {
-            cursor_icon = CursorIcon::Pointer;
-            if mouse_state.left_clicked {
-                click_result = ClickResult::AddPlaylist;
-            }
-        }
-
-        for (i, pattern) in &mut self.patterns.iter_mut().enumerate() {
-            let pattern_button = Rectangle {
-                x: screen_config.width as f32 - 128.0 + PAD_16,
-                y: 48.0 + (32.0 * i as f32) + 24.0,
-                width: 96.0,
-                height: 24.0,
-            };
-            if i == self.active_pattern_id {
-                let indicator = Rectangle {
-                    x: screen_config.width as f32 - 128.0 + PAD_4,
-                    y: 48.0 + (32.0 * i as f32) + 24.0 + PAD_4,
-                    width: 4.0,
-                    height: 4.0,
-                };
-                vertices.extend(indicator.draw(&screen_config, ORANGE));
-            }
-            vertices.extend(pattern_button.draw(&screen_config, pattern_button.hover_color(mouse_state.x, mouse_state.y)));
-            if pattern_button.is_hovered(mouse_state.x, mouse_state.y) {
-                cursor_icon = CursorIcon::Pointer;
-                if mouse_state.left_clicked {
-                    self.active_pattern_id = pattern.id as usize;
-                }
-            }
-        }
-
-        // toolbar
+        // draw the toolbar
         let (toolbar_verts, toolbar_texts, result, cursor) =
-            toolbar::draw_toolbar(mouse_state, &screen_config, self.bpm, &self.patterns, self.is_playing, self.active_step);
+            components::toolbar::draw_toolbar(mouse_state, &screen_config, self.bpm, &self.patterns, self.is_playing, self.active_step);
         vertices.extend(toolbar_verts);
-        // build toolbar text items
+
         let toolbar_char_start = char_draws.len();
 
         if cursor != CursorIcon::Default {

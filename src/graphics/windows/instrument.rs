@@ -1,7 +1,7 @@
 use crate::app::MouseState;
-use crate::graphics::primitives::{PAD_16, PAD_64, PAD_8};
+use crate::graphics::primitives::{PAD_16, PAD_64};
 use crate::graphics::{
-    color::{BACKGROUND, BLUE, DARK_GRAY},
+    color::{BACKGROUND, DARK_GRAY},
     primitives::{ScreenConfig, Vertex},
     widgets::{window_background, window_title_bar},
     windows::MiniWindow,

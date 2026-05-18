@@ -202,6 +202,9 @@ impl App {
 
             // dispatch audio commands based on what was clicked
             match result {
+                ClickResult::SelectPattern(id) => {
+                    gfx.active_pattern_id = id;
+                }
                 ClickResult::AddInstrumentWindow(track) => {
                     gfx.mini_windows.push(MiniWindow {
                         x: 64.0,

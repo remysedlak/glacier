@@ -1,4 +1,5 @@
 use crate::app::MouseState;
+use crate::graphics::color::DARK_GRAY;
 use crate::graphics::{
     color::LIGHT_GRAY,
     primitives::{draw_h_line, draw_rectangle, BUTTON_GAP, PAD_4},
@@ -6,10 +7,12 @@ use crate::graphics::{
         Rectangle, TextItem, ADD_INSTRUMENT_ICON_OFFSET, ICON_HEIGHT, ICON_WIDTH, PLAY_SQUARE_HEIGHT, PLAY_SQUARE_WIDTH, PLAY_X_ORIGIN,
         PLAY_Y_ORIGIN, TOOLBAR_MARGIN, TOOLBAR_Y,
     },
-    ClickResult, ScreenConfig, Vertex, LOAD_PROJECT_ICON_OFFSET, TOOLBAR_THICKNESS,
+    ClickResult, ScreenConfig, Vertex, TOOLBAR_THICKNESS,
 };
 use crate::project::PatternData;
 use winit::window::CursorIcon;
+
+const LOAD_PROJECT_ICON_OFFSET: f32 = 40.0;
 
 pub fn draw_toolbar(
     mouse_state: &MouseState,
@@ -24,6 +27,16 @@ pub fn draw_toolbar(
     let mut click_result = ClickResult::None;
     let mut cursor_icon = CursorIcon::Default;
 
+    // background of toolbar's buttons and components
+    let toolbar_background = Rectangle {
+        x: 0.0,
+        y: 0.0,
+        width: screen_config.width as f32,
+        height: TOOLBAR_Y,
+    };
+    vertices.extend(toolbar_background.draw(&screen_config, DARK_GRAY));
+
+    // bpm button increment
     let bpm_up = Rectangle {
         x: 48.0,
         y: 4.0,
@@ -39,6 +52,7 @@ pub fn draw_toolbar(
         }
     }
 
+    // bpm button decrement
     let bpm_down = Rectangle {
         x: 48.0,
         y: 16.0,

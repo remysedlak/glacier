@@ -11,7 +11,6 @@ use crate::graphics::{
  */
 
 pub const ADD_INSTRUMENT_ICON_OFFSET: f32 = 80.0;
-pub const LOAD_PROJECT_ICON_OFFSET: f32 = 40.0;
 
 pub const PLAY_Y_ORIGIN: f32 = 4.0;
 pub const PLAY_X_ORIGIN: f32 = 90.0;
