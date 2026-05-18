@@ -3,12 +3,6 @@ name = "glacier_daw"
 version = "0.1.0"
 edition = "2021"
 
-[features]
-default = []
-# turn on when compiling for browsers while waiting for webgpu
-# to get proper support
-webgl = ["wgpu/webgl"]
-
 [dependencies]
 winit = { version = "0.30.12" }
 env_logger = {version = "0.11.5"}
@@ -23,8 +17,3 @@ ringbuf = "0.4.8"
 serde = { version = "1", features = ["derive"] }
 toml = "1.1.2"
 rfd = "0.17.2"
-
-[target.'cfg(target_arch = "wasm32")'.dependencies]
-console_error_panic_hook = "0.1.7"
-console_log = "1.0"
-wasm-bindgen-futures = "0.4.49"
