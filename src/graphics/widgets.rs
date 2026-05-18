@@ -72,6 +72,15 @@ impl Rectangle {
         }
     }
 
+    // return color for hover logic
+    pub fn dark_hover_color(&self, mx: f32, my: f32) -> (f32, f32, f32) {
+        if self.is_hovered(mx, my) {
+            DARK_GRAY
+        } else {
+            BLACK
+        }
+    }
+
     // return color if hovering and component is active
     pub fn active_color(&self, mx: f32, my: f32, is_active: bool) -> (f32, f32, f32) {
         let hovered = self.is_hovered(mx, my);
