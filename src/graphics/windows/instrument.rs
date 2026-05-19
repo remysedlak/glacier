@@ -8,7 +8,6 @@ use crate::graphics::{
     {ClickResult, Rectangle, TextItem},
 };
 use crate::project::Instrument;
-
 use winit::window::CursorIcon;
 
 pub fn draw(

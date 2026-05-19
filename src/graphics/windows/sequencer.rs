@@ -1,7 +1,8 @@
 use crate::app::MouseState;
 use crate::graphics::primitives::PAD_8;
+use crate::graphics::windows::MINI_WINDOW_BACKGROUND;
 use crate::graphics::{
-    color::{BACKGROUND, BLUE, DARK_GRAY},
+    color::{BLUE, DARK_GRAY},
     primitives::{draw_knob, ScreenConfig, Vertex, BAR_GAP, BUTTON_GAP, KNOB_RADIUS, MUTE_SQUARE_LENGTH, PAD_16, PAD_32, TRACK_GAP},
     widgets::{window_background, window_title_bar},
     windows::MiniWindow,
@@ -34,10 +35,9 @@ pub fn draw(
     let mut click_result = ClickResult::None;
     let mut cursor_icon = CursorIcon::Default;
 
-    //  size: 18.0,window backgro
-    // und
+    //  size: 18.0, window background
     let window_background = window_background(&window);
-    vertices.extend(window_background.draw(&screen_config, BACKGROUND));
+    vertices.extend(window_background.draw(&screen_config, MINI_WINDOW_BACKGROUND));
 
     // titlebar
     let (titlebar_verts, titlebar_texts) = window_title_bar(&window);

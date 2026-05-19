@@ -1,8 +1,8 @@
 use crate::app::MouseState;
-use crate::graphics::components::pattern_tray;
 use crate::graphics::{
+    components::pattern_tray,
     primitives::{ScreenConfig, Vertex, KNOB_RADIUS, ONE_MEGABYTE, PAD_16, PAD_4, TRACK_GAP},
-    widgets::{TITLEBAR_HEIGHT, TOOLBAR_THICKNESS, TOOLBAR_Y},
+    widgets::{Rectangle, TextItem, TITLEBAR_HEIGHT, TOOLBAR_THICKNESS, TOOLBAR_Y},
     windows::{instrument, mixer, playlist, sequencer, MiniWindow, PlaylistDrawRanges, WindowDrawRange, WindowKind},
 };
 use crate::project::{AudioBlock, AudioBlockType, Instrument, PatternData};
@@ -13,7 +13,6 @@ use wgpu::{
     PowerPreference, RenderPassColorAttachment, RenderPassDescriptor, RenderPipeline, RenderPipelineDescriptor, RequestAdapterOptions,
     ShaderModuleDescriptor, ShaderSource, StoreOp, SurfaceConfiguration, TextureFormat, TextureViewDescriptor, VertexState,
 };
-use widgets::{Rectangle, TextItem};
 use winit::{
     dpi::PhysicalSize,
     event_loop::EventLoopProxy,
@@ -573,9 +572,9 @@ impl Graphics {
                     resolve_target: None,
                     ops: Operations {
                         load: LoadOp::Clear(Color {
-                            r: 0.1,
-                            g: 0.1,
-                            b: 0.1,
+                            r: 0.005,
+                            g: 0.005,
+                            b: 0.005,
                             a: 1.0,
                         }),
                         store: StoreOp::Store,
