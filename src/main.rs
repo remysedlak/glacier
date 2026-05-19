@@ -12,7 +12,6 @@ use ringbuf::traits::Split;
 use ringbuf::HeapRb;
 use winit::event_loop::{ControlFlow, EventLoop};
 
-#[cfg(not(target_arch = "wasm32"))]
 fn run_app(event_loop: EventLoop<Graphics>, mut app: App) {
     // Allows the setting of the log level through RUST_LOG env var.
     // It also allows wgpu logs to be seen.

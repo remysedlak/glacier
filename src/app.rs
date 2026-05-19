@@ -342,24 +342,8 @@ impl ApplicationHandler<Graphics> for App {
             if let Some(proxy) = proxy.take() {
                 let mut win_attr = Window::default_attributes();
 
-                #[cfg(not(target_arch = "wasm32"))]
-                {
-                    win_attr = win_attr.with_inner_size(winit::dpi::LogicalSize::new(1800, 1200)).with_title("Glacier");
-                }
-
-                #[cfg(target_arch = "wasm32")]
-                {
-                    use winit::platform::web::WindowAttributesExtWebSys;
-                    win_attr = win_attr.with_append(true);
-                    win_attr = win_attr.with_inner_size(winit::dpi::LogicalSize::new(1400, 800));
-                }
-
+                win_attr = win_attr.with_inner_size(winit::dpi::LogicalSize::new(1800, 1200)).with_title("Glacier");
                 let window = Rc::new(event_loop.create_window(win_attr).expect("create window err."));
-
-                #[cfg(target_arch = "wasm32")]
-                wasm_bindgen_futures::spawn_local(create_graphics(window, proxy));
-
-                #[cfg(not(target_arch = "wasm32"))]
                 pollster::block_on(create_graphics(window, proxy));
             }
         }

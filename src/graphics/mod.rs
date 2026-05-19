@@ -29,7 +29,6 @@ pub const SEQUENCER_ID: usize = 0;
 pub const PLAYLIST_ID: usize = 1;
 pub const MIXER_ID: usize = 2;
 
-#[cfg(not(target_arch = "wasm32"))]
 pub type Rc<T> = std::sync::Arc<T>;
 
 #[derive(Debug)]
