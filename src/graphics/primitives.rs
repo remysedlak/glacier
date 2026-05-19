@@ -17,6 +17,7 @@ pub const MUTE_SQUARE_LENGTH: f32 = 12.0;
 // padding constants
 pub const PAD_64: f32 = 64.0;
 pub const PAD_32: f32 = 32.0;
+pub const PAD_24: f32 = 24.0;
 pub const PAD_16: f32 = 16.0;
 pub const PAD_8: f32 = 8.0;
 pub const PAD_4: f32 = 4.0;

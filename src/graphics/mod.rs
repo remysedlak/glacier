@@ -1,9 +1,12 @@
 use crate::app::MouseState;
 use crate::graphics::{
     components::pattern_tray,
+    context_menu::ContextMenu,
+    mini_window::{
+        instrument, mixer, playlist, sequencer, MiniWindow, PlaylistDrawRanges, WindowDrawRange, WindowKind, MIXER_ID, PLAYLIST_ID, SEQUENCER_ID,
+    },
     primitives::{ScreenConfig, Vertex, KNOB_RADIUS, ONE_MEGABYTE, PAD_16, PAD_4, TRACK_GAP},
     widgets::{Rectangle, TextItem, TITLEBAR_HEIGHT, TOOLBAR_THICKNESS, TOOLBAR_Y},
-    windows::{instrument, mixer, playlist, sequencer, MiniWindow, PlaylistDrawRanges, WindowDrawRange, WindowKind},
 };
 use crate::project::{AudioBlock, AudioBlockType, Instrument, PatternData};
 use fontdue::layout::{CoordinateSystem, Layout, TextStyle};
@@ -18,16 +21,14 @@ use winit::{
     event_loop::EventLoopProxy,
     window::{CursorIcon, Window},
 };
+
 pub mod color;
 pub mod components;
+pub mod context_menu;
 pub mod font;
+pub mod mini_window;
 pub mod primitives;
 pub mod widgets;
-pub mod windows;
-
-pub const SEQUENCER_ID: usize = 0;
-pub const PLAYLIST_ID: usize = 1;
-pub const MIXER_ID: usize = 2;
 
 pub type Rc<T> = std::sync::Arc<T>;
 
@@ -51,6 +52,8 @@ pub enum ClickResult {
     TogglePlaylistWindow,
     AddInstrumentWindow(usize),
     SelectPattern(usize),
+    OpenPatternMenu(f32, f32, usize),
+    OpenTrackMenu(f32, f32, usize),
     None,
 }
 pub enum DragResult {
@@ -102,7 +105,7 @@ pub async fn create_graphics(window: Rc<Window>, proxy: EventLoopProxy<Graphics>
     let mut mini_windows: Vec<MiniWindow> = Vec::new();
     let instruments: Vec<Instrument> = Vec::new();
 
-    let sequencer_window = MiniWindow::new(256.0, 128.0, 1300.0, 400.0, "Sequencer", WindowKind::Sequencer, true);
+    let sequencer_window = MiniWindow::new(256.0, 128.0, 1092.0, 100.0, "Sequencer", WindowKind::Sequencer, true);
     mini_windows.push(sequencer_window);
     let playlist_window = MiniWindow::new(900.0, 600.0, 1500.0, 900.0, "Playlist", WindowKind::Playlist, true);
     mini_windows.push(playlist_window);
@@ -116,6 +119,8 @@ pub async fn create_graphics(window: Rc<Window>, proxy: EventLoopProxy<Graphics>
     let bind_group_layout = font::create_bind_group_layout(&device);
     let render_pipeline = create_pipeline(&device, surface_config.format, &bind_group_layout);
     let glyph_cache = font::build_glyph_cache(&device, &queue, &font, &[12.0, 16.0, 18.0, 24.0, 32.0]);
+
+    let context_menu = None;
 
     let gfx = Graphics {
         window: window.clone(),
@@ -131,6 +136,7 @@ pub async fn create_graphics(window: Rc<Window>, proxy: EventLoopProxy<Graphics>
         vertex_buffer,
         num_vertices: vertices.len() as u32,
         active_step: 0,
+        context_menu,
 
         bpm: 120.0,
         is_playing: false,
@@ -201,21 +207,26 @@ pub struct Graphics {
     glyph_cache: HashMap<(char, u32), (wgpu::Texture, wgpu::BindGroup, fontdue::Metrics)>,
     font: fontdue::Font,
 
+    //ui
+    pub mini_windows: Vec<MiniWindow>,
+    num_vertices: u32,
+    pub active_pattern_id: usize,
+    pub z_order: Vec<usize>,
+    pub context_menu: Option<ContextMenu>,
+
+    // song
     pub instruments: Vec<Instrument>,
     pub patterns: Vec<PatternData>,
     pub events: Vec<AudioBlock>,
-
-    num_vertices: u32,
     pub active_step: usize,
     pub bpm: f32,
     pub is_playing: bool,
     pub master_volume: f32,
+
+    // dragging
     pub dragging_knob: Option<usize>,
-    pub mini_windows: Vec<MiniWindow>,
     pub dragging_window: Option<usize>,
     pub dragging: bool,
-    pub active_pattern_id: usize,
-    pub z_order: Vec<usize>,
 
     // scrolling
     pub playlist_scroll_x: f32,
@@ -538,6 +549,18 @@ impl Graphics {
 
         if cursor != CursorIcon::Default {
             cursor_icon = cursor;
+        }
+
+        match &self.context_menu {
+            Some(menu) => {
+                // draw it
+                let (verts, cursor) = menu.draw(&screen_config, &mouse_state);
+                vertices.extend(verts);
+                if !matches!(cursor, CursorIcon::Default) {
+                    cursor_icon = cursor;
+                }
+            }
+            None => {}
         }
 
         match result {

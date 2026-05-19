@@ -52,9 +52,12 @@ pub fn draw(
     }
 
     for (i, pattern) in patterns.iter().enumerate() {
+        let button_x = screen_config.width as f32 - 128.0 + PAD_16;
+        let button_y = 52.0 + (32.0 * i as f32) + 24.0;
+
         let pattern_button = Rectangle {
-            x: screen_config.width as f32 - 128.0 + PAD_16,
-            y: 52.0 + (32.0 * i as f32) + 24.0,
+            x: button_x,
+            y: button_y,
             width: 96.0,
             height: 24.0,
         };
@@ -71,8 +74,10 @@ pub fn draw(
         if pattern_button.is_hovered(mouse_state.x, mouse_state.y) {
             cursor_icon = CursorIcon::Pointer;
             if mouse_state.left_clicked {
-                // should this be a click result?
                 click_result = ClickResult::SelectPattern(pattern.id as usize);
+            }
+            if mouse_state.right_clicked {
+                click_result = ClickResult::OpenPatternMenu(button_x, button_y, pattern.id as usize);
             }
         }
     }

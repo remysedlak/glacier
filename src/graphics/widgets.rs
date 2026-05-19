@@ -1,7 +1,7 @@
 use crate::graphics::{
     color::*,
+    mini_window::MiniWindow,
     primitives::{draw_rectangle, Vertex, PAD_16, PAD_4, PAD_8},
-    windows::MiniWindow,
     ScreenConfig,
 };
 
@@ -80,9 +80,9 @@ impl Rectangle {
     // return color for hover logic
     pub fn dark_hover_color(&self, mx: f32, my: f32) -> (f32, f32, f32) {
         if self.is_hovered(mx, my) {
-            DARK_GRAY
+            LL_GRAY
         } else {
-            BLACK
+            DARK_GRAY
         }
     }
 

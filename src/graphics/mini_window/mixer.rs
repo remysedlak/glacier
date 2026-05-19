@@ -1,8 +1,8 @@
 use crate::graphics::{
     color::*,
+    mini_window::MiniWindow,
     primitives::ScreenConfig,
     widgets::{draw_slider, window_background, window_title_bar},
-    windows::MiniWindow,
     TextItem, Vertex,
 };
 

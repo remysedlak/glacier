@@ -1,8 +1,9 @@
 use crate::audio::{init, AudioCommand};
-use crate::graphics::windows::MiniWindow;
+use crate::graphics::context_menu::{ContextMenu, ContextMenuKind};
+use crate::graphics::mini_window::MiniWindow;
 use crate::graphics::{
-    windows::WindowKind,
-    {bring_to_front, create_graphics, ClickResult, DragResult, Graphics, Rc, MIXER_ID, PLAYLIST_ID, SEQUENCER_ID},
+    mini_window::{WindowKind, MIXER_ID, PLAYLIST_ID, SEQUENCER_ID},
+    {bring_to_front, create_graphics, ClickResult, DragResult, Graphics, Rc},
 };
 use crate::project::{AudioBlock, Instrument, PatternData};
 
@@ -202,6 +203,24 @@ impl App {
 
             // dispatch audio commands based on what was clicked
             match result {
+                ClickResult::OpenPatternMenu(x, y, id) => {
+                    gfx.context_menu = Some(ContextMenu {
+                        kind: ContextMenuKind::PatternContext(id),
+                        x,
+                        y,
+                        height: 128.0,
+                        width: 128.0,
+                    });
+                }
+                ClickResult::OpenTrackMenu(x, y, id) => {
+                    gfx.context_menu = Some(ContextMenu {
+                        kind: ContextMenuKind::PatternContext(id),
+                        x,
+                        y,
+                        height: 128.0,
+                        width: 128.0,
+                    });
+                }
                 ClickResult::ChangeBpmDown => {
                     gfx.bpm -= 1.0;
                     self.producer.try_push(AudioCommand::ChangeBpm(gfx.bpm)).ok();

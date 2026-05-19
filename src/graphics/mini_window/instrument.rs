@@ -2,9 +2,9 @@ use crate::app::MouseState;
 use crate::graphics::primitives::{PAD_16, PAD_64};
 use crate::graphics::{
     color::{BACKGROUND, DARK_GRAY},
+    mini_window::MiniWindow,
     primitives::{ScreenConfig, Vertex},
     widgets::{window_background, window_title_bar},
-    windows::MiniWindow,
     {ClickResult, Rectangle, TextItem},
 };
 use crate::project::Instrument;

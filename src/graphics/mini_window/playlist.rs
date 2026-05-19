@@ -1,10 +1,10 @@
 use crate::app::MouseState;
-use crate::graphics::color::{BLACK, LL_GRAY};
+use crate::graphics::color::LL_GRAY;
 use crate::graphics::{
     color::{BLUE, DARK_BLUE, DARK_GRAY, ORANGE, PASCAL},
+    mini_window::{MiniWindow, MINI_WINDOW_BACKGROUND},
     primitives::{ScreenConfig, Vertex, PAD_16, PAD_32, PAD_4, PAD_64, PAD_8},
     widgets::{window_background, window_title_bar, TextItem},
-    windows::{MiniWindow, MINI_WINDOW_BACKGROUND},
     ClickResult, Rectangle,
 };
 use crate::project::*;
@@ -60,8 +60,8 @@ pub fn draw(
     let steps = 64;
     let tracks = 32;
 
-    let mixer_background = window_background(&window);
-    static_vertices.extend(mixer_background.draw(&screen_config, MINI_WINDOW_BACKGROUND));
+    let playlist_background = window_background(&window);
+    static_vertices.extend(playlist_background.draw(&screen_config, MINI_WINDOW_BACKGROUND));
 
     // titlebar
     let (titlebar_verts, titlebar_texts) = window_title_bar(&window);

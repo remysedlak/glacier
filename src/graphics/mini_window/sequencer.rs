@@ -1,11 +1,11 @@
 use crate::app::MouseState;
+use crate::graphics::mini_window::MINI_WINDOW_BACKGROUND;
 use crate::graphics::primitives::PAD_8;
-use crate::graphics::windows::MINI_WINDOW_BACKGROUND;
 use crate::graphics::{
     color::{BLUE, DARK_GRAY},
+    mini_window::MiniWindow,
     primitives::{draw_knob, ScreenConfig, Vertex, BAR_GAP, BUTTON_GAP, KNOB_RADIUS, MUTE_SQUARE_LENGTH, PAD_16, PAD_32, TRACK_GAP},
-    widgets::{window_background, window_title_bar},
-    windows::MiniWindow,
+    widgets::window_title_bar,
     {ClickResult, Rectangle, TextItem},
 };
 use crate::project::{Instrument, PatternData, Sequence};
@@ -36,7 +36,12 @@ pub fn draw(
     let mut cursor_icon = CursorIcon::Default;
 
     //  size: 18.0, window background
-    let window_background = window_background(&window);
+    let window_background = Rectangle {
+        x: window.x,
+        y: window.y,
+        width: window.width,
+        height: window.height + 52.0 * instruments.len() as f32,
+    };
     vertices.extend(window_background.draw(&screen_config, MINI_WINDOW_BACKGROUND));
 
     // titlebar
@@ -130,18 +135,22 @@ pub fn draw(
 
         // ACTIONS FOR EACH TRACK /////////////////
 
-        // background
-        let track_background = Rectangle {
-            x: PAD_8 + window.x,
-            y: PAD_16 + window.y + (i as f32 * TRACK_GAP),
+        let track_button_x = PAD_8 + window.x;
+        let track_button_y = PAD_16 + window.y + (i as f32 * TRACK_GAP);
+        let track_button = Rectangle {
+            x: track_button_x,
+            y: track_button_y,
             width: 172.0,
             height: 24.0,
         };
-        vertices.extend(track_background.draw(&screen_config, track_background.dark_hover_color(mouse_state.x, mouse_state.y)));
-        if track_background.is_hovered(mouse_state.x, mouse_state.y) {
+        vertices.extend(track_button.draw(&screen_config, track_button.dark_hover_color(mouse_state.x, mouse_state.y)));
+        if track_button.is_hovered(mouse_state.x, mouse_state.y) {
             cursor_icon = CursorIcon::Pointer;
             if mouse_state.left_clicked {
                 click_result = ClickResult::AddInstrumentWindow(i)
+            }
+            if mouse_state.right_clicked {
+                click_result = ClickResult::OpenTrackMenu(track_button_x, track_button_y, i)
             }
         }
 
