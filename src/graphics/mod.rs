@@ -111,11 +111,11 @@ pub async fn create_graphics(window: Rc<Window>, proxy: EventLoopProxy<Graphics>
 
     let events: Vec<AudioBlock> = Vec::new();
 
-    let font_data = include_bytes!("Roboto-VariableFont_wdth,wght.ttf") as &[u8];
+    let font_data = include_bytes!("../../fonts/Roboto-VariableFont_wdth,wght.ttf") as &[u8];
     let font = fontdue::Font::from_bytes(font_data, fontdue::FontSettings::default()).unwrap();
     let bind_group_layout = font::create_bind_group_layout(&device);
     let render_pipeline = create_pipeline(&device, surface_config.format, &bind_group_layout);
-    let glyph_cache = font::build_glyph_cache(&device, &queue, &font, &[12.0, 18.0, 24.0, 32.0]);
+    let glyph_cache = font::build_glyph_cache(&device, &queue, &font, &[12.0, 16.0, 18.0, 24.0, 32.0]);
 
     let gfx = Graphics {
         window: window.clone(),

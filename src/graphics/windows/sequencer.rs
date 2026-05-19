@@ -235,7 +235,7 @@ pub fn draw(
             text: instrument.data.name.to_string(),
             x: window.x + PAD_16,
             y: window.y + i as f32 * TRACK_GAP + PAD_16,
-            size: 18.0,
+            size: 16.0,
         });
     }
     (vertices, text_items, click_result, cursor_icon)

@@ -31,8 +31,8 @@ pub fn draw(
         texts.push(TextItem {
             text: pattern.name.to_string(),
             x: screen_config.width as f32 - 96.0,
-            y: 48.0 + (32.0 * i as f32) + 24.0,
-            size: 18.0,
+            y: 52.0 + (32.0 * i as f32) + 24.0,
+            size: 16.0,
         });
     }
 
@@ -54,14 +54,14 @@ pub fn draw(
     for (i, pattern) in patterns.iter().enumerate() {
         let pattern_button = Rectangle {
             x: screen_config.width as f32 - 128.0 + PAD_16,
-            y: 48.0 + (32.0 * i as f32) + 24.0,
+            y: 52.0 + (32.0 * i as f32) + 24.0,
             width: 96.0,
             height: 24.0,
         };
         if i == active_pattern_id {
             let indicator = Rectangle {
                 x: screen_config.width as f32 - 128.0 + PAD_8,
-                y: 48.0 + (32.0 * i as f32) + 24.0,
+                y: 52.0 + (32.0 * i as f32) + 24.0,
                 width: 4.0,
                 height: 24.0,
             };
@@ -78,8 +78,8 @@ pub fn draw(
     }
     texts.push(TextItem {
         text: "Patterns".to_string(),
-        x: screen_config.width as f32 - 128.0 + PAD_4,
-        y: TOOLBAR_Y + PAD_4,
+        x: screen_config.width as f32 - 128.0 + PAD_8,
+        y: TOOLBAR_Y + PAD_8,
         size: 18.0,
     });
 
