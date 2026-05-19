@@ -526,8 +526,10 @@ impl Graphics {
         if icon != CursorIcon::Default {
             cursor_icon = icon;
         };
+        if matches!(click_result, ClickResult::None) {
+            click_result = result;
+        }
         Graphics::push_text_draws(&texts, &self.font, &self.glyph_cache, &self.device, &screen_config, &mut char_draws);
-        click_result = result;
 
         // draw the toolbar
         let (toolbar_verts, toolbar_texts, result, cursor) =
