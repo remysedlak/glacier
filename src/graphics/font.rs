@@ -25,25 +25,29 @@ pub fn create_bind_group_layout(device: &wgpu::Device) -> wgpu::BindGroupLayout 
     })
 }
 
+/// returns the glyph cache (a hashmap of characters to bitmaps for one size)
 pub fn build_glyph_cache(
     device: &wgpu::Device,
     queue: &wgpu::Queue,
     font: &fontdue::Font,
-    size: f32,
-) -> HashMap<char, (wgpu::Texture, wgpu::BindGroup, fontdue::Metrics)> {
+    sizes: &[f32],
+) -> HashMap<(char, u32), (wgpu::Texture, wgpu::BindGroup, fontdue::Metrics)> {
     let mut cache = HashMap::new();
-    for c in ' '..='~' {
-        let (metrics, _) = font.rasterize(c, size);
-        if metrics.width == 0 || metrics.height == 0 {
-            continue;
+    for &size in sizes {
+        for c in ' '..='~' {
+            let (metrics, _) = font.rasterize(c, size);
+            if metrics.width == 0 || metrics.height == 0 {
+                continue;
+            }
+            let (texture, bind_group, _, _, _) = rasterize_glyph(device, queue, font, c, size);
+            let (metrics, _) = font.rasterize(c, size);
+            cache.insert((c, size as u32), (texture, bind_group, metrics));
         }
-        let (texture, bind_group, _bgl, _w, _h) = rasterize_glyph(device, queue, font, c, size);
-        let (metrics, _) = font.rasterize(c, size);
-        cache.insert(c, (texture, bind_group, metrics));
     }
     cache
 }
 
+/// convert the font glyph into wgpu renderable pixels
 pub fn rasterize_glyph(
     device: &wgpu::Device,
     queue: &wgpu::Queue,
@@ -126,6 +130,8 @@ pub fn rasterize_glyph(
 
     (texture, bind_group, bgl, metrics.width as u32, metrics.height as u32)
 }
+
+// return vec of vertex building the font letter
 pub fn draw_glyph(x: f32, y: f32, w: f32, h: f32, screen_config: &ScreenConfig) -> Vec<Vertex> {
     let ndc_x = 2.0 * (x / screen_config.width as f32) - 1.0;
     let ndc_y = 1.0 - (y / screen_config.height as f32) * 2.0;

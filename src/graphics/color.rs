@@ -6,4 +6,4 @@ pub const BLACK: (f32, f32, f32) = (0.00, 0.00, 0.00);
 pub const LL_GRAY: (f32, f32, f32) = (0.27, 0.27, 0.27);
 pub const BACKGROUND: (f32, f32, f32) = (0.20, 0.20, 0.99);
 pub const PASCAL: (f32, f32, f32) = (0.018, 0.018, 0.018);
-pub const ORANGE: (f32, f32, f32) = (0.99, 0.5, 0.0);
+pub const ORANGE: (f32, f32, f32) = (0.99, 0.1, 0.0);

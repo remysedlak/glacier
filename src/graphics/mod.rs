@@ -116,7 +116,7 @@ pub async fn create_graphics(window: Rc<Window>, proxy: EventLoopProxy<Graphics>
     let font = fontdue::Font::from_bytes(font_data, fontdue::FontSettings::default()).unwrap();
     let bind_group_layout = font::create_bind_group_layout(&device);
     let render_pipeline = create_pipeline(&device, surface_config.format, &bind_group_layout);
-    let glyph_cache = font::build_glyph_cache(&device, &queue, &font, 18.0);
+    let glyph_cache = font::build_glyph_cache(&device, &queue, &font, &[12.0, 18.0, 24.0, 32.0]);
 
     let gfx = Graphics {
         window: window.clone(),
@@ -199,7 +199,7 @@ pub struct Graphics {
     vertex_buffer: wgpu::Buffer,
 
     // text
-    glyph_cache: HashMap<char, (wgpu::Texture, wgpu::BindGroup, fontdue::Metrics)>,
+    glyph_cache: HashMap<(char, u32), (wgpu::Texture, wgpu::BindGroup, fontdue::Metrics)>,
     font: fontdue::Font,
 
     pub instruments: Vec<Instrument>,
@@ -322,7 +322,7 @@ impl Graphics {
     fn push_text_draws<'a>(
         texts: &[TextItem],
         font: &fontdue::Font,
-        glyph_cache: &'a HashMap<char, (wgpu::Texture, wgpu::BindGroup, fontdue::Metrics)>,
+        glyph_cache: &'a HashMap<(char, u32), (wgpu::Texture, wgpu::BindGroup, fontdue::Metrics)>,
         device: &wgpu::Device,
         screen_config: &ScreenConfig,
         char_draws: &mut Vec<(wgpu::Buffer, &'a wgpu::BindGroup)>,
@@ -331,7 +331,7 @@ impl Graphics {
             let mut layout = Layout::new(CoordinateSystem::PositiveYDown);
             layout.append(&[font], &TextStyle::new(&text_item.text, text_item.size, 0));
             for glyph in layout.glyphs() {
-                if let Some((_, bind_group, _)) = glyph_cache.get(&glyph.parent) {
+                if let Some((_, bind_group, _)) = glyph_cache.get(&(glyph.parent, text_item.size as u32)) {
                     let gverts = font::draw_glyph(
                         text_item.x + glyph.x,
                         text_item.y + glyph.y,

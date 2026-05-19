@@ -1,4 +1,5 @@
 use crate::app::MouseState;
+use crate::graphics::color::{BLACK, LL_GRAY};
 use crate::graphics::{
     color::{BLUE, DARK_BLUE, DARK_GRAY, ORANGE, PASCAL},
     primitives::{ScreenConfig, Vertex, PAD_16, PAD_32, PAD_4, PAD_64, PAD_8},
@@ -67,12 +68,23 @@ pub fn draw(
     static_vertices.extend(titlebar_verts.draw(&screen_config, DARK_GRAY));
     static_text_items.push(titlebar_texts);
 
-    static_text_items.push(TextItem {
-        text: "this is my toolbar!!@!!!!".to_string(),
-        x: window.x + 274.0,
-        y: window.y + PAD_4,
-        size: 18.0,
-    });
+    let buttons = 8;
+    for i in 0..buttons {
+        let toolbar_button_background = Rectangle {
+            x: window.x + PAD_16 + (i as f32 * 64.0) - 2.0,
+            y: window.y + PAD_8 - 2.0,
+            width: 32.0 + 4.0,
+            height: 24.0 + 4.0,
+        };
+        let toolbar_button = Rectangle {
+            x: window.x + PAD_16 + (i as f32 * 64.0),
+            y: window.y + PAD_8,
+            width: 32.0,
+            height: 24.0,
+        };
+        static_vertices.extend(toolbar_button_background.draw(&screen_config, ORANGE));
+        static_vertices.extend(toolbar_button.draw(&screen_config, LL_GRAY));
+    }
 
     // for each instrument loaded into a project
     for track in 0..tracks {

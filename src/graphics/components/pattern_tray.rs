@@ -23,6 +23,9 @@ pub fn draw(
         height: screen_config.height as f32 - TOOLBAR_THICKNESS,
     };
     vertices.extend(pattern_tray.draw(&screen_config, crate::graphics::color::PASCAL));
+    if pattern_tray.is_hovered_left_edge(mouse_state.x, mouse_state.y) {
+        cursor_icon = CursorIcon::ColResize
+    }
 
     for (i, pattern) in patterns.iter().enumerate() {
         texts.push(TextItem {

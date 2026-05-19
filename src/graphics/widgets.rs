@@ -46,11 +46,16 @@ impl Rectangle {
     pub fn is_hovered(&self, mouse_x: f32, mouse_y: f32) -> bool {
         mouse_x > self.x && mouse_x < self.x + self.width && mouse_y > self.y && mouse_y < self.y + self.height
     }
+    // if either edge of a rectangle has the mouse hovered
     pub fn is_hovered_edge(&self, mouse_x: f32, mouse_y: f32) -> bool {
-        mouse_x > self.x + self.width - PAD_8
-            && mouse_x < self.x + self.width + PAD_8
+        ((mouse_x > self.x + self.width - PAD_8 && mouse_x < self.x + self.width + PAD_8) || (mouse_x > self.x - PAD_8 && mouse_x < self.x + PAD_8))
             && mouse_y > self.y - TITLEBAR_HEIGHT
             && mouse_y < self.y + self.height
+    }
+    // if the left edge of a rectangle has the mouse hovered
+    pub fn is_hovered_left_edge(&self, mouse_x: f32, mouse_y: f32) -> bool {
+        // on left edge within y range
+        (mouse_x > self.x - PAD_4 && mouse_x < self.x + PAD_4) && mouse_y > self.y - TITLEBAR_HEIGHT && mouse_y < self.y + self.height
     }
     // draw vertices with rectangle details
     pub fn draw(&self, screen_config: &ScreenConfig, (r, g, b): (f32, f32, f32)) -> Vec<Vertex> {
