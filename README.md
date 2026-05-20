@@ -1,32 +1,35 @@
 # glacier
-
 A DAW built from scratch in Rust as a deliberate learning project. No frameworks — raw wgpu, CPAL, and winit.
 
 <img width="1920" height="1012" alt="image" src="https://github.com/user-attachments/assets/8df4fef4-2c24-484e-86c3-c83ab1cf2e77" />
 
 ## features
-
 - step sequencer with per-pattern sequences and MIDI velocity
-- load .wav instruments at runtime
+- load .wav instruments at runtime, add/delete tracks dynamically
+- variable step counts per track
 - multiple patterns, switchable from the UI
-- playlist view — arrange patterns across a timeline
+- playlist view — arrange patterns across a timeline with scroll and scissor clipping
 - mixer window with master volume slider
 - per-track volume knobs and mute controls
 - draggable, z-ordered mini-windows (sequencer, playlist, mixer)
+- right-click context menus on patterns and tracks
 - custom text rendering via fontdue — glyph cache, textured quads, painter's algorithm interleaving
-- play/pause, BPM control, keyboard shortcuts
+- play/pause, stop, BPM control, keyboard shortcuts (space, ctrl+s)
+- cursor icon feedback on interactive elements
 - project save/load via TOML
+- footer status bar showing current project path
 
 ## modules
-
 - `audio` — CPAL stream, sequencer callback, event-driven trigger resolution
 - `graphics` — wgpu pipeline, fontdue glyph cache, per-window draw ranges, painter's algorithm
 - `graphics/font` — glyph rasterization, texture upload, NDC quad generation
 - `graphics/sequencer`, `mixer`, `playlist` — per-window geometry and text
+- `graphics/context_menu` — ephemeral right-click menus
+- `graphics/footer` — status bar
+- `graphics/components/pattern_tray` — pattern list and selection
 - `graphics/ui` — shape primitives, layout constants, widget helpers
 - `project` — serialization structs, WAV loading
 - `app` — winit event loop, input handling, ring buffer dispatch
 
 ## stack
-
 wgpu · winit · CPAL · fontdue · ringbuf · hound · serde/toml · rfd
