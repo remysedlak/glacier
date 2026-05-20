@@ -1,6 +1,6 @@
 use crate::app::MouseState;
 use crate::graphics::{
-    components::pattern_tray,
+    components::{footer, pattern_tray},
     context_menu::ContextMenu,
     mini_window::{
         instrument, mixer, playlist, sequencer, MiniWindow, PlaylistDrawRanges, WindowDrawRange, WindowKind, MIXER_ID, PLAYLIST_ID, SEQUENCER_ID,
@@ -54,6 +54,7 @@ pub enum ClickResult {
     SelectPattern(usize),
     OpenPatternMenu(f32, f32, usize),
     OpenTrackMenu(f32, f32, usize),
+    CloseContextMenu,
     None,
 }
 pub enum DragResult {
@@ -125,6 +126,7 @@ pub async fn create_graphics(window: Rc<Window>, proxy: EventLoopProxy<Graphics>
     let gfx = Graphics {
         window: window.clone(),
         surface,
+        project_path: "".to_string(),
         surface_config,
         instruments,
         patterns,
@@ -215,6 +217,7 @@ pub struct Graphics {
     pub context_menu: Option<ContextMenu>,
 
     // song
+    pub project_path: String,
     pub instruments: Vec<Instrument>,
     pub patterns: Vec<PatternData>,
     pub events: Vec<AudioBlock>,
@@ -554,14 +557,29 @@ impl Graphics {
         match &self.context_menu {
             Some(menu) => {
                 // draw it
-                let (verts, cursor) = menu.draw(&screen_config, &mouse_state);
+                let (verts, result, cursor) = menu.draw(&screen_config, &mouse_state);
                 vertices.extend(verts);
                 if !matches!(cursor, CursorIcon::Default) {
                     cursor_icon = cursor;
                 }
+                if matches!(click_result, ClickResult::None) {
+                    click_result = result;
+                }
             }
             None => {}
         }
+
+        // draw the footer at the bottom
+        let (verts, footer_texts) = footer::draw(&screen_config, &self.project_path);
+        vertices.extend(verts);
+        Graphics::push_text_draws(
+            &footer_texts,
+            &self.font,
+            &self.glyph_cache,
+            &self.device,
+            &screen_config,
+            &mut char_draws,
+        );
 
         match result {
             ClickResult::Stop => {

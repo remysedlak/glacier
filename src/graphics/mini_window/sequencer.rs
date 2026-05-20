@@ -147,10 +147,10 @@ pub fn draw(
         if track_button.is_hovered(mouse_state.x, mouse_state.y) {
             cursor_icon = CursorIcon::Pointer;
             if mouse_state.left_clicked {
-                click_result = ClickResult::AddInstrumentWindow(i)
+                click_result = ClickResult::AddInstrumentWindow(i);
             }
             if mouse_state.right_clicked {
-                click_result = ClickResult::OpenTrackMenu(track_button_x, track_button_y, i)
+                click_result = ClickResult::OpenTrackMenu(track_button_x, track_button_y, i);
             }
         }
 

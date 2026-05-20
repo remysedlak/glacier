@@ -40,6 +40,7 @@ pub struct MouseState {
 
 // commands that the audio engine sends to the window
 pub enum UiCommand {
+    LoadProjectFile(String),
     StepAdvanced(usize),
     LoadInstrument(Instrument),
     LoadBpm(f32),
@@ -154,6 +155,9 @@ impl App {
             // consume audio -> ui commands
             while let Some(cmd) = self.consumer.try_pop() {
                 match cmd {
+                    UiCommand::LoadProjectFile(path) => {
+                        gfx.project_path = path;
+                    }
                     UiCommand::LoadInstrument(instrument) => {
                         gfx.load_instrument(instrument);
                     }
@@ -203,6 +207,9 @@ impl App {
 
             // dispatch audio commands based on what was clicked
             match result {
+                ClickResult::CloseContextMenu => {
+                    gfx.context_menu = None;
+                }
                 ClickResult::OpenPatternMenu(x, y, id) => {
                     gfx.context_menu = Some(ContextMenu {
                         kind: ContextMenuKind::PatternContext(id),
@@ -214,7 +221,7 @@ impl App {
                 }
                 ClickResult::OpenTrackMenu(x, y, id) => {
                     gfx.context_menu = Some(ContextMenu {
-                        kind: ContextMenuKind::PatternContext(id),
+                        kind: ContextMenuKind::TrackContext(id),
                         x,
                         y,
                         height: 128.0,

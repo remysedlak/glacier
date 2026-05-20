@@ -58,6 +58,8 @@ pub fn init(mut consumer: HeapCons<AudioCommand>, mut producer: HeapProd<UiComma
         producer.try_push(UiCommand::LoadEvent(event.clone())).ok();
     }
 
+    producer.try_push(UiCommand::LoadProjectFile(project_file.clone())).ok();
+
     // wrap back on first hit (start on 0)
     let mut current_step = events.iter().map(|e| e.start_step + e.length).max().unwrap_or(16) as usize - 1;
 
