@@ -1,5 +1,8 @@
 use crate::app::MouseState;
 use crate::graphics::color::PEBBLE;
+use crate::graphics::components::toolbar;
+use crate::graphics::icons::Tooltip;
+use crate::graphics::primitives::{PAD_4, PAD_64};
 use crate::graphics::{
     color::{LIGHT_GRAY, WHITE},
     icons::IconDraw,
@@ -17,11 +20,12 @@ pub fn draw_toolbar(
     bpm: f32,
     is_playing: bool,
     active_step: usize,
-) -> (Vec<Vertex>, Vec<TextItem>, Vec<IconDraw>, ClickResult, CursorIcon) {
+) -> (Vec<Vertex>, Vec<TextItem>, Vec<IconDraw>, ClickResult, CursorIcon, Option<Tooltip>) {
     let mut vertices: Vec<Vertex> = Vec::new();
     let mut toolbar_texts: Vec<TextItem> = Vec::new();
     let mut click_result = ClickResult::None;
     let mut cursor_icon = CursorIcon::Default;
+    let mut tooltip: Option<Tooltip> = None;
 
     // background of toolbar's buttons and components
     let toolbar_background = Rectangle {
@@ -200,6 +204,9 @@ pub fn draw_toolbar(
     let play_pause_label = if is_playing { "pause" } else { "play" };
 
     let icon_size = 32.0;
+    pub const TOOLTIP_MARGIN: f32 = 36.0;
+    pub const TOOLTIP_RIGHT_MARGIN: f32 = 96.0;
+
     let icons = vec![
         IconDraw {
             name: "instrument",
@@ -207,6 +214,11 @@ pub fn draw_toolbar(
             y: TOOLBAR_MARGIN,
             width: icon_size,
             height: icon_size,
+            tooltip: Tooltip {
+                text: Some("Add Instrument"),
+                x: screen_config.width as f32 - ADD_INSTRUMENT_ICON_OFFSET - TOOLTIP_RIGHT_MARGIN,
+                y: TOOLBAR_MARGIN + TOOLTIP_MARGIN,
+            },
         },
         IconDraw {
             name: "project",
@@ -214,6 +226,11 @@ pub fn draw_toolbar(
             y: TOOLBAR_MARGIN,
             width: icon_size,
             height: icon_size,
+            tooltip: Tooltip {
+                text: Some("Open Project"),
+                x: screen_config.width as f32 - PAD_32 - PAD_8 - TOOLTIP_RIGHT_MARGIN,
+                y: TOOLBAR_MARGIN + TOOLTIP_MARGIN,
+            },
         },
         IconDraw {
             name: "sequencer",
@@ -221,6 +238,11 @@ pub fn draw_toolbar(
             y: PLAY_Y_ORIGIN,
             width: icon_size,
             height: icon_size,
+            tooltip: Tooltip {
+                text: Some("Open Sequencer"),
+                x: PLAY_X_ORIGIN + 256.0,
+                y: PLAY_Y_ORIGIN + TOOLTIP_MARGIN,
+            },
         },
         IconDraw {
             name: "mixer",
@@ -228,6 +250,11 @@ pub fn draw_toolbar(
             y: PLAY_Y_ORIGIN,
             width: icon_size,
             height: icon_size,
+            tooltip: Tooltip {
+                text: Some("Open Mixer"),
+                x: PLAY_X_ORIGIN + 256.0 + (BUTTON_GAP * 2.0),
+                y: PLAY_Y_ORIGIN + TOOLTIP_MARGIN,
+            },
         },
         IconDraw {
             name: "playlist",
@@ -235,6 +262,11 @@ pub fn draw_toolbar(
             y: PLAY_Y_ORIGIN,
             width: icon_size,
             height: icon_size,
+            tooltip: Tooltip {
+                text: Some("Open Playlist"),
+                x: PLAY_X_ORIGIN + 256.0 + (BUTTON_GAP * 2.0) * 2.0,
+                y: PLAY_Y_ORIGIN + TOOLTIP_MARGIN,
+            },
         },
         IconDraw {
             name: play_pause_label,
@@ -242,6 +274,11 @@ pub fn draw_toolbar(
             y: PLAY_Y_ORIGIN,
             width: icon_size,
             height: icon_size,
+            tooltip: Tooltip {
+                text: Some(if is_playing { "Pause" } else { "Play" }),
+                x: (PLAY_X_ORIGIN),
+                y: (PLAY_Y_ORIGIN + TOOLTIP_MARGIN),
+            },
         },
         IconDraw {
             name: "stop",
@@ -249,9 +286,19 @@ pub fn draw_toolbar(
             y: PLAY_Y_ORIGIN,
             width: icon_size,
             height: icon_size,
+            tooltip: Tooltip {
+                text: Some("Stop"),
+                x: (PLAY_X_ORIGIN + 64.0),
+                y: (PLAY_Y_ORIGIN + TOOLTIP_MARGIN),
+            },
         },
         // etc
     ];
+    for icon in &icons {
+        if icon.is_hovered(mouse_state.x, mouse_state.y) {
+            tooltip = Some(icon.tooltip.clone());
+        }
+    }
 
-    (vertices, toolbar_texts, icons, click_result, cursor_icon)
+    (vertices, toolbar_texts, icons, click_result, cursor_icon, tooltip)
 }

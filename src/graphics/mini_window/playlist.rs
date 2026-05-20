@@ -1,7 +1,7 @@
 use crate::app::MouseState;
-use crate::graphics::color::{BLUE_HOVER, DARK_BLUE_HOVER};
+use crate::graphics::icons::Tooltip;
 use crate::graphics::{
-    color::{BLUE, DARK_BLUE, DARK_GRAY, ORANGE, PEBBLE, WHITE},
+    color::{DARK_GRAY, ORANGE, PEBBLE, WHITE},
     mini_window::{MiniWindow, MINI_WINDOW_BACKGROUND},
     primitives::{ScreenConfig, Vertex, PAD_16, PAD_32, PAD_4, PAD_64, PAD_8},
     widgets::{window_background, window_title_bar, TextItem},

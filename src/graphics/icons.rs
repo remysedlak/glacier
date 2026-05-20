@@ -8,7 +8,18 @@ pub struct IconSvg {
     pub width: f32,
     pub height: f32,
     pub path: String,
-    pub info: String,
+}
+impl IconSvg {
+    pub fn is_hovered(&self, mx: f32, my: f32) -> bool {
+        mx > self.x && mx < self.x + self.width && my > self.y && my < self.y + self.height
+    }
+}
+
+#[derive(Clone)]
+pub struct Tooltip {
+    pub text: Option<&'static str>,
+    pub x: f32,
+    pub y: f32,
 }
 
 pub struct IconDraw {
@@ -17,6 +28,12 @@ pub struct IconDraw {
     pub y: f32,
     pub width: f32,
     pub height: f32,
+    pub tooltip: Tooltip,
+}
+impl IconDraw {
+    pub fn is_hovered(&self, mx: f32, my: f32) -> bool {
+        mx > self.x && mx < self.x + self.width && my > self.y && my < self.y + self.height
+    }
 }
 
 pub fn rasterize_icon(

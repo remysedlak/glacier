@@ -1,4 +1,7 @@
 use crate::app::MouseState;
+use crate::graphics::color::{BLACK, DARK_GRAY, WHITE};
+use crate::graphics::icons::Tooltip;
+use crate::graphics::primitives::{PAD_2, PAD_4};
 use crate::graphics::{
     components::{footer, pattern_tray},
     context_menu::ContextMenu,
@@ -134,7 +137,6 @@ pub async fn create_graphics(window: Rc<Window>, proxy: EventLoopProxy<Graphics>
             width: 128.0,
             height: 128.0,
             path: svg_str,
-            info: name.to_string(),
         };
         let (texture, bind_group, _, _, _) = icons::rasterize_icon(&device, &queue, icon);
         icon_cache.insert(name.to_string(), (texture, bind_group));
@@ -159,6 +161,7 @@ pub async fn create_graphics(window: Rc<Window>, proxy: EventLoopProxy<Graphics>
         active_step: 0,
         context_menu,
         icon_cache,
+        tooltip: None,
         bpm: 120.0,
         is_playing: false,
         master_volume: 0.5,
@@ -235,6 +238,7 @@ pub struct Graphics {
     pub z_order: Vec<usize>,
     pub context_menu: Option<ContextMenu>,
     icon_cache: HashMap<String, (wgpu::Texture, wgpu::BindGroup)>,
+    pub tooltip: Option<Tooltip>,
 
     // song
     pub project_path: String,
@@ -416,6 +420,7 @@ impl Graphics {
         let frame = self.surface.get_current_texture().expect("Failed to acquire next swap chain texture.");
         let view = frame.texture.create_view(&TextureViewDescriptor::default());
         let mut vertices: Vec<Vertex> = Vec::new();
+        self.tooltip = None;
 
         let mut click_result = ClickResult::None;
         let mut cursor_icon = CursorIcon::Default;
@@ -594,7 +599,7 @@ impl Graphics {
         }
         Graphics::push_text_draws(&texts, &self.font, &self.glyph_cache, &self.device, &screen_config, &mut char_draws);
 
-        let (toolbar_verts, toolbar_texts, toolbar_icons, toolbar_result, toolbar_cursor) =
+        let (toolbar_verts, toolbar_texts, toolbar_icons, toolbar_result, toolbar_cursor, toolbar_tooltip) =
             components::toolbar::draw_toolbar(mouse_state, &screen_config, self.bpm, self.is_playing, self.active_step);
         vertices.extend(toolbar_verts);
 
@@ -615,6 +620,42 @@ impl Graphics {
         if toolbar_cursor != CursorIcon::Default {
             cursor_icon = toolbar_cursor;
         }
+
+        if toolbar_tooltip.is_some() {
+            self.tooltip = toolbar_tooltip;
+        }
+        let tooltip_vert_start = vertices.len() as u32;
+        let tooltip_char_start = char_draws.len();
+        // tool tip
+        if let Some(tt) = &self.tooltip {
+            let tooltip_rectangle = Rectangle {
+                x: tt.x,
+                y: tt.y,
+                width: 128.0,
+                height: 24.0,
+            };
+            vertices.extend(tooltip_rectangle.draw(&screen_config, DARK_GRAY));
+            if let Some(text) = tt.text {
+                let tooltip_text = [TextItem {
+                    text: text.to_string(),
+                    x: tt.x + PAD_4,
+                    y: tt.y + PAD_2,
+                    size: 14.0,
+                    color: WHITE,
+                }];
+                Graphics::push_text_draws(
+                    &tooltip_text,
+                    &self.font,
+                    &self.glyph_cache,
+                    &self.device,
+                    &screen_config,
+                    &mut char_draws,
+                );
+            }
+        }
+
+        let tooltip_vert_end = vertices.len() as u32;
+        let tooltip_char_end = char_draws.len();
 
         match toolbar_result {
             ClickResult::Stop => {
@@ -813,6 +854,16 @@ impl Graphics {
             for i in 0..icon_draws.len() {
                 r_pass.set_bind_group(0, icon_draws[i].1, &[]);
                 r_pass.set_vertex_buffer(0, icon_draws[i].0.slice(..));
+                r_pass.draw(0..6, 0..1);
+            }
+            if tooltip_vert_start < tooltip_vert_end {
+                r_pass.set_bind_group(0, &any_bg.1, &[]);
+                r_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
+                r_pass.draw(tooltip_vert_start..tooltip_vert_end, 0..1);
+            }
+            for i in tooltip_char_start..tooltip_char_end {
+                r_pass.set_bind_group(0, char_draws[i].1, &[]);
+                r_pass.set_vertex_buffer(0, char_draws[i].0.slice(..));
                 r_pass.draw(0..6, 0..1);
             }
 
