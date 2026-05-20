@@ -1,4 +1,5 @@
 use crate::app::MouseState;
+use crate::graphics::color::{BLACK, WHITE};
 use crate::graphics::{
     color::LIGHT_GRAY,
     primitives::{draw_h_line, BUTTON_GAP},
@@ -174,24 +175,28 @@ pub fn draw_toolbar(
         x: PLAY_X_ORIGIN + 256.0 + (BUTTON_GAP * 3.0) * 2.0,
         y: 4.0,
         size: 18.0,
+        color: WHITE,
     });
     toolbar_texts.push(TextItem {
         text: "proj".to_string(),
         x: screen_config.width as f32 - 37.0,
         y: 4.0,
         size: 18.0,
+        color: WHITE,
     });
     toolbar_texts.push(TextItem {
         text: "instr".to_string(),
         x: screen_config.width as f32 - (37.0 + 40.0 + 1.0),
         y: 4.0,
         size: 18.0,
+        color: WHITE,
     });
     toolbar_texts.push(TextItem {
         text: bpm.to_string(),
         x: 10.0,
         y: TOOLBAR_MARGIN,
         size: 18.0,
+        color: WHITE,
     });
 
     let label = if is_playing { "pause" } else { "play" };
@@ -200,6 +205,7 @@ pub fn draw_toolbar(
         x: PLAY_X_ORIGIN + (PLAY_SQUARE_WIDTH / 4.0),
         y: 5.0,
         size: 18.0,
+        color: WHITE,
     });
 
     toolbar_texts.push(TextItem {
@@ -207,18 +213,21 @@ pub fn draw_toolbar(
         x: PLAY_X_ORIGIN + 64.0 + (PLAY_SQUARE_WIDTH / 4.0),
         y: 5.0,
         size: 18.0,
+        color: WHITE,
     });
     toolbar_texts.push(TextItem {
         text: "sequence".to_string(),
         x: PLAY_X_ORIGIN + 256.0,
         y: 4.0,
         size: 18.0,
+        color: WHITE,
     });
     toolbar_texts.push(TextItem {
         text: "mixer".to_string(),
         x: PLAY_X_ORIGIN + 256.0 + (BUTTON_GAP * 3.0),
         y: 4.0,
         size: 18.0,
+        color: WHITE,
     });
 
     (vertices, toolbar_texts, click_result, cursor_icon)

@@ -28,6 +28,7 @@ use std::path::PathBuf;
 use std::sync::mpsc::{Receiver, TryRecvError};
 use std::thread;
 
+#[derive(Debug)]
 pub struct MouseState {
     pub x: f32,
     pub y: f32,
@@ -199,11 +200,6 @@ impl App {
             // single draw call — returns click result
             let (result, icon) = gfx.draw(&self.mouse_state);
             gfx.window.set_cursor(icon);
-            // consume the interactions
-            self.mouse_state.left_clicked = false;
-            self.mouse_state.right_clicked = false;
-            self.mouse_state.scroll_x = 0.0;
-            self.mouse_state.scroll_y = 0.0;
 
             // dispatch audio commands based on what was clicked
             match result {
@@ -283,6 +279,9 @@ impl App {
                             true
                         }
                     });
+                    for (i, p) in gfx.patterns.iter_mut().enumerate() {
+                        p.id = i;
+                    }
 
                     // close menu
                     gfx.context_menu = None;
@@ -360,8 +359,18 @@ impl App {
                     }
                 }
 
-                ClickResult::None => {}
+                ClickResult::None => {
+                    if self.mouse_state.left_clicked {
+                        gfx.context_menu = None;
+                    }
+                }
             }
+
+            // consume the interactions
+            self.mouse_state.left_clicked = false;
+            self.mouse_state.right_clicked = false;
+            self.mouse_state.scroll_x = 0.0;
+            self.mouse_state.scroll_y = 0.0;
 
             gfx.request_redraw();
         }

@@ -1,4 +1,5 @@
 use crate::app::MouseState;
+use crate::graphics::color::{BLACK, WHITE};
 use crate::graphics::{
     components::{footer, pattern_tray},
     context_menu::ContextMenu,
@@ -120,7 +121,7 @@ pub async fn create_graphics(window: Rc<Window>, proxy: EventLoopProxy<Graphics>
     let font = fontdue::Font::from_bytes(font_data, fontdue::FontSettings::default()).unwrap();
     let bind_group_layout = font::create_bind_group_layout(&device);
     let render_pipeline = create_pipeline(&device, surface_config.format, &bind_group_layout);
-    let glyph_cache = font::build_glyph_cache(&device, &queue, &font, &[12.0, 16.0, 18.0, 24.0, 32.0]);
+    let glyph_cache = font::build_glyph_cache(&device, &queue, &font, &[12.0, 14.0, 16.0, 18.0, 24.0, 32.0]);
 
     let context_menu = None;
 
@@ -352,6 +353,7 @@ impl Graphics {
                         glyph.width as f32,
                         glyph.height as f32,
                         screen_config,
+                        text_item.color,
                     );
                     let buf = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
                         label: None,
@@ -550,6 +552,7 @@ impl Graphics {
         if toolbar_cursor != CursorIcon::Default {
             cursor_icon = toolbar_cursor;
         }
+
         match toolbar_result {
             ClickResult::Stop => {
                 self.is_playing = !self.is_playing;

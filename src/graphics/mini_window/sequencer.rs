@@ -1,4 +1,5 @@
 use crate::app::MouseState;
+use crate::graphics::color::{BLACK, WHITE};
 use crate::graphics::mini_window::MINI_WINDOW_BACKGROUND;
 use crate::graphics::primitives::PAD_8;
 use crate::graphics::{
@@ -171,6 +172,7 @@ pub fn draw(
             x: window.x + PAD_16,
             y: window.y + i as f32 * TRACK_GAP + ACTIONS_Y_OFFSET,
             size: 18.0,
+            color: WHITE,
         });
 
         if mute_button.is_hovered(mouse_state.x, mouse_state.y) {
@@ -198,6 +200,7 @@ pub fn draw(
             x: window.x + 50.0,
             y: window.y + (i as f32 * TRACK_GAP) + ACTIONS_Y_OFFSET,
             size: 18.0,
+            color: WHITE,
         });
         if velocity_button.is_hovered(mouse_state.x, mouse_state.y) {
             cursor_icon = CursorIcon::Pointer;
@@ -220,6 +223,7 @@ pub fn draw(
             x: PAD_16 + window.x + ACTIONS_BUTTON_GAP + PAD_32,
             y: window.y + (i as f32 * TRACK_GAP) + ACTIONS_Y_OFFSET,
             size: 18.0,
+            color: WHITE,
         });
         if delete_button.is_hovered(mouse_state.x, mouse_state.y) {
             cursor_icon = CursorIcon::Pointer;
@@ -245,6 +249,7 @@ pub fn draw(
             x: window.x + PAD_16,
             y: window.y + i as f32 * TRACK_GAP + PAD_16,
             size: 16.0,
+            color: WHITE,
         });
     }
     (vertices, text_items, click_result, cursor_icon)

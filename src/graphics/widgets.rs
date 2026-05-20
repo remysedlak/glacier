@@ -30,6 +30,7 @@ pub const TITLEBAR_HEIGHT: f32 = 32.0;
 pub struct TextItem {
     pub text: String,
     pub size: f32,
+    pub color: (f32, f32, f32),
     pub x: f32,
     pub y: f32,
 }
@@ -170,6 +171,7 @@ pub fn window_title_bar(window: &MiniWindow) -> (Rectangle, TextItem) {
             text: window.title.to_string(),
             x: window.x + window.width / 2.2,
             y: window.y - TITLEBAR_HEIGHT + PAD_4,
+            color: WHITE,
             size: 18.0,
         },
     )

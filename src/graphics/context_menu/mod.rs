@@ -4,7 +4,7 @@ use crate::{
     app::MouseState,
     graphics::{
         color::{DARK_GRAY, WHITE},
-        primitives::{ScreenConfig, PAD_24, PAD_32, PAD_4, PAD_64, PAD_8},
+        primitives::{ScreenConfig, PAD_2, PAD_24, PAD_32, PAD_4, PAD_64, PAD_8},
         widgets::{Rectangle, TextItem},
         ClickResult, Vertex,
     },
@@ -80,10 +80,19 @@ impl ContextMenu {
         }
         // delete text
         texts.push(TextItem {
-            text: "delete".to_string(),
-            x: self.x - PAD_64,
-            y: (self.y + (PAD_24 + PAD_8) * 1 as f32) + PAD_32,
-            size: 12.0,
+            text: "Rename".to_string(),
+            x: self.x - PAD_64 + PAD_4,
+            y: (self.y + (PAD_24 + PAD_8) * 0 as f32) + PAD_32 + PAD_2,
+            color: WHITE,
+            size: 14.0,
+        });
+        // delete text
+        texts.push(TextItem {
+            text: "Delete".to_string(),
+            x: self.x - PAD_64 + PAD_4,
+            y: (self.y + (PAD_24 + PAD_8) * 1 as f32) + PAD_32 + PAD_2,
+            size: 14.0,
+            color: WHITE,
         });
 
         for line in 1..5 {

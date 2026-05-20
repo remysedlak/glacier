@@ -29,6 +29,7 @@ pub fn draw(window: &MiniWindow, master_volume: f32, screen_config: &ScreenConfi
         x: window.x,
         size: 18.0,
         y: window.y,
+        color: WHITE,
     });
     (vertices, text_items)
 }

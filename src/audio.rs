@@ -111,6 +111,9 @@ pub fn init(mut consumer: HeapCons<AudioCommand>, mut producer: HeapProd<UiComma
                             true
                         }
                     });
+                    for (i, p) in patterns.iter_mut().enumerate() {
+                        p.id = i;
+                    }
                 }
                 AudioCommand::DeleteAudioBlock(id) => {
                     events.retain(|e| e.id != id);

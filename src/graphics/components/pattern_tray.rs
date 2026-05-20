@@ -1,4 +1,5 @@
 use crate::app::MouseState;
+use crate::graphics::color::{BLACK, WHITE};
 use crate::graphics::primitives::{ScreenConfig, PAD_8};
 use crate::graphics::widgets::TextItem;
 use crate::graphics::{ClickResult, CursorIcon, PatternData, Rectangle, Vertex, PAD_16, PAD_4, TOOLBAR_THICKNESS, TOOLBAR_Y};
@@ -33,6 +34,7 @@ pub fn draw(
             x: screen_config.width as f32 - 96.0,
             y: 52.0 + (32.0 * i as f32) + 24.0,
             size: 16.0,
+            color: BLACK,
         });
     }
 
@@ -86,6 +88,7 @@ pub fn draw(
         x: screen_config.width as f32 - 128.0 + PAD_8,
         y: TOOLBAR_Y + PAD_8,
         size: 18.0,
+        color: WHITE,
     });
 
     (vertices, texts, click_result, cursor_icon)

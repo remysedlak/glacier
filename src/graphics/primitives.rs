@@ -21,6 +21,7 @@ pub const PAD_24: f32 = 24.0;
 pub const PAD_16: f32 = 16.0;
 pub const PAD_8: f32 = 8.0;
 pub const PAD_4: f32 = 4.0;
+pub const PAD_2: f32 = 2.0;
 
 pub struct ScreenConfig {
     pub width: u32,
