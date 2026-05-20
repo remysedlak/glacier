@@ -2,3 +2,4 @@
 /dist
 /.helix
 /.idea
+rustfmt.toml
