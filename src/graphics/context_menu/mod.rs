@@ -128,10 +128,23 @@ impl ContextMenu {
             if context_item.is_hovered(mouse_state.x, mouse_state.y) {
                 cursor_icon = CursorIcon::Pointer;
                 if mouse_state.right_clicked || mouse_state.left_clicked {
-                    click_result = ClickResult::CloseContextMenu;
+                    match item {
+                        0 => {
+                            // rename
+                            click_result = ClickResult::CloseContextMenu;
+                        }
+                        1 => {
+                            // delete
+                            click_result = ClickResult::DeleteTrack(id);
+                        }
+                        _ => {
+                            click_result = ClickResult::CloseContextMenu;
+                        }
+                    }
                 }
             }
         }
+
         for line in 0..4 {
             let divider = Rectangle {
                 height: 1.0,
@@ -141,6 +154,14 @@ impl ContextMenu {
             };
             vertices.extend(divider.draw(screen_config, WHITE));
         }
+        // delete text
+        texts.push(TextItem {
+            text: "Delete".to_string(),
+            x: self.x - PAD_64 + PAD_4,
+            y: (self.y + (PAD_24) * 1 as f32) + PAD_32 + PAD_2,
+            size: 14.0,
+            color: WHITE,
+        });
         (vertices, texts, click_result, cursor_icon)
     }
 }

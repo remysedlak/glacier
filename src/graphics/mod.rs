@@ -414,6 +414,7 @@ impl Graphics {
                     if cursor != CursorIcon::Default {
                         cursor_icon = cursor;
                     }
+
                     if !matches!(result, ClickResult::None) {
                         click_result = result;
                     }
@@ -592,6 +593,12 @@ impl Graphics {
             }
             if matches!(click_result, ClickResult::None) {
                 click_result = menu_result;
+            }
+
+            // delete the track and close the menu
+            if let ClickResult::DeleteTrack(i) = click_result {
+                self.instruments.remove(i);
+                self.context_menu = None;
             }
         }
 

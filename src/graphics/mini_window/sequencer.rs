@@ -209,29 +209,6 @@ pub fn draw(
             }
         }
 
-        // delete button
-        let delete_button = Rectangle {
-            x: PAD_32 + window.x + ACTIONS_BUTTON_GAP,
-            y: PAD_32 + PAD_8 + window.y + (i as f32 * TRACK_GAP),
-            width: MUTE_SQUARE_LENGTH,
-            height: MUTE_SQUARE_LENGTH,
-        };
-        vertices.extend(delete_button.draw(&screen_config, delete_button.hover_color(mouse_state.x, mouse_state.y)));
-
-        text_items.push(TextItem {
-            text: "del".to_string(),
-            x: PAD_16 + window.x + ACTIONS_BUTTON_GAP + PAD_32,
-            y: window.y + (i as f32 * TRACK_GAP) + ACTIONS_Y_OFFSET,
-            size: 18.0,
-            color: WHITE,
-        });
-        if delete_button.is_hovered(mouse_state.x, mouse_state.y) {
-            cursor_icon = CursorIcon::Pointer;
-            if mouse_state.left_clicked {
-                click_result = ClickResult::DeleteTrack(i);
-            }
-        }
-
         // track volume knob
         for vert in draw_knob(
             instrument.data.track_volume,
