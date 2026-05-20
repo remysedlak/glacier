@@ -270,6 +270,23 @@ impl App {
                         block_type,
                     })
                 }
+                ClickResult::DeletePattern(id) => {
+                    // delete from audio state
+                    self.producer.try_push(AudioCommand::DeletePattern(id)).ok();
+
+                    // delete from ui state
+                    gfx.patterns.retain(|p| p.id != id);
+                    gfx.events.retain(|e| {
+                        if let crate::project::AudioBlockType::Pattern(pid) = e.block_type {
+                            pid != id
+                        } else {
+                            true
+                        }
+                    });
+
+                    // close menu
+                    gfx.context_menu = None;
+                }
                 ClickResult::ToggleSequencerWindow => {
                     if let Some(win) = gfx.mini_windows.iter_mut().find(|w| matches!(w.window_kind, WindowKind::Sequencer)) {
                         if !win.is_open {

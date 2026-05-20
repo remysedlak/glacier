@@ -20,6 +20,7 @@ pub enum AudioCommand {
     ShutDown,
     SaveProject,
     AddPattern,
+    DeletePattern(usize),
     AddInstrument(String),
     DeleteTrack(usize),
     ChangeTrackVolume(usize, f32),
@@ -98,6 +99,18 @@ pub fn init(mut consumer: HeapCons<AudioCommand>, mut producer: HeapProd<UiComma
                     };
                     patterns.push(p.clone());
                     producer.try_push(UiCommand::LoadPattern(p)).ok();
+                }
+                AudioCommand::DeletePattern(id) => {
+                    // remove the pattern from list of patterns
+                    patterns.retain(|p| p.id != id);
+                    // remove the pattern from list of events
+                    events.retain(|e| {
+                        if let AudioBlockType::Pattern(pid) = e.block_type {
+                            pid != id
+                        } else {
+                            true
+                        }
+                    });
                 }
                 AudioCommand::DeleteAudioBlock(id) => {
                     events.retain(|e| e.id != id);

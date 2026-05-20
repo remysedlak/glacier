@@ -3,9 +3,9 @@ use winit::window::CursorIcon;
 use crate::{
     app::MouseState,
     graphics::{
-        color::WHITE,
-        primitives::{ScreenConfig, PAD_24, PAD_32, PAD_64},
-        widgets::Rectangle,
+        color::{DARK_GRAY, WHITE},
+        primitives::{ScreenConfig, PAD_24, PAD_32, PAD_4, PAD_64, PAD_8},
+        widgets::{Rectangle, TextItem},
         ClickResult, Vertex,
     },
 };
@@ -24,46 +24,88 @@ pub struct ContextMenu {
 }
 
 impl ContextMenu {
-    pub fn draw(&self, screen_config: &ScreenConfig, mouse_state: &MouseState) -> (Vec<Vertex>, ClickResult, CursorIcon) {
+    pub fn draw(&self, screen_config: &ScreenConfig, mouse_state: &MouseState) -> (Vec<Vertex>, Vec<TextItem>, ClickResult, CursorIcon) {
         match &self.kind {
             ContextMenuKind::PatternContext(id) => self.draw_pattern_context(screen_config, mouse_state, *id),
             ContextMenuKind::TrackContext(track) => self.draw_track_context(screen_config, mouse_state, *track),
         }
     }
 
-    fn draw_pattern_context(&self, screen_config: &ScreenConfig, mouse_state: &MouseState, id: usize) -> (Vec<Vertex>, ClickResult, CursorIcon) {
+    fn draw_pattern_context(
+        &self,
+        screen_config: &ScreenConfig,
+        mouse_state: &MouseState,
+        id: usize,
+    ) -> (Vec<Vertex>, Vec<TextItem>, ClickResult, CursorIcon) {
         let mut vertices: Vec<Vertex> = Vec::new();
+        let mut texts: Vec<TextItem> = Vec::new();
         let mut cursor_icon = CursorIcon::Default;
         let mut click_result = ClickResult::None;
+
+        let menu_background = Rectangle {
+            height: 32.0 * 6.0,
+            width: self.width + PAD_8,
+            x: self.x - PAD_64 - 4.0,
+            y: self.y + (PAD_24 + PAD_8) - 4.0,
+        };
+        vertices.extend(menu_background.draw(screen_config, DARK_GRAY));
+
         for item in 0..6 {
             let context_item = Rectangle {
                 height: 24.0,
                 width: self.width,
                 x: self.x - PAD_64,
-                y: (self.y + PAD_24 * item as f32) + PAD_32,
+                y: (self.y + (PAD_24 + PAD_8) * item as f32) + PAD_32,
             };
             vertices.extend(context_item.draw(screen_config, context_item.dark_hover_color(mouse_state.x, mouse_state.y)));
+
             if context_item.is_hovered(mouse_state.x, mouse_state.y) {
                 cursor_icon = CursorIcon::Pointer;
                 if mouse_state.right_clicked || mouse_state.left_clicked {
-                    click_result = ClickResult::CloseContextMenu;
+                    match item {
+                        0 => {
+                            // rename
+                            click_result = ClickResult::CloseContextMenu;
+                        }
+                        1 => {
+                            // delete
+                            click_result = ClickResult::DeletePattern(id);
+                        }
+                        _ => {
+                            click_result = ClickResult::CloseContextMenu;
+                        }
+                    }
                 }
             }
         }
-        for line in 0..5 {
+        // delete text
+        texts.push(TextItem {
+            text: "delete".to_string(),
+            x: self.x - PAD_64,
+            y: (self.y + (PAD_24 + PAD_8) * 1 as f32) + PAD_32,
+            size: 12.0,
+        });
+
+        for line in 1..5 {
             let divider = Rectangle {
                 height: 1.0,
-                width: self.width - 4.0,
-                x: (self.x + 2.0) - PAD_64,
-                y: PAD_24 + (self.y + PAD_24 * line as f32) + PAD_32,
+                width: self.width + 4.0,
+                x: (self.x + 2.0) - PAD_64 - 4.0,
+                y: PAD_24 + (self.y + (PAD_24 + PAD_8) * line as f32) + PAD_32 + 4.0,
             };
             vertices.extend(divider.draw(screen_config, WHITE));
         }
-        (vertices, click_result, cursor_icon)
+        (vertices, texts, click_result, cursor_icon)
     }
 
-    fn draw_track_context(&self, screen_config: &ScreenConfig, mouse_state: &MouseState, id: usize) -> (Vec<Vertex>, ClickResult, CursorIcon) {
+    fn draw_track_context(
+        &self,
+        screen_config: &ScreenConfig,
+        mouse_state: &MouseState,
+        id: usize,
+    ) -> (Vec<Vertex>, Vec<TextItem>, ClickResult, CursorIcon) {
         let mut vertices: Vec<Vertex> = Vec::new();
+        let mut texts: Vec<TextItem> = Vec::new();
         let mut cursor_icon = CursorIcon::Default;
         let mut click_result = ClickResult::None;
         for item in 0..5 {
@@ -90,6 +132,6 @@ impl ContextMenu {
             };
             vertices.extend(divider.draw(screen_config, WHITE));
         }
-        (vertices, click_result, cursor_icon)
+        (vertices, texts, click_result, cursor_icon)
     }
 }

@@ -45,6 +45,7 @@ pub enum ClickResult {
     InstrumentFileDialog,
     DeleteTrack(usize),
     DeletePlaylistPattern(usize),
+    DeletePattern(usize),
     AddPlaylistPattern(usize, u32, usize, AudioBlockType),
     AddPlaylist,
     ToggleSequencerWindow,
@@ -376,7 +377,6 @@ impl Graphics {
             height: self.surface_config.height,
         };
 
-        // handle window re-ordering
         if mouse_state.left_clicked {
             let z_order = self.z_order.clone();
             for &id in z_order.iter().rev() {
@@ -390,9 +390,6 @@ impl Graphics {
         let mut char_draws: Vec<(wgpu::Buffer, &wgpu::BindGroup)> = Vec::new();
         let mut window_ranges: Vec<WindowDrawRange> = Vec::new();
         let mut playlist_window_ranges: Option<PlaylistDrawRanges> = None;
-
-        // helper closure to convert text items into char_draws
-        // (inlined per window below)
 
         for &id in &self.z_order {
             let vert_start = vertices.len() as u32;
@@ -415,7 +412,6 @@ impl Graphics {
                     if cursor != CursorIcon::Default {
                         cursor_icon = cursor;
                     }
-
                     click_result = result;
                 }
                 PLAYLIST_ID if self.mini_windows[PLAYLIST_ID].is_open => {
@@ -432,7 +428,6 @@ impl Graphics {
                         &screen_config,
                     );
 
-                    // static shapes
                     let static_vert_start = vertices.len() as u32;
                     let static_char_start = char_draws.len();
                     vertices.extend(static_verts);
@@ -444,14 +439,13 @@ impl Graphics {
                         &screen_config,
                         &mut char_draws,
                     );
-                    let static_range: WindowDrawRange = WindowDrawRange {
+                    let static_range = WindowDrawRange {
                         vert_start: static_vert_start,
                         vert_end: vertices.len() as u32,
                         char_start: static_char_start,
                         char_end: char_draws.len(),
                     };
 
-                    // track block scissor rectangle
                     let header_vert_start = vertices.len() as u32;
                     let header_char_start = char_draws.len();
                     vertices.extend(header_verts);
@@ -463,14 +457,13 @@ impl Graphics {
                         &screen_config,
                         &mut char_draws,
                     );
-                    let header_range: WindowDrawRange = WindowDrawRange {
+                    let header_range = WindowDrawRange {
                         vert_start: header_vert_start,
                         vert_end: vertices.len() as u32,
                         char_start: header_char_start,
                         char_end: char_draws.len(),
                     };
 
-                    // timeline scissor rectangle
                     let timeline_vert_start = vertices.len() as u32;
                     let timeline_char_start = char_draws.len();
                     vertices.extend(timeline_verts);
@@ -482,7 +475,7 @@ impl Graphics {
                         &screen_config,
                         &mut char_draws,
                     );
-                    let timeline_range: WindowDrawRange = WindowDrawRange {
+                    let timeline_range = WindowDrawRange {
                         vert_start: timeline_vert_start,
                         vert_end: vertices.len() as u32,
                         char_start: timeline_char_start,
@@ -523,7 +516,6 @@ impl Graphics {
             });
         }
 
-        // handle delete after loop to avoid borrow issues
         if let ClickResult::DeleteTrack(i) = click_result {
             self.instruments.remove(i);
         }
@@ -531,45 +523,75 @@ impl Graphics {
             self.events.retain(|e| e.id != id);
         }
 
-        // --- toolbar / UI layer (always on top) ---
+        // --- toolbar (pattern tray + toolbar bar) ---
         let toolbar_vert_start = vertices.len() as u32;
         let toolbar_char_start = char_draws.len();
-        // draw the patterns tray
+
         let (verts, texts, result, icon) = pattern_tray::draw(&screen_config, &self.patterns, self.active_pattern_id, mouse_state);
         vertices.extend(verts);
         if icon != CursorIcon::Default {
             cursor_icon = icon;
-        };
+        }
         if matches!(click_result, ClickResult::None) {
             click_result = result;
         }
         Graphics::push_text_draws(&texts, &self.font, &self.glyph_cache, &self.device, &screen_config, &mut char_draws);
 
-        // draw the toolbar
-        let (toolbar_verts, toolbar_texts, result, cursor) =
+        let (toolbar_verts, toolbar_texts, toolbar_result, toolbar_cursor) =
             components::toolbar::draw_toolbar(mouse_state, &screen_config, self.bpm, self.is_playing, self.active_step);
         vertices.extend(toolbar_verts);
-
-        if cursor != CursorIcon::Default {
-            cursor_icon = cursor;
+        if toolbar_cursor != CursorIcon::Default {
+            cursor_icon = toolbar_cursor;
         }
-
-        match &self.context_menu {
-            Some(menu) => {
-                // draw it
-                let (verts, result, cursor) = menu.draw(&screen_config, &mouse_state);
-                vertices.extend(verts);
-                if !matches!(cursor, CursorIcon::Default) {
-                    cursor_icon = cursor;
-                }
+        match toolbar_result {
+            ClickResult::Stop => {
+                self.is_playing = !self.is_playing;
+                self.active_step = 0;
+                click_result = ClickResult::Stop;
+            }
+            ClickResult::None => {}
+            other => {
                 if matches!(click_result, ClickResult::None) {
-                    click_result = result;
+                    click_result = other;
                 }
             }
-            None => {}
+        }
+        Graphics::push_text_draws(
+            &toolbar_texts,
+            &self.font,
+            &self.glyph_cache,
+            &self.device,
+            &screen_config,
+            &mut char_draws,
+        );
+
+        let toolbar_vert_end = vertices.len() as u32;
+        let toolbar_char_end = char_draws.len();
+
+        // --- context menu (above toolbar) ---
+        let context_menu_vert_start = vertices.len() as u32;
+        let context_menu_char_start = char_draws.len();
+
+        if let Some(menu) = &self.context_menu {
+            let (verts, menu_texts, menu_result, menu_cursor) = menu.draw(&screen_config, mouse_state);
+            vertices.extend(verts);
+            Graphics::push_text_draws(&menu_texts, &self.font, &self.glyph_cache, &self.device, &screen_config, &mut char_draws);
+
+            if menu_cursor != CursorIcon::Default {
+                cursor_icon = menu_cursor;
+            }
+            if matches!(click_result, ClickResult::None) {
+                click_result = menu_result;
+            }
         }
 
-        // draw the footer at the bottom
+        let context_menu_vert_end = vertices.len() as u32;
+        let context_menu_char_end = char_draws.len();
+
+        // --- footer ---
+        let footer_vert_start = vertices.len() as u32;
+        let footer_char_start = char_draws.len();
+
         let (verts, footer_texts) = footer::draw(&screen_config, &self.project_path);
         vertices.extend(verts);
         Graphics::push_text_draws(
@@ -581,26 +603,8 @@ impl Graphics {
             &mut char_draws,
         );
 
-        match result {
-            ClickResult::Stop => {
-                self.is_playing = !self.is_playing;
-                self.active_step = 0;
-                click_result = result;
-            }
-            ClickResult::None => {}
-            other => {
-                click_result = other;
-            }
-        }
-
-        Graphics::push_text_draws(
-            &toolbar_texts,
-            &self.font,
-            &self.glyph_cache,
-            &self.device,
-            &screen_config,
-            &mut char_draws,
-        );
+        let footer_vert_end = vertices.len() as u32;
+        let footer_char_end = char_draws.len();
 
         self.queue.write_buffer(&self.vertex_buffer, 0, bytemuck::cast_slice(&vertices));
         self.num_vertices = vertices.len() as u32;
@@ -630,7 +634,7 @@ impl Graphics {
             r_pass.set_pipeline(&self.render_pipeline);
             let any_bg = self.glyph_cache.values().next().unwrap();
 
-            // draw each window: geometry then its text (painter's algorithm)
+            // windows
             for (idx, range) in window_ranges.iter().enumerate() {
                 let is_playlist = self.z_order[idx] == PLAYLIST_ID;
 
@@ -646,11 +650,9 @@ impl Graphics {
                             ((win.y - TITLEBAR_HEIGHT) as u32).min(self.surface_config.height)
                         };
                         let wh = (win.height as u32 + TITLEBAR_HEIGHT as u32).min(self.surface_config.height.saturating_sub(wy));
-
                         let content_y = (win.y as u32 + 64).min(self.surface_config.height);
                         let win_bottom = ((win.y + win.height) as u32).min(self.surface_config.height);
                         let content_h = win_bottom.saturating_sub(content_y);
-
                         let header_width = 144u32;
                         let step_start_x = win.x + header_width as f32;
                         let tx = if step_start_x < 0.0 {
@@ -661,7 +663,6 @@ impl Graphics {
                         let tw = win_right.saturating_sub(tx);
                         let header_tw = tx.saturating_sub(wx);
 
-                        // static — full window scissor
                         r_pass.set_scissor_rect(wx, wy, ww, wh);
                         if pl.static_range.vert_start < pl.static_range.vert_end {
                             r_pass.set_bind_group(0, &any_bg.1, &[]);
@@ -674,7 +675,6 @@ impl Graphics {
                             r_pass.draw(0..6, 0..1);
                         }
 
-                        // header — only covers header column width
                         r_pass.set_scissor_rect(wx, content_y, header_tw.max(1), content_h);
                         if pl.header_range.vert_start < pl.header_range.vert_end {
                             r_pass.set_bind_group(0, &any_bg.1, &[]);
@@ -687,7 +687,6 @@ impl Graphics {
                             r_pass.draw(0..6, 0..1);
                         }
 
-                        // timeline — starts where steps actually begin
                         r_pass.set_scissor_rect(tx, content_y, tw.max(1), content_h);
                         if pl.timeline_range.vert_start < pl.timeline_range.vert_end {
                             r_pass.set_bind_group(0, &any_bg.1, &[]);
@@ -700,8 +699,7 @@ impl Graphics {
                             r_pass.draw(0..6, 0..1);
                         }
                     }
-                    r_pass.set_scissor_rect(0, 0, self.surface_config.width, self.surface_config.height); // add this
-
+                    r_pass.set_scissor_rect(0, 0, self.surface_config.width, self.surface_config.height);
                     continue;
                 }
 
@@ -715,19 +713,39 @@ impl Graphics {
                     r_pass.set_vertex_buffer(0, char_draws[i].0.slice(..));
                     r_pass.draw(0..6, 0..1);
                 }
-
-                if is_playlist {
-                    // reset to full surface
-                    r_pass.set_scissor_rect(0, 0, self.surface_config.width, self.surface_config.height);
-                }
             }
-            // toolbar on top of everything
-            if toolbar_vert_start < self.num_vertices {
+
+            // toolbar
+            if toolbar_vert_start < toolbar_vert_end {
                 r_pass.set_bind_group(0, &any_bg.1, &[]);
                 r_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
-                r_pass.draw(toolbar_vert_start..self.num_vertices, 0..1);
+                r_pass.draw(toolbar_vert_start..toolbar_vert_end, 0..1);
             }
-            for i in toolbar_char_start..char_draws.len() {
+            for i in toolbar_char_start..toolbar_char_end {
+                r_pass.set_bind_group(0, char_draws[i].1, &[]);
+                r_pass.set_vertex_buffer(0, char_draws[i].0.slice(..));
+                r_pass.draw(0..6, 0..1);
+            }
+
+            // context menu
+            if context_menu_vert_start < context_menu_vert_end {
+                r_pass.set_bind_group(0, &any_bg.1, &[]);
+                r_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
+                r_pass.draw(context_menu_vert_start..context_menu_vert_end, 0..1);
+            }
+            for i in context_menu_char_start..context_menu_char_end {
+                r_pass.set_bind_group(0, char_draws[i].1, &[]);
+                r_pass.set_vertex_buffer(0, char_draws[i].0.slice(..));
+                r_pass.draw(0..6, 0..1);
+            }
+
+            // footer
+            if footer_vert_start < footer_vert_end {
+                r_pass.set_bind_group(0, &any_bg.1, &[]);
+                r_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
+                r_pass.draw(footer_vert_start..footer_vert_end, 0..1);
+            }
+            for i in footer_char_start..footer_char_end {
                 r_pass.set_bind_group(0, char_draws[i].1, &[]);
                 r_pass.set_vertex_buffer(0, char_draws[i].0.slice(..));
                 r_pass.draw(0..6, 0..1);

@@ -68,23 +68,23 @@ pub fn draw(
     static_vertices.extend(titlebar_verts.draw(&screen_config, DARK_GRAY));
     static_text_items.push(titlebar_texts);
 
-    let buttons = 8;
-    for i in 0..buttons {
-        let toolbar_button_background = Rectangle {
-            x: window.x + PAD_16 + (i as f32 * 64.0) - 2.0,
-            y: window.y + PAD_8 - 2.0,
-            width: 32.0 + 4.0,
-            height: 24.0 + 4.0,
-        };
-        let toolbar_button = Rectangle {
-            x: window.x + PAD_16 + (i as f32 * 64.0),
-            y: window.y + PAD_8,
-            width: 32.0,
-            height: 24.0,
-        };
-        static_vertices.extend(toolbar_button_background.draw(&screen_config, ORANGE));
-        static_vertices.extend(toolbar_button.draw(&screen_config, LL_GRAY));
-    }
+    // let buttons = 8;
+    // for i in 0..buttons {
+    //     let toolbar_button_background = Rectangle {
+    //         x: window.x + PAD_16 + (i as f32 * 64.0) - 2.0,
+    //         y: window.y + PAD_8 - 2.0,
+    //         width: 32.0 + 4.0,
+    //         height: 24.0 + 4.0,
+    //     };
+    //     let toolbar_button = Rectangle {
+    //         x: window.x + PAD_16 + (i as f32 * 64.0),
+    //         y: window.y + PAD_8,
+    //         width: 32.0,
+    //         height: 24.0,
+    //     };
+    //     static_vertices.extend(toolbar_button_background.draw(&screen_config, ORANGE));
+    //     static_vertices.extend(toolbar_button.draw(&screen_config, LL_GRAY));
+    // }
 
     // for each instrument loaded into a project
     for track in 0..tracks {
@@ -99,13 +99,15 @@ pub fn draw(
             };
 
             // add a new event with the active pattern at this step
-            if pl_step.is_hovered(mouse_state.x, mouse_state.y) && mouse_state.left_clicked {
-                click_result = ClickResult::AddPlaylistPattern(
-                    track,
-                    step,
-                    patterns[active_pattern_id].sequences[0].steps.len(),
-                    AudioBlockType::Pattern(active_pattern_id),
-                );
+            if pl_step.is_hovered(mouse_state.x, mouse_state.y) {
+                if mouse_state.left_clicked {
+                    click_result = ClickResult::AddPlaylistPattern(
+                        track,
+                        step,
+                        patterns[active_pattern_id].sequences[0].steps.len(),
+                        AudioBlockType::Pattern(active_pattern_id),
+                    );
+                }
             }
 
             let color = if group % 2 != 0 { BLUE } else { DARK_BLUE };
