@@ -1,5 +1,5 @@
 use crate::app::MouseState;
-use crate::graphics::color::{BLACK, WHITE};
+use crate::graphics::color::{BLACK, PEBBLE, WHITE};
 use crate::graphics::primitives::{ScreenConfig, PAD_8};
 use crate::graphics::widgets::TextItem;
 use crate::graphics::{ClickResult, CursorIcon, PatternData, Rectangle, Vertex, PAD_16, TOOLBAR_THICKNESS, TOOLBAR_Y};
@@ -23,7 +23,7 @@ pub fn draw(
         width: 128.0,
         height: screen_config.height as f32 - TOOLBAR_THICKNESS,
     };
-    vertices.extend(pattern_tray.draw(&screen_config, crate::graphics::color::PASCAL));
+    vertices.extend(pattern_tray.draw(&screen_config, PEBBLE));
     if pattern_tray.is_hovered_left_edge(mouse_state.x, mouse_state.y) {
         cursor_icon = CursorIcon::ColResize
     }
@@ -45,7 +45,10 @@ pub fn draw(
         width: 16.0,
         height: 16.0,
     };
-    vertices.extend(add_pattern_button.draw(&screen_config, add_pattern_button.hover_color(mouse_state.x, mouse_state.y)));
+    vertices.extend(add_pattern_button.draw(
+        &screen_config,
+        add_pattern_button.hover_color(mouse_state.x, mouse_state.y, mouse_state.left_click_held),
+    ));
     if add_pattern_button.is_hovered(mouse_state.x, mouse_state.y) {
         cursor_icon = CursorIcon::Pointer;
         if mouse_state.left_clicked {
@@ -72,7 +75,10 @@ pub fn draw(
             };
             vertices.extend(indicator.draw(&screen_config, crate::graphics::color::ORANGE));
         }
-        vertices.extend(pattern_button.draw(&screen_config, pattern_button.hover_color(mouse_state.x, mouse_state.y)));
+        vertices.extend(pattern_button.draw(
+            &screen_config,
+            pattern_button.hover_color(mouse_state.x, mouse_state.y, mouse_state.left_click_held),
+        ));
         if pattern_button.is_hovered(mouse_state.x, mouse_state.y) {
             cursor_icon = CursorIcon::Pointer;
             if mouse_state.left_clicked {

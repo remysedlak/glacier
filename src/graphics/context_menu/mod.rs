@@ -57,7 +57,10 @@ impl ContextMenu {
                 x: self.x - PAD_64,
                 y: (self.y + (PAD_24 + PAD_8) * item as f32) + PAD_32,
             };
-            vertices.extend(context_item.draw(screen_config, context_item.dark_hover_color(mouse_state.x, mouse_state.y)));
+            vertices.extend(context_item.draw(
+                screen_config,
+                context_item.dark_hover_color(mouse_state.x, mouse_state.y, mouse_state.left_clicked),
+            ));
 
             if context_item.is_hovered(mouse_state.x, mouse_state.y) {
                 cursor_icon = CursorIcon::Pointer;
@@ -124,7 +127,10 @@ impl ContextMenu {
                 x: self.x - PAD_64,
                 y: (self.y + PAD_24 * item as f32) + PAD_32,
             };
-            vertices.extend(context_item.draw(screen_config, context_item.dark_hover_color(mouse_state.x, mouse_state.y)));
+            vertices.extend(context_item.draw(
+                screen_config,
+                context_item.dark_hover_color(mouse_state.x, mouse_state.y, mouse_state.left_clicked),
+            ));
             if context_item.is_hovered(mouse_state.x, mouse_state.y) {
                 cursor_icon = CursorIcon::Pointer;
                 if mouse_state.right_clicked || mouse_state.left_clicked {

@@ -1,10 +1,8 @@
 use crate::app::MouseState;
-use crate::graphics::color::WHITE;
-use crate::graphics::primitives::{PAD_16, PAD_64};
 use crate::graphics::{
-    color::{BACKGROUND, DARK_GRAY},
+    color::{DARK_GRAY, PURPLE, WHITE},
     mini_window::MiniWindow,
-    primitives::{ScreenConfig, Vertex},
+    primitives::{ScreenConfig, Vertex, PAD_16, PAD_64},
     widgets::{window_background, window_title_bar},
     {ClickResult, Rectangle, TextItem},
 };
@@ -24,7 +22,7 @@ pub fn draw(
 
     // window background
     let window_background = window_background(&window);
-    vertices.extend(window_background.draw(&screen_config, BACKGROUND));
+    vertices.extend(window_background.draw(&screen_config, PURPLE));
 
     // titlebar
     let (titlebar_verts, titlebar_texts) = window_title_bar(&window);

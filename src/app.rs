@@ -37,6 +37,7 @@ pub struct MouseState {
     pub scroll_x: f32,
     pub scroll_y: f32,
     pub shift_pressed: bool,
+    pub left_click_held: bool,
 }
 
 // commands that the audio engine sends to the window
@@ -74,7 +75,6 @@ pub struct App {
     mouse_state: MouseState,
     prev_mouse_x: f32,
     prev_mouse_y: f32,
-    left_click_held: bool,
     right_click_held: bool,
 
     instrument_file_dialog_rx: Option<Receiver<Option<PathBuf>>>,
@@ -97,7 +97,7 @@ impl App {
             // mouse state
             prev_mouse_x: 0.0,
             prev_mouse_y: 0.0,
-            left_click_held: false,
+
             right_click_held: false,
             mouse_state: MouseState {
                 x: 0.0,
@@ -107,6 +107,7 @@ impl App {
                 scroll_x: 0.0,
                 scroll_y: 0.0,
                 shift_pressed: false,
+                left_click_held: false,
             },
         }
     }
@@ -493,14 +494,14 @@ impl ApplicationHandler<Graphics> for App {
             WindowEvent::MouseInput { state, button, .. } => {
                 if state.is_pressed() && button == MouseButton::Left {
                     // change state
-                    self.left_click_held = true;
+                    self.mouse_state.left_click_held = true;
                     self.mouse_state.left_clicked = true;
 
                     // redraw
                     self.draw(&event_loop);
                 } else {
                     // change state
-                    self.left_click_held = false;
+                    self.mouse_state.left_click_held = false;
                     self.mouse_state.left_clicked = false;
                     if let State::Ready(gfx) = &mut self.state {
                         gfx.dragging = false;
@@ -531,7 +532,7 @@ impl ApplicationHandler<Graphics> for App {
                 self.prev_mouse_x = position.x as f32;
 
                 if let State::Ready(gfx) = &mut self.state {
-                    if self.left_click_held {
+                    if self.mouse_state.left_click_held {
                         match gfx.handle_drag(position.x as f32, position.y as f32, delta_y, delta_x) {
                             DragResult::None => {}
                             DragResult::DragVolumeSlider(fl) => {

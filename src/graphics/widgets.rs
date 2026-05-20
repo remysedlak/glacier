@@ -67,8 +67,8 @@ impl Rectangle {
         )
     }
     // return color for hover logic
-    pub fn hover_color(&self, mx: f32, my: f32) -> (f32, f32, f32) {
-        if self.is_hovered(mx, my) {
+    pub fn hover_color(&self, mx: f32, my: f32, left_click_held: bool) -> (f32, f32, f32) {
+        if self.is_hovered(mx, my) && !left_click_held {
             LL_GRAY
         } else {
             LIGHT_GRAY
@@ -76,17 +76,34 @@ impl Rectangle {
     }
 
     // return color for hover logic
-    pub fn dark_hover_color(&self, mx: f32, my: f32) -> (f32, f32, f32) {
-        if self.is_hovered(mx, my) {
+    pub fn dark_hover_color(&self, mx: f32, my: f32, left_click_held: bool) -> (f32, f32, f32) {
+        if self.is_hovered(mx, my) && !left_click_held {
             (0.05, 0.05, 0.05)
         } else {
             DARK_GRAY
         }
     }
 
+    pub fn playlist_step_color(&self, mx: f32, my: f32, left_click_held: bool, group: u32) -> (f32, f32, f32) {
+        let hovered: bool = self.is_hovered(mx, my) && !left_click_held;
+        if hovered {
+            if group % 2 != 0 {
+                BLUE_HOVER
+            } else {
+                DARK_BLUE_HOVER
+            }
+        } else {
+            if group % 2 != 0 {
+                BLUE
+            } else {
+                DARK_BLUE
+            }
+        }
+    }
+
     // return color if hovering and component is active
-    pub fn active_color(&self, mx: f32, my: f32, is_active: bool) -> (f32, f32, f32) {
-        let hovered = self.is_hovered(mx, my);
+    pub fn active_color(&self, mx: f32, my: f32, is_active: bool, left_click_held: bool) -> (f32, f32, f32) {
+        let hovered = self.is_hovered(mx, my) && !left_click_held;
         if hovered && is_active {
             DARK_GRAY
         } else if hovered {
@@ -98,8 +115,8 @@ impl Rectangle {
         }
     }
     // return color for steps with velocity or the active step
-    pub fn active_step_color(&self, mx: f32, my: f32, is_active: bool, has_velocity: bool) -> (f32, f32, f32) {
-        let hovered = self.is_hovered(mx, my);
+    pub fn active_step_color(&self, mx: f32, my: f32, is_active: bool, has_velocity: bool, left_click_held: bool) -> (f32, f32, f32) {
+        let hovered = self.is_hovered(mx, my) && !left_click_held;
         if is_active {
             if has_velocity {
                 DARK_BLUE

@@ -5,7 +5,7 @@ use crate::graphics::{
     mini_window::{
         instrument, mixer, playlist, sequencer, MiniWindow, PlaylistDrawRanges, WindowDrawRange, WindowKind, MIXER_ID, PLAYLIST_ID, SEQUENCER_ID,
     },
-    primitives::{ScreenConfig, Vertex, KNOB_RADIUS, ONE_MEGABYTE, PAD_16, PAD_4, TRACK_GAP},
+    primitives::{ScreenConfig, Vertex, KNOB_RADIUS, ONE_MEGABYTE, PAD_16, TRACK_GAP},
     widgets::{Rectangle, TextItem, TITLEBAR_HEIGHT, TOOLBAR_THICKNESS, TOOLBAR_Y},
 };
 use crate::project::{AudioBlock, AudioBlockType, Instrument, PatternData};
@@ -286,33 +286,39 @@ impl Graphics {
         let mixer_window = &self.mini_windows[MIXER_ID];
 
         // volume knobs
-        if self.dragging_knob == None {
-            let y_ceiling: f32 = mixer_window.y;
-            let track_height: f32 = 164.0;
-            let padding = 32.0;
-            if x > mixer_window.x - padding + 24.0 && x < mixer_window.x + padding + 24.0 && y > mixer_window.y && y < mixer_window.y + track_height {
-                self.master_volume = 1.0 - ((y - y_ceiling) / track_height).clamp(0.0, 1.0);
-                self.dragging = true;
-                return DragResult::DragVolumeSlider(self.master_volume);
+        if self.dragging_window == None {
+            if self.dragging_knob == None {
+                let y_ceiling: f32 = mixer_window.y;
+                let track_height: f32 = 164.0;
+                let padding = 32.0;
+                if x > mixer_window.x - padding + 24.0
+                    && x < mixer_window.x + padding + 24.0
+                    && y > mixer_window.y
+                    && y < mixer_window.y + track_height
+                {
+                    self.master_volume = 1.0 - ((y - y_ceiling) / track_height).clamp(0.0, 1.0);
+                    self.dragging = true;
+                    return DragResult::DragVolumeSlider(self.master_volume);
+                }
             }
-        }
-        if let Some(i) = self.dragging_knob {
-            self.instruments[i].data.track_volume = (self.instruments[i].data.track_volume - dy * 0.005).clamp(0.0, 1.0);
-            self.dragging = true;
-            return DragResult::DragVolumeKnob(i, self.instruments[i].data.track_volume);
-        }
-        for (i, track) in &mut self.instruments.iter_mut().enumerate() {
-            let knob_rect = Rectangle {
-                x: sequencer_window.x + 198.0 - KNOB_RADIUS,
-                y: sequencer_window.y + (i as f32 * TRACK_GAP) + 24.0 - KNOB_RADIUS,
-                width: KNOB_RADIUS * 2.0,
-                height: KNOB_RADIUS * 2.0,
-            };
-            if knob_rect.is_hovered(x, y) {
-                self.dragging_knob = Some(i);
-                track.data.track_volume = (track.data.track_volume - dy * 0.01).clamp(0.0, 1.0);
+            if let Some(i) = self.dragging_knob {
+                self.instruments[i].data.track_volume = (self.instruments[i].data.track_volume - dy * 0.005).clamp(0.0, 1.0);
                 self.dragging = true;
-                return DragResult::DragVolumeKnob(i, track.data.track_volume);
+                return DragResult::DragVolumeKnob(i, self.instruments[i].data.track_volume);
+            }
+            for (i, track) in &mut self.instruments.iter_mut().enumerate() {
+                let knob_rect = Rectangle {
+                    x: sequencer_window.x + 198.0 - KNOB_RADIUS,
+                    y: sequencer_window.y + (i as f32 * TRACK_GAP) + 24.0 - KNOB_RADIUS,
+                    width: KNOB_RADIUS * 2.0,
+                    height: KNOB_RADIUS * 2.0,
+                };
+                if knob_rect.is_hovered(x, y) {
+                    self.dragging_knob = Some(i);
+                    track.data.track_volume = (track.data.track_volume - dy * 0.01).clamp(0.0, 1.0);
+                    self.dragging = true;
+                    return DragResult::DragVolumeKnob(i, track.data.track_volume);
+                }
             }
         }
 
@@ -678,6 +684,10 @@ impl Graphics {
 
         let footer_vert_end = vertices.len() as u32;
         let footer_char_end = char_draws.len();
+
+        if mouse_state.left_click_held {
+            cursor_icon = CursorIcon::Default
+        }
 
         self.queue.write_buffer(&self.vertex_buffer, 0, bytemuck::cast_slice(&vertices));
         self.num_vertices = vertices.len() as u32;

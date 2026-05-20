@@ -12,7 +12,7 @@ pub fn draw(window: &MiniWindow, master_volume: f32, screen_config: &ScreenConfi
 
     // window background
     let window_background = window_background(&window);
-    vertices.extend(window_background.draw(&screen_config, BACKGROUND));
+    vertices.extend(window_background.draw(&screen_config, PURPLE));
 
     // window titlebar
     let (titlebar_verts, titlebar_texts) = window_title_bar(&window);

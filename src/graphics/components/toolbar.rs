@@ -1,4 +1,5 @@
 use crate::app::MouseState;
+use crate::graphics::color::PEBBLE;
 use crate::graphics::{
     color::{LIGHT_GRAY, WHITE},
     icons::IconDraw,
@@ -29,7 +30,7 @@ pub fn draw_toolbar(
         width: screen_config.width as f32,
         height: TOOLBAR_Y,
     };
-    vertices.extend(toolbar_background.draw(&screen_config, crate::graphics::color::PASCAL));
+    vertices.extend(toolbar_background.draw(&screen_config, PEBBLE));
 
     // bpm button increment
     let bpm_up = Rectangle {
@@ -73,7 +74,10 @@ pub fn draw_toolbar(
             click_result = ClickResult::TogglePlay;
         }
     }
-    vertices.extend(play_button.draw(&screen_config, play_button.dark_hover_color(mouse_state.x, mouse_state.y)));
+    vertices.extend(play_button.draw(
+        &screen_config,
+        play_button.dark_hover_color(mouse_state.x, mouse_state.y, mouse_state.left_clicked),
+    ));
 
     // stop button
     let stop_button = Rectangle {
@@ -88,7 +92,10 @@ pub fn draw_toolbar(
             click_result = ClickResult::Stop;
         }
     }
-    vertices.extend(stop_button.draw(&screen_config, stop_button.dark_hover_color(mouse_state.x, mouse_state.y)));
+    vertices.extend(stop_button.draw(
+        &screen_config,
+        stop_button.dark_hover_color(mouse_state.x, mouse_state.y, mouse_state.left_clicked),
+    ));
 
     let sequencer_toggle = Rectangle {
         x: PLAY_X_ORIGIN + 256.0,
@@ -96,7 +103,10 @@ pub fn draw_toolbar(
         width: ICON_WIDTH,
         height: ICON_HEIGHT,
     };
-    vertices.extend(sequencer_toggle.draw(&screen_config, sequencer_toggle.dark_hover_color(mouse_state.x, mouse_state.y)));
+    vertices.extend(sequencer_toggle.draw(
+        &screen_config,
+        sequencer_toggle.dark_hover_color(mouse_state.x, mouse_state.y, mouse_state.left_clicked),
+    ));
     if sequencer_toggle.is_hovered(mouse_state.x, mouse_state.y) {
         cursor_icon = CursorIcon::Pointer;
         if mouse_state.left_clicked {
@@ -110,7 +120,10 @@ pub fn draw_toolbar(
         width: ICON_WIDTH,
         height: ICON_HEIGHT,
     };
-    vertices.extend(mixer_toggle.draw(&screen_config, mixer_toggle.dark_hover_color(mouse_state.x, mouse_state.y)));
+    vertices.extend(mixer_toggle.draw(
+        &screen_config,
+        mixer_toggle.dark_hover_color(mouse_state.x, mouse_state.y, mouse_state.left_clicked),
+    ));
     if mixer_toggle.is_hovered(mouse_state.x, mouse_state.y) {
         cursor_icon = CursorIcon::Pointer;
         if mouse_state.left_clicked {
@@ -124,7 +137,10 @@ pub fn draw_toolbar(
         width: ICON_WIDTH,
         height: ICON_HEIGHT,
     };
-    vertices.extend(playlist_toggle.draw(&screen_config, playlist_toggle.dark_hover_color(mouse_state.x, mouse_state.y)));
+    vertices.extend(playlist_toggle.draw(
+        &screen_config,
+        playlist_toggle.dark_hover_color(mouse_state.x, mouse_state.y, mouse_state.left_clicked),
+    ));
     if playlist_toggle.is_hovered(mouse_state.x, mouse_state.y) {
         cursor_icon = CursorIcon::Pointer;
         if mouse_state.left_clicked {
@@ -144,7 +160,10 @@ pub fn draw_toolbar(
         width: ICON_WIDTH,
         height: ICON_HEIGHT,
     };
-    vertices.extend(load_file_button.draw(screen_config, load_file_button.dark_hover_color(mouse_state.x, mouse_state.y)));
+    vertices.extend(load_file_button.draw(
+        screen_config,
+        load_file_button.dark_hover_color(mouse_state.x, mouse_state.y, mouse_state.left_clicked),
+    ));
     if load_file_button.is_hovered(mouse_state.x, mouse_state.y) {
         cursor_icon = CursorIcon::Pointer;
         if mouse_state.left_clicked {
@@ -159,7 +178,10 @@ pub fn draw_toolbar(
         width: ICON_WIDTH as f32,
         height: ICON_HEIGHT as f32,
     };
-    vertices.extend(instrument_button.draw(screen_config, instrument_button.dark_hover_color(mouse_state.x, mouse_state.y)));
+    vertices.extend(instrument_button.draw(
+        screen_config,
+        instrument_button.dark_hover_color(mouse_state.x, mouse_state.y, mouse_state.left_clicked),
+    ));
     if instrument_button.is_hovered(mouse_state.x, mouse_state.y) {
         cursor_icon = CursorIcon::Pointer;
         if mouse_state.left_clicked {

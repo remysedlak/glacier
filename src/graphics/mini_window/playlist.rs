@@ -1,6 +1,7 @@
 use crate::app::MouseState;
+use crate::graphics::color::{BLUE_HOVER, DARK_BLUE_HOVER};
 use crate::graphics::{
-    color::{BLUE, DARK_BLUE, DARK_GRAY, ORANGE, PASCAL, WHITE},
+    color::{BLUE, DARK_BLUE, DARK_GRAY, ORANGE, PEBBLE, WHITE},
     mini_window::{MiniWindow, MINI_WINDOW_BACKGROUND},
     primitives::{ScreenConfig, Vertex, PAD_16, PAD_32, PAD_4, PAD_64, PAD_8},
     widgets::{window_background, window_title_bar, TextItem},
@@ -98,6 +99,7 @@ pub fn draw(
             };
 
             // add a new event with the active pattern at this step
+            let color = pl_step.playlist_step_color(mouse_state.x, mouse_state.y, mouse_state.left_click_held, group);
             if pl_step.is_hovered(mouse_state.x, mouse_state.y) {
                 if mouse_state.left_clicked {
                     click_result = ClickResult::AddPlaylistPattern(
@@ -109,7 +111,6 @@ pub fn draw(
                 }
             }
 
-            let color = if group % 2 != 0 { BLUE } else { DARK_BLUE };
             timeline_vertices.extend(pl_step.draw(&screen_config, color));
 
             // every 4 measure display the measure (zoom feature later shows more measure labels)
@@ -131,7 +132,7 @@ pub fn draw(
             width: TIMELINE_X_ORIGIN - PAD_4,
             height: PLAYLIST_STEP_HEIGHT,
         };
-        header_vertices.extend(background.draw(&screen_config, PASCAL));
+        header_vertices.extend(background.draw(&screen_config, PEBBLE));
         header_text_items.push(TextItem {
             text: format!("Track {}", track).to_string(),
             x: window.x + PAD_16 + PAD_8,
@@ -161,7 +162,10 @@ pub fn draw(
             if pl_pattern.is_hovered_edge(mouse_state.x, mouse_state.y) {
                 cursor_icon = CursorIcon::ColResize
             }
-            timeline_vertices.extend(pl_pattern.draw(&screen_config, pl_pattern.hover_color(mouse_state.x, mouse_state.y)));
+            timeline_vertices.extend(pl_pattern.draw(
+                &screen_config,
+                pl_pattern.hover_color(mouse_state.x, mouse_state.y, mouse_state.left_click_held),
+            ));
             // titlebar text
             let label: &str = &patterns[id as usize].name;
 

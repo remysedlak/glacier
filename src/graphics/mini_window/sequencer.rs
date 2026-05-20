@@ -1,5 +1,5 @@
 use crate::app::MouseState;
-use crate::graphics::color::{BLACK, WHITE};
+use crate::graphics::color::WHITE;
 use crate::graphics::mini_window::MINI_WINDOW_BACKGROUND;
 use crate::graphics::primitives::PAD_8;
 use crate::graphics::{
@@ -104,7 +104,13 @@ pub fn draw(
                 };
                 vertices.extend(step.draw(
                     screen_config,
-                    step.active_step_color(mouse_state.x, mouse_state.y, j == active_step, velocity > 0.0),
+                    step.active_step_color(
+                        mouse_state.x,
+                        mouse_state.y,
+                        j == active_step,
+                        velocity > 0.0,
+                        mouse_state.left_click_held,
+                    ),
                 ));
 
                 // check if the step was clicked
@@ -144,7 +150,10 @@ pub fn draw(
             width: 172.0,
             height: 24.0,
         };
-        vertices.extend(track_button.draw(&screen_config, track_button.dark_hover_color(mouse_state.x, mouse_state.y)));
+        vertices.extend(track_button.draw(
+            &screen_config,
+            track_button.dark_hover_color(mouse_state.x, mouse_state.y, mouse_state.left_click_held),
+        ));
         if track_button.is_hovered(mouse_state.x, mouse_state.y) {
             cursor_icon = CursorIcon::Pointer;
             if mouse_state.left_clicked {
@@ -164,7 +173,7 @@ pub fn draw(
         };
         vertices.extend(mute_button.draw(
             &screen_config,
-            mute_button.active_color(mouse_state.x, mouse_state.y, instrument.data.is_muted),
+            mute_button.active_color(mouse_state.x, mouse_state.y, instrument.data.is_muted, mouse_state.left_clicked),
         ));
 
         text_items.push(TextItem {
@@ -192,7 +201,7 @@ pub fn draw(
         };
         vertices.extend(velocity_button.draw(
             &screen_config,
-            velocity_button.active_color(mouse_state.x, mouse_state.y, instrument.show_velocity),
+            velocity_button.active_color(mouse_state.x, mouse_state.y, instrument.show_velocity, mouse_state.left_clicked),
         ));
 
         text_items.push(TextItem {
