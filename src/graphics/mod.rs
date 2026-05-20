@@ -412,7 +412,9 @@ impl Graphics {
                     if cursor != CursorIcon::Default {
                         cursor_icon = cursor;
                     }
-                    click_result = result;
+                    if !matches!(result, ClickResult::None) {
+                        click_result = result;
+                    }
                 }
                 PLAYLIST_ID if self.mini_windows[PLAYLIST_ID].is_open => {
                     let window = &self.mini_windows[PLAYLIST_ID];
@@ -490,7 +492,9 @@ impl Graphics {
                     if cursor != CursorIcon::Default {
                         cursor_icon = cursor;
                     }
-                    click_result = result;
+                    if !matches!(result, ClickResult::None) {
+                        click_result = result;
+                    }
                 }
                 MIXER_ID if self.mini_windows[MIXER_ID].is_open => {
                     let window = &self.mini_windows[MIXER_ID];
@@ -503,6 +507,9 @@ impl Graphics {
                     if let WindowKind::InstrumentDetail(track) = window.window_kind {
                         let (verts, texts, result, cursor) = instrument::draw(window, &mouse_state, &screen_config, &self.instruments[track]);
                         vertices.extend(verts);
+                        if !matches!(result, ClickResult::None) {
+                            click_result = result;
+                        }
                         Graphics::push_text_draws(&texts, &self.font, &self.glyph_cache, &self.device, &screen_config, &mut char_draws);
                     }
                 }
