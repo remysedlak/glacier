@@ -1,0 +1,312 @@
+project_name = "My first song"
+bpm = 101.0
+
+[[events]]
+id = 1
+track = 16
+start_step = 3
+length = 32
+
+[events.block_type]
+kind = "Pattern"
+id = 0
+
+[[events]]
+id = 1
+track = 0
+start_step = 0
+length = 32
+
+[events.block_type]
+kind = "Pattern"
+id = 0
+
+[[events]]
+id = 2
+track = 1
+start_step = 0
+length = 32
+
+[events.block_type]
+kind = "Pattern"
+id = 1
+
+[[events]]
+id = 3
+track = 5
+start_step = 42
+length = 32
+
+[events.block_type]
+kind = "Pattern"
+id = 0
+
+[[events]]
+id = 4
+track = 0
+start_step = 42
+length = 32
+
+[events.block_type]
+kind = "Pattern"
+id = 0
+
+[[events]]
+id = 5
+track = 1
+start_step = 45
+length = 32
+
+[events.block_type]
+kind = "Pattern"
+id = 0
+
+[[events]]
+id = 6
+track = 0
+start_step = 42
+length = 32
+
+[events.block_type]
+kind = "Pattern"
+id = 0
+
+[[events]]
+id = 7
+track = 0
+start_step = 42
+length = 32
+
+[events.block_type]
+kind = "Pattern"
+id = 0
+
+[[events]]
+id = 8
+track = 0
+start_step = 41
+length = 32
+
+[events.block_type]
+kind = "Pattern"
+id = 0
+
+[[events]]
+id = 9
+track = 0
+start_step = 40
+length = 32
+
+[events.block_type]
+kind = "Pattern"
+id = 0
+
+[[events]]
+id = 10
+track = 0
+start_step = 40
+length = 32
+
+[events.block_type]
+kind = "Pattern"
+id = 0
+
+[[events]]
+id = 11
+track = 0
+start_step = 44
+length = 32
+
+[events.block_type]
+kind = "Pattern"
+id = 0
+
+[[events]]
+id = 12
+track = 0
+start_step = 44
+length = 32
+
+[events.block_type]
+kind = "Pattern"
+id = 0
+
+[[events]]
+id = 13
+track = 0
+start_step = 45
+length = 32
+
+[events.block_type]
+kind = "Pattern"
+id = 0
+
+[[events]]
+id = 14
+track = 3
+start_step = 44
+length = 32
+
+[events.block_type]
+kind = "Pattern"
+id = 0
+
+[[instruments]]
+id = 0
+path = "./assets/example_drums/SharpK.wav"
+name = "kick"
+is_muted = false
+target_volume = 0.7480315
+track_volume = 0.0
+
+[[instruments]]
+id = 1
+path = "./assets/example_drums/PopOHH.wav"
+name = "hat"
+is_muted = false
+target_volume = 0.7480315
+track_volume = 0.54283196
+
+[[instruments]]
+id = 2
+path = "./assets/example_drums/AttackS.wav"
+name = "snare"
+is_muted = false
+target_volume = 0.7480315
+track_volume = 1.0
+
+[[instruments]]
+id = 3
+path = "/media/remy/New Volume/Drumkits/Holy Mob Sound Kit/Kicks/[HM] Gali - Vintage Kick.wav"
+name = "[HM] Gali - Vintage Kick.wav"
+is_muted = true
+target_volume = 0.7480315
+track_volume = 0.28923827
+
+[[patterns]]
+id = 0
+name = "Pattern 1"
+
+[[patterns.sequences]]
+instrument_id = 0
+steps = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 95.0, 0.0, 0.0, 0.0, 95.0, 0.0, 0.0, 0.0, 100.0, 100.0, 0.0, 95.0, 0.0, 0.0, 0.0, 95.0, 95.0, 70.0, 0.0, 0.0, 0.0, 0.0, 95.0, 0.0]
+
+[[patterns.sequences]]
+instrument_id = 1
+steps = [95.0, 0.0, 95.0, 0.0, 0.0, 95.0, 0.0, 0.0, 95.0, 0.0, 95.0, 0.0, 100.0, 0.0, 95.0, 0.0, 95.0, 0.0, 95.0, 0.0, 0.0, 95.0, 0.0, 0.0, 0.0, 0.0, 95.0, 0.0, 95.0, 0.0, 95.0, 0.0]
+
+[[patterns.sequences]]
+instrument_id = 2
+steps = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 95.0, 0.0, 0.0, 0.0, 95.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+
+[[patterns.sequences]]
+instrument_id = 3
+steps = [0.0, 0.0, 0.0, 0.0, 95.0, 0.0, 95.0, 0.0, 0.0, 0.0, 0.0, 0.0, 95.0, 0.0, 0.0, 0.0, 0.0, 0.0, 95.0, 0.0, 95.0, 0.0, 0.0, 0.0, 0.0, 0.0, 95.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+
+[[patterns]]
+id = 1
+name = "Pattern 2"
+
+[[patterns.sequences]]
+instrument_id = 2
+steps = [0.0, 0.0, 0.0, 95.0, 0.0, 95.0, 0.0, 0.0, 95.0, 0.0, 0.0, 95.0, 60.0, 0.0, 95.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 95.0, 0.0, 0.0, 0.0]
+
+[[patterns]]
+id = 2
+name = "Pattern 3"
+
+[[patterns.sequences]]
+instrument_id = 0
+steps = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+
+[[patterns.sequences]]
+instrument_id = 1
+steps = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+
+[[patterns.sequences]]
+instrument_id = 2
+steps = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+
+[[patterns.sequences]]
+instrument_id = 3
+steps = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+
+[[patterns]]
+id = 3
+name = "Pattern 4"
+
+[[patterns.sequences]]
+instrument_id = 0
+steps = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+
+[[patterns.sequences]]
+instrument_id = 1
+steps = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+
+[[patterns.sequences]]
+instrument_id = 2
+steps = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+
+[[patterns.sequences]]
+instrument_id = 3
+steps = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+
+[[patterns]]
+id = 4
+name = "Pattern 5"
+
+[[patterns.sequences]]
+instrument_id = 0
+steps = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+
+[[patterns.sequences]]
+instrument_id = 1
+steps = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+
+[[patterns.sequences]]
+instrument_id = 2
+steps = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+
+[[patterns.sequences]]
+instrument_id = 3
+steps = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+
+[[patterns]]
+id = 5
+name = "Pattern 8"
+
+[[patterns.sequences]]
+instrument_id = 0
+steps = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+
+[[patterns.sequences]]
+instrument_id = 1
+steps = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+
+[[patterns.sequences]]
+instrument_id = 2
+steps = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+
+[[patterns.sequences]]
+instrument_id = 3
+steps = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+
+[[patterns]]
+id = 6
+name = "Pattern 9"
+
+[[patterns.sequences]]
+instrument_id = 0
+steps = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+
+[[patterns.sequences]]
+instrument_id = 1
+steps = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+
+[[patterns.sequences]]
+instrument_id = 2
+steps = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+
+[[patterns.sequences]]
+instrument_id = 3
+steps = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]

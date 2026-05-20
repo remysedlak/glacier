@@ -120,7 +120,7 @@ pub async fn create_graphics(window: Rc<Window>, proxy: EventLoopProxy<Graphics>
 
     let events: Vec<AudioBlock> = Vec::new();
 
-    let font_data = include_bytes!("../../fonts/Roboto-VariableFont_wdth,wght.ttf") as &[u8];
+    let font_data = include_bytes!("../../assets/fonts/Roboto-VariableFont_wdth,wght.ttf") as &[u8];
     let font = fontdue::Font::from_bytes(font_data, fontdue::FontSettings::default()).unwrap();
     let bind_group_layout = font::create_bind_group_layout(&device);
     let render_pipeline = create_pipeline(&device, surface_config.format, &bind_group_layout);
@@ -130,7 +130,7 @@ pub async fn create_graphics(window: Rc<Window>, proxy: EventLoopProxy<Graphics>
 
     let mut icon_cache = HashMap::new();
     for name in icons::ICON_NAMES {
-        let svg_str = std::fs::read_to_string(format!("icons/{}.svg", name)).unwrap();
+        let svg_str = std::fs::read_to_string(format!("assets/icons/{}.svg", name)).unwrap();
         let icon = icons::IconSvg {
             x: 0.0,
             y: 0.0,
