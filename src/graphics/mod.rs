@@ -1,5 +1,4 @@
 use crate::app::MouseState;
-use crate::graphics::color::{BLACK, WHITE};
 use crate::graphics::{
     components::{footer, pattern_tray},
     context_menu::ContextMenu,
@@ -27,6 +26,7 @@ pub mod color;
 pub mod components;
 pub mod context_menu;
 pub mod font;
+pub mod icons;
 pub mod mini_window;
 pub mod primitives;
 pub mod widgets;
@@ -125,6 +125,23 @@ pub async fn create_graphics(window: Rc<Window>, proxy: EventLoopProxy<Graphics>
 
     let context_menu = None;
 
+    let mut icon_cache = HashMap::new();
+    for name in icons::ICON_NAMES {
+        let svg_str = std::fs::read_to_string(format!("icons/{}.svg", name)).unwrap();
+        let icon = icons::IconSvg {
+            x: 0.0,
+            y: 0.0,
+            width: 128.0,
+            height: 128.0,
+            path: svg_str,
+            info: name.to_string(),
+        };
+        let (texture, bind_group, _, _, _) = icons::rasterize_icon(&device, &queue, icon);
+        icon_cache.insert(name.to_string(), (texture, bind_group));
+    }
+
+    println!("icon_cache keys: {:?}", icon_cache.keys().collect::<Vec<_>>());
+
     let gfx = Graphics {
         window: window.clone(),
         surface,
@@ -141,7 +158,7 @@ pub async fn create_graphics(window: Rc<Window>, proxy: EventLoopProxy<Graphics>
         num_vertices: vertices.len() as u32,
         active_step: 0,
         context_menu,
-
+        icon_cache,
         bpm: 120.0,
         is_playing: false,
         master_volume: 0.5,
@@ -217,6 +234,7 @@ pub struct Graphics {
     pub active_pattern_id: usize,
     pub z_order: Vec<usize>,
     pub context_menu: Option<ContextMenu>,
+    icon_cache: HashMap<String, (wgpu::Texture, wgpu::BindGroup)>,
 
     // song
     pub project_path: String,
@@ -334,6 +352,28 @@ impl Graphics {
         self.surface.configure(&self.device, &self.surface_config);
     }
 
+    fn push_icon_draw<'a>(
+        icon_cache: &'a HashMap<String, (wgpu::Texture, wgpu::BindGroup)>,
+        device: &wgpu::Device,
+        screen_config: &ScreenConfig,
+        name: &str,
+        x: f32,
+        y: f32,
+        w: f32,
+        h: f32,
+        icon_draws: &mut Vec<(wgpu::Buffer, &'a wgpu::BindGroup)>,
+    ) {
+        if let Some((_, bind_group)) = icon_cache.get(name) {
+            let verts = icons::draw_icon(x, y, w, h, screen_config);
+            let buf = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                label: None,
+                contents: bytemuck::cast_slice(&verts),
+                usage: wgpu::BufferUsages::VERTEX,
+            });
+            icon_draws.push((buf, bind_group));
+        }
+    }
+
     fn push_text_draws<'a>(
         texts: &[TextItem],
         font: &fontdue::Font,
@@ -390,6 +430,7 @@ impl Graphics {
         }
 
         let mut char_draws: Vec<(wgpu::Buffer, &wgpu::BindGroup)> = Vec::new();
+        let mut icon_draws: Vec<(wgpu::Buffer, &wgpu::BindGroup)> = Vec::new();
         let mut window_ranges: Vec<WindowDrawRange> = Vec::new();
         let mut playlist_window_ranges: Option<PlaylistDrawRanges> = None;
 
@@ -547,9 +588,24 @@ impl Graphics {
         }
         Graphics::push_text_draws(&texts, &self.font, &self.glyph_cache, &self.device, &screen_config, &mut char_draws);
 
-        let (toolbar_verts, toolbar_texts, toolbar_result, toolbar_cursor) =
+        let (toolbar_verts, toolbar_texts, toolbar_icons, toolbar_result, toolbar_cursor) =
             components::toolbar::draw_toolbar(mouse_state, &screen_config, self.bpm, self.is_playing, self.active_step);
         vertices.extend(toolbar_verts);
+
+        for icon in toolbar_icons {
+            Graphics::push_icon_draw(
+                &self.icon_cache,
+                &self.device,
+                &screen_config,
+                icon.name,
+                icon.x,
+                icon.y,
+                icon.width,
+                icon.height,
+                &mut icon_draws,
+            )
+        }
+
         if toolbar_cursor != CursorIcon::Default {
             cursor_icon = toolbar_cursor;
         }
@@ -741,6 +797,12 @@ impl Graphics {
             for i in toolbar_char_start..toolbar_char_end {
                 r_pass.set_bind_group(0, char_draws[i].1, &[]);
                 r_pass.set_vertex_buffer(0, char_draws[i].0.slice(..));
+                r_pass.draw(0..6, 0..1);
+            }
+
+            for i in 0..icon_draws.len() {
+                r_pass.set_bind_group(0, icon_draws[i].1, &[]);
+                r_pass.set_vertex_buffer(0, icon_draws[i].0.slice(..));
                 r_pass.draw(0..6, 0..1);
             }
 

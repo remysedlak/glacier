@@ -30,10 +30,11 @@ fn vs_main(model: VertexInput) -> VertexOutput {
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     // uv.x < 0.0 signals non-textured geometry (no valid atlas coordinate)
     if in.uv.x < 0.0 {
-        // regular colored geometry
         return vec4<f32>(in.color, 1.0);
+    } else if in.uv.x > 1.0 {
+        let actual_uv = vec2<f32>(in.uv.x - 2.0, in.uv.y);
+        return textureSample(glyph_tex, glyph_sampler, actual_uv);
     } else {
-        // glyph quad — sample alpha from texture, use color for tint
         let alpha = textureSample(glyph_tex, glyph_sampler, in.uv).r;
         return vec4<f32>(in.color, alpha);
     }

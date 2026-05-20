@@ -17,3 +17,4 @@ ringbuf = "0.4.8"
 serde = { version = "1", features = ["derive"] }
 toml = "1.1.2"
 rfd = "0.17.2"
+resvg = "0.44"

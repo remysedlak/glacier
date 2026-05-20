@@ -15,15 +15,12 @@ pub const ADD_INSTRUMENT_ICON_OFFSET: f32 = 80.0;
 pub const PLAY_Y_ORIGIN: f32 = 4.0;
 pub const PLAY_X_ORIGIN: f32 = 90.0;
 
-pub const TOOLBAR_Y: f32 = 32.0;
+pub const TOOLBAR_Y: f32 = 42.0;
 pub const TOOLBAR_THICKNESS: f32 = 0.003;
 pub const TOOLBAR_MARGIN: f32 = 4.0;
 
 pub const ICON_WIDTH: f32 = 32.0;
-pub const ICON_HEIGHT: f32 = 24.0;
-
-pub const PLAY_SQUARE_HEIGHT: f32 = ICON_HEIGHT;
-pub const PLAY_SQUARE_WIDTH: f32 = 54.0;
+pub const ICON_HEIGHT: f32 = 32.0;
 
 pub const TITLEBAR_HEIGHT: f32 = 32.0;
 

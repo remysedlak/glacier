@@ -2,7 +2,7 @@ use crate::app::MouseState;
 use crate::graphics::color::{BLACK, WHITE};
 use crate::graphics::primitives::{ScreenConfig, PAD_8};
 use crate::graphics::widgets::TextItem;
-use crate::graphics::{ClickResult, CursorIcon, PatternData, Rectangle, Vertex, PAD_16, PAD_4, TOOLBAR_THICKNESS, TOOLBAR_Y};
+use crate::graphics::{ClickResult, CursorIcon, PatternData, Rectangle, Vertex, PAD_16, TOOLBAR_THICKNESS, TOOLBAR_Y};
 
 pub fn draw(
     screen_config: &ScreenConfig,

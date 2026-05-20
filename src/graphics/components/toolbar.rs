@@ -1,12 +1,9 @@
 use crate::app::MouseState;
-use crate::graphics::color::{BLACK, WHITE};
 use crate::graphics::{
-    color::LIGHT_GRAY,
-    primitives::{draw_h_line, BUTTON_GAP},
-    widgets::{
-        Rectangle, TextItem, ADD_INSTRUMENT_ICON_OFFSET, ICON_HEIGHT, ICON_WIDTH, PLAY_SQUARE_HEIGHT, PLAY_SQUARE_WIDTH, PLAY_X_ORIGIN,
-        PLAY_Y_ORIGIN, TOOLBAR_MARGIN, TOOLBAR_Y,
-    },
+    color::{LIGHT_GRAY, WHITE},
+    icons::IconDraw,
+    primitives::{draw_h_line, BUTTON_GAP, PAD_32, PAD_8},
+    widgets::{Rectangle, TextItem, ADD_INSTRUMENT_ICON_OFFSET, ICON_HEIGHT, ICON_WIDTH, PLAY_X_ORIGIN, PLAY_Y_ORIGIN, TOOLBAR_MARGIN, TOOLBAR_Y},
     ClickResult, ScreenConfig, Vertex, TOOLBAR_THICKNESS,
 };
 use winit::window::CursorIcon;
@@ -19,7 +16,7 @@ pub fn draw_toolbar(
     bpm: f32,
     is_playing: bool,
     active_step: usize,
-) -> (Vec<Vertex>, Vec<TextItem>, ClickResult, CursorIcon) {
+) -> (Vec<Vertex>, Vec<TextItem>, Vec<IconDraw>, ClickResult, CursorIcon) {
     let mut vertices: Vec<Vertex> = Vec::new();
     let mut toolbar_texts: Vec<TextItem> = Vec::new();
     let mut click_result = ClickResult::None;
@@ -67,8 +64,8 @@ pub fn draw_toolbar(
     let play_button = Rectangle {
         x: PLAY_X_ORIGIN,
         y: PLAY_Y_ORIGIN,
-        width: PLAY_SQUARE_WIDTH,
-        height: PLAY_SQUARE_HEIGHT,
+        width: ICON_WIDTH,
+        height: ICON_HEIGHT,
     };
     if play_button.is_hovered(mouse_state.x, mouse_state.y) {
         cursor_icon = CursorIcon::Pointer;
@@ -76,14 +73,14 @@ pub fn draw_toolbar(
             click_result = ClickResult::TogglePlay;
         }
     }
-    vertices.extend(play_button.draw(&screen_config, play_button.hover_color(mouse_state.x, mouse_state.y)));
+    vertices.extend(play_button.draw(&screen_config, play_button.dark_hover_color(mouse_state.x, mouse_state.y)));
 
     // stop button
     let stop_button = Rectangle {
         x: PLAY_X_ORIGIN + 64.0,
         y: PLAY_Y_ORIGIN,
-        width: PLAY_SQUARE_WIDTH,
-        height: PLAY_SQUARE_HEIGHT,
+        width: ICON_WIDTH,
+        height: ICON_HEIGHT,
     };
     if stop_button.is_hovered(mouse_state.x, mouse_state.y) {
         cursor_icon = CursorIcon::Pointer;
@@ -91,15 +88,15 @@ pub fn draw_toolbar(
             click_result = ClickResult::Stop;
         }
     }
-    vertices.extend(stop_button.draw(&screen_config, stop_button.hover_color(mouse_state.x, mouse_state.y)));
+    vertices.extend(stop_button.draw(&screen_config, stop_button.dark_hover_color(mouse_state.x, mouse_state.y)));
 
     let sequencer_toggle = Rectangle {
         x: PLAY_X_ORIGIN + 256.0,
         y: PLAY_Y_ORIGIN,
-        width: PLAY_SQUARE_WIDTH,
-        height: PLAY_SQUARE_HEIGHT,
+        width: ICON_WIDTH,
+        height: ICON_HEIGHT,
     };
-    vertices.extend(sequencer_toggle.draw(&screen_config, sequencer_toggle.hover_color(mouse_state.x, mouse_state.y)));
+    vertices.extend(sequencer_toggle.draw(&screen_config, sequencer_toggle.dark_hover_color(mouse_state.x, mouse_state.y)));
     if sequencer_toggle.is_hovered(mouse_state.x, mouse_state.y) {
         cursor_icon = CursorIcon::Pointer;
         if mouse_state.left_clicked {
@@ -108,12 +105,12 @@ pub fn draw_toolbar(
     }
 
     let mixer_toggle = Rectangle {
-        x: PLAY_X_ORIGIN + 256.0 + (BUTTON_GAP * 3.0),
+        x: PLAY_X_ORIGIN + 256.0 + (BUTTON_GAP * 2.0),
         y: PLAY_Y_ORIGIN,
-        width: PLAY_SQUARE_WIDTH,
-        height: PLAY_SQUARE_HEIGHT,
+        width: ICON_WIDTH,
+        height: ICON_HEIGHT,
     };
-    vertices.extend(mixer_toggle.draw(&screen_config, mixer_toggle.hover_color(mouse_state.x, mouse_state.y)));
+    vertices.extend(mixer_toggle.draw(&screen_config, mixer_toggle.dark_hover_color(mouse_state.x, mouse_state.y)));
     if mixer_toggle.is_hovered(mouse_state.x, mouse_state.y) {
         cursor_icon = CursorIcon::Pointer;
         if mouse_state.left_clicked {
@@ -122,12 +119,12 @@ pub fn draw_toolbar(
     }
 
     let playlist_toggle = Rectangle {
-        x: PLAY_X_ORIGIN + 256.0 + (BUTTON_GAP * 3.0) * 2.0,
+        x: PLAY_X_ORIGIN + 256.0 + (BUTTON_GAP * 2.0) * 2.0,
         y: PLAY_Y_ORIGIN,
-        width: PLAY_SQUARE_WIDTH,
-        height: PLAY_SQUARE_HEIGHT,
+        width: ICON_WIDTH,
+        height: ICON_HEIGHT,
     };
-    vertices.extend(playlist_toggle.draw(&screen_config, playlist_toggle.hover_color(mouse_state.x, mouse_state.y)));
+    vertices.extend(playlist_toggle.draw(&screen_config, playlist_toggle.dark_hover_color(mouse_state.x, mouse_state.y)));
     if playlist_toggle.is_hovered(mouse_state.x, mouse_state.y) {
         cursor_icon = CursorIcon::Pointer;
         if mouse_state.left_clicked {
@@ -147,7 +144,7 @@ pub fn draw_toolbar(
         width: ICON_WIDTH,
         height: ICON_HEIGHT,
     };
-    vertices.extend(load_file_button.draw(screen_config, load_file_button.hover_color(mouse_state.x, mouse_state.y)));
+    vertices.extend(load_file_button.draw(screen_config, load_file_button.dark_hover_color(mouse_state.x, mouse_state.y)));
     if load_file_button.is_hovered(mouse_state.x, mouse_state.y) {
         cursor_icon = CursorIcon::Pointer;
         if mouse_state.left_clicked {
@@ -162,7 +159,7 @@ pub fn draw_toolbar(
         width: ICON_WIDTH as f32,
         height: ICON_HEIGHT as f32,
     };
-    vertices.extend(instrument_button.draw(screen_config, instrument_button.hover_color(mouse_state.x, mouse_state.y)));
+    vertices.extend(instrument_button.draw(screen_config, instrument_button.dark_hover_color(mouse_state.x, mouse_state.y)));
     if instrument_button.is_hovered(mouse_state.x, mouse_state.y) {
         cursor_icon = CursorIcon::Pointer;
         if mouse_state.left_clicked {
@@ -171,27 +168,6 @@ pub fn draw_toolbar(
     }
 
     toolbar_texts.push(TextItem {
-        text: "pl".to_string(),
-        x: PLAY_X_ORIGIN + 256.0 + (BUTTON_GAP * 3.0) * 2.0,
-        y: 4.0,
-        size: 18.0,
-        color: WHITE,
-    });
-    toolbar_texts.push(TextItem {
-        text: "proj".to_string(),
-        x: screen_config.width as f32 - 37.0,
-        y: 4.0,
-        size: 18.0,
-        color: WHITE,
-    });
-    toolbar_texts.push(TextItem {
-        text: "instr".to_string(),
-        x: screen_config.width as f32 - (37.0 + 40.0 + 1.0),
-        y: 4.0,
-        size: 18.0,
-        color: WHITE,
-    });
-    toolbar_texts.push(TextItem {
         text: bpm.to_string(),
         x: 10.0,
         y: TOOLBAR_MARGIN,
@@ -199,36 +175,61 @@ pub fn draw_toolbar(
         color: WHITE,
     });
 
-    let label = if is_playing { "pause" } else { "play" };
-    toolbar_texts.push(TextItem {
-        text: label.to_string(),
-        x: PLAY_X_ORIGIN + (PLAY_SQUARE_WIDTH / 4.0),
-        y: 5.0,
-        size: 18.0,
-        color: WHITE,
-    });
+    let play_pause_label = if is_playing { "pause" } else { "play" };
 
-    toolbar_texts.push(TextItem {
-        text: "stop".to_string(),
-        x: PLAY_X_ORIGIN + 64.0 + (PLAY_SQUARE_WIDTH / 4.0),
-        y: 5.0,
-        size: 18.0,
-        color: WHITE,
-    });
-    toolbar_texts.push(TextItem {
-        text: "sequence".to_string(),
-        x: PLAY_X_ORIGIN + 256.0,
-        y: 4.0,
-        size: 18.0,
-        color: WHITE,
-    });
-    toolbar_texts.push(TextItem {
-        text: "mixer".to_string(),
-        x: PLAY_X_ORIGIN + 256.0 + (BUTTON_GAP * 3.0),
-        y: 4.0,
-        size: 18.0,
-        color: WHITE,
-    });
+    let icon_size = 32.0;
+    let icons = vec![
+        IconDraw {
+            name: "instrument",
+            x: screen_config.width as f32 - ADD_INSTRUMENT_ICON_OFFSET,
+            y: TOOLBAR_MARGIN,
+            width: icon_size,
+            height: icon_size,
+        },
+        IconDraw {
+            name: "project",
+            x: screen_config.width as f32 - PAD_32 - PAD_8,
+            y: TOOLBAR_MARGIN,
+            width: icon_size,
+            height: icon_size,
+        },
+        IconDraw {
+            name: "sequencer",
+            x: PLAY_X_ORIGIN + 256.0,
+            y: PLAY_Y_ORIGIN,
+            width: icon_size,
+            height: icon_size,
+        },
+        IconDraw {
+            name: "mixer",
+            x: PLAY_X_ORIGIN + 256.0 + (BUTTON_GAP * 2.0),
+            y: PLAY_Y_ORIGIN,
+            width: icon_size,
+            height: icon_size,
+        },
+        IconDraw {
+            name: "playlist",
+            x: PLAY_X_ORIGIN + 256.0 + (BUTTON_GAP * 2.0) * 2.0,
+            y: PLAY_Y_ORIGIN,
+            width: icon_size,
+            height: icon_size,
+        },
+        IconDraw {
+            name: play_pause_label,
+            x: PLAY_X_ORIGIN,
+            y: PLAY_Y_ORIGIN,
+            width: icon_size,
+            height: icon_size,
+        },
+        IconDraw {
+            name: "stop",
+            x: PLAY_X_ORIGIN + 64.0,
+            y: PLAY_Y_ORIGIN,
+            width: icon_size,
+            height: icon_size,
+        },
+        // etc
+    ];
 
-    (vertices, toolbar_texts, click_result, cursor_icon)
+    (vertices, toolbar_texts, icons, click_result, cursor_icon)
 }
