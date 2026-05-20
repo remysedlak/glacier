@@ -1,8 +1,13 @@
-use crate::graphics::{
-    color::*,
-    mini_window::MiniWindow,
-    primitives::{draw_rectangle, Vertex, PAD_16, PAD_4, PAD_8},
-    ScreenConfig,
+use winit::window::CursorIcon;
+
+use crate::{
+    app::MouseState,
+    graphics::{
+        color::*,
+        mini_window::{MiniWindow, WindowKind},
+        primitives::{draw_rectangle, Vertex, PAD_16, PAD_32, PAD_4, PAD_8},
+        ClickResult, ScreenConfig,
+    },
 };
 
 /*
@@ -105,11 +110,11 @@ impl Rectangle {
     pub fn active_color(&self, mx: f32, my: f32, is_active: bool, left_click_held: bool) -> (f32, f32, f32) {
         let hovered = self.is_hovered(mx, my) && !left_click_held;
         if hovered && is_active {
-            DARK_GRAY
+            ORANGE_HOVER
         } else if hovered {
             LL_GRAY
         } else if is_active {
-            BLACK
+            ORANGE
         } else {
             LIGHT_GRAY
         }
@@ -171,24 +176,55 @@ pub fn draw_slider(master_volume: f32, x: f32, y: f32, screen_config: &ScreenCon
     verts
 }
 
-pub fn window_title_bar(window: &MiniWindow) -> (Rectangle, TextItem) {
-    (
-        // build rectangle
-        Rectangle {
-            x: window.x,
-            y: window.y - TITLEBAR_HEIGHT,
-            width: window.width,
-            height: TITLEBAR_HEIGHT,
-        },
-        // build text item
-        TextItem {
-            text: window.title.to_string(),
-            x: window.x + window.width / 2.2,
-            y: window.y - TITLEBAR_HEIGHT + PAD_4,
-            color: WHITE,
-            size: 18.0,
-        },
-    )
+pub fn window_title_bar(
+    window: &MiniWindow,
+    screen_config: &ScreenConfig,
+    mouse_state: &MouseState,
+) -> (Vec<Vertex>, TextItem, ClickResult, CursorIcon) {
+    let mut verticies: Vec<Vertex> = Vec::new();
+    let mut result = ClickResult::None;
+    let mut cursor_icon = CursorIcon::Default;
+
+    // build rectangle
+    let title_bar_background = Rectangle {
+        x: window.x,
+        y: window.y - TITLEBAR_HEIGHT,
+        width: window.width,
+        height: TITLEBAR_HEIGHT,
+    };
+    verticies.extend(title_bar_background.draw(screen_config, DARK_GRAY));
+
+    // add button for closing the window
+    let close_window_button = Rectangle {
+        x: window.x + window.width - PAD_16 - PAD_8,
+        y: window.y - TITLEBAR_HEIGHT + PAD_8 + PAD_4,
+        width: 15.0,
+        height: 5.0,
+    };
+    verticies.extend(close_window_button.draw(
+        screen_config,
+        close_window_button.hover_color(mouse_state.x, mouse_state.y, mouse_state.left_click_held),
+    ));
+    if close_window_button.is_hovered(mouse_state.x, mouse_state.y) {
+        cursor_icon = CursorIcon::Pointer;
+        if mouse_state.left_clicked {
+            result = match window.window_kind {
+                WindowKind::Sequencer => ClickResult::ToggleSequencerWindow,
+                WindowKind::Playlist => ClickResult::TogglePlaylistWindow,
+                WindowKind::Mixer => ClickResult::ToggleMixerWindow,
+                WindowKind::InstrumentDetail(usize) => ClickResult::ToggleInstrumentWindow(usize), // which instrument
+            }
+        }
+    }
+    // build text item
+    let title = TextItem {
+        text: window.title.to_string(),
+        x: window.x + window.width / 2.2,
+        y: window.y - TITLEBAR_HEIGHT + PAD_4,
+        color: WHITE,
+        size: 18.0,
+    };
+    (verticies, title, result, cursor_icon)
 }
 
 pub fn window_background(window: &MiniWindow) -> Rectangle {

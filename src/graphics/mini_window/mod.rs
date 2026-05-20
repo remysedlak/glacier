@@ -10,7 +10,7 @@ pub const MIXER_ID: usize = 2;
 pub const MINI_WINDOW_BACKGROUND: (f32, f32, f32) = (0.1, 0.1, 0.1);
 use crate::graphics::TITLEBAR_HEIGHT;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum WindowKind {
     Sequencer,
     Playlist,

@@ -1,7 +1,6 @@
 use crate::app::MouseState;
-use crate::graphics::icons::Tooltip;
 use crate::graphics::{
-    color::{DARK_GRAY, ORANGE, PEBBLE, WHITE},
+    color::{ORANGE, PEBBLE, WHITE},
     mini_window::{MiniWindow, MINI_WINDOW_BACKGROUND},
     primitives::{ScreenConfig, Vertex, PAD_16, PAD_32, PAD_4, PAD_64, PAD_8},
     widgets::{window_background, window_title_bar, TextItem},
@@ -64,27 +63,15 @@ pub fn draw(
     static_vertices.extend(playlist_background.draw(&screen_config, MINI_WINDOW_BACKGROUND));
 
     // titlebar
-    let (titlebar_verts, titlebar_texts) = window_title_bar(&window);
-    static_vertices.extend(titlebar_verts.draw(&screen_config, DARK_GRAY));
+    let (titlebar_verts, titlebar_texts, result, cursor) = window_title_bar(&window, screen_config, mouse_state);
+    if !matches!(cursor, CursorIcon::Default) {
+        cursor_icon = cursor;
+    }
+    if !matches!(result, ClickResult::None) {
+        click_result = result;
+    }
+    static_vertices.extend(titlebar_verts);
     static_text_items.push(titlebar_texts);
-
-    // let buttons = 8;
-    // for i in 0..buttons {
-    //     let toolbar_button_background = Rectangle {
-    //         x: window.x + PAD_16 + (i as f32 * 64.0) - 2.0,
-    //         y: window.y + PAD_8 - 2.0,
-    //         width: 32.0 + 4.0,
-    //         height: 24.0 + 4.0,
-    //     };
-    //     let toolbar_button = Rectangle {
-    //         x: window.x + PAD_16 + (i as f32 * 64.0),
-    //         y: window.y + PAD_8,
-    //         width: 32.0,
-    //         height: 24.0,
-    //     };
-    //     static_vertices.extend(toolbar_button_background.draw(&screen_config, ORANGE));
-    //     static_vertices.extend(toolbar_button.draw(&screen_config, LL_GRAY));
-    // }
 
     // for each instrument loaded into a project
     for track in 0..tracks {

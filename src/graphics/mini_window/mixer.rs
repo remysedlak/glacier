@@ -1,22 +1,40 @@
-use crate::graphics::{
-    color::*,
-    mini_window::MiniWindow,
-    primitives::ScreenConfig,
-    widgets::{draw_slider, window_background, window_title_bar},
-    TextItem, Vertex,
+use winit::window::CursorIcon;
+
+use crate::{
+    app::MouseState,
+    graphics::{
+        color::*,
+        mini_window::MiniWindow,
+        primitives::ScreenConfig,
+        widgets::{draw_slider, window_background, window_title_bar},
+        ClickResult, TextItem, Vertex,
+    },
 };
 
-pub fn draw(window: &MiniWindow, master_volume: f32, screen_config: &ScreenConfig) -> (Vec<Vertex>, Vec<TextItem>) {
+pub fn draw(
+    window: &MiniWindow,
+    master_volume: f32,
+    screen_config: &ScreenConfig,
+    mouse_state: &MouseState,
+) -> (Vec<Vertex>, Vec<TextItem>, ClickResult, CursorIcon) {
     let mut vertices: Vec<Vertex> = Vec::new();
     let mut text_items: Vec<TextItem> = Vec::new();
+    let mut click_result = ClickResult::None;
+    let mut cursor_icon = CursorIcon::Default;
 
     // window background
     let window_background = window_background(&window);
     vertices.extend(window_background.draw(&screen_config, PURPLE));
 
     // window titlebar
-    let (titlebar_verts, titlebar_texts) = window_title_bar(&window);
-    vertices.extend(titlebar_verts.draw(&screen_config, DARK_GRAY));
+    let (titlebar_verts, titlebar_texts, result, cursor) = window_title_bar(&window, screen_config, mouse_state);
+    if !matches!(cursor, CursorIcon::Default) {
+        cursor_icon = cursor;
+    }
+    if !matches!(result, ClickResult::None) {
+        click_result = result;
+    }
+    vertices.extend(titlebar_verts);
     text_items.push(titlebar_texts);
 
     // master slider
@@ -31,5 +49,5 @@ pub fn draw(window: &MiniWindow, master_volume: f32, screen_config: &ScreenConfi
         y: window.y,
         color: WHITE,
     });
-    (vertices, text_items)
+    (vertices, text_items, click_result, cursor_icon)
 }

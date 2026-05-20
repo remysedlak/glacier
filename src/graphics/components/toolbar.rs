@@ -1,8 +1,6 @@
 use crate::app::MouseState;
 use crate::graphics::color::PEBBLE;
-use crate::graphics::components::toolbar;
 use crate::graphics::icons::Tooltip;
-use crate::graphics::primitives::{PAD_4, PAD_64};
 use crate::graphics::{
     color::{LIGHT_GRAY, WHITE},
     icons::IconDraw,
@@ -73,7 +71,6 @@ pub fn draw_toolbar(
         height: ICON_HEIGHT,
     };
     if play_button.is_hovered(mouse_state.x, mouse_state.y) {
-        cursor_icon = CursorIcon::Pointer;
         if mouse_state.left_clicked {
             click_result = ClickResult::TogglePlay;
         }
@@ -91,7 +88,6 @@ pub fn draw_toolbar(
         height: ICON_HEIGHT,
     };
     if stop_button.is_hovered(mouse_state.x, mouse_state.y) {
-        cursor_icon = CursorIcon::Pointer;
         if mouse_state.left_clicked && active_step != 0 {
             click_result = ClickResult::Stop;
         }
@@ -112,7 +108,6 @@ pub fn draw_toolbar(
         sequencer_toggle.dark_hover_color(mouse_state.x, mouse_state.y, mouse_state.left_clicked),
     ));
     if sequencer_toggle.is_hovered(mouse_state.x, mouse_state.y) {
-        cursor_icon = CursorIcon::Pointer;
         if mouse_state.left_clicked {
             click_result = ClickResult::ToggleSequencerWindow;
         }
@@ -129,7 +124,6 @@ pub fn draw_toolbar(
         mixer_toggle.dark_hover_color(mouse_state.x, mouse_state.y, mouse_state.left_clicked),
     ));
     if mixer_toggle.is_hovered(mouse_state.x, mouse_state.y) {
-        cursor_icon = CursorIcon::Pointer;
         if mouse_state.left_clicked {
             click_result = ClickResult::ToggleMixerWindow;
         }
@@ -146,7 +140,6 @@ pub fn draw_toolbar(
         playlist_toggle.dark_hover_color(mouse_state.x, mouse_state.y, mouse_state.left_clicked),
     ));
     if playlist_toggle.is_hovered(mouse_state.x, mouse_state.y) {
-        cursor_icon = CursorIcon::Pointer;
         if mouse_state.left_clicked {
             click_result = ClickResult::TogglePlaylistWindow;
         }
@@ -169,7 +162,6 @@ pub fn draw_toolbar(
         load_file_button.dark_hover_color(mouse_state.x, mouse_state.y, mouse_state.left_clicked),
     ));
     if load_file_button.is_hovered(mouse_state.x, mouse_state.y) {
-        cursor_icon = CursorIcon::Pointer;
         if mouse_state.left_clicked {
             click_result = ClickResult::ProjectFileDialog
         }
@@ -187,7 +179,6 @@ pub fn draw_toolbar(
         instrument_button.dark_hover_color(mouse_state.x, mouse_state.y, mouse_state.left_clicked),
     ));
     if instrument_button.is_hovered(mouse_state.x, mouse_state.y) {
-        cursor_icon = CursorIcon::Pointer;
         if mouse_state.left_clicked {
             click_result = ClickResult::InstrumentFileDialog
         }
@@ -292,11 +283,13 @@ pub fn draw_toolbar(
                 y: (PLAY_Y_ORIGIN + TOOLTIP_MARGIN),
             },
         },
-        // etc
     ];
-    for icon in &icons {
-        if icon.is_hovered(mouse_state.x, mouse_state.y) {
-            tooltip = Some(icon.tooltip.clone());
+
+    if !mouse_state.left_click_held {
+        for icon in &icons {
+            if icon.is_hovered(mouse_state.x, mouse_state.y) {
+                tooltip = Some(icon.tooltip.clone());
+            }
         }
     }
 

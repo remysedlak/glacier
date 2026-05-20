@@ -15,3 +15,4 @@ pub const DARK_BLUE_HOVER: (f32, f32, f32) = (0.00, 0.00, 0.20);
 // high contrast
 pub const PURPLE: (f32, f32, f32) = (0.20, 0.20, 0.99);
 pub const ORANGE: (f32, f32, f32) = (0.99, 0.1, 0.0);
+pub const ORANGE_HOVER: (f32, f32, f32) = (0.79, 0.2, 0.0);

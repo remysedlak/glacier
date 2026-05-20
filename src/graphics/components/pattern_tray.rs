@@ -1,8 +1,11 @@
 use crate::app::MouseState;
-use crate::graphics::color::{BLACK, PEBBLE, WHITE};
-use crate::graphics::primitives::{ScreenConfig, PAD_8};
-use crate::graphics::widgets::TextItem;
-use crate::graphics::{ClickResult, CursorIcon, PatternData, Rectangle, Vertex, PAD_16, TOOLBAR_THICKNESS, TOOLBAR_Y};
+use crate::graphics::primitives::PAD_32;
+use crate::graphics::{
+    color::{BLACK, PEBBLE, WHITE},
+    primitives::{ScreenConfig, PAD_16, PAD_8},
+    widgets::TextItem,
+    {ClickResult, CursorIcon, PatternData, Rectangle, Vertex, TOOLBAR_THICKNESS, TOOLBAR_Y},
+};
 
 pub fn draw(
     screen_config: &ScreenConfig,
@@ -28,11 +31,21 @@ pub fn draw(
         cursor_icon = CursorIcon::ColResize
     }
 
+    // Title
+    texts.push(TextItem {
+        text: "Patterns".to_string(),
+        x: screen_config.width as f32 - 128.0 + PAD_8,
+        y: TOOLBAR_Y + PAD_8,
+        size: 18.0,
+        color: WHITE,
+    });
+
+    // load each pattern's name
     for (i, pattern) in patterns.iter().enumerate() {
         texts.push(TextItem {
             text: pattern.name.to_string(),
             x: screen_config.width as f32 - 96.0,
-            y: 52.0 + (32.0 * i as f32) + 24.0,
+            y: 52.0 + (32.0 * i as f32) + PAD_32,
             size: 16.0,
             color: BLACK,
         });
@@ -58,7 +71,7 @@ pub fn draw(
 
     for (i, pattern) in patterns.iter().enumerate() {
         let button_x = screen_config.width as f32 - 128.0 + PAD_16;
-        let button_y = 52.0 + (32.0 * i as f32) + 24.0;
+        let button_y = 52.0 + (32.0 * i as f32) + PAD_32;
 
         let pattern_button = Rectangle {
             x: button_x,
@@ -69,7 +82,7 @@ pub fn draw(
         if i == active_pattern_id {
             let indicator = Rectangle {
                 x: screen_config.width as f32 - 128.0 + PAD_8,
-                y: 52.0 + (32.0 * i as f32) + 24.0,
+                y: 52.0 + (32.0 * i as f32) + PAD_32,
                 width: 4.0,
                 height: 24.0,
             };
@@ -89,13 +102,6 @@ pub fn draw(
             }
         }
     }
-    texts.push(TextItem {
-        text: "Patterns".to_string(),
-        x: screen_config.width as f32 - 128.0 + PAD_8,
-        y: TOOLBAR_Y + PAD_8,
-        size: 18.0,
-        color: WHITE,
-    });
 
     (vertices, texts, click_result, cursor_icon)
 }

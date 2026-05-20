@@ -236,18 +236,22 @@ impl App {
                 ClickResult::SelectPattern(id) => {
                     gfx.active_pattern_id = id;
                 }
-                ClickResult::AddInstrumentWindow(track) => {
-                    gfx.mini_windows.push(MiniWindow {
-                        x: 128.0,
-                        y: 128.0,
-                        width: 400.0,
-                        height: 300.0,
-                        title: gfx.instruments[track].data.name.clone(),
-                        is_open: true,
-                        window_kind: WindowKind::InstrumentDetail(track),
-                    });
-                    let new_id = gfx.mini_windows.len() - 1;
-                    gfx.z_order.push(new_id);
+                ClickResult::ToggleInstrumentWindow(track) => {
+                    if let Some(pos) = gfx.mini_windows.iter().position(|w| w.window_kind == WindowKind::InstrumentDetail(track)) {
+                        gfx.mini_windows[pos].is_open = !gfx.mini_windows[pos].is_open;
+                    } else {
+                        gfx.mini_windows.push(MiniWindow {
+                            x: 128.0,
+                            y: 128.0,
+                            width: 400.0,
+                            height: 300.0,
+                            title: gfx.instruments[track].data.name.clone(),
+                            is_open: true,
+                            window_kind: WindowKind::InstrumentDetail(track),
+                        });
+                        let new_id = gfx.mini_windows.len() - 1;
+                        gfx.z_order.push(new_id);
+                    }
                 }
                 ClickResult::AddPlaylist => {
                     self.producer.try_push(AudioCommand::AddPattern).ok();

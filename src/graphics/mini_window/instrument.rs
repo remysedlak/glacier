@@ -25,8 +25,14 @@ pub fn draw(
     vertices.extend(window_background.draw(&screen_config, PURPLE));
 
     // titlebar
-    let (titlebar_verts, titlebar_texts) = window_title_bar(&window);
-    vertices.extend(titlebar_verts.draw(&screen_config, DARK_GRAY));
+    let (titlebar_verts, titlebar_texts, result, cursor) = window_title_bar(&window, screen_config, mouse_state);
+    if !matches!(result, ClickResult::None) {
+        click_result = result;
+    }
+    if !matches!(cursor, CursorIcon::Default) {
+        cursor_icon = cursor;
+    }
+    vertices.extend(titlebar_verts);
     text_items.push(titlebar_texts);
 
     let rectangle = Rectangle {

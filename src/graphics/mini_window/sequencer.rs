@@ -13,7 +13,6 @@ use crate::project::{Instrument, PatternData, Sequence};
 use winit::window::CursorIcon;
 
 pub const SEQUENCER_X_ORIGIN: f32 = 200.0;
-pub const ACTIONS_BUTTON_GAP: f32 = 40.0;
 pub const KNOB_OFFSET: f32 = 140.0;
 pub const ACTIONS_Y_OFFSET: f32 = 50.0;
 
@@ -46,8 +45,14 @@ pub fn draw(
     vertices.extend(window_background.draw(&screen_config, MINI_WINDOW_BACKGROUND));
 
     // titlebar
-    let (titlebar_verts, titlebar_texts) = window_title_bar(&window);
-    vertices.extend(titlebar_verts.draw(&screen_config, DARK_GRAY));
+    let (titlebar_verts, titlebar_texts, result, cursor) = window_title_bar(&window, &screen_config, &mouse_state);
+    if !matches!(cursor, CursorIcon::Default) {
+        cursor_icon = cursor;
+    }
+    if !matches!(result, ClickResult::None) {
+        click_result = result;
+    }
+    vertices.extend(titlebar_verts);
     text_items.push(titlebar_texts);
 
     // collect steps values for each row
@@ -157,7 +162,7 @@ pub fn draw(
         if track_button.is_hovered(mouse_state.x, mouse_state.y) {
             cursor_icon = CursorIcon::Pointer;
             if mouse_state.left_clicked {
-                click_result = ClickResult::AddInstrumentWindow(i);
+                click_result = ClickResult::ToggleInstrumentWindow(i);
             }
             if mouse_state.right_clicked {
                 click_result = ClickResult::OpenTrackMenu(track_button_x, track_button_y, i);
@@ -230,8 +235,17 @@ pub fn draw(
             vertices.push(vert);
         }
 
+        // instrument name
+        let instrument_button_text: String = if instrument.data.name.len() > 20 {
+            let end = instrument.data.name.floor_char_boundary(20);
+            let truncated_name = &instrument.data.name[..end].to_string(); // Safely gets "こん" (6 bytes)
+            format!("{}{}", truncated_name, "...",)
+        } else {
+            instrument.data.name.to_string()
+        };
+
         text_items.push(TextItem {
-            text: instrument.data.name.to_string(),
+            text: instrument_button_text,
             x: window.x + PAD_16,
             y: window.y + i as f32 * TRACK_GAP + PAD_16,
             size: 16.0,

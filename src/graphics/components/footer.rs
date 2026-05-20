@@ -4,12 +4,15 @@ use crate::graphics::{
     widgets::{Rectangle, TextItem},
 };
 
-// TODO
 pub fn draw(screen_config: &ScreenConfig, path: &String) -> (Vec<Vertex>, Vec<TextItem>) {
+    // setup vectors
     let mut vertices: Vec<Vertex> = Vec::new();
     let mut texts: Vec<TextItem> = Vec::new();
+
+    // coordinates
     let footer_x = 0.0;
     let footer_y = screen_config.height as f32 - 32.0;
+
     let footer = Rectangle {
         x: footer_x,
         y: footer_y,

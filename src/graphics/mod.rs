@@ -55,7 +55,7 @@ pub enum ClickResult {
     ToggleSequencerWindow,
     ToggleMixerWindow,
     TogglePlaylistWindow,
-    AddInstrumentWindow(usize),
+    ToggleInstrumentWindow(usize),
     SelectPattern(usize),
     OpenPatternMenu(f32, f32, usize),
     OpenTrackMenu(f32, f32, usize),
@@ -553,19 +553,30 @@ impl Graphics {
                 }
                 MIXER_ID if self.mini_windows[MIXER_ID].is_open => {
                     let window = &self.mini_windows[MIXER_ID];
-                    let (verts, texts) = mixer::draw(window, self.master_volume, &screen_config);
+                    let (verts, texts, result, cursor) = mixer::draw(window, self.master_volume, &screen_config, &mouse_state);
                     vertices.extend(verts);
                     Graphics::push_text_draws(&texts, &self.font, &self.glyph_cache, &self.device, &screen_config, &mut char_draws);
+                    if !matches!(result, ClickResult::None) {
+                        click_result = result;
+                    }
+                    if !matches!(cursor, CursorIcon::Default) {
+                        cursor_icon = cursor;
+                    }
                 }
                 instrument => {
                     let window = &self.mini_windows[instrument];
-                    if let WindowKind::InstrumentDetail(track) = window.window_kind {
-                        let (verts, texts, result, cursor) = instrument::draw(window, &mouse_state, &screen_config, &self.instruments[track]);
-                        vertices.extend(verts);
-                        if !matches!(result, ClickResult::None) {
-                            click_result = result;
+                    if window.is_open {
+                        if let WindowKind::InstrumentDetail(track) = window.window_kind {
+                            let (verts, texts, result, cursor) = instrument::draw(window, &mouse_state, &screen_config, &self.instruments[track]);
+                            vertices.extend(verts);
+                            if !matches!(result, ClickResult::None) {
+                                click_result = result;
+                            }
+                            if !matches!(cursor, CursorIcon::Default) {
+                                cursor_icon = cursor;
+                            }
+                            Graphics::push_text_draws(&texts, &self.font, &self.glyph_cache, &self.device, &screen_config, &mut char_draws);
                         }
-                        Graphics::push_text_draws(&texts, &self.font, &self.glyph_cache, &self.device, &screen_config, &mut char_draws);
                     }
                 }
             }
