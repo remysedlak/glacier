@@ -1,14 +1,13 @@
-use winit::window::CursorIcon;
-
 use crate::{
     app::MouseState,
     graphics::{
         color::*,
         mini_window::{MiniWindow, WindowKind},
-        primitives::{draw_rectangle, Vertex, PAD_16, PAD_32, PAD_4, PAD_8},
+        primitives::{draw_rectangle, Vertex, PAD_16, PAD_4, PAD_8},
         ClickResult, ScreenConfig,
     },
 };
+use winit::window::CursorIcon;
 
 /*
  * This file contains widgets.

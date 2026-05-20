@@ -1,8 +1,7 @@
 use crate::app::MouseState;
-use crate::graphics::primitives::PAD_32;
 use crate::graphics::{
     color::{BLACK, PEBBLE, WHITE},
-    primitives::{ScreenConfig, PAD_16, PAD_8},
+    primitives::{ScreenConfig, PAD_16, PAD_32, PAD_8},
     widgets::TextItem,
     {ClickResult, CursorIcon, PatternData, Rectangle, Vertex, TOOLBAR_THICKNESS, TOOLBAR_Y},
 };

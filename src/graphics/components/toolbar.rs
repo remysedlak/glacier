@@ -1,9 +1,7 @@
 use crate::app::MouseState;
-use crate::graphics::color::PEBBLE;
-use crate::graphics::icons::Tooltip;
 use crate::graphics::{
-    color::{LIGHT_GRAY, WHITE},
-    icons::IconDraw,
+    color::{LIGHT_GRAY, PEBBLE, WHITE},
+    icons::{IconDraw, Tooltip},
     primitives::{draw_h_line, BUTTON_GAP, PAD_32, PAD_8},
     widgets::{Rectangle, TextItem, ADD_INSTRUMENT_ICON_OFFSET, ICON_HEIGHT, ICON_WIDTH, PLAY_X_ORIGIN, PLAY_Y_ORIGIN, TOOLBAR_MARGIN, TOOLBAR_Y},
     ClickResult, ScreenConfig, Vertex, TOOLBAR_THICKNESS,

@@ -1,6 +1,6 @@
 use crate::graphics::primitives::{ScreenConfig, Vertex};
 
-pub const ICON_NAMES: &[&str] = &["play", "stop", "pause", "mixer", "sequencer", "playlist", "instrument", "project"];
+pub const ICON_NAMES: &[&str] = &["play", "stop", "pause", "mixer", "sequencer", "playlist", "instrument", "project", "mute"];
 
 pub struct IconSvg {
     pub x: f32,

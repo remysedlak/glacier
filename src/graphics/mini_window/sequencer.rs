@@ -1,11 +1,12 @@
 use crate::app::MouseState;
-use crate::graphics::color::WHITE;
-use crate::graphics::mini_window::MINI_WINDOW_BACKGROUND;
-use crate::graphics::primitives::PAD_8;
+use crate::graphics::color::BLACK;
+use crate::graphics::icons::{IconDraw, Tooltip};
+use crate::graphics::primitives::{PAD_2, PAD_4};
+use crate::graphics::widgets::TOOLBAR_MARGIN;
 use crate::graphics::{
-    color::{BLUE, DARK_GRAY},
-    mini_window::MiniWindow,
-    primitives::{draw_knob, ScreenConfig, Vertex, BAR_GAP, BUTTON_GAP, KNOB_RADIUS, MUTE_SQUARE_LENGTH, PAD_16, PAD_32, TRACK_GAP},
+    color::{BLUE, DARK_GRAY, WHITE},
+    mini_window::{MiniWindow, MINI_WINDOW_BACKGROUND},
+    primitives::{draw_knob, ScreenConfig, Vertex, BAR_GAP, BUTTON_GAP, KNOB_RADIUS, MUTE_SQUARE_LENGTH, PAD_16, PAD_32, PAD_8, TRACK_GAP},
     widgets::window_title_bar,
     {ClickResult, Rectangle, TextItem},
 };
@@ -14,7 +15,7 @@ use winit::window::CursorIcon;
 
 pub const SEQUENCER_X_ORIGIN: f32 = 200.0;
 pub const KNOB_OFFSET: f32 = 140.0;
-pub const ACTIONS_Y_OFFSET: f32 = 50.0;
+pub const ACTIONS_Y_OFFSET: f32 = 42.0;
 
 pub const SEQUENCER_STEP_WIDTH: f32 = 18.0;
 pub const SEQUENCER_STEP_HEIGHT: f32 = 48.0;
@@ -28,12 +29,13 @@ pub fn draw(
     active_step: usize,
     mouse_state: &MouseState,
     screen_config: &ScreenConfig,
-) -> (Vec<Vertex>, Vec<TextItem>, ClickResult, CursorIcon) {
+) -> (Vec<Vertex>, Vec<TextItem>, Vec<IconDraw>, ClickResult, CursorIcon) {
     // buckets
     let mut vertices: Vec<Vertex> = Vec::new();
     let mut text_items: Vec<TextItem> = Vec::new();
     let mut click_result = ClickResult::None;
     let mut cursor_icon = CursorIcon::Default;
+    let mut icons: Vec<IconDraw> = Vec::new();
 
     //  size: 18.0, window background
     let window_background = Rectangle {
@@ -171,9 +173,9 @@ pub fn draw(
 
         // mute button
         let mute_button = Rectangle {
-            x: PAD_16 + window.x,
-            y: PAD_32 + PAD_8 + window.y + (i as f32 * TRACK_GAP),
-            width: MUTE_SQUARE_LENGTH,
+            x: PAD_8 + window.x,
+            y: PAD_32 + PAD_4 + PAD_8 + window.y + (i as f32 * TRACK_GAP),
+            width: MUTE_SQUARE_LENGTH * 2.0,
             height: MUTE_SQUARE_LENGTH,
         };
         vertices.extend(mute_button.draw(
@@ -183,10 +185,10 @@ pub fn draw(
 
         text_items.push(TextItem {
             text: "mut".to_string(),
-            x: window.x + PAD_16,
-            y: window.y + i as f32 * TRACK_GAP + ACTIONS_Y_OFFSET,
-            size: 18.0,
-            color: WHITE,
+            x: window.x + PAD_8 + PAD_4,
+            y: window.y + i as f32 * TRACK_GAP + ACTIONS_Y_OFFSET + PAD_2,
+            size: 14.0,
+            color: BLACK,
         });
 
         if mute_button.is_hovered(mouse_state.x, mouse_state.y) {
@@ -199,9 +201,9 @@ pub fn draw(
 
         // velocity button
         let velocity_button = Rectangle {
-            x: PAD_16 + window.x + BUTTON_GAP,
-            y: PAD_32 + PAD_8 + window.y + (i as f32 * TRACK_GAP),
-            width: MUTE_SQUARE_LENGTH,
+            x: PAD_16 + window.x + 32.0,
+            y: window.y + i as f32 * TRACK_GAP + ACTIONS_Y_OFFSET + PAD_2,
+            width: MUTE_SQUARE_LENGTH * 2.0,
             height: MUTE_SQUARE_LENGTH,
         };
         vertices.extend(velocity_button.draw(
@@ -211,10 +213,10 @@ pub fn draw(
 
         text_items.push(TextItem {
             text: "vel".to_string(),
-            x: window.x + 50.0,
-            y: window.y + (i as f32 * TRACK_GAP) + ACTIONS_Y_OFFSET,
-            size: 18.0,
-            color: WHITE,
+            x: PAD_16 + window.x + 32.0 + PAD_4,
+            y: window.y + i as f32 * TRACK_GAP + ACTIONS_Y_OFFSET + PAD_2,
+            size: 14.0,
+            color: BLACK,
         });
         if velocity_button.is_hovered(mouse_state.x, mouse_state.y) {
             cursor_icon = CursorIcon::Pointer;
@@ -236,8 +238,8 @@ pub fn draw(
         }
 
         // instrument name
-        let instrument_button_text: String = if instrument.data.name.len() > 20 {
-            let end = instrument.data.name.floor_char_boundary(20);
+        let instrument_button_text: String = if instrument.data.name.len() > 23 {
+            let end = instrument.data.name.floor_char_boundary(23);
             let truncated_name = &instrument.data.name[..end].to_string(); // Safely gets "こん" (6 bytes)
             format!("{}{}", truncated_name, "...",)
         } else {
@@ -247,10 +249,11 @@ pub fn draw(
         text_items.push(TextItem {
             text: instrument_button_text,
             x: window.x + PAD_16,
-            y: window.y + i as f32 * TRACK_GAP + PAD_16,
+            y: window.y + i as f32 * TRACK_GAP + PAD_16 + PAD_4,
             size: 16.0,
             color: WHITE,
         });
     }
-    (vertices, text_items, click_result, cursor_icon)
+
+    (vertices, text_items, icons, click_result, cursor_icon)
 }

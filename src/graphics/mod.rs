@@ -1,14 +1,13 @@
 use crate::app::MouseState;
-use crate::graphics::color::{BLACK, DARK_GRAY, WHITE};
-use crate::graphics::icons::Tooltip;
-use crate::graphics::primitives::{PAD_2, PAD_4};
 use crate::graphics::{
+    color::{DARK_GRAY, WHITE},
     components::{footer, pattern_tray},
     context_menu::ContextMenu,
+    icons::Tooltip,
     mini_window::{
         instrument, mixer, playlist, sequencer, MiniWindow, PlaylistDrawRanges, WindowDrawRange, WindowKind, MIXER_ID, PLAYLIST_ID, SEQUENCER_ID,
     },
-    primitives::{ScreenConfig, Vertex, KNOB_RADIUS, ONE_MEGABYTE, PAD_16, TRACK_GAP},
+    primitives::{ScreenConfig, Vertex, KNOB_RADIUS, ONE_MEGABYTE, PAD_2, PAD_4, TRACK_GAP},
     widgets::{Rectangle, TextItem, TITLEBAR_HEIGHT, TOOLBAR_THICKNESS, TOOLBAR_Y},
 };
 use crate::project::{AudioBlock, AudioBlockType, Instrument, PatternData};
@@ -62,6 +61,15 @@ pub enum ClickResult {
     CloseContextMenu,
     None,
 }
+impl ClickResult {
+    pub fn or(self, other: ClickResult) -> ClickResult {
+        if matches!(self, ClickResult::None) {
+            other
+        } else {
+            self
+        }
+    }
+}
 pub enum DragResult {
     DragVolumeSlider(f32),
     DragVolumeKnob(usize, f32),
@@ -100,6 +108,10 @@ pub async fn create_graphics(window: Rc<Window>, proxy: EventLoopProxy<Graphics>
 
     let vertices: Vec<Vertex> = Vec::new();
     let patterns: Vec<PatternData> = Vec::new();
+    let instruments: Vec<Instrument> = Vec::new();
+    let events: Vec<AudioBlock> = Vec::new();
+
+    let context_menu = None;
 
     let vertex_buffer = device.create_buffer(&wgpu::BufferDescriptor {
         label: Some("Vertex Buffer"),
@@ -109,16 +121,18 @@ pub async fn create_graphics(window: Rc<Window>, proxy: EventLoopProxy<Graphics>
     });
 
     let mut mini_windows: Vec<MiniWindow> = Vec::new();
-    let instruments: Vec<Instrument> = Vec::new();
 
+    // init sequencer_window
     let sequencer_window = MiniWindow::new(256.0, 128.0, 1092.0, 100.0, "Sequencer", WindowKind::Sequencer, true);
     mini_windows.push(sequencer_window);
+
+    // init playlist_window
     let playlist_window = MiniWindow::new(900.0, 600.0, 1500.0, 900.0, "Playlist", WindowKind::Playlist, true);
     mini_windows.push(playlist_window);
+
+    // init mixer window
     let mixer_window = MiniWindow::new(128.0, 500.0, 800.0, 300.0, "Mixer", WindowKind::Mixer, false);
     mini_windows.push(mixer_window);
-
-    let events: Vec<AudioBlock> = Vec::new();
 
     let font_data = include_bytes!("../../assets/fonts/Roboto-VariableFont_wdth,wght.ttf") as &[u8];
     let font = fontdue::Font::from_bytes(font_data, fontdue::FontSettings::default()).unwrap();
@@ -126,8 +140,7 @@ pub async fn create_graphics(window: Rc<Window>, proxy: EventLoopProxy<Graphics>
     let render_pipeline = create_pipeline(&device, surface_config.format, &bind_group_layout);
     let glyph_cache = font::build_glyph_cache(&device, &queue, &font, &[12.0, 14.0, 16.0, 18.0, 24.0, 32.0]);
 
-    let context_menu = None;
-
+    // init icon's
     let mut icon_cache = HashMap::new();
     for name in icons::ICON_NAMES {
         let svg_str = std::fs::read_to_string(format!("assets/icons/{}.svg", name)).unwrap();
@@ -142,39 +155,47 @@ pub async fn create_graphics(window: Rc<Window>, proxy: EventLoopProxy<Graphics>
         icon_cache.insert(name.to_string(), (texture, bind_group));
     }
 
-    println!("icon_cache keys: {:?}", icon_cache.keys().collect::<Vec<_>>());
-
     let gfx = Graphics {
+        // graphics
         window: window.clone(),
         surface,
         project_path: "".to_string(),
         surface_config,
-        instruments,
-        patterns,
         device,
-        glyph_cache,
-        font,
         queue,
         render_pipeline,
+
+        // shapes
         vertex_buffer,
         num_vertices: vertices.len() as u32,
+
+        // song information
+        instruments,
+        patterns,
+        events,
         active_step: 0,
-        context_menu,
-        icon_cache,
-        tooltip: None,
+        active_pattern_id: 0,
         bpm: 120.0,
         is_playing: false,
         master_volume: 0.5,
+
+        // fonts
+        glyph_cache,
+        font,
+
+        // iconography
+        icon_cache,
+        tooltip: None,
+
+        // ui state
         dragging_knob: None,
         mini_windows,
         dragging_window: None,
-        active_pattern_id: 0,
         dragging: false,
-        events,
-        z_order: vec![SEQUENCER_ID, PLAYLIST_ID, MIXER_ID],
-
         playlist_scroll_x: 0.0,
         playlist_scroll_y: 0.0,
+        z_order: vec![SEQUENCER_ID, PLAYLIST_ID, MIXER_ID],
+        context_menu,
     };
 
     let _ = proxy.send_event(gfx);
@@ -266,6 +287,21 @@ pub fn bring_to_front(z_order: &mut Vec<usize>, id: usize) {
 }
 
 impl Graphics {
+    fn draw_geom(r_pass: &mut wgpu::RenderPass, vertex_buffer: &wgpu::Buffer, any_bg: &wgpu::BindGroup, start: u32, end: u32) {
+        if start < end {
+            r_pass.set_bind_group(0, any_bg, &[]);
+            r_pass.set_vertex_buffer(0, vertex_buffer.slice(..));
+            r_pass.draw(start..end, 0..1);
+        }
+    }
+
+    fn draw_chars(r_pass: &mut wgpu::RenderPass, char_draws: &[(wgpu::Buffer, &wgpu::BindGroup)], start: usize, end: usize) {
+        for i in start..end {
+            r_pass.set_bind_group(0, char_draws[i].1, &[]);
+            r_pass.set_vertex_buffer(0, char_draws[i].0.slice(..));
+            r_pass.draw(0..6, 0..1);
+        }
+    }
     pub fn request_redraw(&self) {
         self.window.request_redraw();
     }
@@ -356,12 +392,14 @@ impl Graphics {
         DragResult::None
     }
 
+    /// main window resizing
     pub fn resize(&mut self, new_size: PhysicalSize<u32>) {
         self.surface_config.width = new_size.width.max(1);
         self.surface_config.height = new_size.height.max(1);
         self.surface.configure(&self.device, &self.surface_config);
     }
 
+    /// pushing icons to draw
     fn push_icon_draw<'a>(
         icon_cache: &'a HashMap<String, (wgpu::Texture, wgpu::BindGroup)>,
         device: &wgpu::Device,
@@ -384,6 +422,7 @@ impl Graphics {
         }
     }
 
+    /// pushing texts to draw
     fn push_text_draws<'a>(
         texts: &[TextItem],
         font: &fontdue::Font,
@@ -416,15 +455,16 @@ impl Graphics {
         }
     }
 
+    /// main draw loop for the GUI - uses mouse state to return mouse input interactivity
     pub fn draw(&mut self, mouse_state: &MouseState) -> (ClickResult, CursorIcon) {
         let frame = self.surface.get_current_texture().expect("Failed to acquire next swap chain texture.");
         let view = frame.texture.create_view(&TextureViewDescriptor::default());
         let mut vertices: Vec<Vertex> = Vec::new();
         self.tooltip = None;
-
         let mut click_result = ClickResult::None;
         let mut cursor_icon = CursorIcon::Default;
 
+        // custom struct to hold screen size
         let screen_config = ScreenConfig {
             width: self.surface_config.width,
             height: self.surface_config.height,
@@ -452,7 +492,7 @@ impl Graphics {
             match id {
                 SEQUENCER_ID if self.mini_windows[SEQUENCER_ID].is_open => {
                     let window = &self.mini_windows[SEQUENCER_ID];
-                    let (verts, texts, result, cursor) = sequencer::draw(
+                    let (verts, texts, icons, result, cursor) = sequencer::draw(
                         window,
                         &mut self.patterns,
                         &mut self.instruments,
@@ -467,9 +507,21 @@ impl Graphics {
                         cursor_icon = cursor;
                     }
 
-                    if !matches!(result, ClickResult::None) {
-                        click_result = result;
+                    for icon in icons {
+                        Graphics::push_icon_draw(
+                            &self.icon_cache,
+                            &self.device,
+                            &screen_config,
+                            icon.name,
+                            icon.x,
+                            icon.y,
+                            icon.width,
+                            icon.height,
+                            &mut icon_draws,
+                        )
                     }
+
+                    click_result = click_result.or(result);
                 }
                 PLAYLIST_ID if self.mini_windows[PLAYLIST_ID].is_open => {
                     let window = &self.mini_windows[PLAYLIST_ID];
@@ -547,18 +599,14 @@ impl Graphics {
                     if cursor != CursorIcon::Default {
                         cursor_icon = cursor;
                     }
-                    if !matches!(result, ClickResult::None) {
-                        click_result = result;
-                    }
+                    click_result = click_result.or(result);
                 }
                 MIXER_ID if self.mini_windows[MIXER_ID].is_open => {
                     let window = &self.mini_windows[MIXER_ID];
                     let (verts, texts, result, cursor) = mixer::draw(window, self.master_volume, &screen_config, &mouse_state);
                     vertices.extend(verts);
                     Graphics::push_text_draws(&texts, &self.font, &self.glyph_cache, &self.device, &screen_config, &mut char_draws);
-                    if !matches!(result, ClickResult::None) {
-                        click_result = result;
-                    }
+                    click_result = click_result.or(result);
                     if !matches!(cursor, CursorIcon::Default) {
                         cursor_icon = cursor;
                     }
@@ -605,9 +653,7 @@ impl Graphics {
         if icon != CursorIcon::Default {
             cursor_icon = icon;
         }
-        if matches!(click_result, ClickResult::None) {
-            click_result = result;
-        }
+        click_result = click_result.or(result);
         Graphics::push_text_draws(&texts, &self.font, &self.glyph_cache, &self.device, &screen_config, &mut char_draws);
 
         let (toolbar_verts, toolbar_texts, toolbar_icons, toolbar_result, toolbar_cursor, toolbar_tooltip) =
@@ -705,9 +751,7 @@ impl Graphics {
             if menu_cursor != CursorIcon::Default {
                 cursor_icon = menu_cursor;
             }
-            if matches!(click_result, ClickResult::None) {
-                click_result = menu_result;
-            }
+            click_result = click_result.or(menu_result);
 
             // delete the track and close the menu
             if let ClickResult::DeleteTrack(i) = click_result {
@@ -851,56 +895,32 @@ impl Graphics {
             }
 
             // toolbar
-            if toolbar_vert_start < toolbar_vert_end {
-                r_pass.set_bind_group(0, &any_bg.1, &[]);
-                r_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
-                r_pass.draw(toolbar_vert_start..toolbar_vert_end, 0..1);
-            }
-            for i in toolbar_char_start..toolbar_char_end {
-                r_pass.set_bind_group(0, char_draws[i].1, &[]);
-                r_pass.set_vertex_buffer(0, char_draws[i].0.slice(..));
-                r_pass.draw(0..6, 0..1);
-            }
+
+            Graphics::draw_geom(&mut r_pass, &self.vertex_buffer, &any_bg.1, toolbar_vert_start, toolbar_vert_end);
+            Graphics::draw_chars(&mut r_pass, &char_draws, toolbar_char_start, toolbar_char_end);
 
             for i in 0..icon_draws.len() {
                 r_pass.set_bind_group(0, icon_draws[i].1, &[]);
                 r_pass.set_vertex_buffer(0, icon_draws[i].0.slice(..));
                 r_pass.draw(0..6, 0..1);
             }
-            if tooltip_vert_start < tooltip_vert_end {
-                r_pass.set_bind_group(0, &any_bg.1, &[]);
-                r_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
-                r_pass.draw(tooltip_vert_start..tooltip_vert_end, 0..1);
-            }
-            for i in tooltip_char_start..tooltip_char_end {
-                r_pass.set_bind_group(0, char_draws[i].1, &[]);
-                r_pass.set_vertex_buffer(0, char_draws[i].0.slice(..));
-                r_pass.draw(0..6, 0..1);
-            }
+            // tooltip
+            Graphics::draw_geom(&mut r_pass, &self.vertex_buffer, &any_bg.1, tooltip_vert_start, tooltip_vert_end);
+            Graphics::draw_chars(&mut r_pass, &char_draws, tooltip_char_start, tooltip_char_end);
 
             // context menu
-            if context_menu_vert_start < context_menu_vert_end {
-                r_pass.set_bind_group(0, &any_bg.1, &[]);
-                r_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
-                r_pass.draw(context_menu_vert_start..context_menu_vert_end, 0..1);
-            }
-            for i in context_menu_char_start..context_menu_char_end {
-                r_pass.set_bind_group(0, char_draws[i].1, &[]);
-                r_pass.set_vertex_buffer(0, char_draws[i].0.slice(..));
-                r_pass.draw(0..6, 0..1);
-            }
+            Graphics::draw_geom(
+                &mut r_pass,
+                &self.vertex_buffer,
+                &any_bg.1,
+                context_menu_vert_start,
+                context_menu_vert_end,
+            );
+            Graphics::draw_chars(&mut r_pass, &char_draws, context_menu_char_start, context_menu_char_end);
 
             // footer
-            if footer_vert_start < footer_vert_end {
-                r_pass.set_bind_group(0, &any_bg.1, &[]);
-                r_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
-                r_pass.draw(footer_vert_start..footer_vert_end, 0..1);
-            }
-            for i in footer_char_start..footer_char_end {
-                r_pass.set_bind_group(0, char_draws[i].1, &[]);
-                r_pass.set_vertex_buffer(0, char_draws[i].0.slice(..));
-                r_pass.draw(0..6, 0..1);
-            }
+            Graphics::draw_geom(&mut r_pass, &self.vertex_buffer, &any_bg.1, footer_vert_start, footer_vert_end);
+            Graphics::draw_chars(&mut r_pass, &char_draws, footer_char_start, footer_char_end);
         }
 
         self.queue.submit(Some(encoder.finish()));

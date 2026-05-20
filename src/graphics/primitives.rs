@@ -12,7 +12,7 @@ pub const TRACK_GAP: f32 = 72.0;
 
 pub const KNOB_RADIUS: f32 = 13.0;
 
-pub const MUTE_SQUARE_LENGTH: f32 = 12.0;
+pub const MUTE_SQUARE_LENGTH: f32 = 16.0;
 
 // padding constants
 pub const PAD_64: f32 = 64.0;
