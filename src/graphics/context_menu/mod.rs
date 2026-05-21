@@ -3,7 +3,7 @@ use winit::window::CursorIcon;
 use crate::{
     app::MouseState,
     graphics::{
-        color::{DARK_GRAY, WHITE},
+        color::{DARK_GRAY, DARK_GRAY_HOVER, WHITE},
         font::TextItem,
         primitives::{ScreenConfig, PAD_2, PAD_24, PAD_32, PAD_4, PAD_64, PAD_8},
         widgets::Rectangle,
@@ -22,6 +22,13 @@ pub struct ContextMenu {
     pub y: f32,
     pub height: f32,
     pub width: f32,
+}
+fn menu_item_color(rect: &Rectangle, mx: f32, my: f32, held: bool) -> (f32, f32, f32) {
+    if rect.is_hovered(mx, my) && !held {
+        DARK_GRAY_HOVER
+    } else {
+        DARK_GRAY
+    }
 }
 
 impl ContextMenu {
@@ -60,7 +67,7 @@ impl ContextMenu {
             };
             vertices.extend(context_item.draw(
                 screen_config,
-                context_item.dark_hover_color(mouse_state.x, mouse_state.y, mouse_state.left_clicked),
+                menu_item_color(&context_item, mouse_state.x, mouse_state.y, mouse_state.left_clicked),
             ));
 
             if context_item.is_hovered(mouse_state.x, mouse_state.y) {
@@ -132,7 +139,7 @@ impl ContextMenu {
             };
             vertices.extend(context_item.draw(
                 screen_config,
-                context_item.dark_hover_color(mouse_state.x, mouse_state.y, mouse_state.left_clicked),
+                menu_item_color(&context_item, mouse_state.x, mouse_state.y, mouse_state.left_clicked),
             ));
             if context_item.is_hovered(mouse_state.x, mouse_state.y) {
                 cursor_icon = CursorIcon::Pointer;

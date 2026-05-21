@@ -1,4 +1,5 @@
 use crate::app::MouseState;
+use crate::graphics::color::{DARK_GRAY, DARK_GRAY_HOVER};
 use crate::graphics::{
     color::{LIGHT_GRAY, PEBBLE, WHITE},
     font::TextItem,
@@ -10,6 +11,14 @@ use crate::graphics::{
 use winit::window::CursorIcon;
 
 const LOAD_PROJECT_ICON_OFFSET: f32 = 40.0;
+
+fn icon_color(rect: &Rectangle, mx: f32, my: f32, held: bool) -> (f32, f32, f32) {
+    if rect.is_hovered(mx, my) && !held {
+        DARK_GRAY_HOVER
+    } else {
+        DARK_GRAY
+    }
+}
 
 pub fn draw_toolbar(
     mouse_state: &MouseState,
@@ -74,9 +83,10 @@ pub fn draw_toolbar(
             click_result = ClickResult::TogglePlay;
         }
     }
+
     vertices.extend(play_button.draw(
         &screen_config,
-        play_button.dark_hover_color(mouse_state.x, mouse_state.y, mouse_state.left_clicked),
+        icon_color(&play_button, mouse_state.x, mouse_state.y, mouse_state.left_click_held),
     ));
 
     // stop button
@@ -91,9 +101,10 @@ pub fn draw_toolbar(
             click_result = ClickResult::Stop;
         }
     }
+
     vertices.extend(stop_button.draw(
         &screen_config,
-        stop_button.dark_hover_color(mouse_state.x, mouse_state.y, mouse_state.left_clicked),
+        icon_color(&stop_button, mouse_state.x, mouse_state.y, mouse_state.left_click_held),
     ));
 
     let sequencer_toggle = Rectangle {
@@ -102,9 +113,10 @@ pub fn draw_toolbar(
         width: ICON_WIDTH,
         height: ICON_HEIGHT,
     };
+
     vertices.extend(sequencer_toggle.draw(
         &screen_config,
-        sequencer_toggle.dark_hover_color(mouse_state.x, mouse_state.y, mouse_state.left_clicked),
+        icon_color(&sequencer_toggle, mouse_state.x, mouse_state.y, mouse_state.left_click_held),
     ));
     if sequencer_toggle.is_hovered(mouse_state.x, mouse_state.y) {
         if mouse_state.left_clicked {
@@ -118,9 +130,10 @@ pub fn draw_toolbar(
         width: ICON_WIDTH,
         height: ICON_HEIGHT,
     };
+
     vertices.extend(mixer_toggle.draw(
         &screen_config,
-        mixer_toggle.dark_hover_color(mouse_state.x, mouse_state.y, mouse_state.left_clicked),
+        icon_color(&mixer_toggle, mouse_state.x, mouse_state.y, mouse_state.left_click_held),
     ));
     if mixer_toggle.is_hovered(mouse_state.x, mouse_state.y) {
         if mouse_state.left_clicked {
@@ -134,9 +147,10 @@ pub fn draw_toolbar(
         width: ICON_WIDTH,
         height: ICON_HEIGHT,
     };
+
     vertices.extend(playlist_toggle.draw(
         &screen_config,
-        playlist_toggle.dark_hover_color(mouse_state.x, mouse_state.y, mouse_state.left_clicked),
+        icon_color(&playlist_toggle, mouse_state.x, mouse_state.y, mouse_state.left_click_held),
     ));
     if playlist_toggle.is_hovered(mouse_state.x, mouse_state.y) {
         if mouse_state.left_clicked {
@@ -152,7 +166,7 @@ pub fn draw_toolbar(
     };
     vertices.extend(piano_toggle.draw(
         &screen_config,
-        piano_toggle.dark_hover_color(mouse_state.x, mouse_state.y, mouse_state.left_clicked),
+        icon_color(&piano_toggle, mouse_state.x, mouse_state.y, mouse_state.left_click_held),
     ));
     if piano_toggle.is_hovered(mouse_state.x, mouse_state.y) {
         if mouse_state.left_clicked {
@@ -174,7 +188,7 @@ pub fn draw_toolbar(
     };
     vertices.extend(load_file_button.draw(
         screen_config,
-        load_file_button.dark_hover_color(mouse_state.x, mouse_state.y, mouse_state.left_clicked),
+        icon_color(&load_file_button, mouse_state.x, mouse_state.y, mouse_state.left_click_held),
     ));
     if load_file_button.is_hovered(mouse_state.x, mouse_state.y) {
         if mouse_state.left_clicked {
@@ -191,7 +205,7 @@ pub fn draw_toolbar(
     };
     vertices.extend(instrument_button.draw(
         screen_config,
-        instrument_button.dark_hover_color(mouse_state.x, mouse_state.y, mouse_state.left_clicked),
+        icon_color(&instrument_button, mouse_state.x, mouse_state.y, mouse_state.left_click_held),
     ));
     if instrument_button.is_hovered(mouse_state.x, mouse_state.y) {
         if mouse_state.left_clicked {

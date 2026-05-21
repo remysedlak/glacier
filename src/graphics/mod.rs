@@ -1,6 +1,6 @@
 use crate::app::MouseState;
 
-use crate::graphics::mini_window::{piano_roll, PIANO_ID};
+use crate::graphics::mini_window::{piano_roll, PIANO_ROLL_ID};
 use crate::graphics::{
     color::{DARK_GRAY, WHITE},
     components::{footer, pattern_tray},
@@ -212,7 +212,9 @@ pub async fn create_graphics(window: Rc<Window>, proxy: EventLoopProxy<Graphics>
         dragging: false,
         playlist_scroll_x: 0.0,
         playlist_scroll_y: 0.0,
-        z_order: vec![SEQUENCER_ID, PLAYLIST_ID, MIXER_ID, PIANO_ID],
+        piano_roll_scroll_x: 0.0,
+        piano_roll_scroll_y: 0.0,
+        z_order: vec![SEQUENCER_ID, PLAYLIST_ID, MIXER_ID, PIANO_ROLL_ID],
         context_menu,
     };
 
@@ -297,6 +299,8 @@ pub struct Graphics {
     // scrolling
     pub playlist_scroll_x: f32,
     pub playlist_scroll_y: f32,
+    pub piano_roll_scroll_x: f32,
+    pub piano_roll_scroll_y: f32,
 }
 
 pub fn bring_to_front(z_order: &mut Vec<usize>, id: usize) {
@@ -631,7 +635,8 @@ impl Graphics {
                 PIANO_ID if self.mini_windows[PIANO_ID].is_open => {
                     //piano roll
                     let window = &self.mini_windows[PIANO_ID];
-                    let (verts, texts, result, cursor) = piano_roll::draw(window, &mouse_state, &screen_config);
+                    let (verts, texts, result, cursor) =
+                        piano_roll::draw(window, &mouse_state, self.piano_roll_scroll_x, self.piano_roll_scroll_y, &screen_config);
                     vertices.extend(verts);
                     Graphics::push_text_draws(&texts, &self.font_cache, &self.glyph_cache, &self.device, &screen_config, &mut char_draws);
                     click_result = click_result.or(result);
@@ -845,10 +850,10 @@ impl Graphics {
             // windows
             for (idx, range) in window_ranges.iter().enumerate() {
                 let is_playlist = self.z_order[idx] == PLAYLIST_ID;
-                let is_piano = self.z_order[idx] == PIANO_ID;
+                let is_piano = self.z_order[idx] == PIANO_ROLL_ID;
 
                 if is_piano {
-                    let win = &self.mini_windows[PIANO_ID];
+                    let win = &self.mini_windows[PIANO_ROLL_ID];
                     let wx = if win.x < 0.0 { 0u32 } else { win.x as u32 }.min(self.surface_config.width);
                     let wy = if (win.y - TITLEBAR_HEIGHT) < 0.0 {
                         0u32

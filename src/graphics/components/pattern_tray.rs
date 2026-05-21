@@ -1,4 +1,5 @@
 use crate::app::MouseState;
+use crate::graphics::color::{LIGHT_GRAY, LL_GRAY};
 use crate::graphics::{
     color::{BLACK, PEBBLE, WHITE},
     font::TextItem,
@@ -59,10 +60,12 @@ pub fn draw(
         width: 16.0,
         height: 16.0,
     };
-    vertices.extend(add_pattern_button.draw(
-        &screen_config,
-        add_pattern_button.hover_color(mouse_state.x, mouse_state.y, mouse_state.left_click_held),
-    ));
+    let add_pattern_button_color = if add_pattern_button.is_hovered(mouse_state.x, mouse_state.y) {
+        LL_GRAY
+    } else {
+        LIGHT_GRAY
+    };
+    vertices.extend(add_pattern_button.draw(&screen_config, add_pattern_button_color));
     if add_pattern_button.is_hovered(mouse_state.x, mouse_state.y) {
         cursor_icon = CursorIcon::Pointer;
         if mouse_state.left_clicked {
@@ -89,10 +92,14 @@ pub fn draw(
             };
             vertices.extend(indicator.draw(&screen_config, crate::graphics::color::ORANGE));
         }
-        vertices.extend(pattern_button.draw(
-            &screen_config,
-            pattern_button.hover_color(mouse_state.x, mouse_state.y, mouse_state.left_click_held),
-        ));
+
+        let pattern_button_color = if pattern_button.is_hovered(mouse_state.x, mouse_state.y) {
+            LL_GRAY
+        } else {
+            LIGHT_GRAY
+        };
+
+        vertices.extend(pattern_button.draw(&screen_config, pattern_button_color));
         if pattern_button.is_hovered(mouse_state.x, mouse_state.y) {
             cursor_icon = CursorIcon::Pointer;
             if mouse_state.left_clicked {

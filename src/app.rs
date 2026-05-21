@@ -1,8 +1,7 @@
 use crate::audio::{init, AudioCommand};
-use crate::graphics::mini_window::PIANO_ID;
 use crate::graphics::{
     context_menu::{ContextMenu, ContextMenuKind},
-    mini_window::{MiniWindow, WindowKind, MIXER_ID, PLAYLIST_ID, SEQUENCER_ID},
+    mini_window::{MiniWindow, WindowKind, MIXER_ID, PIANO_ROLL_ID, PLAYLIST_ID, SEQUENCER_ID},
     {bring_to_front, create_graphics, ClickResult, DragResult, Graphics, Rc},
 };
 use crate::project::{AudioBlock, Instrument, PatternData};
@@ -207,7 +206,7 @@ impl App {
                 ClickResult::TogglePianoRollWindow => {
                     if let Some(win) = gfx.mini_windows.iter_mut().find(|w| matches!(w.window_kind, WindowKind::PianoRoll)) {
                         if !win.is_open {
-                            bring_to_front(&mut gfx.z_order, PIANO_ID);
+                            bring_to_front(&mut gfx.z_order, PIANO_ROLL_ID);
                         }
                         win.is_open = !win.is_open;
                     }
@@ -488,6 +487,7 @@ impl ApplicationHandler<Graphics> for App {
                 // handle playlist scrolling
                 if let State::Ready(gfx) = &mut self.state {
                     let playlist_win = &gfx.mini_windows[PLAYLIST_ID];
+                    let piano_roll_win = &gfx.mini_windows[PIANO_ROLL_ID];
                     if playlist_win.is_open && playlist_win.is_hovered(self.mouse_state.x, self.mouse_state.y) {
                         if self.mouse_state.shift_pressed {
                             if !(gfx.playlist_scroll_x == 0.0 && self.mouse_state.scroll_y < 0.0) {
@@ -496,6 +496,17 @@ impl ApplicationHandler<Graphics> for App {
                         } else {
                             if !(gfx.playlist_scroll_y == 0.0 && self.mouse_state.scroll_y < 0.0) {
                                 gfx.playlist_scroll_y += self.mouse_state.scroll_y * 35.0;
+                            }
+                        }
+                    }
+                    if piano_roll_win.is_open && piano_roll_win.is_hovered(self.mouse_state.x, self.mouse_state.y) {
+                        if self.mouse_state.shift_pressed {
+                            if !(gfx.piano_roll_scroll_x == 0.0 && self.mouse_state.scroll_y < 0.0) {
+                                gfx.playlist_scroll_x += self.mouse_state.scroll_y * 35.0;
+                            }
+                        } else {
+                            if !(gfx.piano_roll_scroll_y == 0.0 && self.mouse_state.scroll_y < 0.0) {
+                                gfx.piano_roll_scroll_y += self.mouse_state.scroll_y * 35.0;
                             }
                         }
                     }

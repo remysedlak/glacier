@@ -1,4 +1,5 @@
 use crate::app::MouseState;
+use crate::graphics::color::{BLUE, BLUE_HOVER, DARK_BLUE, DARK_BLUE_HOVER, LIGHT_GRAY, LL_GRAY};
 use crate::graphics::{
     color::{ORANGE, PEBBLE, WHITE},
     font::TextItem,
@@ -85,7 +86,21 @@ pub fn draw(
             };
 
             // add a new event with the active pattern at this step
-            let color = pl_step.playlist_step_color(mouse_state.x, mouse_state.y, mouse_state.left_click_held, group);
+            let hovered: bool = pl_step.is_hovered(mouse_state.x, mouse_state.y) && !mouse_state.left_click_held;
+            let color = if hovered {
+                if group % 2 != 0 {
+                    BLUE_HOVER
+                } else {
+                    DARK_BLUE_HOVER
+                }
+            } else {
+                if group % 2 != 0 {
+                    BLUE
+                } else {
+                    DARK_BLUE
+                }
+            };
+
             if pl_step.is_hovered(mouse_state.x, mouse_state.y) {
                 if mouse_state.left_clicked {
                     click_result = ClickResult::AddPlaylistPattern(
@@ -150,10 +165,12 @@ pub fn draw(
             if pl_pattern.is_hovered_edge(mouse_state.x, mouse_state.y) {
                 cursor_icon = CursorIcon::ColResize
             }
-            timeline_vertices.extend(pl_pattern.draw(
-                &screen_config,
-                pl_pattern.hover_color(mouse_state.x, mouse_state.y, mouse_state.left_click_held),
-            ));
+            let pl_pattern_color = if pl_pattern.is_hovered(mouse_state.x, mouse_state.y) {
+                LL_GRAY
+            } else {
+                LIGHT_GRAY
+            };
+            timeline_vertices.extend(pl_pattern.draw(&screen_config, pl_pattern_color));
             // titlebar text
             let label: &str = &patterns[id as usize].name;
 

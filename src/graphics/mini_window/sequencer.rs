@@ -1,5 +1,6 @@
 use crate::app::MouseState;
 
+use crate::graphics::color::{DARK_GRAY_HOVER, LIGHT_GRAY, LL_GRAY, ORANGE, ORANGE_HOVER};
 use crate::graphics::{
     color::{BLACK, BLUE, DARK_GRAY, WHITE},
     icons::IconDraw,
@@ -108,16 +109,17 @@ pub fn draw(
                     width: SEQUENCER_STEP_WIDTH,
                     height: SEQUENCER_STEP_HEIGHT,
                 };
-                vertices.extend(step.draw(
-                    screen_config,
-                    step.active_step_color(
-                        mouse_state.x,
-                        mouse_state.y,
-                        j == active_step,
-                        velocity > 0.0,
-                        mouse_state.left_click_held,
-                    ),
-                ));
+                let is_active = velocity > 0.0;
+                let step_color = if mouse_state.left_click_held && is_active {
+                    ORANGE_HOVER
+                } else if step.is_hovered(mouse_state.x, mouse_state.y) {
+                    LL_GRAY
+                } else if is_active {
+                    ORANGE
+                } else {
+                    LIGHT_GRAY
+                };
+                vertices.extend(step.draw(screen_config, step_color));
 
                 // check if the step was clicked
                 if step.is_hovered(mouse_state.x, mouse_state.y) {
@@ -156,10 +158,12 @@ pub fn draw(
             width: 172.0,
             height: 24.0,
         };
-        vertices.extend(track_button.draw(
-            &screen_config,
-            track_button.dark_hover_color(mouse_state.x, mouse_state.y, mouse_state.left_click_held),
-        ));
+        let track_button_color = if track_button.is_hovered(mouse_state.x, mouse_state.y) && !mouse_state.left_click_held {
+            DARK_GRAY_HOVER
+        } else {
+            DARK_GRAY
+        };
+        vertices.extend(track_button.draw(&screen_config, track_button_color));
         if track_button.is_hovered(mouse_state.x, mouse_state.y) {
             cursor_icon = CursorIcon::Pointer;
             if mouse_state.left_clicked {
@@ -177,10 +181,17 @@ pub fn draw(
             width: MUTE_SQUARE_LENGTH * 2.0,
             height: MUTE_SQUARE_LENGTH,
         };
-        vertices.extend(mute_button.draw(
-            &screen_config,
-            mute_button.active_color(mouse_state.x, mouse_state.y, instrument.data.is_muted, mouse_state.left_clicked),
-        ));
+        let hovered = mute_button.is_hovered(mouse_state.x, mouse_state.y) && !mouse_state.left_click_held;
+        let mute_button_color = if hovered && instrument.data.is_muted {
+            ORANGE_HOVER
+        } else if hovered {
+            LL_GRAY
+        } else if instrument.data.is_muted {
+            ORANGE
+        } else {
+            LIGHT_GRAY
+        };
+        vertices.extend(mute_button.draw(&screen_config, mute_button_color));
 
         text_items.push(TextItem {
             text: "mut".to_string(),
@@ -206,10 +217,18 @@ pub fn draw(
             width: MUTE_SQUARE_LENGTH * 2.0,
             height: MUTE_SQUARE_LENGTH,
         };
-        vertices.extend(velocity_button.draw(
-            &screen_config,
-            velocity_button.active_color(mouse_state.x, mouse_state.y, instrument.show_velocity, mouse_state.left_clicked),
-        ));
+
+        let hovered = velocity_button.is_hovered(mouse_state.x, mouse_state.y) && !mouse_state.left_click_held;
+        let velocity_button_color = if hovered && instrument.show_velocity {
+            ORANGE_HOVER
+        } else if hovered {
+            LL_GRAY
+        } else if instrument.show_velocity {
+            ORANGE
+        } else {
+            LIGHT_GRAY
+        };
+        vertices.extend(velocity_button.draw(&screen_config, velocity_button_color));
 
         text_items.push(TextItem {
             text: "vel".to_string(),

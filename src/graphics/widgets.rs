@@ -63,99 +63,6 @@ impl Rectangle {
             (r, g, b),
         )
     }
-    // return color for hover logic
-    pub fn hover_color(&self, mx: f32, my: f32, left_click_held: bool) -> (f32, f32, f32) {
-        if self.is_hovered(mx, my) && !left_click_held {
-            LL_GRAY
-        } else {
-            LIGHT_GRAY
-        }
-    }
-
-    // return color for hover logic
-    pub fn dark_hover_color(&self, mx: f32, my: f32, left_click_held: bool) -> (f32, f32, f32) {
-        if self.is_hovered(mx, my) && !left_click_held {
-            DARK_GRAY_HOVER
-        } else {
-            DARK_GRAY
-        }
-    }
-
-    // return color for hover logic
-    pub fn black_piano_step_hover_color(&self, mx: f32, my: f32) -> (f32, f32, f32) {
-        if self.is_hovered(mx, my) {
-            DARK_GRAY
-        } else {
-            BLACK
-        }
-    }
-    pub fn white_piano_step_hover_color(&self, mx: f32, my: f32, index: u32, black_note_is_hovered: bool) -> (f32, f32, f32) {
-        if self.is_hovered(mx, my) && index == 11 && !black_note_is_hovered {
-            EGG_WHITE_HOVER
-        } else if index == 11 {
-            EGG_WHITE
-        } else if self.is_hovered(mx, my) && !black_note_is_hovered {
-            EGG_WHITE_HOVER
-        } else {
-            WHITE
-        }
-    }
-
-    pub fn playlist_step_color(&self, mx: f32, my: f32, left_click_held: bool, group: u32) -> (f32, f32, f32) {
-        let hovered: bool = self.is_hovered(mx, my) && !left_click_held;
-        if hovered {
-            if group % 2 != 0 {
-                BLUE_HOVER
-            } else {
-                DARK_BLUE_HOVER
-            }
-        } else {
-            if group % 2 != 0 {
-                BLUE
-            } else {
-                DARK_BLUE
-            }
-        }
-    }
-
-    // return color if hovering and component is active
-    pub fn active_color(&self, mx: f32, my: f32, is_active: bool, left_click_held: bool) -> (f32, f32, f32) {
-        let hovered = self.is_hovered(mx, my) && !left_click_held;
-        if hovered && is_active {
-            ORANGE_HOVER
-        } else if hovered {
-            LL_GRAY
-        } else if is_active {
-            ORANGE
-        } else {
-            LIGHT_GRAY
-        }
-    }
-    // return color for steps with velocity or the active step
-    pub fn active_step_color(&self, mx: f32, my: f32, is_active: bool, has_velocity: bool, left_click_held: bool) -> (f32, f32, f32) {
-        let hovered = self.is_hovered(mx, my) && !left_click_held;
-        if is_active {
-            if has_velocity {
-                DARK_BLUE
-            } else {
-                BLUE
-            }
-        } else {
-            if has_velocity {
-                if hovered {
-                    DARK_GRAY
-                } else {
-                    BLACK
-                }
-            } else {
-                if hovered {
-                    LL_GRAY
-                } else {
-                    LIGHT_GRAY
-                }
-            }
-        }
-    }
 }
 
 /// draw one slider for master panel
@@ -213,10 +120,12 @@ pub fn window_title_bar(
         width: 15.0,
         height: 5.0,
     };
-    verticies.extend(close_window_button.draw(
-        screen_config,
-        close_window_button.hover_color(mouse_state.x, mouse_state.y, mouse_state.left_click_held),
-    ));
+    let close_window_color = if close_window_button.is_hovered(mouse_state.x, mouse_state.y) {
+        LL_GRAY
+    } else {
+        LIGHT_GRAY
+    };
+    verticies.extend(close_window_button.draw(screen_config, close_window_color));
     if close_window_button.is_hovered(mouse_state.x, mouse_state.y) {
         cursor_icon = CursorIcon::Pointer;
         if mouse_state.left_clicked {
