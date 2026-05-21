@@ -47,6 +47,7 @@ pub fn draw(
         x: window.x,
         size: 18.0,
         y: window.y,
+        font: "roboto",
         color: WHITE,
     });
     (vertices, text_items, click_result, cursor_icon)

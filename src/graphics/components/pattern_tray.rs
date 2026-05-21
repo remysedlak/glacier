@@ -1,8 +1,8 @@
 use crate::app::MouseState;
 use crate::graphics::{
     color::{BLACK, PEBBLE, WHITE},
+    font::TextItem,
     primitives::{ScreenConfig, PAD_16, PAD_32, PAD_8},
-    widgets::TextItem,
     {ClickResult, CursorIcon, PatternData, Rectangle, Vertex, TOOLBAR_THICKNESS, TOOLBAR_Y},
 };
 
@@ -37,6 +37,7 @@ pub fn draw(
         y: TOOLBAR_Y + PAD_8,
         size: 18.0,
         color: WHITE,
+        font: "roboto",
     });
 
     // load each pattern's name
@@ -47,6 +48,7 @@ pub fn draw(
             y: 52.0 + (32.0 * i as f32) + PAD_32,
             size: 16.0,
             color: BLACK,
+            font: "roboto",
         });
     }
 

@@ -1,14 +1,18 @@
 use crate::app::MouseState;
+
 use crate::graphics::{
     color::{DARK_GRAY, WHITE},
     components::{footer, pattern_tray},
     context_menu::ContextMenu,
+    font::TextItem,
     icons::Tooltip,
     mini_window::{
-        instrument, mixer, playlist, sequencer, MiniWindow, PlaylistDrawRanges, WindowDrawRange, WindowKind, MIXER_ID, PLAYLIST_ID, SEQUENCER_ID,
+        instrument, mixer, playlist, sequencer,
+        sequencer::{ACTIONS_Y_OFFSET, KNOB_OFFSET},
+        MiniWindow, PlaylistDrawRanges, WindowDrawRange, WindowKind, MIXER_ID, PLAYLIST_ID, SEQUENCER_ID,
     },
-    primitives::{ScreenConfig, Vertex, KNOB_RADIUS, ONE_MEGABYTE, PAD_2, PAD_4, TRACK_GAP},
-    widgets::{Rectangle, TextItem, TITLEBAR_HEIGHT, TOOLBAR_THICKNESS, TOOLBAR_Y},
+    primitives::{ScreenConfig, Vertex, KNOB_RADIUS, ONE_MEGABYTE, PAD_2, PAD_4, PAD_8, TRACK_GAP},
+    widgets::{Rectangle, TITLEBAR_HEIGHT, TOOLBAR_THICKNESS, TOOLBAR_Y},
 };
 use crate::project::{AudioBlock, AudioBlockType, Instrument, PatternData};
 use fontdue::layout::{CoordinateSystem, Layout, TextStyle};
@@ -134,12 +138,20 @@ pub async fn create_graphics(window: Rc<Window>, proxy: EventLoopProxy<Graphics>
     let mixer_window = MiniWindow::new(128.0, 500.0, 800.0, 300.0, "Mixer", WindowKind::Mixer, false);
     mini_windows.push(mixer_window);
 
-    let font_data = include_bytes!("../../assets/fonts/Roboto-VariableFont_wdth,wght.ttf") as &[u8];
-    let font = fontdue::Font::from_bytes(font_data, fontdue::FontSettings::default()).unwrap();
+    let roboto = ("roboto", include_bytes!("../../assets/fonts/Roboto-VariableFont_wdth,wght.ttf") as &[u8]);
+    let mono = ("mono", include_bytes!("../../assets/fonts/IBMPlexMono-Regular.ttf") as &[u8]);
+    let mut font_cache: HashMap<String, fontdue::Font> = HashMap::new();
+    let mut glyph_cache: HashMap<String, HashMap<(char, u32), (wgpu::Texture, wgpu::BindGroup, fontdue::Metrics)>> = HashMap::new();
+
     let bind_group_layout = font::create_bind_group_layout(&device);
     let render_pipeline = create_pipeline(&device, surface_config.format, &bind_group_layout);
-    let glyph_cache = font::build_glyph_cache(&device, &queue, &font, &[12.0, 14.0, 16.0, 18.0, 24.0, 32.0]);
 
+    for (name, bytes) in [roboto, mono] {
+        let font = fontdue::Font::from_bytes(bytes, fontdue::FontSettings::default()).unwrap();
+        let cache = font::build_glyph_cache(&device, &queue, &font, &[12.0, 14.0, 16.0, 18.0, 24.0, 32.0]);
+        font_cache.insert(name.to_string(), font);
+        glyph_cache.insert(name.to_string(), cache);
+    }
     // init icon's
     let mut icon_cache = HashMap::new();
     for name in icons::ICON_NAMES {
@@ -181,7 +193,7 @@ pub async fn create_graphics(window: Rc<Window>, proxy: EventLoopProxy<Graphics>
 
         // fonts
         glyph_cache,
-        font,
+        font_cache,
 
         // iconography
         icon_cache,
@@ -249,8 +261,8 @@ pub struct Graphics {
     vertex_buffer: wgpu::Buffer,
 
     // text
-    glyph_cache: HashMap<(char, u32), (wgpu::Texture, wgpu::BindGroup, fontdue::Metrics)>,
-    font: fontdue::Font,
+    glyph_cache: HashMap<String, HashMap<(char, u32), (wgpu::Texture, wgpu::BindGroup, fontdue::Metrics)>>,
+    font_cache: HashMap<String, fontdue::Font>,
 
     //ui
     pub mini_windows: Vec<MiniWindow>,
@@ -348,8 +360,8 @@ impl Graphics {
             }
             for (i, track) in &mut self.instruments.iter_mut().enumerate() {
                 let knob_rect = Rectangle {
-                    x: sequencer_window.x + 198.0 - KNOB_RADIUS,
-                    y: sequencer_window.y + (i as f32 * TRACK_GAP) + 24.0 - KNOB_RADIUS,
+                    x: sequencer_window.x + KNOB_OFFSET,
+                    y: sequencer_window.y + (i as f32 * TRACK_GAP) + ACTIONS_Y_OFFSET + PAD_8,
                     width: KNOB_RADIUS * 2.0,
                     height: KNOB_RADIUS * 2.0,
                 };
@@ -425,17 +437,19 @@ impl Graphics {
     /// pushing texts to draw
     fn push_text_draws<'a>(
         texts: &[TextItem],
-        font: &fontdue::Font,
-        glyph_cache: &'a HashMap<(char, u32), (wgpu::Texture, wgpu::BindGroup, fontdue::Metrics)>,
+        font_cache: &HashMap<String, fontdue::Font>,
+        glyph_cache: &'a HashMap<String, HashMap<(char, u32), (wgpu::Texture, wgpu::BindGroup, fontdue::Metrics)>>,
         device: &wgpu::Device,
         screen_config: &ScreenConfig,
         char_draws: &mut Vec<(wgpu::Buffer, &'a wgpu::BindGroup)>,
     ) {
         for text_item in texts {
+            let Some(font) = font_cache.get(text_item.font) else { continue };
+            let Some(gcache) = glyph_cache.get(text_item.font) else { continue };
             let mut layout = Layout::new(CoordinateSystem::PositiveYDown);
             layout.append(&[font], &TextStyle::new(&text_item.text, text_item.size, 0));
             for glyph in layout.glyphs() {
-                if let Some((_, bind_group, _)) = glyph_cache.get(&(glyph.parent, text_item.size as u32)) {
+                if let Some((_, bind_group, _)) = gcache.get(&(glyph.parent, text_item.size as u32)) {
                     let gverts = font::draw_glyph(
                         text_item.x + glyph.x,
                         text_item.y + glyph.y,
@@ -502,7 +516,7 @@ impl Graphics {
                         &screen_config,
                     );
                     vertices.extend(verts);
-                    Graphics::push_text_draws(&texts, &self.font, &self.glyph_cache, &self.device, &screen_config, &mut char_draws);
+                    Graphics::push_text_draws(&texts, &self.font_cache, &self.glyph_cache, &self.device, &screen_config, &mut char_draws);
                     if cursor != CursorIcon::Default {
                         cursor_icon = cursor;
                     }
@@ -542,7 +556,7 @@ impl Graphics {
                     vertices.extend(static_verts);
                     Graphics::push_text_draws(
                         &static_texts,
-                        &self.font,
+                        &self.font_cache,
                         &self.glyph_cache,
                         &self.device,
                         &screen_config,
@@ -560,7 +574,7 @@ impl Graphics {
                     vertices.extend(header_verts);
                     Graphics::push_text_draws(
                         &header_texts,
-                        &self.font,
+                        &self.font_cache,
                         &self.glyph_cache,
                         &self.device,
                         &screen_config,
@@ -578,7 +592,7 @@ impl Graphics {
                     vertices.extend(timeline_verts);
                     Graphics::push_text_draws(
                         &timeline_texts,
-                        &self.font,
+                        &self.font_cache,
                         &self.glyph_cache,
                         &self.device,
                         &screen_config,
@@ -605,7 +619,7 @@ impl Graphics {
                     let window = &self.mini_windows[MIXER_ID];
                     let (verts, texts, result, cursor) = mixer::draw(window, self.master_volume, &screen_config, &mouse_state);
                     vertices.extend(verts);
-                    Graphics::push_text_draws(&texts, &self.font, &self.glyph_cache, &self.device, &screen_config, &mut char_draws);
+                    Graphics::push_text_draws(&texts, &self.font_cache, &self.glyph_cache, &self.device, &screen_config, &mut char_draws);
                     click_result = click_result.or(result);
                     if !matches!(cursor, CursorIcon::Default) {
                         cursor_icon = cursor;
@@ -623,7 +637,7 @@ impl Graphics {
                             if !matches!(cursor, CursorIcon::Default) {
                                 cursor_icon = cursor;
                             }
-                            Graphics::push_text_draws(&texts, &self.font, &self.glyph_cache, &self.device, &screen_config, &mut char_draws);
+                            Graphics::push_text_draws(&texts, &self.font_cache, &self.glyph_cache, &self.device, &screen_config, &mut char_draws);
                         }
                     }
                 }
@@ -654,7 +668,7 @@ impl Graphics {
             cursor_icon = icon;
         }
         click_result = click_result.or(result);
-        Graphics::push_text_draws(&texts, &self.font, &self.glyph_cache, &self.device, &screen_config, &mut char_draws);
+        Graphics::push_text_draws(&texts, &self.font_cache, &self.glyph_cache, &self.device, &screen_config, &mut char_draws);
 
         let (toolbar_verts, toolbar_texts, toolbar_icons, toolbar_result, toolbar_cursor, toolbar_tooltip) =
             components::toolbar::draw_toolbar(mouse_state, &screen_config, self.bpm, self.is_playing, self.active_step);
@@ -698,11 +712,12 @@ impl Graphics {
                     x: tt.x + PAD_4,
                     y: tt.y + PAD_2,
                     size: 14.0,
+                    font: "mono",
                     color: WHITE,
                 }];
                 Graphics::push_text_draws(
                     &tooltip_text,
-                    &self.font,
+                    &self.font_cache,
                     &self.glyph_cache,
                     &self.device,
                     &screen_config,
@@ -729,7 +744,7 @@ impl Graphics {
         }
         Graphics::push_text_draws(
             &toolbar_texts,
-            &self.font,
+            &self.font_cache,
             &self.glyph_cache,
             &self.device,
             &screen_config,
@@ -746,7 +761,14 @@ impl Graphics {
         if let Some(menu) = &self.context_menu {
             let (verts, menu_texts, menu_result, menu_cursor) = menu.draw(&screen_config, mouse_state);
             vertices.extend(verts);
-            Graphics::push_text_draws(&menu_texts, &self.font, &self.glyph_cache, &self.device, &screen_config, &mut char_draws);
+            Graphics::push_text_draws(
+                &menu_texts,
+                &self.font_cache,
+                &self.glyph_cache,
+                &self.device,
+                &screen_config,
+                &mut char_draws,
+            );
 
             if menu_cursor != CursorIcon::Default {
                 cursor_icon = menu_cursor;
@@ -771,7 +793,7 @@ impl Graphics {
         vertices.extend(verts);
         Graphics::push_text_draws(
             &footer_texts,
-            &self.font,
+            &self.font_cache,
             &self.glyph_cache,
             &self.device,
             &screen_config,
@@ -811,7 +833,7 @@ impl Graphics {
             });
 
             r_pass.set_pipeline(&self.render_pipeline);
-            let any_bg = self.glyph_cache.values().next().unwrap();
+            let any_bg = self.glyph_cache.values().next().unwrap().values().next().unwrap();
 
             // windows
             for (idx, range) in window_ranges.iter().enumerate() {

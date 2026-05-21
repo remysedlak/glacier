@@ -1,9 +1,10 @@
 use crate::app::MouseState;
 use crate::graphics::{
     color::{ORANGE, PEBBLE, WHITE},
+    font::TextItem,
     mini_window::{MiniWindow, MINI_WINDOW_BACKGROUND},
     primitives::{ScreenConfig, Vertex, PAD_16, PAD_32, PAD_4, PAD_64, PAD_8},
-    widgets::{window_background, window_title_bar, TextItem},
+    widgets::{window_background, window_title_bar},
     AudioBlockType, ClickResult, Rectangle,
 };
 use crate::project::{AudioBlock, PatternData};
@@ -107,6 +108,7 @@ pub fn draw(
                     x: window.x + (step as f32 * PLAYLIST_STEP_GAP) + PAD_16 + (TIMELINE_X_ORIGIN) - scroll_x,
                     y: window.y + (track as f32 * PLAYLIST_TRACK_GAP) + PAD_32,
                     size: 18.0,
+                    font: "roboto",
                     color: WHITE,
                 });
             }
@@ -123,6 +125,7 @@ pub fn draw(
         header_text_items.push(TextItem {
             text: format!("Track {}", track).to_string(),
             x: window.x + PAD_16 + PAD_8,
+            font: "roboto",
             y: window.y + (track as f32 * PLAYLIST_TRACK_GAP) + PAD_64 + PAD_4 - scroll_y,
             size: 18.0,
             color: WHITE,
@@ -161,6 +164,7 @@ pub fn draw(
                 x: window.x + (event.start_step as f32 * PLAYLIST_STEP_GAP) + PAD_16 + (TIMELINE_X_ORIGIN) + PAD_8 - scroll_x,
                 y: window.y + (event.track as f32 * PLAYLIST_TRACK_GAP) + PAD_64 + PAD_4 - scroll_y,
                 size: 18.0,
+                font: "roboto",
                 color: WHITE,
             });
         }

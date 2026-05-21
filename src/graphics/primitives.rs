@@ -10,7 +10,7 @@ pub const BAR_GAP: f32 = 12.0;
 pub const BUTTON_GAP: f32 = 24.0;
 pub const TRACK_GAP: f32 = 72.0;
 
-pub const KNOB_RADIUS: f32 = 13.0;
+pub const KNOB_RADIUS: f32 = 8.0;
 
 pub const MUTE_SQUARE_LENGTH: f32 = 16.0;
 

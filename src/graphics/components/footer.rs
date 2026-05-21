@@ -1,7 +1,8 @@
 use crate::graphics::{
     color::{BLACK, WHITE},
+    font::TextItem,
     primitives::{ScreenConfig, Vertex, PAD_4, PAD_8},
-    widgets::{Rectangle, TextItem},
+    widgets::Rectangle,
 };
 
 pub fn draw(screen_config: &ScreenConfig, path: &String) -> (Vec<Vertex>, Vec<TextItem>) {
@@ -26,6 +27,7 @@ pub fn draw(screen_config: &ScreenConfig, path: &String) -> (Vec<Vertex>, Vec<Te
         y: footer_y + PAD_8,
         size: 12.0,
         color: WHITE,
+        font: "roboto",
     });
     (vertices, texts)
 }

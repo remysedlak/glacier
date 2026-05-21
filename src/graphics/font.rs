@@ -1,6 +1,15 @@
 use crate::graphics::primitives::{ScreenConfig, Vertex};
 use std::collections::HashMap;
 
+pub struct TextItem {
+    pub text: String,
+    pub size: f32,
+    pub color: (f32, f32, f32),
+    pub font: &'static str,
+    pub x: f32,
+    pub y: f32,
+}
+
 pub fn create_bind_group_layout(device: &wgpu::Device) -> wgpu::BindGroupLayout {
     device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
         label: None,

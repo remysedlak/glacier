@@ -46,6 +46,7 @@ pub fn draw(
         x: window.x + PAD_16,
         y: window.y + PAD_16,
         size: 18.0,
+        font: "roboto",
         color: WHITE,
     });
     vertices.extend(rectangle.draw(&screen_config, DARK_GRAY));

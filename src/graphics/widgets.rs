@@ -2,6 +2,7 @@ use crate::{
     app::MouseState,
     graphics::{
         color::*,
+        font::TextItem,
         mini_window::{MiniWindow, WindowKind},
         primitives::{draw_rectangle, Vertex, PAD_16, PAD_4, PAD_8},
         ClickResult, ScreenConfig,
@@ -27,14 +28,6 @@ pub const ICON_WIDTH: f32 = 32.0;
 pub const ICON_HEIGHT: f32 = 32.0;
 
 pub const TITLEBAR_HEIGHT: f32 = 32.0;
-
-pub struct TextItem {
-    pub text: String,
-    pub size: f32,
-    pub color: (f32, f32, f32),
-    pub x: f32,
-    pub y: f32,
-}
 
 #[derive(Debug)]
 pub struct Rectangle {
@@ -222,6 +215,7 @@ pub fn window_title_bar(
         y: window.y - TITLEBAR_HEIGHT + PAD_4,
         color: WHITE,
         size: 18.0,
+        font: "roboto",
     };
     (verticies, title, result, cursor_icon)
 }

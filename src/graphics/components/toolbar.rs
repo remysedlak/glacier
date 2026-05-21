@@ -1,9 +1,10 @@
 use crate::app::MouseState;
 use crate::graphics::{
     color::{LIGHT_GRAY, PEBBLE, WHITE},
+    font::TextItem,
     icons::{IconDraw, Tooltip},
     primitives::{draw_h_line, BUTTON_GAP, PAD_32, PAD_8},
-    widgets::{Rectangle, TextItem, ADD_INSTRUMENT_ICON_OFFSET, ICON_HEIGHT, ICON_WIDTH, PLAY_X_ORIGIN, PLAY_Y_ORIGIN, TOOLBAR_MARGIN, TOOLBAR_Y},
+    widgets::{Rectangle, ADD_INSTRUMENT_ICON_OFFSET, ICON_HEIGHT, ICON_WIDTH, PLAY_X_ORIGIN, PLAY_Y_ORIGIN, TOOLBAR_MARGIN, TOOLBAR_Y},
     ClickResult, ScreenConfig, Vertex, TOOLBAR_THICKNESS,
 };
 use winit::window::CursorIcon;
@@ -188,6 +189,7 @@ pub fn draw_toolbar(
         y: TOOLBAR_MARGIN,
         size: 18.0,
         color: WHITE,
+        font: "roboto",
     });
 
     let play_pause_label = if is_playing { "pause" } else { "play" };

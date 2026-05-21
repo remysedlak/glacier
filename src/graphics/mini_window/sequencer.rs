@@ -14,8 +14,8 @@ use crate::project::{Instrument, PatternData, Sequence};
 use winit::window::CursorIcon;
 
 pub const SEQUENCER_X_ORIGIN: f32 = 200.0;
-pub const KNOB_OFFSET: f32 = 140.0;
-pub const ACTIONS_Y_OFFSET: f32 = 42.0;
+pub const KNOB_OFFSET: f32 = 110.0;
+pub const ACTIONS_Y_OFFSET: f32 = 44.0;
 
 pub const SEQUENCER_STEP_WIDTH: f32 = 18.0;
 pub const SEQUENCER_STEP_HEIGHT: f32 = 48.0;
@@ -174,7 +174,7 @@ pub fn draw(
         // mute button
         let mute_button = Rectangle {
             x: PAD_8 + window.x,
-            y: PAD_32 + PAD_4 + PAD_8 + window.y + (i as f32 * TRACK_GAP),
+            y: ACTIONS_Y_OFFSET + PAD_2 + window.y + (i as f32 * TRACK_GAP),
             width: MUTE_SQUARE_LENGTH * 2.0,
             height: MUTE_SQUARE_LENGTH,
         };
@@ -189,6 +189,7 @@ pub fn draw(
             y: window.y + i as f32 * TRACK_GAP + ACTIONS_Y_OFFSET + PAD_2,
             size: 14.0,
             color: BLACK,
+            font: "roboto",
         });
 
         if mute_button.is_hovered(mouse_state.x, mouse_state.y) {
@@ -217,6 +218,7 @@ pub fn draw(
             y: window.y + i as f32 * TRACK_GAP + ACTIONS_Y_OFFSET + PAD_2,
             size: 14.0,
             color: BLACK,
+            font: "roboto",
         });
         if velocity_button.is_hovered(mouse_state.x, mouse_state.y) {
             cursor_icon = CursorIcon::Pointer;
@@ -229,7 +231,7 @@ pub fn draw(
         for vert in draw_knob(
             instrument.data.track_volume,
             window.x + KNOB_OFFSET,
-            window.y + (i as f32 * TRACK_GAP) + ACTIONS_Y_OFFSET,
+            window.y + (i as f32 * TRACK_GAP) + ACTIONS_Y_OFFSET + PAD_8,
             KNOB_RADIUS,
             35, // segments for a circle
             screen_config,
@@ -252,6 +254,7 @@ pub fn draw(
             y: window.y + i as f32 * TRACK_GAP + PAD_16 + PAD_4,
             size: 16.0,
             color: WHITE,
+            font: "roboto",
         });
     }
 

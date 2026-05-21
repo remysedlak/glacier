@@ -4,8 +4,9 @@ use crate::{
     app::MouseState,
     graphics::{
         color::{DARK_GRAY, WHITE},
+        font::TextItem,
         primitives::{ScreenConfig, PAD_2, PAD_24, PAD_32, PAD_4, PAD_64, PAD_8},
-        widgets::{Rectangle, TextItem},
+        widgets::Rectangle,
         ClickResult, Vertex,
     },
 };
@@ -87,6 +88,7 @@ impl ContextMenu {
             x: self.x - PAD_64 + PAD_4,
             y: (self.y + (PAD_24 + PAD_8) * 0 as f32) + PAD_32 + PAD_2,
             color: WHITE,
+            font: "roboto",
             size: 14.0,
         });
         // delete text
@@ -95,6 +97,7 @@ impl ContextMenu {
             x: self.x - PAD_64 + PAD_4,
             y: (self.y + (PAD_24 + PAD_8) * 1 as f32) + PAD_32 + PAD_2,
             size: 14.0,
+            font: "roboto",
             color: WHITE,
         });
 
@@ -140,6 +143,10 @@ impl ContextMenu {
                             click_result = ClickResult::CloseContextMenu;
                         }
                         1 => {
+                            // piano roll
+                            click_result = ClickResult::CloseContextMenu;
+                        }
+                        4 => {
                             // delete
                             click_result = ClickResult::DeleteTrack(id);
                         }
@@ -162,10 +169,27 @@ impl ContextMenu {
         }
         // delete text
         texts.push(TextItem {
+            text: "Rename".to_string(),
+            x: self.x - PAD_64 + PAD_4,
+            y: (self.y + (PAD_24) * 0 as f32) + PAD_32 + PAD_2,
+            size: 14.0,
+            font: "roboto",
+            color: WHITE,
+        });
+        texts.push(TextItem {
             text: "Delete".to_string(),
+            x: self.x - PAD_64 + PAD_4,
+            y: (self.y + (PAD_24) * 4 as f32) + PAD_32 + PAD_2,
+            size: 14.0,
+            font: "roboto",
+            color: WHITE,
+        });
+        texts.push(TextItem {
+            text: "Piano Roll".to_string(),
             x: self.x - PAD_64 + PAD_4,
             y: (self.y + (PAD_24) * 1 as f32) + PAD_32 + PAD_2,
             size: 14.0,
+            font: "roboto",
             color: WHITE,
         });
         (vertices, texts, click_result, cursor_icon)
