@@ -1,8 +1,8 @@
 use crate::audio::{init, AudioCommand};
-use crate::graphics::context_menu::{ContextMenu, ContextMenuKind};
-use crate::graphics::mini_window::MiniWindow;
+use crate::graphics::mini_window::PIANO_ID;
 use crate::graphics::{
-    mini_window::{WindowKind, MIXER_ID, PLAYLIST_ID, SEQUENCER_ID},
+    context_menu::{ContextMenu, ContextMenuKind},
+    mini_window::{MiniWindow, WindowKind, MIXER_ID, PLAYLIST_ID, SEQUENCER_ID},
     {bring_to_front, create_graphics, ClickResult, DragResult, Graphics, Rc},
 };
 use crate::project::{AudioBlock, Instrument, PatternData};
@@ -204,6 +204,14 @@ impl App {
 
             // dispatch audio commands based on what was clicked
             match result {
+                ClickResult::TogglePianoRollWindow => {
+                    if let Some(win) = gfx.mini_windows.iter_mut().find(|w| matches!(w.window_kind, WindowKind::PianoRoll)) {
+                        if !win.is_open {
+                            bring_to_front(&mut gfx.z_order, PIANO_ID);
+                        }
+                        win.is_open = !win.is_open;
+                    }
+                }
                 ClickResult::CloseContextMenu => {
                     gfx.context_menu = None;
                 }

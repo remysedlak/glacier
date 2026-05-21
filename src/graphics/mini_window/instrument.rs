@@ -26,9 +26,7 @@ pub fn draw(
 
     // titlebar
     let (titlebar_verts, titlebar_texts, result, cursor) = window_title_bar(&window, screen_config, mouse_state);
-    if !matches!(result, ClickResult::None) {
-        click_result = result;
-    }
+    click_result = click_result.or(result);
     if !matches!(cursor, CursorIcon::Default) {
         cursor_icon = cursor;
     }

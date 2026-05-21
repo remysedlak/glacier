@@ -1,24 +1,25 @@
 use crate::app::MouseState;
-use crate::graphics::color::BLACK;
-use crate::graphics::icons::{IconDraw, Tooltip};
-use crate::graphics::primitives::{PAD_2, PAD_4};
-use crate::graphics::widgets::TOOLBAR_MARGIN;
+
 use crate::graphics::{
-    color::{BLUE, DARK_GRAY, WHITE},
+    color::{BLACK, BLUE, DARK_GRAY, WHITE},
+    icons::IconDraw,
     mini_window::{MiniWindow, MINI_WINDOW_BACKGROUND},
-    primitives::{draw_knob, ScreenConfig, Vertex, BAR_GAP, BUTTON_GAP, KNOB_RADIUS, MUTE_SQUARE_LENGTH, PAD_16, PAD_32, PAD_8, TRACK_GAP},
+    primitives::{draw_knob, ScreenConfig, Vertex, BUTTON_GAP, PAD_16, PAD_2, PAD_4, PAD_8},
     widgets::window_title_bar,
     {ClickResult, Rectangle, TextItem},
 };
 use crate::project::{Instrument, PatternData, Sequence};
 use winit::window::CursorIcon;
 
-pub const SEQUENCER_X_ORIGIN: f32 = 200.0;
+pub const BAR_GAP: f32 = 12.0;
 pub const KNOB_OFFSET: f32 = 110.0;
+pub const KNOB_RADIUS: f32 = 8.0;
 pub const ACTIONS_Y_OFFSET: f32 = 44.0;
-
+pub const TRACK_GAP: f32 = 72.0;
+pub const SEQUENCER_X_ORIGIN: f32 = 200.0;
 pub const SEQUENCER_STEP_WIDTH: f32 = 18.0;
 pub const SEQUENCER_STEP_HEIGHT: f32 = 48.0;
+pub const MUTE_SQUARE_LENGTH: f32 = 16.0;
 
 pub fn draw(
     window: &MiniWindow,
@@ -35,7 +36,7 @@ pub fn draw(
     let mut text_items: Vec<TextItem> = Vec::new();
     let mut click_result = ClickResult::None;
     let mut cursor_icon = CursorIcon::Default;
-    let mut icons: Vec<IconDraw> = Vec::new();
+    let icons: Vec<IconDraw> = Vec::new();
 
     //  size: 18.0, window background
     let window_background = Rectangle {
@@ -51,9 +52,7 @@ pub fn draw(
     if !matches!(cursor, CursorIcon::Default) {
         cursor_icon = cursor;
     }
-    if !matches!(result, ClickResult::None) {
-        click_result = result;
-    }
+    click_result = click_result.or(result);
     vertices.extend(titlebar_verts);
     text_items.push(titlebar_texts);
 

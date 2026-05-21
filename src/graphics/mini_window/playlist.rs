@@ -68,9 +68,7 @@ pub fn draw(
     if !matches!(cursor, CursorIcon::Default) {
         cursor_icon = cursor;
     }
-    if !matches!(result, ClickResult::None) {
-        click_result = result;
-    }
+    click_result = click_result.or(result);
     static_vertices.extend(titlebar_verts);
     static_text_items.push(titlebar_texts);
 

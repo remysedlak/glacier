@@ -204,6 +204,7 @@ pub fn window_title_bar(
                 WindowKind::Sequencer => ClickResult::ToggleSequencerWindow,
                 WindowKind::Playlist => ClickResult::TogglePlaylistWindow,
                 WindowKind::Mixer => ClickResult::ToggleMixerWindow,
+                WindowKind::PianoRoll => ClickResult::TogglePianoRollWindow,
                 WindowKind::InstrumentDetail(usize) => ClickResult::ToggleInstrumentWindow(usize), // which instrument
             }
         }

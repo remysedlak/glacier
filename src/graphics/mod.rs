@@ -1,5 +1,6 @@
 use crate::app::MouseState;
 
+use crate::graphics::mini_window::{piano_roll, PIANO_ID};
 use crate::graphics::{
     color::{DARK_GRAY, WHITE},
     components::{footer, pattern_tray},
@@ -8,10 +9,10 @@ use crate::graphics::{
     icons::Tooltip,
     mini_window::{
         instrument, mixer, playlist, sequencer,
-        sequencer::{ACTIONS_Y_OFFSET, KNOB_OFFSET},
+        sequencer::{ACTIONS_Y_OFFSET, KNOB_OFFSET, KNOB_RADIUS, TRACK_GAP},
         MiniWindow, PlaylistDrawRanges, WindowDrawRange, WindowKind, MIXER_ID, PLAYLIST_ID, SEQUENCER_ID,
     },
-    primitives::{ScreenConfig, Vertex, KNOB_RADIUS, ONE_MEGABYTE, PAD_2, PAD_4, PAD_8, TRACK_GAP},
+    primitives::{ScreenConfig, Vertex, PAD_2, PAD_4, PAD_8},
     widgets::{Rectangle, TITLEBAR_HEIGHT, TOOLBAR_THICKNESS, TOOLBAR_Y},
 };
 use crate::project::{AudioBlock, AudioBlockType, Instrument, PatternData};
@@ -58,6 +59,7 @@ pub enum ClickResult {
     ToggleSequencerWindow,
     ToggleMixerWindow,
     TogglePlaylistWindow,
+    TogglePianoRollWindow,
     ToggleInstrumentWindow(usize),
     SelectPattern(usize),
     OpenPatternMenu(f32, f32, usize),
@@ -79,6 +81,8 @@ pub enum DragResult {
     DragVolumeKnob(usize, f32),
     None,
 }
+
+pub const ONE_MEGABYTE: u64 = 1024 * 1024;
 
 /// Initialize the graphics with default/loaded state and find driver/display info
 pub async fn create_graphics(window: Rc<Window>, proxy: EventLoopProxy<Graphics>) {
@@ -127,7 +131,7 @@ pub async fn create_graphics(window: Rc<Window>, proxy: EventLoopProxy<Graphics>
     let mut mini_windows: Vec<MiniWindow> = Vec::new();
 
     // init sequencer_window
-    let sequencer_window = MiniWindow::new(256.0, 128.0, 1092.0, 100.0, "Sequencer", WindowKind::Sequencer, true);
+    let sequencer_window = MiniWindow::new(256.0, 128.0, 1092.0, 100.0, "Sequencer", WindowKind::Sequencer, false);
     mini_windows.push(sequencer_window);
 
     // init playlist_window
@@ -137,6 +141,10 @@ pub async fn create_graphics(window: Rc<Window>, proxy: EventLoopProxy<Graphics>
     // init mixer window
     let mixer_window = MiniWindow::new(128.0, 500.0, 800.0, 300.0, "Mixer", WindowKind::Mixer, false);
     mini_windows.push(mixer_window);
+
+    // init piano window
+    let piano_window = MiniWindow::new(256.0, 128.0, 1092.0, 900.0, "Piano", WindowKind::PianoRoll, true);
+    mini_windows.push(piano_window);
 
     let roboto = ("roboto", include_bytes!("../../assets/fonts/Roboto-VariableFont_wdth,wght.ttf") as &[u8]);
     let mono = ("mono", include_bytes!("../../assets/fonts/IBMPlexMono-Regular.ttf") as &[u8]);
@@ -157,8 +165,6 @@ pub async fn create_graphics(window: Rc<Window>, proxy: EventLoopProxy<Graphics>
     for name in icons::ICON_NAMES {
         let svg_str = std::fs::read_to_string(format!("assets/icons/{}.svg", name)).unwrap();
         let icon = icons::IconSvg {
-            x: 0.0,
-            y: 0.0,
             width: 128.0,
             height: 128.0,
             path: svg_str,
@@ -206,7 +212,7 @@ pub async fn create_graphics(window: Rc<Window>, proxy: EventLoopProxy<Graphics>
         dragging: false,
         playlist_scroll_x: 0.0,
         playlist_scroll_y: 0.0,
-        z_order: vec![SEQUENCER_ID, PLAYLIST_ID, MIXER_ID],
+        z_order: vec![SEQUENCER_ID, PLAYLIST_ID, MIXER_ID, PIANO_ID],
         context_menu,
     };
 
@@ -621,9 +627,14 @@ impl Graphics {
                     vertices.extend(verts);
                     Graphics::push_text_draws(&texts, &self.font_cache, &self.glyph_cache, &self.device, &screen_config, &mut char_draws);
                     click_result = click_result.or(result);
-                    if !matches!(cursor, CursorIcon::Default) {
-                        cursor_icon = cursor;
-                    }
+                }
+                PIANO_ID if self.mini_windows[PIANO_ID].is_open => {
+                    //piano roll
+                    let window = &self.mini_windows[PIANO_ID];
+                    let (verts, texts, result, cursor) = piano_roll::draw(window, &mouse_state, &screen_config);
+                    vertices.extend(verts);
+                    Graphics::push_text_draws(&texts, &self.font_cache, &self.glyph_cache, &self.device, &screen_config, &mut char_draws);
+                    click_result = click_result.or(result);
                 }
                 instrument => {
                     let window = &self.mini_windows[instrument];
@@ -631,9 +642,7 @@ impl Graphics {
                         if let WindowKind::InstrumentDetail(track) = window.window_kind {
                             let (verts, texts, result, cursor) = instrument::draw(window, &mouse_state, &screen_config, &self.instruments[track]);
                             vertices.extend(verts);
-                            if !matches!(result, ClickResult::None) {
-                                click_result = result;
-                            }
+                            click_result = click_result.or(result);
                             if !matches!(cursor, CursorIcon::Default) {
                                 cursor_icon = cursor;
                             }
@@ -737,9 +746,7 @@ impl Graphics {
             }
             ClickResult::None => {}
             other => {
-                if matches!(click_result, ClickResult::None) {
-                    click_result = other;
-                }
+                click_result = click_result.or(other);
             }
         }
         Graphics::push_text_draws(

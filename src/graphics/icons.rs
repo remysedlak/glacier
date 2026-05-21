@@ -1,18 +1,22 @@
 use crate::graphics::primitives::{ScreenConfig, Vertex};
 
-pub const ICON_NAMES: &[&str] = &["play", "stop", "pause", "mixer", "sequencer", "playlist", "instrument", "project", "mute"];
+pub const ICON_NAMES: &[&str] = &[
+    "play",
+    "stop",
+    "pause",
+    "mixer",
+    "sequencer",
+    "playlist",
+    "instrument",
+    "project",
+    "piano",
+    "mute",
+];
 
 pub struct IconSvg {
-    pub x: f32,
-    pub y: f32,
     pub width: f32,
     pub height: f32,
     pub path: String,
-}
-impl IconSvg {
-    pub fn is_hovered(&self, mx: f32, my: f32) -> bool {
-        mx > self.x && mx < self.x + self.width && my > self.y && my < self.y + self.height
-    }
 }
 
 #[derive(Clone)]

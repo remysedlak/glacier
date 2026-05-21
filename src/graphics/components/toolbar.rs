@@ -144,6 +144,22 @@ pub fn draw_toolbar(
         }
     }
 
+    let piano_toggle = Rectangle {
+        x: PLAY_X_ORIGIN + 256.0 + (BUTTON_GAP * 2.0) * 3.0,
+        y: PLAY_Y_ORIGIN,
+        width: ICON_WIDTH,
+        height: ICON_HEIGHT,
+    };
+    vertices.extend(piano_toggle.draw(
+        &screen_config,
+        piano_toggle.dark_hover_color(mouse_state.x, mouse_state.y, mouse_state.left_clicked),
+    ));
+    if piano_toggle.is_hovered(mouse_state.x, mouse_state.y) {
+        if mouse_state.left_clicked {
+            click_result = ClickResult::TogglePianoRollWindow;
+        }
+    }
+
     // toolbar line
     for vert in draw_h_line(TOOLBAR_Y, TOOLBAR_THICKNESS, screen_config) {
         vertices.push(vert);
@@ -230,7 +246,7 @@ pub fn draw_toolbar(
             width: icon_size,
             height: icon_size,
             tooltip: Tooltip {
-                text: Some("Open Sequencer"),
+                text: Some("Sequencer"),
                 x: PLAY_X_ORIGIN + 256.0,
                 y: PLAY_Y_ORIGIN + TOOLTIP_MARGIN,
             },
@@ -242,7 +258,7 @@ pub fn draw_toolbar(
             width: icon_size,
             height: icon_size,
             tooltip: Tooltip {
-                text: Some("Open Mixer"),
+                text: Some("Mixer"),
                 x: PLAY_X_ORIGIN + 256.0 + (BUTTON_GAP * 2.0),
                 y: PLAY_Y_ORIGIN + TOOLTIP_MARGIN,
             },
@@ -254,8 +270,20 @@ pub fn draw_toolbar(
             width: icon_size,
             height: icon_size,
             tooltip: Tooltip {
-                text: Some("Open Playlist"),
+                text: Some("Playlist"),
                 x: PLAY_X_ORIGIN + 256.0 + (BUTTON_GAP * 2.0) * 2.0,
+                y: PLAY_Y_ORIGIN + TOOLTIP_MARGIN,
+            },
+        },
+        IconDraw {
+            name: "piano",
+            x: PLAY_X_ORIGIN + 256.0 + (BUTTON_GAP * 2.0) * 3.0,
+            y: PLAY_Y_ORIGIN,
+            width: icon_size,
+            height: icon_size,
+            tooltip: Tooltip {
+                text: Some("Piano Roll"),
+                x: PLAY_X_ORIGIN + 256.0 + (BUTTON_GAP * 2.0) * 3.0,
                 y: PLAY_Y_ORIGIN + TOOLTIP_MARGIN,
             },
         },
