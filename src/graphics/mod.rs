@@ -845,6 +845,28 @@ impl Graphics {
             // windows
             for (idx, range) in window_ranges.iter().enumerate() {
                 let is_playlist = self.z_order[idx] == PLAYLIST_ID;
+                let is_piano = self.z_order[idx] == PIANO_ID;
+
+                if is_piano {
+                    let win = &self.mini_windows[PIANO_ID];
+                    let wx = if win.x < 0.0 { 0u32 } else { win.x as u32 }.min(self.surface_config.width);
+                    let wy = if (win.y - TITLEBAR_HEIGHT) < 0.0 {
+                        0u32
+                    } else {
+                        (win.y - TITLEBAR_HEIGHT) as u32
+                    }
+                    .min(self.surface_config.height);
+                    let win_right = ((win.x + win.width) as u32).min(self.surface_config.width);
+                    let win_bottom = ((win.y + win.height) as u32).min(self.surface_config.height);
+                    let ww = win_right.saturating_sub(wx);
+                    let wh = win_bottom.saturating_sub(wy);
+
+                    r_pass.set_scissor_rect(wx, wy, ww.max(1), wh.max(1));
+                    Graphics::draw_geom(&mut r_pass, &self.vertex_buffer, &any_bg.1, range.vert_start, range.vert_end);
+                    Graphics::draw_chars(&mut r_pass, &char_draws, range.char_start, range.char_end);
+                    r_pass.set_scissor_rect(0, 0, self.surface_config.width, self.surface_config.height);
+                    continue;
+                }
 
                 if is_playlist {
                     if let Some(ref pl) = playlist_window_ranges {
