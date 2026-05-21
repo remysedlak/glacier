@@ -75,9 +75,29 @@ impl Rectangle {
     // return color for hover logic
     pub fn dark_hover_color(&self, mx: f32, my: f32, left_click_held: bool) -> (f32, f32, f32) {
         if self.is_hovered(mx, my) && !left_click_held {
-            (0.05, 0.05, 0.05)
+            DARK_GRAY_HOVER
         } else {
             DARK_GRAY
+        }
+    }
+
+    // return color for hover logic
+    pub fn black_piano_step_hover_color(&self, mx: f32, my: f32) -> (f32, f32, f32) {
+        if self.is_hovered(mx, my) {
+            DARK_GRAY
+        } else {
+            BLACK
+        }
+    }
+    pub fn white_piano_step_hover_color(&self, mx: f32, my: f32, index: u32, black_note_is_hovered: bool) -> (f32, f32, f32) {
+        if self.is_hovered(mx, my) && index == 11 && !black_note_is_hovered {
+            EGG_WHITE_HOVER
+        } else if index == 11 {
+            EGG_WHITE
+        } else if self.is_hovered(mx, my) && !black_note_is_hovered {
+            EGG_WHITE_HOVER
+        } else {
+            WHITE
         }
     }
 

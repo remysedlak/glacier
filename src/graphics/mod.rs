@@ -143,7 +143,7 @@ pub async fn create_graphics(window: Rc<Window>, proxy: EventLoopProxy<Graphics>
     mini_windows.push(mixer_window);
 
     // init piano window
-    let piano_window = MiniWindow::new(256.0, 128.0, 1092.0, 900.0, "Piano", WindowKind::PianoRoll, true);
+    let piano_window = MiniWindow::new(256.0, 128.0, 1092.0, 500.0, "Piano", WindowKind::PianoRoll, true);
     mini_windows.push(piano_window);
 
     let roboto = ("roboto", include_bytes!("../../assets/fonts/Roboto-VariableFont_wdth,wght.ttf") as &[u8]);
@@ -156,7 +156,7 @@ pub async fn create_graphics(window: Rc<Window>, proxy: EventLoopProxy<Graphics>
 
     for (name, bytes) in [roboto, mono] {
         let font = fontdue::Font::from_bytes(bytes, fontdue::FontSettings::default()).unwrap();
-        let cache = font::build_glyph_cache(&device, &queue, &font, &[12.0, 14.0, 16.0, 18.0, 24.0, 32.0]);
+        let cache = font::build_glyph_cache(&device, &queue, &font, &[8.0, 10.0, 12.0, 14.0, 16.0, 18.0, 24.0, 32.0]);
         font_cache.insert(name.to_string(), font);
         glyph_cache.insert(name.to_string(), cache);
     }

@@ -1,9 +1,12 @@
 // monochrome
 pub const LIGHT_GRAY: (f32, f32, f32) = (0.53, 0.53, 0.53);
 pub const DARK_GRAY: (f32, f32, f32) = (0.03, 0.03, 0.03);
+pub const DARK_GRAY_HOVER: (f32, f32, f32) = (0.05, 0.05, 0.05);
 pub const BLACK: (f32, f32, f32) = (0.00, 0.00, 0.00);
 pub const LL_GRAY: (f32, f32, f32) = (0.27, 0.27, 0.27);
 pub const WHITE: (f32, f32, f32) = (1.0, 1.0, 1.0);
+pub const EGG_WHITE: (f32, f32, f32) = (0.80, 0.80, 0.80);
+pub const EGG_WHITE_HOVER: (f32, f32, f32) = (0.70, 0.70, 0.70);
 pub const PEBBLE: (f32, f32, f32) = (0.018, 0.018, 0.018);
 
 // blues :'(
