@@ -213,7 +213,7 @@ pub async fn create_graphics(window: Rc<Window>, proxy: EventLoopProxy<Graphics>
         playlist_scroll_x: 0.0,
         playlist_scroll_y: 0.0,
         piano_roll_scroll_x: 0.0,
-        piano_roll_scroll_y: 0.0,
+        piano_roll_scroll_y: 1015.0,
         z_order: vec![SEQUENCER_ID, PLAYLIST_ID, MIXER_ID, PIANO_ROLL_ID],
         context_menu,
     };

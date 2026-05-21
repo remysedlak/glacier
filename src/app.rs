@@ -498,8 +498,7 @@ impl ApplicationHandler<Graphics> for App {
                                 gfx.playlist_scroll_y += self.mouse_state.scroll_y * 35.0;
                             }
                         }
-                    }
-                    if piano_roll_win.is_open && piano_roll_win.is_hovered(self.mouse_state.x, self.mouse_state.y) {
+                    } else if piano_roll_win.is_open && piano_roll_win.is_hovered(self.mouse_state.x, self.mouse_state.y) {
                         if self.mouse_state.shift_pressed {
                             if !(gfx.piano_roll_scroll_x == 0.0 && self.mouse_state.scroll_y < 0.0) {
                                 gfx.playlist_scroll_x += self.mouse_state.scroll_y * 35.0;
