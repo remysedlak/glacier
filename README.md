@@ -1,7 +1,7 @@
 # glacier
 A DAW built from scratch in Rust as a deliberate learning project. No frameworks — raw wgpu, CPAL, and winit.
 
-<img width="1920" height="1012" alt="image" src="https://github.com/user-attachments/assets/8df4fef4-2c24-484e-86c3-c83ab1cf2e77" />
+<img width="1920" height="1080" alt="image" src="https://github.com/user-attachments/assets/51cfaf4a-645c-45d6-9c2b-1cd4440f6021" />
 
 ## features
 - step sequencer with per-pattern sequences and MIDI velocity
