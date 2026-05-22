@@ -45,8 +45,8 @@ pub fn draw(
     ClickResult,
     CursorIcon,
 ) {
-    let mut header_vertices: Vec<Vertex> = Vec::new();
-    let mut header_text_items: Vec<TextItem> = Vec::new();
+    let mut track_header_vertices: Vec<Vertex> = Vec::new();
+    let mut track_header_text_items: Vec<TextItem> = Vec::new();
 
     let mut timeline_vertices: Vec<Vertex> = Vec::new();
     let mut timeline_text_items: Vec<TextItem> = Vec::new();
@@ -134,8 +134,8 @@ pub fn draw(
             width: TIMELINE_X_ORIGIN - PAD_4,
             height: PLAYLIST_STEP_HEIGHT,
         };
-        header_vertices.extend(background.draw(&screen_config, PEBBLE));
-        header_text_items.push(TextItem {
+        track_header_vertices.extend(background.draw(&screen_config, PEBBLE));
+        track_header_text_items.push(TextItem {
             text: format!("Track {}", track).to_string(),
             x: window.x + PAD_16 + PAD_8,
             font: "roboto",
@@ -196,8 +196,8 @@ pub fn draw(
         static_text_items,
         timeline_vertices,
         timeline_text_items,
-        header_vertices,
-        header_text_items,
+        track_header_vertices,
+        track_header_text_items,
         click_result,
         cursor_icon,
     )

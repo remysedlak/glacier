@@ -61,3 +61,9 @@ pub struct PlaylistDrawRanges {
     pub header_range: WindowDrawRange,
     pub timeline_range: WindowDrawRange,
 }
+
+pub struct PianoRollDrawRanges {
+    pub static_range: WindowDrawRange, // background + titlebar
+    pub piano_range: WindowDrawRange,  // fixed piano keys, no scroll
+    pub grid_range: WindowDrawRange,   // scrollable note grid
+}

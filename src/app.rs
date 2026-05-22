@@ -488,7 +488,10 @@ impl ApplicationHandler<Graphics> for App {
                 if let State::Ready(gfx) = &mut self.state {
                     let playlist_win = &gfx.mini_windows[PLAYLIST_ID];
                     let piano_roll_win = &gfx.mini_windows[PIANO_ROLL_ID];
-                    if playlist_win.is_open && playlist_win.is_hovered(self.mouse_state.x, self.mouse_state.y) {
+                    if playlist_win.is_open
+                        && playlist_win.is_hovered(self.mouse_state.x, self.mouse_state.y)
+                        && !piano_roll_win.is_hovered(self.mouse_state.x, self.mouse_state.y)
+                    {
                         if self.mouse_state.shift_pressed {
                             if !(gfx.playlist_scroll_x == 0.0 && self.mouse_state.scroll_y < 0.0) {
                                 gfx.playlist_scroll_x += self.mouse_state.scroll_y * 35.0;
@@ -501,7 +504,7 @@ impl ApplicationHandler<Graphics> for App {
                     } else if piano_roll_win.is_open && piano_roll_win.is_hovered(self.mouse_state.x, self.mouse_state.y) {
                         if self.mouse_state.shift_pressed {
                             if !(gfx.piano_roll_scroll_x == 0.0 && self.mouse_state.scroll_y < 0.0) {
-                                gfx.playlist_scroll_x += self.mouse_state.scroll_y * 35.0;
+                                gfx.piano_roll_scroll_x += self.mouse_state.scroll_y * 35.0;
                             }
                         } else {
                             if !(gfx.piano_roll_scroll_y == 0.0 && self.mouse_state.scroll_y < 0.0) {

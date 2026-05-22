@@ -1,6 +1,6 @@
 use crate::app::MouseState;
 
-use crate::graphics::mini_window::{piano_roll, PIANO_ROLL_ID};
+use crate::graphics::mini_window::{piano_roll, PianoRollDrawRanges, PIANO_ROLL_ID};
 use crate::graphics::{
     color::{DARK_GRAY, WHITE},
     components::{footer, pattern_tray},
@@ -123,7 +123,7 @@ pub async fn create_graphics(window: Rc<Window>, proxy: EventLoopProxy<Graphics>
 
     let vertex_buffer = device.create_buffer(&wgpu::BufferDescriptor {
         label: Some("Vertex Buffer"),
-        size: ONE_MEGABYTE,
+        size: ONE_MEGABYTE * 4,
         usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
         mapped_at_creation: false,
     });
@@ -508,7 +508,7 @@ impl Graphics {
         let mut icon_draws: Vec<(wgpu::Buffer, &wgpu::BindGroup)> = Vec::new();
         let mut window_ranges: Vec<WindowDrawRange> = Vec::new();
         let mut playlist_window_ranges: Option<PlaylistDrawRanges> = None;
-
+        let mut piano_roll_ranges: Option<PianoRollDrawRanges> = None;
         for &id in &self.z_order {
             let vert_start = vertices.len() as u32;
             let char_start = char_draws.len();
@@ -632,13 +632,62 @@ impl Graphics {
                     Graphics::push_text_draws(&texts, &self.font_cache, &self.glyph_cache, &self.device, &screen_config, &mut char_draws);
                     click_result = click_result.or(result);
                 }
-                PIANO_ID if self.mini_windows[PIANO_ID].is_open => {
-                    //piano roll
-                    let window = &self.mini_windows[PIANO_ID];
-                    let (verts, texts, result, cursor) =
+                PIANO_ROLL_ID if self.mini_windows[PIANO_ROLL_ID].is_open => {
+                    let window = &self.mini_windows[PIANO_ROLL_ID];
+                    let (verts, texts, piano_key_verts, piano_key_texts, grid_verts, grid_texts, result, cursor) =
                         piano_roll::draw(window, &mouse_state, self.piano_roll_scroll_x, self.piano_roll_scroll_y, &screen_config);
+
+                    // static (titlebar + background) — no scroll
                     vertices.extend(verts);
                     Graphics::push_text_draws(&texts, &self.font_cache, &self.glyph_cache, &self.device, &screen_config, &mut char_draws);
+
+                    // scrollable content
+                    let piano_content_vert_start = vertices.len() as u32;
+                    let piano_content_char_start = char_draws.len();
+                    vertices.extend(piano_key_verts);
+                    Graphics::push_text_draws(
+                        &piano_key_texts,
+                        &self.font_cache,
+                        &self.glyph_cache,
+                        &self.device,
+                        &screen_config,
+                        &mut char_draws,
+                    );
+
+                    // grid content
+                    let grid_vert_start = vertices.len() as u32;
+                    let grid_char_start = char_draws.len();
+                    vertices.extend(grid_verts);
+                    Graphics::push_text_draws(
+                        &grid_texts,
+                        &self.font_cache,
+                        &self.glyph_cache,
+                        &self.device,
+                        &screen_config,
+                        &mut char_draws,
+                    );
+                    //
+                    piano_roll_ranges = Some(PianoRollDrawRanges {
+                        static_range: WindowDrawRange {
+                            vert_start,
+                            vert_end: piano_content_vert_start,
+                            char_start,
+                            char_end: piano_content_char_start,
+                        },
+                        piano_range: WindowDrawRange {
+                            vert_start: piano_content_vert_start,
+                            vert_end: grid_vert_start, // stop here
+                            char_start: piano_content_char_start,
+                            char_end: grid_char_start, // stop here
+                        },
+                        grid_range: WindowDrawRange {
+                            vert_start: grid_vert_start,
+                            vert_end: vertices.len() as u32,
+                            char_start: grid_char_start,
+                            char_end: char_draws.len(),
+                        },
+                    });
+
                     click_result = click_result.or(result);
                 }
                 instrument => {
@@ -853,22 +902,58 @@ impl Graphics {
                 let is_piano = self.z_order[idx] == PIANO_ROLL_ID;
 
                 if is_piano {
-                    let win = &self.mini_windows[PIANO_ROLL_ID];
-                    let wx = if win.x < 0.0 { 0u32 } else { win.x as u32 }.min(self.surface_config.width);
-                    let wy = if (win.y - TITLEBAR_HEIGHT) < 0.0 {
-                        0u32
-                    } else {
-                        (win.y - TITLEBAR_HEIGHT) as u32
-                    }
-                    .min(self.surface_config.height);
-                    let win_right = ((win.x + win.width) as u32).min(self.surface_config.width);
-                    let win_bottom = ((win.y + win.height) as u32).min(self.surface_config.height);
-                    let ww = win_right.saturating_sub(wx);
-                    let wh = win_bottom.saturating_sub(wy);
+                    if let Some(ref pr) = piano_roll_ranges {
+                        let win = &self.mini_windows[PIANO_ROLL_ID];
+                        let wx = if win.x < 0.0 { 0u32 } else { win.x as u32 }.min(self.surface_config.width);
+                        let wy = if (win.y - TITLEBAR_HEIGHT) < 0.0 {
+                            0u32
+                        } else {
+                            (win.y - TITLEBAR_HEIGHT) as u32
+                        }
+                        .min(self.surface_config.height);
+                        let win_right = ((win.x + win.width) as u32).min(self.surface_config.width);
+                        let win_bottom = ((win.y + win.height) as u32).min(self.surface_config.height);
+                        let ww = win_right.saturating_sub(wx);
+                        let wh = win_bottom.saturating_sub(wy);
+                        let content_y = (win.y as u32 + 64).min(self.surface_config.height);
+                        let content_h = win_bottom.saturating_sub(content_y);
 
-                    r_pass.set_scissor_rect(wx, wy, ww.max(1), wh.max(1));
-                    Graphics::draw_geom(&mut r_pass, &self.vertex_buffer, &any_bg.1, range.vert_start, range.vert_end);
-                    Graphics::draw_chars(&mut r_pass, &char_draws, range.char_start, range.char_end);
+                        let key_w = (80u32).min(ww);
+                        let grid_x = wx + key_w;
+                        let grid_w = ww.saturating_sub(key_w);
+
+                        r_pass.set_scissor_rect(wx, wy, ww.max(1), wh.max(1));
+                        Graphics::draw_geom(
+                            &mut r_pass,
+                            &self.vertex_buffer,
+                            &any_bg.1,
+                            pr.static_range.vert_start,
+                            pr.static_range.vert_end,
+                        );
+                        Graphics::draw_chars(&mut r_pass, &char_draws, pr.static_range.char_start, pr.static_range.char_end);
+
+                        // piano keys — fixed narrow column, only scrolls vertically
+                        r_pass.set_scissor_rect(wx, content_y, key_w.max(1), content_h.max(1));
+                        Graphics::draw_geom(
+                            &mut r_pass,
+                            &self.vertex_buffer,
+                            &any_bg.1,
+                            pr.piano_range.vert_start,
+                            pr.piano_range.vert_end,
+                        );
+                        Graphics::draw_chars(&mut r_pass, &char_draws, pr.piano_range.char_start, pr.piano_range.char_end);
+
+                        // grid — scrolls both x and y
+                        r_pass.set_scissor_rect(grid_x, content_y, grid_w.max(1), content_h.max(1));
+                        Graphics::draw_geom(
+                            &mut r_pass,
+                            &self.vertex_buffer,
+                            &any_bg.1,
+                            pr.grid_range.vert_start,
+                            pr.grid_range.vert_end,
+                        );
+                        Graphics::draw_chars(&mut r_pass, &char_draws, pr.grid_range.char_start, pr.grid_range.char_end);
+                    }
                     r_pass.set_scissor_rect(0, 0, self.surface_config.width, self.surface_config.height);
                     continue;
                 }
