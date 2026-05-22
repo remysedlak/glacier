@@ -143,7 +143,7 @@ pub async fn create_graphics(window: Rc<Window>, proxy: EventLoopProxy<Graphics>
     mini_windows.push(mixer_window);
 
     // init piano window
-    let piano_window = MiniWindow::new(256.0, 128.0, 1092.0, 500.0, "Piano", WindowKind::PianoRoll, true);
+    let piano_window = MiniWindow::new(256.0, 400.0, 1092.0, 600.0, "Piano", WindowKind::PianoRoll, true);
     mini_windows.push(piano_window);
 
     let roboto = ("roboto", include_bytes!("../../assets/fonts/Roboto-VariableFont_wdth,wght.ttf") as &[u8]);
@@ -635,7 +635,7 @@ impl Graphics {
                 PIANO_ROLL_ID if self.mini_windows[PIANO_ROLL_ID].is_open => {
                     let window = &self.mini_windows[PIANO_ROLL_ID];
                     let (verts, texts, piano_key_verts, piano_key_texts, grid_verts, grid_texts, result, cursor) =
-                        piano_roll::draw(window, &mouse_state, self.piano_roll_scroll_x, self.piano_roll_scroll_y, &screen_config);
+                        piano_roll::window::draw(window, &mouse_state, self.piano_roll_scroll_x, self.piano_roll_scroll_y, &screen_config);
 
                     // static (titlebar + background) — no scroll
                     vertices.extend(verts);
@@ -915,12 +915,12 @@ impl Graphics {
                         let win_bottom = ((win.y + win.height) as u32).min(self.surface_config.height);
                         let ww = win_right.saturating_sub(wx);
                         let wh = win_bottom.saturating_sub(wy);
-                        let content_y = (win.y as u32 + 64).min(self.surface_config.height);
-                        let content_h = win_bottom.saturating_sub(content_y);
+                        let content_y = (win.y as u32 + 72).min(self.surface_config.height);
+                        let content_h = win_bottom.saturating_sub(content_y).saturating_sub(32);
 
-                        let key_w = (80u32).min(ww);
+                        let key_w = (72u32).min(ww);
                         let grid_x = wx + key_w;
-                        let grid_w = ww.saturating_sub(key_w);
+                        let grid_w = ww.saturating_sub(key_w).saturating_sub(16);
 
                         r_pass.set_scissor_rect(wx, wy, ww.max(1), wh.max(1));
                         Graphics::draw_geom(

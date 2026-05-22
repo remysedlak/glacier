@@ -508,7 +508,7 @@ impl ApplicationHandler<Graphics> for App {
                             }
                         } else {
                             if !(gfx.piano_roll_scroll_y == 0.0 && self.mouse_state.scroll_y < 0.0) {
-                                gfx.piano_roll_scroll_y += self.mouse_state.scroll_y * 35.0;
+                                gfx.piano_roll_scroll_y = (gfx.piano_roll_scroll_y + self.mouse_state.scroll_y * 35.0).clamp(0.0, 1250.0);
                             }
                         }
                     }
