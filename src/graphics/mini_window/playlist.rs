@@ -85,6 +85,12 @@ pub fn draw(
                 width: PLAYLIST_STEP_WIDTH,
                 height: PLAYLIST_STEP_HEIGHT,
             };
+            if pl_step.x + pl_step.width < window.x || pl_step.x > window.x + window.width {
+                continue;
+            }
+            if pl_step.y + pl_step.height < window.y || pl_step.y > window.y + window.height {
+                continue;
+            }
 
             // add a new event with the active pattern at this step
             let hovered: bool = pl_step.is_hovered(mouse_state.x, mouse_state.y) && !mouse_state.left_click_held;
@@ -135,6 +141,9 @@ pub fn draw(
             width: TIMELINE_X_ORIGIN - PAD_4,
             height: PLAYLIST_STEP_HEIGHT,
         };
+        if background.y + background.height < window.y || background.y > window.y + window.height {
+            continue;
+        }
         track_header_vertices.extend(background.draw(&screen_config, PEBBLE, NO_RADIUS));
         track_header_text_items.push(TextItem {
             text: format!("Track {}", track).to_string(),
@@ -155,6 +164,13 @@ pub fn draw(
                 width: PLAYLIST_STEP_GAP * event.length as f32,
                 height: PLAYLIST_STEP_HEIGHT,
             };
+
+            if pl_pattern.x + pl_pattern.width < window.x || pl_pattern.x > window.x + window.width {
+                continue;
+            }
+            if pl_pattern.y + pl_pattern.height < window.y || pl_pattern.y > window.y + window.height {
+                continue;
+            }
 
             // delete a placed pattern
             if pl_pattern.is_hovered(mouse_state.x, mouse_state.y) {
