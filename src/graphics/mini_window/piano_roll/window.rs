@@ -69,7 +69,7 @@ pub fn draw(
             width: ICON_SIZE,
             height: ICON_SIZE,
         };
-        let hovered = icon_rect.is_hovered(mouse_state.x, mouse_state.y);
+        let _hovered = icon_rect.is_hovered(mouse_state.x, mouse_state.y);
         static_vertices.extend(icon_rect.draw(screen_config, DARK_GRAY, NO_RADIUS));
     }
 
@@ -77,7 +77,6 @@ pub fn draw(
     for octave in 0..9 {
         for semitone in 0..12 {
             if BLACK_SEMITONE_INDEXES.contains(&semitone) {
-                // two pieces for black keys, one for the black key itself and one for the false white key in front of it
                 let white_key_width = 24.0;
                 let black_key_width = PIANO_ROLL_WIDTH - white_key_width;
                 let black_piano_key = Rectangle {
@@ -103,7 +102,6 @@ pub fn draw(
                     [2.0, 2.0, 2.0, 2.0],
                 ));
             } else {
-                // full white piano key
                 let piano_key = Rectangle {
                     x: window.x + SEMITONE_OFFSET_X,
                     y: window.y + (semitone as f32 * SEMITONE_GAP) + (octave as f32 * OCTAVE_GAP) + PIANO_ROLL_MARGIN + PAD_8 - scroll_y,
@@ -116,7 +114,8 @@ pub fn draw(
                     [2.0, 2.0, 2.0, 2.0],
                 ));
             }
-            // draw steps to draw the melody on
+
+            // draw steps
             for step_index in 0..127 {
                 let piano_roll_step = Rectangle {
                     x: window.x + (step_index as f32 * PAD_16) + PIANO_ROLL_MARGIN + SEMITONE_OFFSET_X - scroll_x,
@@ -124,7 +123,18 @@ pub fn draw(
                     height: SEMITONE_HEIGHT,
                     width: 15.0,
                 };
-                let hovered: bool = piano_roll_step.is_hovered(mouse_state.x, mouse_state.y) && !mouse_state.left_click_held;
+
+                if piano_roll_step.y + piano_roll_step.height < window.y || piano_roll_step.y > window.y + window.height {
+                    break; // all steps on this row share the same y, no point continuing
+                }
+                if piano_roll_step.x + piano_roll_step.width < window.x {
+                    continue;
+                }
+                if piano_roll_step.x > window.x + window.width {
+                    break; // x is monotonically increasing, nothing further will be visible
+                }
+
+                let hovered = piano_roll_step.is_hovered(mouse_state.x, mouse_state.y) && !mouse_state.left_click_held;
                 let color = if hovered {
                     if (step_index / 4) % 2 == 0 {
                         BLUE_HOVER
@@ -140,7 +150,7 @@ pub fn draw(
                 };
                 grid_vertices.extend(piano_roll_step.draw(screen_config, color, NO_RADIUS));
             }
-        }
+        } // end semitone loop
 
         // push label for C note
         let c_label = format!("C{}", 8 - octave);
@@ -152,7 +162,8 @@ pub fn draw(
             font: "mono",
             color: BLACK,
         });
-    }
+    } // end octave loop
+    dbg!(scroll_x, scroll_y);
     (
         static_vertices,
         static_text_items,
