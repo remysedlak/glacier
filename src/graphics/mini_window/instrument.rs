@@ -1,4 +1,5 @@
 use crate::app::MouseState;
+use crate::graphics::font::ROBOTO_FONT;
 use crate::graphics::primitives::NO_RADIUS;
 use crate::graphics::{
     color::{DARK_GRAY, PURPLE, WHITE},
@@ -45,7 +46,7 @@ pub fn draw(
         x: window.x + PAD_16,
         y: window.y + PAD_16,
         size: 18.0,
-        font: "roboto",
+        font: ROBOTO_FONT,
         color: WHITE,
     });
     vertices.extend(rectangle.draw(&screen_config, DARK_GRAY, NO_RADIUS));

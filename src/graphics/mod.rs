@@ -1,5 +1,6 @@
 use crate::app::MouseState;
 
+use crate::graphics::font::{MONO_FONT, ROBOTO_FONT};
 use crate::graphics::mini_window::{piano_roll, PianoRollDrawRanges, PIANO_ROLL_ID};
 use crate::graphics::primitives::NO_RADIUS;
 use crate::graphics::{
@@ -146,9 +147,11 @@ pub async fn create_graphics(window: Rc<Window>, proxy: EventLoopProxy<Graphics>
     // init piano window
     let piano_window = MiniWindow::new(256.0, 400.0, 1092.0, 600.0, "Piano", WindowKind::PianoRoll, true);
     mini_windows.push(piano_window);
-
-    let roboto = ("roboto", include_bytes!("../../assets/fonts/Roboto-VariableFont_wdth,wght.ttf") as &[u8]);
-    let mono = ("mono", include_bytes!("../../assets/fonts/IBMPlexMono-Regular.ttf") as &[u8]);
+    let roboto = (
+        ROBOTO_FONT,
+        include_bytes!("../../assets/fonts/Roboto-VariableFont_wdth,wght.ttf") as &[u8],
+    );
+    let mono = (MONO_FONT, include_bytes!("../../assets/fonts/IBMPlexMono-Regular.ttf") as &[u8]);
     let mut font_cache: HashMap<String, fontdue::Font> = HashMap::new();
     let mut glyph_cache: HashMap<String, HashMap<(char, u32), (wgpu::Texture, wgpu::BindGroup, fontdue::Metrics)>> = HashMap::new();
 
@@ -778,7 +781,7 @@ impl Graphics {
                     x: tt.x + PAD_4,
                     y: tt.y + PAD_2,
                     size: 14.0,
-                    font: "mono",
+                    font: MONO_FONT,
                     color: WHITE,
                 }];
                 Graphics::push_text_draws(

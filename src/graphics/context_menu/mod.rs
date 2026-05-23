@@ -4,7 +4,7 @@ use crate::{
     app::MouseState,
     graphics::{
         color::{DARK_GRAY, DARK_GRAY_HOVER, WHITE},
-        font::TextItem,
+        font::{TextItem, ROBOTO_FONT},
         primitives::{ScreenConfig, NO_RADIUS, PAD_2, PAD_24, PAD_32, PAD_4, PAD_64, PAD_8},
         widgets::Rectangle,
         ClickResult, Vertex,
@@ -96,7 +96,7 @@ impl ContextMenu {
             x: self.x - PAD_64 + PAD_4,
             y: (self.y + (PAD_24 + PAD_8) * 0 as f32) + PAD_32 + PAD_2,
             color: WHITE,
-            font: "roboto",
+            font: ROBOTO_FONT,
             size: 14.0,
         });
         // delete text
@@ -105,7 +105,7 @@ impl ContextMenu {
             x: self.x - PAD_64 + PAD_4,
             y: (self.y + (PAD_24 + PAD_8) * 1 as f32) + PAD_32 + PAD_2,
             size: 14.0,
-            font: "roboto",
+            font: ROBOTO_FONT,
             color: WHITE,
         });
 
@@ -182,7 +182,7 @@ impl ContextMenu {
             x: self.x - PAD_64 + PAD_4,
             y: (self.y + (PAD_24) * 0 as f32) + PAD_32 + PAD_2,
             size: 14.0,
-            font: "roboto",
+            font: ROBOTO_FONT,
             color: WHITE,
         });
         texts.push(TextItem {
@@ -190,7 +190,7 @@ impl ContextMenu {
             x: self.x - PAD_64 + PAD_4,
             y: (self.y + (PAD_24) * 4 as f32) + PAD_32 + PAD_2,
             size: 14.0,
-            font: "roboto",
+            font: ROBOTO_FONT,
             color: WHITE,
         });
         texts.push(TextItem {
@@ -198,7 +198,7 @@ impl ContextMenu {
             x: self.x - PAD_64 + PAD_4,
             y: (self.y + (PAD_24) * 1 as f32) + PAD_32 + PAD_2,
             size: 14.0,
-            font: "roboto",
+            font: ROBOTO_FONT,
             color: WHITE,
         });
         (vertices, texts, click_result, cursor_icon)

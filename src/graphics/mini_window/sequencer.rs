@@ -1,6 +1,7 @@
 use crate::app::MouseState;
 
 use crate::graphics::color::{DARK_GRAY_HOVER, LIGHT_GRAY, LL_GRAY, ORANGE, ORANGE_HOVER};
+use crate::graphics::font::ROBOTO_FONT;
 use crate::graphics::primitives::{BOTTOM_RADIUS, NO_RADIUS};
 use crate::graphics::{
     color::{BLACK, BLUE, DARK_GRAY, WHITE},
@@ -111,14 +112,14 @@ pub fn draw(
                     height: SEQUENCER_STEP_HEIGHT,
                 };
                 let is_active = velocity > 0.0;
-                let step_color = if mouse_state.left_click_held && is_active {
-                    ORANGE_HOVER
+                let step_color = if step.is_hovered(mouse_state.x, mouse_state.y) && is_active {
+                    DARK_GRAY
                 } else if step.is_hovered(mouse_state.x, mouse_state.y) {
                     LL_GRAY
                 } else if is_active {
-                    ORANGE
+                    BLACK
                 } else {
-                    LIGHT_GRAY
+                    WHITE
                 };
                 vertices.extend(step.draw(screen_config, step_color, NO_RADIUS));
 
@@ -200,7 +201,7 @@ pub fn draw(
             y: window.y + i as f32 * TRACK_GAP + ACTIONS_Y_OFFSET + PAD_2,
             size: 14.0,
             color: BLACK,
-            font: "roboto",
+            font: ROBOTO_FONT,
         });
 
         if mute_button.is_hovered(mouse_state.x, mouse_state.y) {
@@ -237,7 +238,7 @@ pub fn draw(
             y: window.y + i as f32 * TRACK_GAP + ACTIONS_Y_OFFSET + PAD_2,
             size: 14.0,
             color: BLACK,
-            font: "roboto",
+            font: ROBOTO_FONT,
         });
         if velocity_button.is_hovered(mouse_state.x, mouse_state.y) {
             cursor_icon = CursorIcon::Pointer;
@@ -248,11 +249,9 @@ pub fn draw(
 
         // track volume knob
         for vert in draw_knob(
-            instrument.data.track_volume,
             window.x + KNOB_OFFSET,
             window.y + (i as f32 * TRACK_GAP) + ACTIONS_Y_OFFSET + PAD_8,
-            KNOB_RADIUS,
-            35, // segments for a circle
+            instrument.data.track_volume,
             screen_config,
         ) {
             vertices.push(vert);
@@ -273,7 +272,7 @@ pub fn draw(
             y: window.y + i as f32 * TRACK_GAP + PAD_16 + PAD_4,
             size: 16.0,
             color: WHITE,
-            font: "roboto",
+            font: ROBOTO_FONT,
         });
     }
 

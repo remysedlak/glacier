@@ -4,8 +4,9 @@ use crate::{
     app::MouseState,
     graphics::{
         color::*,
+        font::ROBOTO_FONT,
         mini_window::MiniWindow,
-        primitives::{ScreenConfig, BOTTOM_RADIUS, NO_RADIUS},
+        primitives::{ScreenConfig, BOTTOM_RADIUS},
         widgets::{draw_slider, window_background, window_title_bar},
         ClickResult, TextItem, Vertex,
     },
@@ -45,7 +46,7 @@ pub fn draw(
         x: window.x,
         size: 18.0,
         y: window.y,
-        font: "roboto",
+        font: ROBOTO_FONT,
         color: WHITE,
     });
     (vertices, text_items, click_result, cursor_icon)

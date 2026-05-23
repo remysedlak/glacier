@@ -1,5 +1,6 @@
 use crate::app::MouseState;
 use crate::graphics::color::{LIGHT_GRAY, LL_GRAY};
+use crate::graphics::font::ROBOTO_FONT;
 use crate::graphics::primitives::{NO_RADIUS, PAD_2};
 use crate::graphics::{
     color::{BLACK, PEBBLE, WHITE},
@@ -39,7 +40,7 @@ pub fn draw(
         y: TOOLBAR_Y + PAD_8,
         size: 18.0,
         color: WHITE,
-        font: "roboto",
+        font: ROBOTO_FONT,
     });
 
     // load each pattern's name
@@ -50,7 +51,7 @@ pub fn draw(
             y: 52.0 + (32.0 * i as f32) + PAD_32 + PAD_2,
             size: 16.0,
             color: BLACK,
-            font: "roboto",
+            font: ROBOTO_FONT,
         });
     }
 

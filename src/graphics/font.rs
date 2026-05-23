@@ -10,6 +10,9 @@ pub struct TextItem {
     pub y: f32,
 }
 
+pub const ROBOTO_FONT: &str = "roboto";
+pub const MONO_FONT: &str = "mono";
+
 pub fn create_bind_group_layout(device: &wgpu::Device) -> wgpu::BindGroupLayout {
     device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
         label: None,

@@ -1,5 +1,6 @@
 use crate::app::MouseState;
 use crate::graphics::color::{DARK_GRAY, DARK_GRAY_HOVER};
+use crate::graphics::font::ROBOTO_FONT;
 use crate::graphics::primitives::NO_RADIUS;
 use crate::graphics::{
     color::{LIGHT_GRAY, PEBBLE, WHITE},
@@ -228,7 +229,7 @@ pub fn draw_toolbar(
         y: TOOLBAR_MARGIN,
         size: 18.0,
         color: WHITE,
-        font: "roboto",
+        font: ROBOTO_FONT,
     });
 
     let play_pause_label = if is_playing { "pause" } else { "play" };

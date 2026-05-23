@@ -1,8 +1,8 @@
 use crate::{
     app::MouseState,
     graphics::{
-        color::{BLACK, BLUE, BLUE_HOVER, DARK_BLUE, DARK_BLUE_HOVER, DARK_GRAY, LL_GRAY},
-        font::TextItem,
+        color::{BLACK, BLUE, BLUE_HOVER, DARK_BLUE, DARK_BLUE_HOVER, DARK_GRAY, LL_GRAY, ORANGE, WHITE},
+        font::{TextItem, MONO_FONT},
         mini_window::{
             piano_roll::{
                 black_piano_step_hover_color, white_piano_step_hover_color, BLACK_SEMITONE_INDEXES, OCTAVE_GAP, PIANO_ROLL_MARGIN, PIANO_ROLL_WIDTH,
@@ -91,16 +91,16 @@ pub fn draw(
                     height: SEMITONE_HEIGHT,
                     width: white_key_width,
                 };
-                piano_key_vertices.extend(black_piano_key.draw(
-                    screen_config,
-                    black_piano_step_hover_color(&black_piano_key, mouse_state.x, mouse_state.y),
-                    [2.0, 2.0, 2.0, 2.0],
-                ));
-                piano_key_vertices.extend(white_piano_key.draw(
-                    screen_config,
-                    white_piano_step_hover_color(&white_piano_key, mouse_state.x, mouse_state.y, semitone),
-                    [2.0, 2.0, 2.0, 2.0],
-                ));
+
+                // is either or both of the black or white piano key being hovered
+                let piano_hover =
+                    black_piano_key.is_hovered(mouse_state.x, mouse_state.y) || white_piano_key.is_hovered(mouse_state.x, mouse_state.y);
+                let white_hover_color = if piano_hover { ORANGE } else { WHITE };
+                let black_hover_color = if piano_hover { DARK_GRAY } else { BLACK };
+
+                // add both parts of the key
+                piano_key_vertices.extend(black_piano_key.draw(screen_config, black_hover_color, [2.0, 2.0, 2.0, 2.0]));
+                piano_key_vertices.extend(white_piano_key.draw(screen_config, white_hover_color, [2.0, 2.0, 2.0, 2.0]));
             } else {
                 let piano_key = Rectangle {
                     x: window.x + SEMITONE_OFFSET_X,
@@ -159,7 +159,7 @@ pub fn draw(
             x: window.x + PAD_32 + PAD_16 + PAD_2 + PAD_8,
             y: window.y + (11.0 * SEMITONE_GAP) + (octave as f32 * OCTAVE_GAP) + PIANO_ROLL_MARGIN + PAD_8 - scroll_y,
             size: 10.0,
-            font: "mono",
+            font: MONO_FONT,
             color: BLACK,
         });
     } // end octave loop
