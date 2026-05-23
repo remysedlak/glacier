@@ -1,12 +1,9 @@
 use crate::app::MouseState;
-use crate::graphics::color::{LIGHT_GRAY, LL_GRAY};
-use crate::graphics::font::ROBOTO_FONT;
-use crate::graphics::primitives::{NO_RADIUS, PAD_2};
 use crate::graphics::{
-    color::{BLACK, PEBBLE, WHITE},
-    font::TextItem,
+    color::{BLACK, LIGHT_GRAY, LL_GRAY, PEBBLE, WHITE},
+    font::{TextItem, ROBOTO_FONT},
     primitives::{ScreenConfig, PAD_16, PAD_32, PAD_8},
-    {ClickResult, CursorIcon, PatternData, Rectangle, Vertex, TOOLBAR_THICKNESS, TOOLBAR_Y},
+    {ClickResult, CursorIcon, PatternData, Rectangle, Vertex, NO_RADIUS, PAD_2, TOOLBAR_THICKNESS, TOOLBAR_Y},
 };
 
 pub fn draw(

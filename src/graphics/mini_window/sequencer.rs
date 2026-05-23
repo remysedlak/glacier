@@ -1,13 +1,11 @@
 use crate::app::MouseState;
-
-use crate::graphics::color::{DARK_GRAY_HOVER, LIGHT_GRAY, LL_GRAY, ORANGE, ORANGE_HOVER};
-use crate::graphics::font::ROBOTO_FONT;
-use crate::graphics::primitives::{BOTTOM_RADIUS_16, NO_RADIUS};
+use crate::graphics::color::BLUE_HOVER;
 use crate::graphics::{
-    color::{BLACK, BLUE, DARK_GRAY, WHITE},
+    color::{BLACK, BLUE, DARK_GRAY, DARK_GRAY_HOVER, LIGHT_GRAY, LL_GRAY, ORANGE, ORANGE_HOVER, WHITE},
+    font::ROBOTO_FONT,
     icons::IconDraw,
     mini_window::{MiniWindow, MINI_WINDOW_BACKGROUND},
-    primitives::{draw_knob, ScreenConfig, Vertex, BUTTON_GAP, PAD_16, PAD_2, PAD_4, PAD_8},
+    primitives::{draw_knob, ScreenConfig, Vertex, BOTTOM_RADIUS_16, BUTTON_GAP, NO_RADIUS, PAD_16, PAD_2, PAD_4, PAD_8},
     widgets::window_title_bar,
     {ClickResult, Rectangle, TextItem},
 };
@@ -51,7 +49,7 @@ pub fn draw(
     vertices.extend(window_background.draw(&screen_config, MINI_WINDOW_BACKGROUND, BOTTOM_RADIUS_16));
 
     // titlebar
-    let (titlebar_verts, titlebar_texts, result, cursor) = window_title_bar(&window, &screen_config, &mouse_state);
+    let (titlebar_verts, titlebar_texts, result, cursor) = window_title_bar(&window, "Sequencer", &screen_config, &mouse_state);
     if !matches!(cursor, CursorIcon::Default) {
         cursor_icon = cursor;
     }
@@ -112,7 +110,11 @@ pub fn draw(
                     height: SEQUENCER_STEP_HEIGHT,
                 };
                 let is_active = step.velocity > 0.0;
-                let step_color = if step_button.is_hovered(mouse_state.x, mouse_state.y) && is_active {
+                let step_color = if j == active_step && step_button.is_hovered(mouse_state.x, mouse_state.y) {
+                    BLUE_HOVER
+                } else if j == active_step {
+                    BLUE
+                } else if step_button.is_hovered(mouse_state.x, mouse_state.y) && is_active {
                     DARK_GRAY
                 } else if step_button.is_hovered(mouse_state.x, mouse_state.y) {
                     LL_GRAY
@@ -154,7 +156,7 @@ pub fn draw(
                                 steps,
                             });
                         }
-                        click_result = ClickResult::Step(active_pattern_id, instrument.data.id as usize, j);
+                        click_result = ClickResult::ToggleStep(active_pattern_id, instrument.data.id as usize, j);
                     }
                 }
             }
@@ -179,10 +181,10 @@ pub fn draw(
         if track_button.is_hovered(mouse_state.x, mouse_state.y) {
             cursor_icon = CursorIcon::Pointer;
             if mouse_state.left_clicked {
-                click_result = ClickResult::ToggleInstrumentWindow(i);
+                click_result = ClickResult::ToggleTrackWindow(i);
             }
             if mouse_state.right_clicked {
-                click_result = ClickResult::OpenTrackMenu(track_button_x, track_button_y, i);
+                click_result = ClickResult::OpenTrackMenu(track_button_x, track_button_y, active_pattern_id, i);
             }
         }
 
@@ -218,7 +220,7 @@ pub fn draw(
             cursor_icon = CursorIcon::Pointer;
             if mouse_state.left_clicked {
                 instrument.data.is_muted = !instrument.data.is_muted;
-                click_result = ClickResult::Mute(i);
+                click_result = ClickResult::ToggleTrackMute(i);
             }
         }
 

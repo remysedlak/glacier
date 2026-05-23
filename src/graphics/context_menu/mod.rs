@@ -13,7 +13,7 @@ use crate::{
 
 pub enum ContextMenuKind {
     PatternContext(usize),
-    TrackContext(usize),
+    TrackContext(usize, usize),
 }
 
 pub struct ContextMenu {
@@ -35,7 +35,7 @@ impl ContextMenu {
     pub fn draw(&self, screen_config: &ScreenConfig, mouse_state: &MouseState) -> (Vec<Vertex>, Vec<TextItem>, ClickResult, CursorIcon) {
         match &self.kind {
             ContextMenuKind::PatternContext(id) => self.draw_pattern_context(screen_config, mouse_state, *id),
-            ContextMenuKind::TrackContext(track) => self.draw_track_context(screen_config, mouse_state, *track),
+            ContextMenuKind::TrackContext(pattern, track) => self.draw_track_context(screen_config, mouse_state, *pattern, *track),
         }
     }
 
@@ -125,7 +125,8 @@ impl ContextMenu {
         &self,
         screen_config: &ScreenConfig,
         mouse_state: &MouseState,
-        id: usize,
+        pattern_id: usize,
+        track_id: usize,
     ) -> (Vec<Vertex>, Vec<TextItem>, ClickResult, CursorIcon) {
         let mut vertices: Vec<Vertex> = Vec::new();
         let mut texts: Vec<TextItem> = Vec::new();
@@ -153,11 +154,14 @@ impl ContextMenu {
                         }
                         1 => {
                             // piano roll
-                            click_result = ClickResult::CloseContextMenu;
+                            click_result = ClickResult::LoadPianoRoll(crate::app::PianoRollState {
+                                pattern_id: (pattern_id),
+                                instrument_id: (track_id as u32),
+                            });
                         }
                         4 => {
                             // delete
-                            click_result = ClickResult::DeleteTrack(id);
+                            click_result = ClickResult::DeleteTrack(track_id);
                         }
                         _ => {
                             click_result = ClickResult::CloseContextMenu;

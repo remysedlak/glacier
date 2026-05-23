@@ -23,6 +23,7 @@ pub fn draw(screen_config: &ScreenConfig, path: &String, frame_rate: f32) -> (Ve
         height: FOOTER_Y_HEIGHT,
     };
     vertices.extend(footer.draw(screen_config, BLACK, NO_RADIUS));
+
     texts.push(TextItem {
         text: path.to_string(),
         x: footer_x + PAD_4,

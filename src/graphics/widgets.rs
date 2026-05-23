@@ -97,6 +97,7 @@ pub fn draw_slider(master_volume: f32, x: f32, y: f32, screen_config: &ScreenCon
 
 pub fn window_title_bar(
     window: &MiniWindow,
+    title: &str,
     screen_config: &ScreenConfig,
     mouse_state: &MouseState,
 ) -> (Vec<Vertex>, TextItem, ClickResult, CursorIcon) {
@@ -134,20 +135,20 @@ pub fn window_title_bar(
                 WindowKind::Playlist => ClickResult::TogglePlaylistWindow,
                 WindowKind::Mixer => ClickResult::ToggleMixerWindow,
                 WindowKind::PianoRoll => ClickResult::TogglePianoRollWindow,
-                WindowKind::InstrumentDetail(usize) => ClickResult::ToggleInstrumentWindow(usize), // which instrument
+                WindowKind::InstrumentDetail(usize) => ClickResult::ToggleTrackWindow(usize),
             }
         }
     }
     // build text item
-    let title = TextItem {
-        text: window.title.to_string(),
+    let window_title = TextItem {
+        text: title.to_string(),
         x: window.x + window.width / 2.2,
         y: window.y - TITLEBAR_HEIGHT + PAD_4,
         color: WHITE,
         size: 18.0,
         font: ROBOTO_FONT,
     };
-    (verticies, title, result, cursor_icon)
+    (verticies, window_title, result, cursor_icon)
 }
 
 pub fn window_background(window: &MiniWindow) -> Rectangle {

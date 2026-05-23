@@ -12,9 +12,10 @@ use ringbuf::{
 // commands retrieved from the user interface
 pub enum AudioCommand {
     ToggleStep(usize, usize, usize),
+    ToggleNote(usize, u32, usize, u8), // pattern_id, instrument_id, step_idx, pitch
     ChangeBpm(f32),
     ChangeMasterVolume(f32),
-    ToggleMute(usize),
+    ToggleTrackMute(usize),
     TogglePlay,
     Stop,
     ShutDown,
@@ -92,6 +93,20 @@ pub fn init(mut consumer: HeapCons<AudioCommand>, mut producer: HeapProd<UiComma
         // parse incoming UI commands before fulfilling data callback
         while let Some(cmd) = consumer.try_pop() {
             match cmd {
+                AudioCommand::ToggleNote(pattern_id, instrument_id, step_idx, pitch) => {
+                    if let Some(seq) = patterns[pattern_id].sequences.iter_mut().find(|s| s.instrument_id == instrument_id) {
+                        let note = &mut seq.steps[step_idx];
+                        if note.velocity > 0.0 && note.pitch == pitch {
+                            *note = Note::default();
+                        } else {
+                            *note = Note { velocity: 95.0, pitch };
+                        }
+                    } else {
+                        let mut steps = vec![Note::default(); 32];
+                        steps[step_idx] = Note { velocity: 95.0, pitch };
+                        patterns[pattern_id].sequences.push(Sequence { instrument_id, steps });
+                    }
+                }
                 AudioCommand::AddPattern => {
                     let name = format!("Pattern {}", patterns.len() + 1);
                     let sequences = instruments
@@ -197,7 +212,7 @@ pub fn init(mut consumer: HeapCons<AudioCommand>, mut producer: HeapProd<UiComma
                 AudioCommand::ChangeBpm(new_bpm) => {
                     bpm = new_bpm;
                 }
-                AudioCommand::ToggleMute(i) => {
+                AudioCommand::ToggleTrackMute(i) => {
                     instruments[i].data.is_muted = !instruments[i].data.is_muted;
                     instruments[i].position = 0.0;
                     instruments[i].is_playing = false;
@@ -256,7 +271,8 @@ pub fn init(mut consumer: HeapCons<AudioCommand>, mut producer: HeapProd<UiComma
                     // ignore muted instruments
                     if !instrument.data.is_muted && instrument.is_playing {
                         // if the sample has fully played, mark it as not playing anymore
-                        if instrument.position >= instrument.samples.len() as f32 {
+                        let pos = instrument.position as usize;
+                        if pos + 1 >= instrument.samples.len() {
                             instrument.is_playing = false;
                         } else {
                             // volume ramping
@@ -264,19 +280,14 @@ pub fn init(mut consumer: HeapCons<AudioCommand>, mut producer: HeapProd<UiComma
                                 let difference = instrument.data.target_volume - instrument.current_volume;
                                 instrument.current_volume += difference * 0.01;
                             }
-
-                            // add current samples to left and right channel and increment instruments position
-                            sample[0] += instrument.samples[(instrument.position as f32) as usize]
+                            sample[0] +=
+                                instrument.samples[pos] * instrument.current_volume * instrument.data.track_volume * shutdown_volume * master_volume;
+                            sample[1] += instrument.samples[pos + 1]
                                 * instrument.current_volume
                                 * instrument.data.track_volume
                                 * shutdown_volume
                                 * master_volume;
-                            sample[1] += instrument.samples[(instrument.position as f32) as usize + 1]
-                                * instrument.current_volume
-                                * instrument.data.track_volume
-                                * shutdown_volume
-                                * master_volume;
-                            instrument.position += 2.0 * instrument.playback_rate
+                            instrument.position += 2.0 * instrument.playback_rate;
                         }
                     }
                 }

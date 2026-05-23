@@ -1,20 +1,25 @@
-use crate::app::MouseState;
+pub mod color;
+pub mod components;
+pub mod context_menu;
+pub mod font;
+pub mod icons;
+pub mod mini_window;
+pub mod primitives;
+pub mod widgets;
 
-use crate::graphics::font::{MONO_FONT, ROBOTO_FONT};
-use crate::graphics::mini_window::{piano_roll, PianoRollDrawRanges, PIANO_ROLL_ID};
-use crate::graphics::primitives::NO_RADIUS;
+use crate::app::{MouseState, PianoRollState};
 use crate::graphics::{
     color::{DARK_GRAY, WHITE},
     components::{footer, pattern_tray},
     context_menu::ContextMenu,
-    font::TextItem,
+    font::{TextItem, MONO_FONT, ROBOTO_FONT},
     icons::Tooltip,
     mini_window::{
-        instrument, mixer, playlist, sequencer,
+        instrument, mixer, piano_roll, playlist, sequencer,
         sequencer::{ACTIONS_Y_OFFSET, KNOB_OFFSET, KNOB_RADIUS, TRACK_GAP},
-        MiniWindow, PlaylistDrawRanges, WindowDrawRange, WindowKind, MIXER_ID, PLAYLIST_ID, SEQUENCER_ID,
+        MiniWindow, PianoRollDrawRanges, PlaylistDrawRanges, WindowDrawRange, WindowKind, MIXER_ID, PIANO_ROLL_ID, PLAYLIST_ID, SEQUENCER_ID,
     },
-    primitives::{ScreenConfig, Vertex, PAD_2, PAD_4, PAD_8},
+    primitives::{ScreenConfig, Vertex, NO_RADIUS, PAD_2, PAD_4, PAD_8},
     widgets::{Rectangle, TITLEBAR_HEIGHT, TOOLBAR_THICKNESS, TOOLBAR_Y},
 };
 use crate::project::{AudioBlock, AudioBlockType, Instrument, PatternData};
@@ -31,21 +36,13 @@ use winit::{
     window::{CursorIcon, Window},
 };
 
-pub mod color;
-pub mod components;
-pub mod context_menu;
-pub mod font;
-pub mod icons;
-pub mod mini_window;
-pub mod primitives;
-pub mod widgets;
-
 pub type Rc<T> = std::sync::Arc<T>;
 
 #[derive(Debug)]
 pub enum ClickResult {
-    Step(usize, usize, usize),
-    Mute(usize),
+    ToggleStep(usize, usize, usize),   // pattern_id, instrument_id, step_idx
+    ToggleNote(usize, u32, usize, u8), // pattern_id, instrument_id, step_idx, pitch
+    ToggleTrackMute(usize),
     Stop,
     ChangeBpmUp,
     ChangeBpmDown,
@@ -62,10 +59,11 @@ pub enum ClickResult {
     ToggleMixerWindow,
     TogglePlaylistWindow,
     TogglePianoRollWindow,
-    ToggleInstrumentWindow(usize),
+    LoadPianoRoll(PianoRollState),
+    ToggleTrackWindow(usize),
     SelectPattern(usize),
     OpenPatternMenu(f32, f32, usize),
-    OpenTrackMenu(f32, f32, usize),
+    OpenTrackMenu(f32, f32, usize, usize),
     CloseContextMenu,
     None,
 }
@@ -209,6 +207,7 @@ pub async fn create_graphics(window: Rc<Window>, proxy: EventLoopProxy<Graphics>
         // iconography
         icon_cache,
         tooltip: None,
+        piano_roll_state: None,
 
         // ui state
         dragging_knob: None,
@@ -281,6 +280,7 @@ pub struct Graphics {
     pub mini_windows: Vec<MiniWindow>,
     num_vertices: u32,
     pub active_pattern_id: usize,
+    pub piano_roll_state: Option<PianoRollState>,
     pub z_order: Vec<usize>,
     pub context_menu: Option<ContextMenu>,
     icon_cache: HashMap<String, (wgpu::Texture, wgpu::BindGroup)>,
@@ -486,7 +486,7 @@ impl Graphics {
     }
 
     /// main draw loop for the GUI - uses mouse state to return mouse input interactivity
-    pub fn draw(&mut self, mouse_state: &MouseState) -> (ClickResult, CursorIcon) {
+    pub fn draw(&mut self, mouse_state: &MouseState, project_is_dirty: bool) -> (ClickResult, CursorIcon) {
         let frame = self.surface.get_current_texture().expect("Failed to acquire next swap chain texture.");
         let view = frame.texture.create_view(&TextureViewDescriptor::default());
         let mut vertices: Vec<Vertex> = Vec::new();
@@ -640,8 +640,17 @@ impl Graphics {
                 }
                 PIANO_ROLL_ID if self.mini_windows[PIANO_ROLL_ID].is_open => {
                     let window = &self.mini_windows[PIANO_ROLL_ID];
-                    let (verts, texts, piano_key_verts, piano_key_texts, grid_verts, grid_texts, result, cursor) =
-                        piano_roll::window::draw(window, &mouse_state, self.piano_roll_scroll_x, self.piano_roll_scroll_y, &screen_config);
+                    let (verts, texts, piano_key_verts, piano_key_texts, grid_verts, grid_texts, result, cursor) = piano_roll::window::draw(
+                        window,
+                        &mouse_state,
+                        self.piano_roll_scroll_x,
+                        self.piano_roll_scroll_y,
+                        &screen_config,
+                        &self.patterns,
+                        &self.instruments,
+                        self.active_step,
+                        self.piano_roll_state.as_ref(),
+                    );
 
                     // static (titlebar + background) — no scroll
                     vertices.extend(verts);
@@ -856,7 +865,12 @@ impl Graphics {
         let footer_vert_start = vertices.len() as u32;
         let footer_char_start = char_draws.len();
 
-        let (verts, footer_texts) = footer::draw(&screen_config, &self.project_path, 1000.0 / self.frame_ms);
+        let title = if project_is_dirty {
+            format!("{}*", self.project_path)
+        } else {
+            self.project_path.clone()
+        };
+        let (verts, footer_texts) = footer::draw(&screen_config, &title, 1000.0 / self.frame_ms);
         vertices.extend(verts);
         Graphics::push_text_draws(
             &footer_texts,

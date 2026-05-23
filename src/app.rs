@@ -5,14 +5,12 @@ use crate::graphics::{
     {bring_to_front, create_graphics, ClickResult, DragResult, Graphics, Rc},
 };
 use crate::project::{AudioBlock, Instrument, PatternData};
-
 use cpal::{traits::StreamTrait, Stream};
 use rfd::FileDialog;
 use ringbuf::{
     traits::{Consumer, Producer, Split},
     {HeapCons, HeapProd, HeapRb},
 };
-
 use winit::{
     application::ApplicationHandler,
     dpi::PhysicalSize,
@@ -21,7 +19,6 @@ use winit::{
     keyboard::{KeyCode, PhysicalKey},
     window::{Window, WindowId},
 };
-
 // std lib
 use std::path::PathBuf;
 use std::sync::mpsc::{Receiver, TryRecvError};
@@ -37,6 +34,12 @@ pub struct MouseState {
     pub scroll_y: f32,
     pub shift_pressed: bool,
     pub left_click_held: bool,
+}
+
+#[derive(Debug)]
+pub struct PianoRollState {
+    pub pattern_id: usize,
+    pub instrument_id: u32,
 }
 
 // commands that the audio engine sends to the window
@@ -63,6 +66,7 @@ pub struct App {
     producer: HeapProd<AudioCommand>,
     consumer: HeapCons<UiCommand>,
     state: State,
+    project_is_dirty: bool,
 
     stream: Stream,
     pending_project: Option<String>,
@@ -92,7 +96,7 @@ impl App {
             ctrl_pressed: false,
             instrument_file_dialog_rx: None,
             project_file_dialog_rx: None,
-
+            project_is_dirty: false,
             // mouse state
             prev_mouse_x: 0.0,
             prev_mouse_y: 0.0,
@@ -123,6 +127,7 @@ impl App {
                         self.producer
                             .try_push(AudioCommand::AddInstrument(path.to_str().unwrap().to_string()))
                             .ok();
+                        self.project_is_dirty = true;
                         self.instrument_file_dialog_rx = None;
                     }
                     Ok(None) => {
@@ -193,18 +198,27 @@ impl App {
                             self.consumer = ui_cons;
                             self.stream = init(audio_cons, ui_prod, Some(path));
                         }
+                        self.project_is_dirty = false;
                     }
                 }
             }
 
             // single draw call — returns click result
             let start = std::time::Instant::now();
-            let (result, icon) = gfx.draw(&self.mouse_state);
+            let (result, icon) = gfx.draw(&self.mouse_state, self.project_is_dirty);
             gfx.frame_ms = start.elapsed().as_secs_f32() * 1000.0;
             gfx.window.set_cursor(icon);
 
             // dispatch audio commands based on what was clicked
             match result {
+                ClickResult::LoadPianoRoll(piano_state) => {
+                    gfx.piano_roll_state = Some(piano_state);
+
+                    if let Some(win) = gfx.mini_windows.iter_mut().find(|w| matches!(w.window_kind, WindowKind::PianoRoll)) {
+                        bring_to_front(&mut gfx.z_order, PIANO_ROLL_ID);
+                        win.is_open = true;
+                    }
+                }
                 ClickResult::TogglePianoRollWindow => {
                     if let Some(win) = gfx.mini_windows.iter_mut().find(|w| matches!(w.window_kind, WindowKind::PianoRoll)) {
                         if !win.is_open {
@@ -212,6 +226,28 @@ impl App {
                         }
                         win.is_open = !win.is_open;
                     }
+                }
+                ClickResult::ToggleNote(pattern_id, instrument_id, step_idx, pitch) => {
+                    self.producer
+                        .try_push(AudioCommand::ToggleNote(pattern_id, instrument_id, step_idx, pitch))
+                        .ok();
+
+                    // also update UI state
+                    if let Some(pattern) = gfx.patterns.iter_mut().find(|p| p.id == pattern_id) {
+                        if let Some(seq) = pattern.sequences.iter_mut().find(|s| s.instrument_id == instrument_id) {
+                            let note = &mut seq.steps[step_idx];
+                            if note.velocity > 0.0 && note.pitch == pitch {
+                                *note = crate::project::Note::default();
+                            } else {
+                                *note = crate::project::Note { velocity: 95.0, pitch };
+                            }
+                        } else {
+                            let mut steps = vec![crate::project::Note::default(); 32];
+                            steps[step_idx] = crate::project::Note { velocity: 95.0, pitch };
+                            pattern.sequences.push(crate::project::Sequence { instrument_id, steps });
+                        }
+                    }
+                    self.project_is_dirty = true;
                 }
                 ClickResult::CloseContextMenu => {
                     gfx.context_menu = None;
@@ -225,9 +261,9 @@ impl App {
                         width: 128.0,
                     });
                 }
-                ClickResult::OpenTrackMenu(x, y, id) => {
+                ClickResult::OpenTrackMenu(x, y, pattern_id, track_id) => {
                     gfx.context_menu = Some(ContextMenu {
-                        kind: ContextMenuKind::TrackContext(id),
+                        kind: ContextMenuKind::TrackContext(pattern_id, track_id),
                         x,
                         y,
                         height: 128.0,
@@ -237,15 +273,23 @@ impl App {
                 ClickResult::ChangeBpmDown => {
                     gfx.bpm -= 1.0;
                     self.producer.try_push(AudioCommand::ChangeBpm(gfx.bpm)).ok();
+                    self.project_is_dirty = true;
                 }
                 ClickResult::ChangeBpmUp => {
                     gfx.bpm += 1.0;
                     self.producer.try_push(AudioCommand::ChangeBpm(gfx.bpm)).ok();
+                    self.project_is_dirty = true;
                 }
                 ClickResult::SelectPattern(id) => {
                     gfx.active_pattern_id = id;
                 }
-                ClickResult::ToggleInstrumentWindow(track) => {
+                ClickResult::ToggleTrackWindow(track) => {
+                    // update piano roll state to show this track
+                    gfx.piano_roll_state = Some(PianoRollState {
+                        pattern_id: gfx.active_pattern_id,
+                        instrument_id: gfx.instruments[track].data.id,
+                    });
+
                     if let Some(pos) = gfx.mini_windows.iter().position(|w| w.window_kind == WindowKind::InstrumentDetail(track)) {
                         gfx.mini_windows[pos].is_open = !gfx.mini_windows[pos].is_open;
                     } else {
@@ -264,9 +308,11 @@ impl App {
                 }
                 ClickResult::AddPlaylist => {
                     self.producer.try_push(AudioCommand::AddPattern).ok();
+                    self.project_is_dirty = true;
                 }
                 ClickResult::DeletePlaylistPattern(id) => {
                     self.producer.try_push(AudioCommand::DeleteAudioBlock(id)).ok();
+                    self.project_is_dirty = true;
                 }
                 ClickResult::AddPlaylistPattern(track, start_step, length, block_type) => {
                     self.producer
@@ -278,7 +324,8 @@ impl App {
                         start_step,
                         length: length as u32,
                         block_type,
-                    })
+                    });
+                    self.project_is_dirty = true;
                 }
                 ClickResult::DeletePattern(id) => {
                     // delete from audio state
@@ -299,6 +346,7 @@ impl App {
 
                     // close menu
                     gfx.context_menu = None;
+                    self.project_is_dirty = true;
                 }
                 ClickResult::ToggleSequencerWindow => {
                     if let Some(win) = gfx.mini_windows.iter_mut().find(|w| matches!(w.window_kind, WindowKind::Sequencer)) {
@@ -325,18 +373,21 @@ impl App {
                         win.is_open = !win.is_open;
                     }
                 }
-                ClickResult::Step(pattern_id, instrument_id, step) => {
+                ClickResult::ToggleStep(pattern_id, instrument_id, step) => {
                     self.producer.try_push(AudioCommand::ToggleStep(pattern_id, instrument_id, step)).ok();
+                    self.project_is_dirty = true;
                 }
                 ClickResult::Stop => {
                     // reset song to 0:00
                     self.producer.try_push(AudioCommand::Stop).ok();
                 }
-                ClickResult::Mute(track) => {
-                    self.producer.try_push(AudioCommand::ToggleMute(track)).ok();
+                ClickResult::ToggleTrackMute(track) => {
+                    self.producer.try_push(AudioCommand::ToggleTrackMute(track)).ok();
+                    self.project_is_dirty = true;
                 }
                 ClickResult::ChangeBpm(bpm) => {
                     self.producer.try_push(AudioCommand::ChangeBpm(bpm)).ok();
+                    self.project_is_dirty = true;
                 }
                 ClickResult::TogglePlay => {
                     gfx.is_playing = !gfx.is_playing;
@@ -345,6 +396,7 @@ impl App {
                 }
                 ClickResult::DeleteTrack(i) => {
                     self.producer.try_push(AudioCommand::DeleteTrack(i)).ok();
+                    self.project_is_dirty = true;
                 }
                 ClickResult::ProjectFileDialog => {
                     if self.project_file_dialog_rx.is_none() {

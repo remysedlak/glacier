@@ -27,7 +27,8 @@ pub fn draw(
     vertices.extend(window_background.draw(&screen_config, PURPLE, [0.0, 16.0, 0.0, 16.0]));
 
     // titlebar
-    let (titlebar_verts, titlebar_texts, result, cursor) = window_title_bar(&window, screen_config, mouse_state);
+    let (titlebar_verts, titlebar_texts, result, cursor) =
+        window_title_bar(&window, &format!("Instrument: {}", track.data.name), screen_config, mouse_state);
     click_result = click_result.or(result);
     if !matches!(cursor, CursorIcon::Default) {
         cursor_icon = cursor;

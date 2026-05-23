@@ -1,20 +1,19 @@
-use crate::{
-    app::MouseState,
-    graphics::{
-        color::{BLACK, BLUE, BLUE_HOVER, DARK_BLUE, DARK_BLUE_HOVER, DARK_GRAY, LL_GRAY, ORANGE, WHITE},
-        font::{TextItem, MONO_FONT},
-        mini_window::{
-            piano_roll::{
-                black_piano_step_hover_color, white_piano_step_hover_color, BLACK_SEMITONE_INDEXES, OCTAVE_GAP, PIANO_ROLL_MARGIN, PIANO_ROLL_WIDTH,
-                SEMITONE_GAP, SEMITONE_HEIGHT, SEMITONE_OFFSET_X,
-            },
-            MINI_WINDOW_BACKGROUND,
+use crate::app::{MouseState, PianoRollState};
+use crate::graphics::{
+    color::{BLACK, BLUE, BLUE_HOVER, DARK_BLUE, DARK_BLUE_HOVER, DARK_GRAY, LL_GRAY, ORANGE, WHITE},
+    font::{TextItem, MONO_FONT},
+    mini_window::{
+        piano_roll::{
+            white_piano_step_hover_color, BLACK_SEMITONE_INDEXES, OCTAVE_GAP, PIANO_ROLL_MARGIN, PIANO_ROLL_WIDTH, SEMITONE_GAP, SEMITONE_HEIGHT,
+            SEMITONE_OFFSET_X,
         },
-        primitives::{ScreenConfig, Vertex, BOTTOM_RADIUS_16, NO_RADIUS, PAD_16, PAD_2, PAD_32, PAD_4, PAD_8},
-        widgets::{window_background, window_title_bar, Rectangle, ICON_SIZE, TITLEBAR_HEIGHT},
-        ClickResult, MiniWindow,
+        MiniWindow, MINI_WINDOW_BACKGROUND,
     },
+    primitives::{ScreenConfig, Vertex, BOTTOM_RADIUS_16, NO_RADIUS, PAD_16, PAD_2, PAD_32, PAD_4, PAD_8},
+    widgets::{window_background, window_title_bar, Rectangle, ICON_SIZE, TITLEBAR_HEIGHT},
+    ClickResult,
 };
+use crate::project::{Instrument, PatternData, Sequence};
 use winit::window::CursorIcon;
 
 pub fn draw(
@@ -23,22 +22,29 @@ pub fn draw(
     scroll_x: f32,
     scroll_y: f32,
     screen_config: &ScreenConfig,
+    patterns: &[PatternData],
+    instruments: &[Instrument],
+    active_step: usize,
+    piano_roll_state: Option<&PianoRollState>,
 ) -> (
-    Vec<Vertex>,
+    Vec<Vertex>, // static vertices (background, titlebar, toolbar)
     Vec<TextItem>,
-    Vec<Vertex>,
+    Vec<Vertex>, // piano key vertices
     Vec<TextItem>,
-    Vec<Vertex>,
+    Vec<Vertex>, // grid vertices
     Vec<TextItem>,
     ClickResult,
     CursorIcon,
 ) {
     let mut static_vertices: Vec<Vertex> = Vec::new();
     let mut static_text_items: Vec<TextItem> = Vec::new();
+    //
     let mut piano_key_vertices: Vec<Vertex> = Vec::new();
     let mut piano_key_text_items: Vec<TextItem> = Vec::new();
+    //
     let mut grid_vertices: Vec<Vertex> = Vec::new();
     let mut grid_text_items: Vec<TextItem> = Vec::new();
+    //
     let mut cursor_icon = CursorIcon::Default;
     let mut click_result = ClickResult::None;
 
@@ -46,7 +52,16 @@ pub fn draw(
     static_vertices.extend(playlist_background.draw(&screen_config, MINI_WINDOW_BACKGROUND, BOTTOM_RADIUS_16));
 
     // titlebar
-    let (titlebar_verts, titlebar_texts, result, cursor) = window_title_bar(&window, screen_config, mouse_state);
+    let title = if let Some(state) = piano_roll_state {
+        if let Some(instrument) = instruments.iter().find(|i| i.data.id == state.instrument_id) {
+            format!("Piano Roll - {}", instrument.data.name)
+        } else {
+            "Piano Roll".to_string()
+        }
+    } else {
+        "Piano Roll".to_string()
+    };
+    let (titlebar_verts, titlebar_texts, result, cursor) = window_title_bar(&window, &title, screen_config, mouse_state);
     if !matches!(cursor, CursorIcon::Default) {
         cursor_icon = cursor;
     }
@@ -73,7 +88,15 @@ pub fn draw(
         static_vertices.extend(icon_rect.draw(screen_config, DARK_GRAY, NO_RADIUS));
     }
 
-    // piano
+    // find the sequence for the current pattern and instrument, if it exists
+    let sequence: Option<&Sequence> = piano_roll_state.and_then(|state| {
+        patterns
+            .iter()
+            .find(|p| p.id == state.pattern_id)
+            .and_then(|p| p.sequences.iter().find(|s| s.instrument_id == state.instrument_id))
+    });
+
+    // piano roll keys and grid
     for octave in 0..9 {
         for semitone in 0..12 {
             if BLACK_SEMITONE_INDEXES.contains(&semitone) {
@@ -125,17 +148,26 @@ pub fn draw(
                 };
 
                 if piano_roll_step.y + piano_roll_step.height < window.y || piano_roll_step.y > window.y + window.height {
-                    break; // all steps on this row share the same y, no point continuing
+                    break;
                 }
                 if piano_roll_step.x + piano_roll_step.width < window.x {
                     continue;
                 }
                 if piano_roll_step.x > window.x + window.width {
-                    break; // x is monotonically increasing, nothing further will be visible
+                    break;
                 }
 
+                let midi_note = ((8 - octave) * 12 + semitone) as u8;
+                let is_active = sequence
+                    .and_then(|s| s.steps.get(step_index))
+                    .map(|n| n.velocity > 0.0 && n.pitch == midi_note)
+                    .unwrap_or(false);
+
                 let hovered = piano_roll_step.is_hovered(mouse_state.x, mouse_state.y) && !mouse_state.left_click_held;
-                let color = if hovered {
+
+                let color = if is_active {
+                    ORANGE
+                } else if hovered {
                     if (step_index / 4) % 2 == 0 {
                         BLUE_HOVER
                     } else {
@@ -148,6 +180,13 @@ pub fn draw(
                         DARK_BLUE
                     }
                 };
+
+                if piano_roll_step.is_hovered(mouse_state.x, mouse_state.y) && mouse_state.left_clicked {
+                    if let Some(state) = piano_roll_state {
+                        click_result = ClickResult::ToggleNote(state.pattern_id, state.instrument_id, step_index, midi_note);
+                    }
+                }
+
                 grid_vertices.extend(piano_roll_step.draw(screen_config, color, NO_RADIUS));
             }
         } // end semitone loop
@@ -163,7 +202,6 @@ pub fn draw(
             color: BLACK,
         });
     } // end octave loop
-    dbg!(scroll_x, scroll_y);
     (
         static_vertices,
         static_text_items,

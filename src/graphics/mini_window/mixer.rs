@@ -28,7 +28,7 @@ pub fn draw(
     vertices.extend(window_background.draw(&screen_config, PURPLE, BOTTOM_RADIUS_16));
 
     // window titlebar
-    let (titlebar_verts, titlebar_texts, result, cursor) = window_title_bar(&window, screen_config, mouse_state);
+    let (titlebar_verts, titlebar_texts, result, cursor) = window_title_bar(&window, "Mixer", screen_config, mouse_state);
     if !matches!(cursor, CursorIcon::Default) {
         cursor_icon = cursor;
     }

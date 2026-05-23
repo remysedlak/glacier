@@ -5,7 +5,7 @@ use crate::graphics::{
     color::{ORANGE, PEBBLE, WHITE},
     font::TextItem,
     mini_window::{MiniWindow, MINI_WINDOW_BACKGROUND},
-    primitives::{ScreenConfig, Vertex, PAD_16, PAD_32, PAD_4, PAD_64, PAD_8},
+    primitives::{ScreenConfig, Vertex, PAD_16, PAD_4, PAD_64, PAD_8},
     widgets::{window_background, window_title_bar},
     AudioBlockType, ClickResult, Rectangle,
 };
@@ -54,7 +54,7 @@ pub fn draw(
     let playlist_background = window_background(&window);
     static_vertices.extend(playlist_background.draw(&screen_config, MINI_WINDOW_BACKGROUND, BOTTOM_RADIUS_16));
 
-    let (titlebar_verts, titlebar_texts, result, cursor) = window_title_bar(&window, screen_config, mouse_state);
+    let (titlebar_verts, titlebar_texts, result, cursor) = window_title_bar(&window, "Playlist", screen_config, mouse_state);
     if !matches!(cursor, CursorIcon::Default) {
         cursor_icon = cursor;
     }
@@ -113,11 +113,11 @@ pub fn draw(
                 }
             };
 
-            if pl_step.is_hovered(mouse_state.x, mouse_state.y) && mouse_state.left_clicked {
+            if pl_step.is_hovered(mouse_state.x, mouse_state.y) && mouse_state.left_clicked && cursor != CursorIcon::ColResize {
                 click_result = ClickResult::AddPlaylistPattern(
                     track,
                     step,
-                    patterns[active_pattern_id].sequences[0].steps.len(),
+                    16, // default step count instead of sequences[0].steps.len()
                     AudioBlockType::Pattern(active_pattern_id),
                 );
             }

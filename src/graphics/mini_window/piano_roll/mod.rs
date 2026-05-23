@@ -1,9 +1,9 @@
+pub mod window;
+
 use crate::graphics::{
-    color::{BLACK, C_NOTE_COLOR, DARK_GRAY, LIGHT_GRAY, LL_GRAY, ORANGE, WHITE},
+    color::{BLACK, C_NOTE_COLOR, DARK_GRAY, ORANGE, WHITE},
     widgets::Rectangle,
 };
-
-pub mod window;
 
 pub const BLACK_SEMITONE_INDEXES: [u32; 5] = [1, 3, 5, 8, 10];
 pub const SEMITONE_GAP: f32 = 18.0;
