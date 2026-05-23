@@ -187,6 +187,7 @@ pub async fn create_graphics(window: Rc<Window>, proxy: EventLoopProxy<Graphics>
         // shapes
         vertex_buffer,
         num_vertices: vertices.len() as u32,
+        frame_ms: 0.0,
 
         // song information
         instruments,
@@ -281,6 +282,7 @@ pub struct Graphics {
     pub context_menu: Option<ContextMenu>,
     icon_cache: HashMap<String, (wgpu::Texture, wgpu::BindGroup)>,
     pub tooltip: Option<Tooltip>,
+    pub frame_ms: f32,
 
     // song
     pub project_path: String,
@@ -851,7 +853,7 @@ impl Graphics {
         let footer_vert_start = vertices.len() as u32;
         let footer_char_start = char_draws.len();
 
-        let (verts, footer_texts) = footer::draw(&screen_config, &self.project_path);
+        let (verts, footer_texts) = footer::draw(&screen_config, &self.project_path, 1000.0 / self.frame_ms);
         vertices.extend(verts);
         Graphics::push_text_draws(
             &footer_texts,

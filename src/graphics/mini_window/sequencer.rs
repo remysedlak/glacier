@@ -267,7 +267,7 @@ pub fn draw(
             instrument.data.name.to_string()
         };
 
-        text_items.push(TextItem {g
+        text_items.push(TextItem {
             text: instrument_button_text,
             x: window.x + PAD_16,
             y: window.y + i as f32 * TRACK_GAP + PAD_16 + PAD_4,

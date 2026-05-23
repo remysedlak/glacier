@@ -91,7 +91,7 @@ pub fn draw(
                 width: 4.0,
                 height: 24.0,
             };
-            vertices.extend(indicator.draw(&screen_config, crate::graphics::color::ORANGE, NO_RADIUS));
+            vertices.extend(indicator.draw(&screen_config, crate::graphics::color::ORANGE, [7.0, 7.0, 7.0, 7.0]));
         }
 
         let pattern_button_color = if pattern_button.is_hovered(mouse_state.x, mouse_state.y) {

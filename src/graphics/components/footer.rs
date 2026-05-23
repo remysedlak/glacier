@@ -1,11 +1,11 @@
 use crate::graphics::{
-    color::{BLACK, WHITE},
+    color::{BLACK, ORANGE, WHITE},
     font::TextItem,
     primitives::{ScreenConfig, Vertex, NO_RADIUS, PAD_4, PAD_8},
     widgets::Rectangle,
 };
 
-pub fn draw(screen_config: &ScreenConfig, path: &String) -> (Vec<Vertex>, Vec<TextItem>) {
+pub fn draw(screen_config: &ScreenConfig, path: &String, frame_rate: f32) -> (Vec<Vertex>, Vec<TextItem>) {
     // setup vectors
     let mut vertices: Vec<Vertex> = Vec::new();
     let mut texts: Vec<TextItem> = Vec::new();
@@ -28,6 +28,15 @@ pub fn draw(screen_config: &ScreenConfig, path: &String) -> (Vec<Vertex>, Vec<Te
         size: 12.0,
         color: WHITE,
         font: "roboto",
+    });
+
+    texts.push(TextItem {
+        text: frame_rate.to_string(),
+        x: screen_config.width as f32 - 80.0,
+        y: footer_y + PAD_8,
+        size: 12.0,
+        color: ORANGE,
+        font: "mono",
     });
     (vertices, texts)
 }

@@ -198,7 +198,9 @@ impl App {
             }
 
             // single draw call — returns click result
+            let start = std::time::Instant::now();
             let (result, icon) = gfx.draw(&self.mouse_state);
+            gfx.frame_ms = start.elapsed().as_secs_f32() * 1000.0;
             gfx.window.set_cursor(icon);
 
             // dispatch audio commands based on what was clicked
