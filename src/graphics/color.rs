@@ -9,10 +9,10 @@ pub const PEBBLE: (f32, f32, f32) = (0.018, 0.018, 0.018);
 pub const C_NOTE_COLOR: (f32, f32, f32) = (0.59, 0.70, 0.30);
 
 // blues :'(
-pub const BLUE: (f32, f32, f32) = (0.01, 0.01, 0.98);
-pub const BLUE_HOVER: (f32, f32, f32) = (0.01, 0.01, 0.78);
-pub const DARK_BLUE: (f32, f32, f32) = (0.00, 0.00, 0.10);
-pub const DARK_BLUE_HOVER: (f32, f32, f32) = (0.00, 0.00, 0.20);
+pub const BLUE: (f32, f32, f32) = (0.10, 0.15, 0.70); // desaturated, medium
+pub const BLUE_HOVER: (f32, f32, f32) = (0.15, 0.20, 0.85); // lighter on hover
+pub const DARK_BLUE: (f32, f32, f32) = (0.06, 0.09, 0.45); // darker but not black
+pub const DARK_BLUE_HOVER: (f32, f32, f32) = (0.10, 0.13, 0.58);
 
 // high contrast
 pub const PURPLE: (f32, f32, f32) = (0.20, 0.20, 0.99);
