@@ -1,5 +1,5 @@
 use crate::graphics::{
-    color::{BLACK, DARK_GRAY, EGG_WHITE, EGG_WHITE_HOVER, WHITE},
+    color::{BLACK, C_NOTE_COLOR, DARK_GRAY, LIGHT_GRAY, LL_GRAY, ORANGE, WHITE},
     widgets::Rectangle,
 };
 
@@ -30,11 +30,11 @@ pub fn black_piano_step_hover_color(rect: &Rectangle, mx: f32, my: f32) -> (f32,
 }
 pub fn white_piano_step_hover_color(rect: &Rectangle, mx: f32, my: f32, index: u32) -> (f32, f32, f32) {
     if rect.is_hovered(mx, my) && index == 11 {
-        EGG_WHITE_HOVER
+        ORANGE
     } else if index == 11 {
-        EGG_WHITE
+        C_NOTE_COLOR
     } else if rect.is_hovered(mx, my) {
-        EGG_WHITE_HOVER
+        ORANGE
     } else {
         WHITE
     }
