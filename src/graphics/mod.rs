@@ -907,23 +907,26 @@ impl Graphics {
                 if is_piano {
                     if let Some(ref pr) = piano_roll_ranges {
                         let win = &self.mini_windows[PIANO_ROLL_ID];
-                        let wx = if win.x < 0.0 { 0u32 } else { win.x as u32 }.min(self.surface_config.width);
                         let wy = if (win.y - TITLEBAR_HEIGHT) < 0.0 {
                             0u32
                         } else {
                             (win.y - TITLEBAR_HEIGHT) as u32
                         }
                         .min(self.surface_config.height);
-                        let win_right = ((win.x + win.width) as u32).min(self.surface_config.width);
                         let win_bottom = ((win.y + win.height) as u32).min(self.surface_config.height);
+                        let wx = (win.x.max(0.0) as u32).min(self.surface_config.width);
+                        let win_right = ((win.x + win.width) as u32).min(self.surface_config.width);
                         let ww = win_right.saturating_sub(wx);
+
+                        let key_col_right = win.x + 72.0; // where the piano keys end in screen space
+                        let grid_x = (key_col_right.max(0.0) as u32).min(self.surface_config.width);
+                        let grid_w = win_right.saturating_sub(grid_x).saturating_sub(16);
+                        let key_w = grid_x.saturating_sub(wx);
                         let wh = win_bottom.saturating_sub(wy);
                         let content_y = (win.y as u32 + 72).min(self.surface_config.height);
                         let content_h = win_bottom.saturating_sub(content_y).saturating_sub(32);
 
-                        let key_w = (72u32).min(ww);
                         let grid_x = wx + key_w;
-                        let grid_w = ww.saturating_sub(key_w).saturating_sub(16);
 
                         r_pass.set_scissor_rect(wx, wy, ww.max(1), wh.max(1));
                         Graphics::draw_geom(
