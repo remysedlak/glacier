@@ -2,10 +2,9 @@ use serde::{Deserialize, Serialize};
 
 /// Project data stores song information
 #[derive(Serialize, Deserialize, Clone)]
-pub struct ProjectFile {
-    pub project_name: String,
+pub struct Project {
+    pub name: String,
     pub bpm: f32,
-    // tracks: Vec<TrackData>,
     pub events: Vec<AudioBlock>,
     pub instruments: Vec<InstrumentData>,
     pub patterns: Vec<PatternData>,
@@ -28,14 +27,6 @@ pub struct AudioBlock {
     pub start_step: u32,
     pub length: u32,
     pub block_type: AudioBlockType,
-}
-
-/// Patterns store a set of sequences
-#[derive(Serialize, Deserialize, Clone)]
-pub struct PatternData {
-    pub id: usize,
-    pub name: String,
-    pub sequences: Vec<Sequence>,
 }
 
 /// Instrument data used at runtime for sound
@@ -66,6 +57,17 @@ pub struct InstrumentData {
     pub root_note: u8,
 }
 
+/// Patterns store a set of sequences
+#[derive(Serialize, Deserialize, Clone)]
+pub struct PatternData {
+    pub id: usize,
+    pub name: String,
+    pub sequences: Vec<Sequence>,
+}
+
+// A sequencer is a grid of steps for each instrument in ONE pattern
+// The sequencer has a row of Sequence's
+
 /// One row of steps for an instrument in a pattern
 #[derive(Serialize, Deserialize, Clone)]
 pub struct Sequence {
@@ -76,24 +78,27 @@ pub struct Sequence {
 #[derive(Serialize, Deserialize, Clone)]
 pub struct Note {
     pub velocity: f32, // 0.0 = off, >0.0 = on
-    pub pitch: u8,     // midi note 0-127, 60 = middle C
+    pub pitch: u8,     // midi note 0-127, 60 = middle C5
 }
 impl Default for Note {
+    // default to off note at middle C
     fn default() -> Self {
         Note { velocity: 0.0, pitch: 60 }
     }
 }
 
 /// Load project details into memory from file path
-pub fn get_project(project_file: &str) -> Option<ProjectFile> {
-    let text = std::fs::read_to_string(project_file).ok()?;
+pub fn get_project(file_path: &str) -> Option<Project> {
+    let text = std::fs::read_to_string(file_path).ok()?;
     toml::from_str(&text).ok()
 }
 
-pub fn get_instruments(project: &ProjectFile) -> Vec<Instrument> {
-    let mut instruments: Vec<Instrument> = Vec::new();
-    for track in &project.instruments {
-        instruments.push(Instrument {
+/// load list of instruments with their audio data from project details
+pub fn get_instruments(project: &Project) -> Vec<Instrument> {
+    project
+        .instruments
+        .iter()
+        .map(|track| Instrument {
             samples: path_to_vector(&track.path),
             position: 0.0,
             data: track.clone(),
@@ -101,15 +106,17 @@ pub fn get_instruments(project: &ProjectFile) -> Vec<Instrument> {
             current_volume: 0.0,
             show_velocity: false,
             playback_rate: 1.0,
-        });
-    }
-    instruments
+        })
+        .collect()
 }
 
 /// Save the project details to a location on disk
-pub fn save_project(project: ProjectFile, project_file: String) {
+pub fn save_project(project: &Project, file_path: &str) {
+    // convert project data to TOML format
     let text = toml::to_string(&project).unwrap();
-    std::fs::write(project_file.clone(), text).unwrap();
+
+    // write toml data to project file
+    std::fs::write(file_path, text).unwrap();
 }
 
 /// load an instrument's float data from it's file path

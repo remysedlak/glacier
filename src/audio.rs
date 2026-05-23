@@ -20,6 +20,7 @@ pub enum AudioCommand {
     Stop,
     ShutDown,
     SaveProject,
+    DuplicatePattern(usize),
     AddPattern,
     DeletePattern(usize),
     AddInstrument(String),
@@ -43,8 +44,8 @@ pub fn init(mut consumer: HeapCons<AudioCommand>, mut producer: HeapProd<UiComma
     let sample_rate_f: f32 = config.sample_rate as f32;
 
     // load project from file path
-    let project = project_file.as_deref().and_then(get_project).unwrap_or_else(|| ProjectFile {
-        project_name: "New Project".to_string(),
+    let project = project_file.as_deref().and_then(get_project).unwrap_or_else(|| Project {
+        name: "New Project".to_string(),
         bpm: 120.0,
         events: vec![],
         instruments: vec![],
@@ -86,13 +87,22 @@ pub fn init(mut consumer: HeapCons<AudioCommand>, mut producer: HeapProd<UiComma
     let mut shutdown_volume: f32 = 1.00;
     let mut sample_counter: f32 = 0.0; // tracks how many samples passed, to track when a step passes
     let mut master_volume = 1.0;
-    let project_name = project.project_name.clone();
+    let name = project.name.clone();
 
     // audio callback to fill samples requested from CPAL
     let sequencer_callback = move |data: &mut [f32], _: &cpal::OutputCallbackInfo| {
         // parse incoming UI commands before fulfilling data callback
         while let Some(cmd) = consumer.try_pop() {
             match cmd {
+                AudioCommand::DuplicatePattern(pattern_id) => {
+                    if let Some(pattern) = patterns.iter().find(|p| p.id == pattern_id).cloned() {
+                        let mut new_pattern = pattern.clone();
+                        new_pattern.id = patterns.len();
+                        new_pattern.name = format!("{} Copy", pattern.name);
+                        patterns.push(new_pattern.clone());
+                        producer.try_push(UiCommand::LoadPattern(new_pattern)).ok();
+                    }
+                }
                 AudioCommand::ToggleNote(pattern_id, instrument_id, step_idx, pitch) => {
                     if let Some(seq) = patterns[pattern_id].sequences.iter_mut().find(|s| s.instrument_id == instrument_id) {
                         let note = &mut seq.steps[step_idx];
@@ -221,26 +231,26 @@ pub fn init(mut consumer: HeapCons<AudioCommand>, mut producer: HeapProd<UiComma
                     is_playing = !is_playing;
                 }
                 AudioCommand::SaveProject => {
-                    let project = ProjectFile {
-                        project_name: project_name.clone(),
+                    let project = Project {
+                        name: name.clone(),
                         bpm: bpm,
                         instruments: instruments.iter().map(|i| i.data.clone()).collect(),
                         patterns: patterns.clone(),
                         events: events.clone(),
                     };
-                    save_project(project, project_file.clone());
+                    save_project(&project, &project_file);
                     producer.try_push(UiCommand::SaveComplete).ok();
                     println!("saved to {}", project_file.clone());
                 }
                 AudioCommand::ShutDown => {
-                    let project = ProjectFile {
-                        project_name: project_name.clone(),
+                    let project = Project {
+                        name: name.clone(),
                         bpm,
                         instruments: instruments.iter().map(|i| i.data.clone()).collect(),
                         patterns: patterns.clone(),
                         events: events.clone(),
                     };
-                    save_project(project, project_file.clone());
+                    save_project(&project, &project_file);
 
                     // save is complete
                     producer.try_push(UiCommand::SaveComplete).ok();
