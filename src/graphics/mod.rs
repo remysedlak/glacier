@@ -910,28 +910,26 @@ impl Graphics {
                 if is_piano {
                     if let Some(ref pr) = piano_roll_ranges {
                         let win = &self.mini_windows[PIANO_ROLL_ID];
-                        let wy = if (win.y - TITLEBAR_HEIGHT) < 0.0 {
-                            0u32
-                        } else {
-                            (win.y - TITLEBAR_HEIGHT) as u32
-                        }
-                        .min(self.surface_config.height);
-                        let win_bottom = ((win.y + win.height) as u32).min(self.surface_config.height);
-                        let wx = (win.x.max(0.0) as u32).min(self.surface_config.width);
-                        let win_right = ((win.x + win.width) as u32).min(self.surface_config.width);
-                        let ww = win_right.saturating_sub(wx);
+                        let sw = self.surface_config.width;
+                        let sh = self.surface_config.height;
 
-                        let key_col_right = win.x + 72.0; // where the piano keys end in screen space
-                        let grid_x = (key_col_right.max(0.0) as u32).min(self.surface_config.width);
-                        let grid_w = win_right.saturating_sub(grid_x).saturating_sub(16);
-                        let key_w = grid_x.saturating_sub(wx);
+                        let wx = (win.x.max(0.0) as u32).min(sw);
+                        let wy = ((win.y - TITLEBAR_HEIGHT).max(0.0) as u32).min(sh);
+                        let win_right = ((win.x + win.width) as u32).min(sw);
+                        let win_bottom = ((win.y + win.height) as u32).min(sh);
+                        let ww = win_right.saturating_sub(wx);
                         let wh = win_bottom.saturating_sub(wy);
-                        let content_y = (win.y as u32 + 72).min(self.surface_config.height);
+
+                        let content_y = (win.y as u32 + 72).min(sh);
                         let content_h = win_bottom.saturating_sub(content_y).saturating_sub(32);
 
-                        let grid_x = wx + key_w;
+                        let key_col_right = (win.x + 72.0).max(0.0) as u32;
+                        let grid_x = key_col_right.min(sw);
+                        let key_w = grid_x.saturating_sub(wx);
+                        let grid_w = win_right.saturating_sub(grid_x).saturating_sub(16);
 
-                        r_pass.set_scissor_rect(wx, wy, ww.max(1), wh.max(1));
+                        let (sx, sy, sw2, sh2) = Self::safe_scissor(wx, wy, ww, wh, sw, sh);
+                        r_pass.set_scissor_rect(sx, sy, sw2, sh2);
                         Graphics::draw_geom(
                             &mut r_pass,
                             &self.vertex_buffer,
@@ -941,8 +939,8 @@ impl Graphics {
                         );
                         Graphics::draw_chars(&mut r_pass, &char_draws, pr.static_range.char_start, pr.static_range.char_end);
 
-                        // piano keys — fixed narrow column, only scrolls vertically
-                        r_pass.set_scissor_rect(wx, content_y, key_w.max(1), content_h.max(1));
+                        let (sx, sy, sw2, sh2) = Self::safe_scissor(wx, content_y, key_w, content_h, sw, sh);
+                        r_pass.set_scissor_rect(sx, sy, sw2, sh2);
                         Graphics::draw_geom(
                             &mut r_pass,
                             &self.vertex_buffer,
@@ -952,8 +950,8 @@ impl Graphics {
                         );
                         Graphics::draw_chars(&mut r_pass, &char_draws, pr.piano_range.char_start, pr.piano_range.char_end);
 
-                        // grid — scrolls both x and y
-                        r_pass.set_scissor_rect(grid_x, content_y, grid_w.max(1), content_h.max(1));
+                        let (sx, sy, sw2, sh2) = Self::safe_scissor(grid_x, content_y, grid_w, content_h, sw, sh);
+                        r_pass.set_scissor_rect(sx, sy, sw2, sh2);
                         Graphics::draw_geom(
                             &mut r_pass,
                             &self.vertex_buffer,
@@ -970,68 +968,58 @@ impl Graphics {
                 if is_playlist {
                     if let Some(ref pl) = playlist_window_ranges {
                         let win = &self.mini_windows[PLAYLIST_ID];
-                        let win_right = ((win.x + win.width) as u32).min(self.surface_config.width);
-                        let wx = if win.x < 0.0 { 0u32 } else { win.x as u32 };
+                        let sw = self.surface_config.width;
+                        let sh = self.surface_config.height;
+
+                        let wx = (win.x.max(0.0) as u32).min(sw);
+                        let wy = ((win.y - TITLEBAR_HEIGHT).max(0.0) as u32).min(sh);
+                        let win_right = ((win.x + win.width) as u32).min(sw);
+                        let win_bottom = ((win.y + win.height) as u32).min(sh);
                         let ww = win_right.saturating_sub(wx);
-                        let wy = if (win.y - TITLEBAR_HEIGHT) < 0.0 {
-                            0u32
-                        } else {
-                            ((win.y - TITLEBAR_HEIGHT) as u32).min(self.surface_config.height)
-                        };
-                        let wh = (win.height as u32 + TITLEBAR_HEIGHT as u32).min(self.surface_config.height.saturating_sub(wy));
-                        let content_y = (win.y as u32 + 64).min(self.surface_config.height);
-                        let win_bottom = ((win.y + win.height) as u32).min(self.surface_config.height);
+                        let wh = win_bottom.saturating_sub(wy);
+
+                        let content_y = (win.y as u32 + 64).min(sh);
                         let content_h = win_bottom.saturating_sub(content_y);
-                        let header_width = 144u32;
-                        let step_start_x = win.x + header_width as f32;
-                        let tx = if step_start_x < 0.0 {
-                            0u32
-                        } else {
-                            (step_start_x as u32).min(self.surface_config.width)
-                        };
-                        let tw = win_right.saturating_sub(tx);
-                        let header_tw = tx.saturating_sub(wx);
+                        let header_x = ((win.x + 144.0).max(0.0) as u32).min(sw);
+                        let header_w = header_x.saturating_sub(wx);
+                        let timeline_w = win_right.saturating_sub(header_x);
 
-                        r_pass.set_scissor_rect(wx, wy, ww, wh);
-                        if pl.static_range.vert_start < pl.static_range.vert_end {
-                            r_pass.set_bind_group(0, &any_bg.1, &[]);
-                            r_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
-                            r_pass.draw(pl.static_range.vert_start..pl.static_range.vert_end, 0..1);
-                        }
-                        for i in pl.static_range.char_start..pl.static_range.char_end {
-                            r_pass.set_bind_group(0, char_draws[i].1, &[]);
-                            r_pass.set_vertex_buffer(0, char_draws[i].0.slice(..));
-                            r_pass.draw(0..6, 0..1);
-                        }
+                        let (sx, sy, sw2, sh2) = Self::safe_scissor(wx, wy, ww, wh, sw, sh);
+                        r_pass.set_scissor_rect(sx, sy, sw2, sh2);
+                        Graphics::draw_geom(
+                            &mut r_pass,
+                            &self.vertex_buffer,
+                            &any_bg.1,
+                            pl.static_range.vert_start,
+                            pl.static_range.vert_end,
+                        );
+                        Graphics::draw_chars(&mut r_pass, &char_draws, pl.static_range.char_start, pl.static_range.char_end);
 
-                        r_pass.set_scissor_rect(wx, content_y, header_tw.max(1), content_h);
-                        if pl.header_range.vert_start < pl.header_range.vert_end {
-                            r_pass.set_bind_group(0, &any_bg.1, &[]);
-                            r_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
-                            r_pass.draw(pl.header_range.vert_start..pl.header_range.vert_end, 0..1);
-                        }
-                        for i in pl.header_range.char_start..pl.header_range.char_end {
-                            r_pass.set_bind_group(0, char_draws[i].1, &[]);
-                            r_pass.set_vertex_buffer(0, char_draws[i].0.slice(..));
-                            r_pass.draw(0..6, 0..1);
-                        }
+                        let (sx, sy, sw2, sh2) = Self::safe_scissor(wx, content_y, header_w, content_h, sw, sh);
+                        r_pass.set_scissor_rect(sx, sy, sw2, sh2);
+                        Graphics::draw_geom(
+                            &mut r_pass,
+                            &self.vertex_buffer,
+                            &any_bg.1,
+                            pl.header_range.vert_start,
+                            pl.header_range.vert_end,
+                        );
+                        Graphics::draw_chars(&mut r_pass, &char_draws, pl.header_range.char_start, pl.header_range.char_end);
 
-                        r_pass.set_scissor_rect(tx, content_y, tw.max(1), content_h);
-                        if pl.timeline_range.vert_start < pl.timeline_range.vert_end {
-                            r_pass.set_bind_group(0, &any_bg.1, &[]);
-                            r_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
-                            r_pass.draw(pl.timeline_range.vert_start..pl.timeline_range.vert_end, 0..1);
-                        }
-                        for i in pl.timeline_range.char_start..pl.timeline_range.char_end {
-                            r_pass.set_bind_group(0, char_draws[i].1, &[]);
-                            r_pass.set_vertex_buffer(0, char_draws[i].0.slice(..));
-                            r_pass.draw(0..6, 0..1);
-                        }
+                        let (sx, sy, sw2, sh2) = Self::safe_scissor(header_x, content_y, timeline_w, content_h, sw, sh);
+                        r_pass.set_scissor_rect(sx, sy, sw2, sh2);
+                        Graphics::draw_geom(
+                            &mut r_pass,
+                            &self.vertex_buffer,
+                            &any_bg.1,
+                            pl.timeline_range.vert_start,
+                            pl.timeline_range.vert_end,
+                        );
+                        Graphics::draw_chars(&mut r_pass, &char_draws, pl.timeline_range.char_start, pl.timeline_range.char_end);
                     }
                     r_pass.set_scissor_rect(0, 0, self.surface_config.width, self.surface_config.height);
                     continue;
                 }
-
                 if range.vert_start < range.vert_end {
                     r_pass.set_bind_group(0, &any_bg.1, &[]);
                     r_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
@@ -1077,5 +1065,12 @@ impl Graphics {
         frame.present();
 
         (click_result, cursor_icon)
+    }
+    fn safe_scissor(x: u32, y: u32, w: u32, h: u32, sw: u32, sh: u32) -> (u32, u32, u32, u32) {
+        let x = x.min(sw.saturating_sub(1));
+        let y = y.min(sh.saturating_sub(1));
+        let w = w.min(sw.saturating_sub(x)).max(1);
+        let h = h.min(sh.saturating_sub(y)).max(1);
+        (x, y, w, h)
     }
 }

@@ -118,10 +118,10 @@ pub fn draw(
             // draw steps
             for step_index in 0..127 {
                 let piano_roll_step = Rectangle {
-                    x: window.x + (step_index as f32 * PAD_16) + PIANO_ROLL_MARGIN + SEMITONE_OFFSET_X - scroll_x,
+                    x: window.x + (step_index as f32 * PAD_32) + PIANO_ROLL_MARGIN + SEMITONE_OFFSET_X - scroll_x,
                     y: window.y + (semitone as f32 * SEMITONE_GAP) + (octave as f32 * OCTAVE_GAP) + PIANO_ROLL_MARGIN + PAD_8 - scroll_y,
                     height: SEMITONE_HEIGHT,
-                    width: 15.0,
+                    width: 30.0,
                 };
 
                 if piano_roll_step.y + piano_roll_step.height < window.y || piano_roll_step.y > window.y + window.height {
