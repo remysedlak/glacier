@@ -4,7 +4,7 @@ use crate::{
         color::*,
         font::{TextItem, ROBOTO_FONT},
         mini_window::{MiniWindow, WindowKind},
-        primitives::{draw_rectangle, Vertex, NO_RADIUS, PAD_16, PAD_4, PAD_8, TOP_RADIUS},
+        primitives::{draw_rectangle, Vertex, NO_RADIUS, PAD_16, PAD_4, PAD_8, TOP_RADIUS_16},
         ClickResult, ScreenConfig,
     },
 };
@@ -111,7 +111,7 @@ pub fn window_title_bar(
         width: window.width,
         height: TITLEBAR_HEIGHT,
     };
-    verticies.extend(title_bar_background.draw(screen_config, DARK_GRAY, TOP_RADIUS));
+    verticies.extend(title_bar_background.draw(screen_config, DARK_GRAY, TOP_RADIUS_16));
 
     // add button for closing the window
     let close_window_button = Rectangle {

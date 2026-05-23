@@ -47,25 +47,41 @@ pub struct Instrument {
     pub is_playing: bool,
     pub current_volume: f32,
     pub show_velocity: bool,
+    pub playback_rate: f32,
 }
 
 /// Instrument metadata stored on disk
 #[derive(Serialize, Deserialize, Clone)]
 pub struct InstrumentData {
     pub id: u32,
-    pub path: String, // file path
     pub name: String,
+    pub path: String,
     pub is_muted: bool,
-    // audio ramping
-    pub target_volume: f32, // volume changes from sequences
-    pub track_volume: f32,  // volume changes from volume knob
+
+    // volume ramping
+    pub target_volume: f32,
+    pub track_volume: f32,
+
+    // default 60 - C5
+    pub root_note: u8,
 }
 
 /// One row of steps for an instrument in a pattern
 #[derive(Serialize, Deserialize, Clone)]
 pub struct Sequence {
     pub instrument_id: u32,
-    pub steps: Vec<f32>,
+    pub steps: Vec<Note>,
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+pub struct Note {
+    pub velocity: f32, // 0.0 = off, >0.0 = on
+    pub pitch: u8,     // midi note 0-127, 60 = middle C
+}
+impl Default for Note {
+    fn default() -> Self {
+        Note { velocity: 0.0, pitch: 60 }
+    }
 }
 
 /// Load project details into memory from file path
@@ -74,7 +90,6 @@ pub fn get_project(project_file: &str) -> Option<ProjectFile> {
     toml::from_str(&text).ok()
 }
 
-/// Create instrument's from convering saved metadata
 pub fn get_instruments(project: &ProjectFile) -> Vec<Instrument> {
     let mut instruments: Vec<Instrument> = Vec::new();
     for track in &project.instruments {
@@ -85,6 +100,7 @@ pub fn get_instruments(project: &ProjectFile) -> Vec<Instrument> {
             is_playing: false,
             current_volume: 0.0,
             show_velocity: false,
+            playback_rate: 1.0,
         });
     }
     instruments

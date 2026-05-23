@@ -29,7 +29,7 @@ pub enum AudioCommand {
 }
 
 /// initialize the CPAL engine with project file data and return the audio stream
-pub fn init(mut consumer: HeapCons<AudioCommand>, mut producer: HeapProd<UiCommand>, project_file: String) -> Stream {
+pub fn init(mut consumer: HeapCons<AudioCommand>, mut producer: HeapProd<UiCommand>, project_file: Option<String>) -> Stream {
     // error callback
     let err_fn = |err| eprintln!("an error occurred on the output audio stream: {}", err);
 
@@ -42,10 +42,19 @@ pub fn init(mut consumer: HeapCons<AudioCommand>, mut producer: HeapProd<UiComma
     let sample_rate_f: f32 = config.sample_rate as f32;
 
     // load project from file path
-    let project = match get_project(&project_file) {
-        Some(p) => p,
-        None => panic!("{} not found!", &project_file),
-    };
+    let project = project_file.as_deref().and_then(get_project).unwrap_or_else(|| ProjectFile {
+        project_name: "New Project".to_string(),
+        bpm: 120.0,
+        events: vec![],
+        instruments: vec![],
+        patterns: vec![PatternData {
+            id: 0,
+            name: "Pattern 1".to_string(),
+            sequences: vec![],
+        }],
+    });
+
+    let project_file = project_file.unwrap_or_else(|| "assets/projects/new_project.toml".to_string());
 
     // load a set of instruments to play
     let mut instruments: Vec<Instrument> = get_instruments(&project);
@@ -89,7 +98,7 @@ pub fn init(mut consumer: HeapCons<AudioCommand>, mut producer: HeapProd<UiComma
                         .iter()
                         .map(|instr| Sequence {
                             instrument_id: instr.data.id,
-                            steps: vec![0.0; 16],
+                            steps: vec![Note::default(); 16],
                         })
                         .collect();
                     let p = PatternData {
@@ -141,13 +150,17 @@ pub fn init(mut consumer: HeapCons<AudioCommand>, mut producer: HeapProd<UiComma
                 AudioCommand::ToggleStep(pattern_id, instrument_idx, step_idx) => {
                     let instrument_id = instruments[instrument_idx].data.id;
                     if let Some(seq) = patterns[pattern_id].sequences.iter_mut().find(|s| s.instrument_id == instrument_id) {
-                        seq.steps[step_idx] = if seq.steps[step_idx] > 0.0 { 0.0 } else { 95.0 };
+                        seq.steps[step_idx] = if seq.steps[step_idx].velocity > 0.0 {
+                            Note::default()
+                        } else {
+                            Note { velocity: 95.0, pitch: 60 }
+                        };
                     } else {
                         let mut seq = Sequence {
                             instrument_id: instrument_idx as u32,
-                            steps: vec![0.0f32; 32],
+                            steps: vec![Note::default(); 32],
                         };
-                        seq.steps[step_idx] = 95.0;
+                        seq.steps[step_idx] = Note { velocity: 95.0, pitch: 60 };
                         patterns[pattern_id].sequences.push(seq);
                     }
                 }
@@ -171,10 +184,12 @@ pub fn init(mut consumer: HeapCons<AudioCommand>, mut producer: HeapProd<UiComma
                             target_volume: 1.0,
                             is_muted: false,
                             name: file_name.clone(),
+                            root_note: 60,
                         },
                         is_playing: false,
                         current_volume: 0.0,
                         show_velocity: false,
+                        playback_rate: 1.0,
                     };
                     instruments.push(instrument.clone());
                     producer.try_push(UiCommand::LoadInstrument(instrument)).ok();
@@ -261,7 +276,7 @@ pub fn init(mut consumer: HeapCons<AudioCommand>, mut producer: HeapProd<UiComma
                                 * instrument.data.track_volume
                                 * shutdown_volume
                                 * master_volume;
-                            instrument.position += 2.0;
+                            instrument.position += 2.0 * instrument.playback_rate
                         }
                     }
                 }
@@ -291,8 +306,8 @@ pub fn init(mut consumer: HeapCons<AudioCommand>, mut producer: HeapProd<UiComma
 
                 producer.try_push(UiCommand::StepAdvanced(current_step)).ok();
 
-                // store composition from list of song events
-                let triggers: Vec<(usize, f32)> = events
+                // triggers now carry pitch too
+                let triggers: Vec<(usize, f32, u8)> = events
                     .iter()
                     .filter_map(|e| {
                         if let AudioBlockType::Pattern(pid) = e.block_type {
@@ -306,15 +321,21 @@ pub fn init(mut consumer: HeapCons<AudioCommand>, mut producer: HeapProd<UiComma
                     .flat_map(|(p, local_step)| {
                         p.sequences
                             .iter()
-                            .filter(move |s| s.steps[local_step % s.steps.len()] > 0.0)
-                            .map(move |s| (s.instrument_id as usize, s.steps[local_step % s.steps.len()]))
+                            .filter(move |s| s.steps[local_step % s.steps.len()].velocity > 0.0)
+                            .map(move |s| {
+                                let note = &s.steps[local_step % s.steps.len()];
+                                (s.instrument_id as usize, note.velocity, note.pitch)
+                            })
                     })
                     .collect();
 
-                for (id, vel) in triggers {
+                for (id, vel, pitch) in triggers {
                     instruments[id].position = 0.0;
                     instruments[id].is_playing = true;
                     instruments[id].data.target_volume = vel / 127.0;
+                    // store playback rate on instrument
+                    let semitones = pitch as f32 - instruments[id].data.root_note as f32;
+                    instruments[id].playback_rate = 2.0_f32.powf(semitones / 12.0);
                 }
             }
         }

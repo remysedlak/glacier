@@ -1,6 +1,6 @@
 use crate::app::MouseState;
 use crate::graphics::color::{BLUE, BLUE_HOVER, DARK_BLUE, DARK_BLUE_HOVER, LIGHT_GRAY, LL_GRAY};
-use crate::graphics::primitives::{BOTTOM_RADIUS, NO_RADIUS};
+use crate::graphics::primitives::{BOTTOM_RADIUS_16, NO_RADIUS};
 use crate::graphics::{
     color::{ORANGE, PEBBLE, WHITE},
     font::TextItem,
@@ -52,7 +52,7 @@ pub fn draw(
     let tracks = 32;
 
     let playlist_background = window_background(&window);
-    static_vertices.extend(playlist_background.draw(&screen_config, MINI_WINDOW_BACKGROUND, BOTTOM_RADIUS));
+    static_vertices.extend(playlist_background.draw(&screen_config, MINI_WINDOW_BACKGROUND, BOTTOM_RADIUS_16));
 
     let (titlebar_verts, titlebar_texts, result, cursor) = window_title_bar(&window, screen_config, mouse_state);
     if !matches!(cursor, CursorIcon::Default) {

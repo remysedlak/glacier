@@ -2,7 +2,7 @@ use crate::app::MouseState;
 
 use crate::graphics::color::{DARK_GRAY_HOVER, LIGHT_GRAY, LL_GRAY, ORANGE, ORANGE_HOVER};
 use crate::graphics::font::ROBOTO_FONT;
-use crate::graphics::primitives::{BOTTOM_RADIUS, NO_RADIUS};
+use crate::graphics::primitives::{BOTTOM_RADIUS_16, NO_RADIUS};
 use crate::graphics::{
     color::{BLACK, BLUE, DARK_GRAY, WHITE},
     icons::IconDraw,
@@ -11,7 +11,7 @@ use crate::graphics::{
     widgets::window_title_bar,
     {ClickResult, Rectangle, TextItem},
 };
-use crate::project::{Instrument, PatternData, Sequence};
+use crate::project::{Instrument, Note, PatternData, Sequence};
 use winit::window::CursorIcon;
 
 pub const BAR_GAP: f32 = 12.0;
@@ -48,7 +48,7 @@ pub fn draw(
         width: window.width,
         height: window.height + 52.0 * instruments.len() as f32,
     };
-    vertices.extend(window_background.draw(&screen_config, MINI_WINDOW_BACKGROUND, BOTTOM_RADIUS));
+    vertices.extend(window_background.draw(&screen_config, MINI_WINDOW_BACKGROUND, BOTTOM_RADIUS_16));
 
     // titlebar
     let (titlebar_verts, titlebar_texts, result, cursor) = window_title_bar(&window, &screen_config, &mouse_state);
@@ -60,7 +60,7 @@ pub fn draw(
     text_items.push(titlebar_texts);
 
     // collect steps values for each row
-    let steps_data: Vec<(u32, Vec<f32>)> = patterns
+    let steps_data: Vec<(u32, Vec<Note>)> = patterns
         .get(active_pattern_id)
         .map(|p| p.sequences.iter().map(|s| (s.instrument_id, s.steps.clone())).collect())
         .unwrap_or_default();
@@ -68,8 +68,8 @@ pub fn draw(
     // render ever instrument for every pattern
     for (i, instrument) in instruments.iter_mut().enumerate() {
         let y = PAD_16 + window.y + (i as f32 * TRACK_GAP);
-        let empty = vec![0.0f32; 32];
-        let steps_slice: &[f32] = steps_data
+        let empty = vec![Note::default(); 32];
+        let steps_slice: &[Note] = steps_data
             .iter()
             .find(|(id, _)| *id == instrument.data.id)
             .map(|(_, s)| s.as_slice())
@@ -78,10 +78,10 @@ pub fn draw(
         // velocity view
         if instrument.show_velocity {
             // for each step
-            for (j, &velocity) in steps_slice.iter().enumerate() {
+            for (j, step) in steps_slice.iter().enumerate() {
                 // velocity bar
                 let step_x = SEQUENCER_X_ORIGIN + window.x + (j as f32 * BUTTON_GAP) + ((j / 4) as f32 * BAR_GAP) + PAD_16;
-                let filled_height = SEQUENCER_STEP_HEIGHT * (velocity / 128.0);
+                let filled_height = SEQUENCER_STEP_HEIGHT * (step.velocity / 128.0);
 
                 // background
                 let background = Rectangle {
@@ -102,29 +102,29 @@ pub fn draw(
         }
         // steps view
         else {
-            for (j, &velocity) in steps_slice.iter().enumerate() {
+            for (j, step) in steps_slice.iter().enumerate() {
                 // add the button for a step
                 let step_x = SEQUENCER_X_ORIGIN + window.x + (j as f32 * BUTTON_GAP) + ((j / 4) as f32 * BAR_GAP) + PAD_16;
-                let step = Rectangle {
+                let step_button = Rectangle {
                     x: step_x,
                     y,
                     width: SEQUENCER_STEP_WIDTH,
                     height: SEQUENCER_STEP_HEIGHT,
                 };
-                let is_active = velocity > 0.0;
-                let step_color = if step.is_hovered(mouse_state.x, mouse_state.y) && is_active {
+                let is_active = step.velocity > 0.0;
+                let step_color = if step_button.is_hovered(mouse_state.x, mouse_state.y) && is_active {
                     DARK_GRAY
-                } else if step.is_hovered(mouse_state.x, mouse_state.y) {
+                } else if step_button.is_hovered(mouse_state.x, mouse_state.y) {
                     LL_GRAY
                 } else if is_active {
                     BLACK
                 } else {
                     WHITE
                 };
-                vertices.extend(step.draw(screen_config, step_color, NO_RADIUS));
+                vertices.extend(step_button.draw(screen_config, step_color, NO_RADIUS));
 
                 // check if the step was clicked
-                if step.is_hovered(mouse_state.x, mouse_state.y) {
+                if step_button.is_hovered(mouse_state.x, mouse_state.y) {
                     if mouse_state.left_clicked {
                         // if the click is on an existing sequence
                         if let Some(seq) = patterns[active_pattern_id]
@@ -132,13 +132,23 @@ pub fn draw(
                             .iter_mut()
                             .find(|s| s.instrument_id == instrument.data.id)
                         {
-                            seq.steps[j] = if seq.steps[j] > 0.0 { 0.0 } else { 95.0 };
+                            seq.steps[j] = if seq.steps[j].velocity > 0.0 {
+                                Note::default()
+                            } else {
+                                Note {
+                                    velocity: 95.0,
+                                    ..Default::default()
+                                }
+                            };
                         }
                         // if the click is on a nonexisting sequence
                         else {
                             // add a new sequence to the active pattern with the instrument used
-                            let mut steps = vec![0.0f32; 32];
-                            steps[j] = 95.0;
+                            let mut steps = vec![Note::default(); 32];
+                            steps[j] = Note {
+                                velocity: 95.0,
+                                ..Default::default()
+                            };
                             patterns[active_pattern_id].sequences.push(Sequence {
                                 instrument_id: instrument.data.id,
                                 steps,

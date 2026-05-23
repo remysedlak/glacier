@@ -191,7 +191,7 @@ impl App {
                             let (ui_prod, ui_cons) = HeapRb::<UiCommand>::new(64).split();
                             self.producer = _prod;
                             self.consumer = ui_cons;
-                            self.stream = init(audio_cons, ui_prod, path);
+                            self.stream = init(audio_cons, ui_prod, Some(path));
                         }
                     }
                 }

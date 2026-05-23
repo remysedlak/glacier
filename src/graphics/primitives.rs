@@ -8,9 +8,11 @@ pub const PAD_8: f32 = 8.0;
 pub const PAD_4: f32 = 4.0;
 pub const PAD_2: f32 = 2.0;
 
-pub const NO_RADIUS: [f32; 4] = [0.0, 0.0, 0.0, 0.0];
-pub const TOP_RADIUS: [f32; 4] = [16.0, 0.0, 16.0, 0.0];
-pub const BOTTOM_RADIUS: [f32; 4] = [0.0, 16.0, 0.0, 16.0];
+pub const NO_RADIUS: [f32; 4] = [0.0; 4];
+pub const TOP_RADIUS_16: [f32; 4] = [16.0, 0.0, 16.0, 0.0];
+pub const BOTTOM_RADIUS_16: [f32; 4] = [0.0, 16.0, 0.0, 16.0];
+pub const RADIUS_2: [f32; 4] = [2.0; 4];
+
 pub const BUTTON_GAP: f32 = 24.0;
 
 pub struct ScreenConfig {

@@ -10,7 +10,7 @@ use crate::{
             },
             MINI_WINDOW_BACKGROUND,
         },
-        primitives::{ScreenConfig, Vertex, BOTTOM_RADIUS, NO_RADIUS, PAD_16, PAD_2, PAD_32, PAD_4, PAD_8},
+        primitives::{ScreenConfig, Vertex, BOTTOM_RADIUS_16, NO_RADIUS, PAD_16, PAD_2, PAD_32, PAD_4, PAD_8},
         widgets::{window_background, window_title_bar, Rectangle, ICON_SIZE, TITLEBAR_HEIGHT},
         ClickResult, MiniWindow,
     },
@@ -43,7 +43,7 @@ pub fn draw(
     let mut click_result = ClickResult::None;
 
     let playlist_background = window_background(&window);
-    static_vertices.extend(playlist_background.draw(&screen_config, MINI_WINDOW_BACKGROUND, BOTTOM_RADIUS));
+    static_vertices.extend(playlist_background.draw(&screen_config, MINI_WINDOW_BACKGROUND, BOTTOM_RADIUS_16));
 
     // titlebar
     let (titlebar_verts, titlebar_texts, result, cursor) = window_title_bar(&window, screen_config, mouse_state);
