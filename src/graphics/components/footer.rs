@@ -1,7 +1,7 @@
 use crate::graphics::{
     color::{BLACK, WHITE},
     font::TextItem,
-    primitives::{ScreenConfig, Vertex, PAD_4, PAD_8},
+    primitives::{ScreenConfig, Vertex, NO_RADIUS, PAD_4, PAD_8},
     widgets::Rectangle,
 };
 
@@ -20,7 +20,7 @@ pub fn draw(screen_config: &ScreenConfig, path: &String) -> (Vec<Vertex>, Vec<Te
         width: screen_config.width as f32,
         height: 32.0,
     };
-    vertices.extend(footer.draw(screen_config, BLACK));
+    vertices.extend(footer.draw(screen_config, BLACK, NO_RADIUS));
     texts.push(TextItem {
         text: path.to_string(),
         x: footer_x + PAD_4,

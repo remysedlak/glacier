@@ -5,7 +5,7 @@ use crate::{
     graphics::{
         color::{DARK_GRAY, DARK_GRAY_HOVER, WHITE},
         font::TextItem,
-        primitives::{ScreenConfig, PAD_2, PAD_24, PAD_32, PAD_4, PAD_64, PAD_8},
+        primitives::{ScreenConfig, NO_RADIUS, PAD_2, PAD_24, PAD_32, PAD_4, PAD_64, PAD_8},
         widgets::Rectangle,
         ClickResult, Vertex,
     },
@@ -53,10 +53,10 @@ impl ContextMenu {
         let menu_background = Rectangle {
             height: 32.0 * 6.0,
             width: self.width + PAD_8,
-            x: self.x - PAD_64 - 4.0,
+            x: self.x - PAD_64 - PAD_4,
             y: self.y + (PAD_24 + PAD_8) - 4.0,
         };
-        vertices.extend(menu_background.draw(screen_config, DARK_GRAY));
+        vertices.extend(menu_background.draw(screen_config, DARK_GRAY, NO_RADIUS));
 
         for item in 0..6 {
             let context_item = Rectangle {
@@ -68,6 +68,7 @@ impl ContextMenu {
             vertices.extend(context_item.draw(
                 screen_config,
                 menu_item_color(&context_item, mouse_state.x, mouse_state.y, mouse_state.left_clicked),
+                NO_RADIUS,
             ));
 
             if context_item.is_hovered(mouse_state.x, mouse_state.y) {
@@ -115,7 +116,7 @@ impl ContextMenu {
                 x: (self.x + 2.0) - PAD_64 - 4.0,
                 y: PAD_24 + (self.y + (PAD_24 + PAD_8) * line as f32) + PAD_32 + 4.0,
             };
-            vertices.extend(divider.draw(screen_config, WHITE));
+            vertices.extend(divider.draw(screen_config, WHITE, NO_RADIUS));
         }
         (vertices, texts, click_result, cursor_icon)
     }
@@ -140,6 +141,7 @@ impl ContextMenu {
             vertices.extend(context_item.draw(
                 screen_config,
                 menu_item_color(&context_item, mouse_state.x, mouse_state.y, mouse_state.left_clicked),
+                NO_RADIUS,
             ));
             if context_item.is_hovered(mouse_state.x, mouse_state.y) {
                 cursor_icon = CursorIcon::Pointer;
@@ -172,7 +174,7 @@ impl ContextMenu {
                 x: (self.x + 2.0) - PAD_64,
                 y: PAD_24 + (self.y + PAD_24 * line as f32) + PAD_32,
             };
-            vertices.extend(divider.draw(screen_config, WHITE));
+            vertices.extend(divider.draw(screen_config, WHITE, NO_RADIUS));
         }
         // delete text
         texts.push(TextItem {

@@ -1,17 +1,17 @@
 use crate::{
     app::MouseState,
     graphics::{
-        color::{BLACK, BLUE, BLUE_HOVER, DARK_BLUE, DARK_BLUE_HOVER, LL_GRAY},
+        color::{BLACK, BLUE, BLUE_HOVER, DARK_BLUE, DARK_BLUE_HOVER, DARK_GRAY, LL_GRAY},
         font::TextItem,
         mini_window::{
             piano_roll::{
                 black_piano_step_hover_color, white_piano_step_hover_color, BLACK_SEMITONE_INDEXES, OCTAVE_GAP, PIANO_ROLL_MARGIN, PIANO_ROLL_WIDTH,
-                SEMITONE_GAP, SEMITONE_HEIGHT,
+                SEMITONE_GAP, SEMITONE_HEIGHT, SEMITONE_OFFSET_X,
             },
             MINI_WINDOW_BACKGROUND,
         },
-        primitives::{ScreenConfig, Vertex, PAD_16, PAD_2, PAD_32, PAD_4, PAD_8},
-        widgets::{window_background, window_title_bar, Rectangle, TITLEBAR_HEIGHT},
+        primitives::{ScreenConfig, Vertex, BOTTOM_RADIUS, NO_RADIUS, PAD_16, PAD_2, PAD_32, PAD_4, PAD_8},
+        widgets::{window_background, window_title_bar, Rectangle, ICON_SIZE, TITLEBAR_HEIGHT},
         ClickResult, MiniWindow,
     },
 };
@@ -43,7 +43,7 @@ pub fn draw(
     let mut click_result = ClickResult::None;
 
     let playlist_background = window_background(&window);
-    static_vertices.extend(playlist_background.draw(&screen_config, MINI_WINDOW_BACKGROUND));
+    static_vertices.extend(playlist_background.draw(&screen_config, MINI_WINDOW_BACKGROUND, BOTTOM_RADIUS));
 
     // titlebar
     let (titlebar_verts, titlebar_texts, result, cursor) = window_title_bar(&window, screen_config, mouse_state);
@@ -56,12 +56,22 @@ pub fn draw(
 
     // toolbar
     let bottom_toolbar_background = Rectangle {
-        x: window.x + PAD_8 + PIANO_ROLL_WIDTH,
-        y: window.y + TITLEBAR_HEIGHT + PAD_4,
+        x: window.x + SEMITONE_OFFSET_X + PIANO_ROLL_WIDTH,
+        y: window.y + TITLEBAR_HEIGHT + PAD_8,
         width: window.width - PAD_16 - PAD_8 - PIANO_ROLL_WIDTH,
-        height: 30.0,
+        height: 24.0,
     };
-    static_vertices.extend(bottom_toolbar_background.draw(&screen_config, LL_GRAY));
+    static_vertices.extend(bottom_toolbar_background.draw(&screen_config, LL_GRAY, NO_RADIUS));
+    for icon in 0..8 {
+        let icon_rect = Rectangle {
+            x: window.x + SEMITONE_OFFSET_X + PIANO_ROLL_WIDTH + (icon as f32 * 36.0) + PAD_4,
+            y: window.y + PAD_4,
+            width: ICON_SIZE,
+            height: ICON_SIZE,
+        };
+        let hovered = icon_rect.is_hovered(mouse_state.x, mouse_state.y);
+        static_vertices.extend(icon_rect.draw(screen_config, DARK_GRAY, NO_RADIUS));
+    }
 
     // piano
     for octave in 0..9 {
@@ -71,13 +81,13 @@ pub fn draw(
                 let white_key_width = 24.0;
                 let black_key_width = PIANO_ROLL_WIDTH - white_key_width;
                 let black_piano_key = Rectangle {
-                    x: window.x + PAD_8,
+                    x: window.x + SEMITONE_OFFSET_X,
                     y: window.y + (semitone as f32 * SEMITONE_GAP) + (octave as f32 * OCTAVE_GAP) + PIANO_ROLL_MARGIN + PAD_8 - scroll_y,
                     height: SEMITONE_HEIGHT,
                     width: black_key_width,
                 };
                 let white_piano_key = Rectangle {
-                    x: window.x + black_key_width + PAD_8,
+                    x: window.x + black_key_width + SEMITONE_OFFSET_X,
                     y: window.y + (semitone as f32 * SEMITONE_GAP) + (octave as f32 * OCTAVE_GAP) + PIANO_ROLL_MARGIN + PAD_8 - scroll_y,
                     height: SEMITONE_HEIGHT,
                     width: white_key_width,
@@ -85,15 +95,17 @@ pub fn draw(
                 piano_key_vertices.extend(black_piano_key.draw(
                     screen_config,
                     black_piano_step_hover_color(&black_piano_key, mouse_state.x, mouse_state.y),
+                    [2.0, 2.0, 2.0, 2.0],
                 ));
                 piano_key_vertices.extend(white_piano_key.draw(
                     screen_config,
                     white_piano_step_hover_color(&white_piano_key, mouse_state.x, mouse_state.y, semitone),
+                    [2.0, 2.0, 2.0, 2.0],
                 ));
             } else {
                 // full white piano key
                 let piano_key = Rectangle {
-                    x: window.x + PAD_8,
+                    x: window.x + SEMITONE_OFFSET_X,
                     y: window.y + (semitone as f32 * SEMITONE_GAP) + (octave as f32 * OCTAVE_GAP) + PIANO_ROLL_MARGIN + PAD_8 - scroll_y,
                     height: SEMITONE_HEIGHT,
                     width: PIANO_ROLL_WIDTH,
@@ -101,12 +113,13 @@ pub fn draw(
                 piano_key_vertices.extend(piano_key.draw(
                     screen_config,
                     white_piano_step_hover_color(&piano_key, mouse_state.x, mouse_state.y, semitone),
+                    [2.0, 2.0, 2.0, 2.0],
                 ));
             }
             // draw steps to draw the melody on
             for step_index in 0..127 {
                 let piano_roll_step = Rectangle {
-                    x: window.x + (step_index as f32 * PAD_16) + PIANO_ROLL_MARGIN + PAD_8 - scroll_x,
+                    x: window.x + (step_index as f32 * PAD_16) + PIANO_ROLL_MARGIN + SEMITONE_OFFSET_X - scroll_x,
                     y: window.y + (semitone as f32 * SEMITONE_GAP) + (octave as f32 * OCTAVE_GAP) + PIANO_ROLL_MARGIN + PAD_8 - scroll_y,
                     height: SEMITONE_HEIGHT,
                     width: 15.0,
@@ -125,7 +138,7 @@ pub fn draw(
                         DARK_BLUE
                     }
                 };
-                grid_vertices.extend(piano_roll_step.draw(screen_config, color));
+                grid_vertices.extend(piano_roll_step.draw(screen_config, color, NO_RADIUS));
             }
         }
 

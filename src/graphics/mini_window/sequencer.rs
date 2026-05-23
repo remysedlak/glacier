@@ -1,6 +1,7 @@
 use crate::app::MouseState;
 
 use crate::graphics::color::{DARK_GRAY_HOVER, LIGHT_GRAY, LL_GRAY, ORANGE, ORANGE_HOVER};
+use crate::graphics::primitives::{BOTTOM_RADIUS, NO_RADIUS};
 use crate::graphics::{
     color::{BLACK, BLUE, DARK_GRAY, WHITE},
     icons::IconDraw,
@@ -46,7 +47,7 @@ pub fn draw(
         width: window.width,
         height: window.height + 52.0 * instruments.len() as f32,
     };
-    vertices.extend(window_background.draw(&screen_config, MINI_WINDOW_BACKGROUND));
+    vertices.extend(window_background.draw(&screen_config, MINI_WINDOW_BACKGROUND, BOTTOM_RADIUS));
 
     // titlebar
     let (titlebar_verts, titlebar_texts, result, cursor) = window_title_bar(&window, &screen_config, &mouse_state);
@@ -88,14 +89,14 @@ pub fn draw(
                     width: SEQUENCER_STEP_WIDTH,
                     height: SEQUENCER_STEP_HEIGHT,
                 };
-                vertices.extend(background.draw(&screen_config, DARK_GRAY));
+                vertices.extend(background.draw(&screen_config, DARK_GRAY, NO_RADIUS));
                 let bar = Rectangle {
                     x: step_x,
                     y: y + SEQUENCER_STEP_HEIGHT - filled_height,
                     width: SEQUENCER_STEP_WIDTH,
                     height: filled_height,
                 };
-                vertices.extend(bar.draw(&screen_config, BLUE));
+                vertices.extend(bar.draw(&screen_config, BLUE, NO_RADIUS));
             }
         }
         // steps view
@@ -119,7 +120,7 @@ pub fn draw(
                 } else {
                     LIGHT_GRAY
                 };
-                vertices.extend(step.draw(screen_config, step_color));
+                vertices.extend(step.draw(screen_config, step_color, NO_RADIUS));
 
                 // check if the step was clicked
                 if step.is_hovered(mouse_state.x, mouse_state.y) {
@@ -163,7 +164,7 @@ pub fn draw(
         } else {
             DARK_GRAY
         };
-        vertices.extend(track_button.draw(&screen_config, track_button_color));
+        vertices.extend(track_button.draw(&screen_config, track_button_color, NO_RADIUS));
         if track_button.is_hovered(mouse_state.x, mouse_state.y) {
             cursor_icon = CursorIcon::Pointer;
             if mouse_state.left_clicked {
@@ -191,7 +192,7 @@ pub fn draw(
         } else {
             LIGHT_GRAY
         };
-        vertices.extend(mute_button.draw(&screen_config, mute_button_color));
+        vertices.extend(mute_button.draw(&screen_config, mute_button_color, NO_RADIUS));
 
         text_items.push(TextItem {
             text: "mut".to_string(),
@@ -228,7 +229,7 @@ pub fn draw(
         } else {
             LIGHT_GRAY
         };
-        vertices.extend(velocity_button.draw(&screen_config, velocity_button_color));
+        vertices.extend(velocity_button.draw(&screen_config, velocity_button_color, NO_RADIUS));
 
         text_items.push(TextItem {
             text: "vel".to_string(),
@@ -266,7 +267,7 @@ pub fn draw(
             instrument.data.name.to_string()
         };
 
-        text_items.push(TextItem {
+        text_items.push(TextItem {g
             text: instrument_button_text,
             x: window.x + PAD_16,
             y: window.y + i as f32 * TRACK_GAP + PAD_16 + PAD_4,

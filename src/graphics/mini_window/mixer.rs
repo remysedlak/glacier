@@ -5,7 +5,7 @@ use crate::{
     graphics::{
         color::*,
         mini_window::MiniWindow,
-        primitives::ScreenConfig,
+        primitives::{ScreenConfig, BOTTOM_RADIUS, NO_RADIUS},
         widgets::{draw_slider, window_background, window_title_bar},
         ClickResult, TextItem, Vertex,
     },
@@ -24,7 +24,7 @@ pub fn draw(
 
     // window background
     let window_background = window_background(&window);
-    vertices.extend(window_background.draw(&screen_config, PURPLE));
+    vertices.extend(window_background.draw(&screen_config, PURPLE, BOTTOM_RADIUS));
 
     // window titlebar
     let (titlebar_verts, titlebar_texts, result, cursor) = window_title_bar(&window, screen_config, mouse_state);

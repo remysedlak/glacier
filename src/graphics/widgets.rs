@@ -4,7 +4,7 @@ use crate::{
         color::*,
         font::TextItem,
         mini_window::{MiniWindow, WindowKind},
-        primitives::{draw_rectangle, Vertex, PAD_16, PAD_4, PAD_8},
+        primitives::{draw_rectangle, Vertex, NO_RADIUS, PAD_16, PAD_4, PAD_8, TOP_RADIUS},
         ClickResult, ScreenConfig,
     },
 };
@@ -24,8 +24,7 @@ pub const TOOLBAR_Y: f32 = 42.0;
 pub const TOOLBAR_THICKNESS: f32 = 0.003;
 pub const TOOLBAR_MARGIN: f32 = 4.0;
 
-pub const ICON_WIDTH: f32 = 32.0;
-pub const ICON_HEIGHT: f32 = 32.0;
+pub const ICON_SIZE: f32 = 32.0;
 
 pub const TITLEBAR_HEIGHT: f32 = 32.0;
 
@@ -53,7 +52,7 @@ impl Rectangle {
         (mouse_x > self.x - PAD_4 && mouse_x < self.x + PAD_4) && mouse_y > self.y - TITLEBAR_HEIGHT && mouse_y < self.y + self.height
     }
     // draw vertices with rectangle details
-    pub fn draw(&self, screen_config: &ScreenConfig, (r, g, b): (f32, f32, f32)) -> Vec<Vertex> {
+    pub fn draw(&self, screen_config: &ScreenConfig, (r, g, b): (f32, f32, f32), corner_radius: [f32; 4]) -> Vec<Vertex> {
         draw_rectangle(
             self.x as f32,
             self.y as f32,
@@ -61,6 +60,7 @@ impl Rectangle {
             self.height as f32,
             screen_config,
             (r, g, b),
+            corner_radius,
         )
     }
 }
@@ -83,7 +83,7 @@ pub fn draw_slider(master_volume: f32, x: f32, y: f32, screen_config: &ScreenCon
         width: track_width,
         height: track_height,
     };
-    verts.extend(track.draw(screen_config, BLACK));
+    verts.extend(track.draw(screen_config, BLACK, NO_RADIUS));
 
     let thumb = Rectangle {
         x: x_coord,
@@ -91,7 +91,7 @@ pub fn draw_slider(master_volume: f32, x: f32, y: f32, screen_config: &ScreenCon
         width: thumb_width,
         height: thumb_height,
     };
-    verts.extend(thumb.draw(screen_config, LIGHT_GRAY));
+    verts.extend(thumb.draw(screen_config, LIGHT_GRAY, NO_RADIUS));
     verts
 }
 
@@ -111,11 +111,11 @@ pub fn window_title_bar(
         width: window.width,
         height: TITLEBAR_HEIGHT,
     };
-    verticies.extend(title_bar_background.draw(screen_config, DARK_GRAY));
+    verticies.extend(title_bar_background.draw(screen_config, DARK_GRAY, TOP_RADIUS));
 
     // add button for closing the window
     let close_window_button = Rectangle {
-        x: window.x + window.width - PAD_16 - PAD_8,
+        x: window.x + window.width - PAD_16 - PAD_8 - PAD_4,
         y: window.y - TITLEBAR_HEIGHT + PAD_8 + PAD_4,
         width: 15.0,
         height: 5.0,
@@ -125,7 +125,7 @@ pub fn window_title_bar(
     } else {
         LIGHT_GRAY
     };
-    verticies.extend(close_window_button.draw(screen_config, close_window_color));
+    verticies.extend(close_window_button.draw(screen_config, close_window_color, NO_RADIUS));
     if close_window_button.is_hovered(mouse_state.x, mouse_state.y) {
         cursor_icon = CursorIcon::Pointer;
         if mouse_state.left_clicked {

@@ -14,6 +14,10 @@ pub const PAD_8: f32 = 8.0;
 pub const PAD_4: f32 = 4.0;
 pub const PAD_2: f32 = 2.0;
 
+pub const NO_RADIUS: [f32; 4] = [0.0, 0.0, 0.0, 0.0];
+pub const TOP_RADIUS: [f32; 4] = [16.0, 0.0, 16.0, 0.0];
+pub const BOTTOM_RADIUS: [f32; 4] = [0.0, 16.0, 0.0, 16.0];
+
 pub const BUTTON_GAP: f32 = 24.0;
 
 pub struct ScreenConfig {
@@ -25,11 +29,21 @@ pub struct ScreenConfig {
 #[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
 pub struct Vertex {
     pub position: [f32; 3],
+    pub local_pos: [f32; 2],
+    pub half_size: [f32; 2],
+    pub radius: [f32; 4],
     pub color: [f32; 3],
     pub uv: [f32; 2],
 }
 impl Vertex {
-    const ATTRIBS: [wgpu::VertexAttribute; 3] = wgpu::vertex_attr_array![0 => Float32x3, 1 => Float32x3, 2 => Float32x2];
+    const ATTRIBS: [wgpu::VertexAttribute; 6] = wgpu::vertex_attr_array![
+        0 => Float32x3,  // position
+        1 => Float32x2,  // local_pos
+        2 => Float32x2,  // half_size
+        3 => Float32x4,    // radius
+        4 => Float32x3,  // color
+        5 => Float32x2,  // uv
+    ];
 
     pub fn desc() -> wgpu::VertexBufferLayout<'static> {
         use std::mem;
@@ -47,49 +61,83 @@ impl Vertex {
 // fn to_ndc_y(y: f32, height: f32) -> f32 {
 //     1.0 - (y / height) * 2.0
 // }
+//
 
 // draw one rectangle with one color
-pub fn draw_rectangle(x: f32, y: f32, width: f32, height: f32, screen_config: &ScreenConfig, (r, g, b): (f32, f32, f32)) -> Vec<Vertex> {
+pub fn draw_rectangle(
+    x: f32,
+    y: f32,
+    width: f32,
+    height: f32,
+    screen_config: &ScreenConfig,
+    (r, g, b): (f32, f32, f32),
+    corner_radius: [f32; 4],
+) -> Vec<Vertex> {
     // first normalize the coordinates to fit in decimal form.
     let ndc_x: f32 = 2.0 * (x as f32 / screen_config.width as f32) - 1.0;
     let ndc_y: f32 = 1.0 - (y as f32 / screen_config.height as f32) * 2.0;
-    // let ndc_x = to_ndc_x(x, width);
-    // let ndc_y = to_ndc_y(y, height);
+    let ndc_r = |r: f32| (r / screen_config.width as f32) * 2.0;
+    let radius = [
+        ndc_r(corner_radius[0]),
+        ndc_r(corner_radius[1]),
+        ndc_r(corner_radius[2]),
+        ndc_r(corner_radius[3]),
+    ];
     let ndc_width: f32 = (width as f32 / screen_config.width as f32) * 2.0;
     let ndc_height: f32 = (height as f32 / screen_config.height as f32) * 2.0;
 
+    let top_right = Vertex {
+        position: [ndc_x + ndc_width, ndc_y, 0.0],
+        color: [r, g, b],
+        uv: [-1.0, -1.0],
+        radius,
+        half_size: [ndc_width / 2.0, ndc_height / 2.0],
+        local_pos: [ndc_width / 2.0, ndc_height / 2.0],
+    };
+
+    let bottom_left = Vertex {
+        position: [ndc_x, ndc_y - ndc_height, 0.0],
+        color: [r, g, b],
+        uv: [-1.0, -1.0],
+        radius,
+        half_size: [ndc_width / 2.0, ndc_height / 2.0],
+        local_pos: [-ndc_width / 2.0, -ndc_height / 2.0],
+    };
+
+    let bottom_right = Vertex {
+        position: [ndc_x + ndc_width, ndc_y - ndc_height, 0.0],
+        color: [r, g, b],
+        uv: [-1.0, -1.0],
+        radius,
+        half_size: [ndc_width / 2.0, ndc_height / 2.0],
+        local_pos: [ndc_width / 2.0, -ndc_height / 2.0],
+    };
+
+    let top_left = Vertex {
+        position: [ndc_x, ndc_y, 0.0],
+        color: [r, g, b],
+        uv: [-1.0, -1.0],
+        radius,
+        half_size: [ndc_width / 2.0, ndc_height / 2.0],
+        local_pos: [-ndc_width / 2.0, ndc_height / 2.0],
+    };
+
     // next add the verticies based on these origins
     return vec![
-        Vertex {
-            position: [ndc_x, ndc_y, 0.0],
-            color: [r, g, b],
-            uv: [-1.0, -1.0],
-        },
-        Vertex {
-            position: [ndc_x, ndc_y - ndc_height, 0.0],
-            color: [r, g, b],
-            uv: [-1.0, -1.0],
-        },
-        Vertex {
-            position: [ndc_x + ndc_width, ndc_y, 0.0],
-            color: [r, g, b],
-            uv: [-1.0, -1.0],
-        },
-        Vertex {
-            position: [ndc_x + ndc_width, ndc_y, 0.0],
-            color: [r, g, b],
-            uv: [-1.0, -1.0],
-        },
-        Vertex {
-            position: [ndc_x, ndc_y - ndc_height, 0.0],
-            color: [r, g, b],
-            uv: [-1.0, -1.0],
-        },
-        Vertex {
-            position: [ndc_x + ndc_width, ndc_y - ndc_height, 0.0],
-            color: [r, g, b],
-            uv: [-1.0, -1.0],
-        },
+        //    - --/
+        //    |  /
+        //    | /
+        //    |/
+        top_left,
+        bottom_left,
+        top_right,
+        //      /|
+        //     / |
+        //    /  |
+        //   / _ |
+        top_right.clone(),
+        bottom_left,
+        bottom_right,
     ];
 }
 
@@ -117,16 +165,25 @@ pub fn draw_circle(cx: f32, cy: f32, radius: f32, segments: u32, screen_config: 
             position: [ncx, ncy, 0.0],
             color: [r, g, b],
             uv: [-1.0, -1.0],
+            radius: [0.0, 0.0, 0.0, 0.0],
+            half_size: [ncx / 2.0, ncy / 2.0],
+            local_pos: [ncx / 2.0, -ncy / 2.0],
         });
         vec.push(Vertex {
             position: [x1, y1, 0.0],
             color: [r, g, b],
             uv: [-1.0, -1.0],
+            radius: [0.0, 0.0, 0.0, 0.0],
+            half_size: [ncx / 2.0, ncy / 2.0],
+            local_pos: [ncx / 2.0, -ncy / 2.0],
         });
         vec.push(Vertex {
             position: [x2, y2, 0.0],
             color: [r, g, b],
             uv: [-1.0, -1.0],
+            radius: [0.0, 0.0, 0.0, 0.0],
+            half_size: [ncx / 2.0, ncy / 2.0],
+            local_pos: [ncx / 2.0, -ncy / 2.0],
         });
     }
     vec
@@ -151,17 +208,26 @@ pub fn draw_knob(vol: f32, cx: f32, cy: f32, radius: f32, segments: u32, screen_
         position: [ncx(cx), ncy(cy), 0.0], // center
         color: [0.0, 0.0, 1.0],
         uv: [-1.0, -1.0],
+        radius: [0.0, 0.0, 0.0, 0.0],
+        half_size: [ncx(cx) / 2.0, ncy(cy) / 2.0],
+        local_pos: [ncx(cx) / 2.0, -ncy(cy) / 2.0],
     });
     vec.push(Vertex {
         position: [ncx(x), ncy(y), 0.0], // hits circumfrence
         color: [0.0, 0.0, 1.0],
         uv: [-1.0, -1.0],
+        radius: [0.0, 0.0, 0.0, 0.0],
+        half_size: [ncx(cx) / 2.0, ncy(cy) / 2.0],
+        local_pos: [ncx(cx) / 2.0, -ncy(cy) / 2.0],
     });
     let perp = radians(angle + 90.0);
     vec.push(Vertex {
         position: [ncx(x) + 0.01 * perp.cos(), ncy(y) + 0.01 * perp.sin(), 0.0],
         color: [0.0, 0.0, 1.0],
         uv: [-1.0, -1.0],
+        radius: [0.0, 0.0, 0.0, 0.0],
+        half_size: [ncx(cx) / 2.0, ncy(cy) / 2.0],
+        local_pos: [ncx(cx) / 2.0, -ncy(cy) / 2.0],
     });
     vec
 }
@@ -177,31 +243,49 @@ pub fn draw_h_line(y: f32, thickness: f32, screen_config: &ScreenConfig) -> Vec<
             position: [-1.0, ndc_y, 0.0],
             color: [0.0, 0.0, 0.0],
             uv: [-1.0, -1.0],
+            radius: [0.0, 0.0, 0.0, 0.0],
+            half_size: [-1.0 / 2.0, ndc_y / 2.0],
+            local_pos: [-1.0 / 2.0, -ndc_y / 2.0],
         },
         Vertex {
             position: [1.0, ndc_y, 0.0],
             color: [0.0, 0.0, 0.0],
             uv: [-1.0, -1.0],
+            radius: [0.0, 0.0, 0.0, 0.0],
+            half_size: [-1.0 / 2.0, ndc_y / 2.0],
+            local_pos: [-1.0 / 2.0, -ndc_y / 2.0],
         },
         Vertex {
             position: [1.0, ndc_y - thickness, 0.0],
             color: [0.0, 0.0, 0.0],
             uv: [-1.0, -1.0],
+            radius: [0.0, 0.0, 0.0, 0.0],
+            half_size: [-1.0 / 2.0, ndc_y / 2.0],
+            local_pos: [-1.0 / 2.0, -ndc_y / 2.0],
         },
         Vertex {
             position: [-1.0, ndc_y, 0.0],
             color: [0.0, 0.0, 0.0],
             uv: [-1.0, -1.0],
+            radius: [0.0, 0.0, 0.0, 0.0],
+            half_size: [-1.0 / 2.0, ndc_y / 2.0],
+            local_pos: [-1.0 / 2.0, -ndc_y / 2.0],
         },
         Vertex {
             position: [1.0, ndc_y - thickness, 0.0],
             color: [0.0, 0.0, 0.0],
             uv: [-1.0, -1.0],
+            radius: [0.0, 0.0, 0.0, 0.0],
+            half_size: [-1.0 / 2.0, ndc_y / 2.0],
+            local_pos: [-1.0 / 2.0, -ndc_y / 2.0],
         },
         Vertex {
             position: [-1.0, ndc_y - thickness, 0.0],
             color: [0.0, 0.0, 0.0],
             uv: [-1.0, -1.0],
+            radius: [0.0, 0.0, 0.0, 0.0],
+            half_size: [-1.0 / 2.0, ndc_y / 2.0],
+            local_pos: [-1.0 / 2.0, -ndc_y / 2.0],
         },
     ];
 }

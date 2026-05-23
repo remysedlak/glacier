@@ -1,4 +1,4 @@
-use crate::graphics::primitives::{ScreenConfig, Vertex};
+use crate::graphics::primitives::{ScreenConfig, Vertex, NO_RADIUS};
 
 pub const ICON_NAMES: &[&str] = &[
     "play",
@@ -136,31 +136,49 @@ pub fn draw_icon(x: f32, y: f32, w: f32, h: f32, screen_config: &ScreenConfig) -
             position: [ndc_x, ndc_y, 0.0],
             color,
             uv: [2.0, 0.0],
+            local_pos: [0.0, 0.0],
+            half_size: [0.0, 0.0],
+            radius: NO_RADIUS,
         },
         Vertex {
             position: [ndc_x, ndc_y - ndc_h, 0.0],
             color,
             uv: [2.0, 1.0],
+            local_pos: [0.0, 0.0],
+            half_size: [0.0, 0.0],
+            radius: NO_RADIUS,
         },
         Vertex {
             position: [ndc_x + ndc_w, ndc_y, 0.0],
             color,
             uv: [3.0, 0.0],
+            local_pos: [0.0, 0.0],
+            half_size: [0.0, 0.0],
+            radius: NO_RADIUS,
         },
         Vertex {
             position: [ndc_x + ndc_w, ndc_y, 0.0],
             color,
             uv: [3.0, 0.0],
+            local_pos: [0.0, 0.0],
+            half_size: [0.0, 0.0],
+            radius: NO_RADIUS,
         },
         Vertex {
             position: [ndc_x, ndc_y - ndc_h, 0.0],
             color,
             uv: [2.0, 1.0],
+            local_pos: [0.0, 0.0],
+            half_size: [0.0, 0.0],
+            radius: NO_RADIUS,
         },
         Vertex {
             position: [ndc_x + ndc_w, ndc_y - ndc_h, 0.0],
             color,
             uv: [3.0, 1.0],
+            local_pos: [0.0, 0.0],
+            half_size: [0.0, 0.0],
+            radius: NO_RADIUS,
         },
     ]
 }

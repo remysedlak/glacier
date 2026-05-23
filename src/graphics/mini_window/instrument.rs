@@ -1,4 +1,5 @@
 use crate::app::MouseState;
+use crate::graphics::primitives::NO_RADIUS;
 use crate::graphics::{
     color::{DARK_GRAY, PURPLE, WHITE},
     mini_window::MiniWindow,
@@ -22,7 +23,7 @@ pub fn draw(
 
     // window background
     let window_background = window_background(&window);
-    vertices.extend(window_background.draw(&screen_config, PURPLE));
+    vertices.extend(window_background.draw(&screen_config, PURPLE, [0.0, 16.0, 0.0, 16.0]));
 
     // titlebar
     let (titlebar_verts, titlebar_texts, result, cursor) = window_title_bar(&window, screen_config, mouse_state);
@@ -47,6 +48,6 @@ pub fn draw(
         font: "roboto",
         color: WHITE,
     });
-    vertices.extend(rectangle.draw(&screen_config, DARK_GRAY));
+    vertices.extend(rectangle.draw(&screen_config, DARK_GRAY, NO_RADIUS));
     (vertices, text_items, click_result, cursor_icon)
 }

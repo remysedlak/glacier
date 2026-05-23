@@ -11,6 +11,7 @@ pub const SEMITONE_HEIGHT: f32 = 16.0;
 pub const PIANO_ROLL_WIDTH: f32 = 64.0;
 pub const OCTAVE_GAP: f32 = 216.0;
 pub const PIANO_ROLL_MARGIN: f32 = 64.0;
+pub const SEMITONE_OFFSET_X: f32 = 8.0;
 
 pub struct PianoNote {
     pub pitch: u8,    // 0-127, maps to semitone+octave

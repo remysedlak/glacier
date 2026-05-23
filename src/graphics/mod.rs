@@ -1,6 +1,7 @@
 use crate::app::MouseState;
 
 use crate::graphics::mini_window::{piano_roll, PianoRollDrawRanges, PIANO_ROLL_ID};
+use crate::graphics::primitives::NO_RADIUS;
 use crate::graphics::{
     color::{DARK_GRAY, WHITE},
     components::{footer, pattern_tray},
@@ -123,7 +124,7 @@ pub async fn create_graphics(window: Rc<Window>, proxy: EventLoopProxy<Graphics>
 
     let vertex_buffer = device.create_buffer(&wgpu::BufferDescriptor {
         label: Some("Vertex Buffer"),
-        size: ONE_MEGABYTE * 4,
+        size: ONE_MEGABYTE * 8,
         usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
         mapped_at_creation: false,
     });
@@ -768,7 +769,7 @@ impl Graphics {
                 width: 128.0,
                 height: 24.0,
             };
-            vertices.extend(tooltip_rectangle.draw(&screen_config, DARK_GRAY));
+            vertices.extend(tooltip_rectangle.draw(&screen_config, DARK_GRAY, NO_RADIUS));
             if let Some(text) = tt.text {
                 let tooltip_text = [TextItem {
                     text: text.to_string(),

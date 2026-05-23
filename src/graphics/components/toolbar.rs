@@ -1,11 +1,12 @@
 use crate::app::MouseState;
 use crate::graphics::color::{DARK_GRAY, DARK_GRAY_HOVER};
+use crate::graphics::primitives::NO_RADIUS;
 use crate::graphics::{
     color::{LIGHT_GRAY, PEBBLE, WHITE},
     font::TextItem,
     icons::{IconDraw, Tooltip},
     primitives::{draw_h_line, BUTTON_GAP, PAD_32, PAD_8},
-    widgets::{Rectangle, ADD_INSTRUMENT_ICON_OFFSET, ICON_HEIGHT, ICON_WIDTH, PLAY_X_ORIGIN, PLAY_Y_ORIGIN, TOOLBAR_MARGIN, TOOLBAR_Y},
+    widgets::{Rectangle, ADD_INSTRUMENT_ICON_OFFSET, ICON_SIZE, PLAY_X_ORIGIN, PLAY_Y_ORIGIN, TOOLBAR_MARGIN, TOOLBAR_Y},
     ClickResult, ScreenConfig, Vertex, TOOLBAR_THICKNESS,
 };
 use winit::window::CursorIcon;
@@ -40,7 +41,7 @@ pub fn draw_toolbar(
         width: screen_config.width as f32,
         height: TOOLBAR_Y,
     };
-    vertices.extend(toolbar_background.draw(&screen_config, PEBBLE));
+    vertices.extend(toolbar_background.draw(&screen_config, PEBBLE, NO_RADIUS));
 
     // bpm button increment
     let bpm_up = Rectangle {
@@ -49,7 +50,7 @@ pub fn draw_toolbar(
         width: 32.0,
         height: 10.0,
     };
-    vertices.extend(bpm_up.draw(&screen_config, LIGHT_GRAY));
+    vertices.extend(bpm_up.draw(&screen_config, LIGHT_GRAY, NO_RADIUS));
     if bpm_up.is_hovered(mouse_state.x, mouse_state.y) {
         cursor_icon = CursorIcon::Pointer;
         if mouse_state.left_clicked {
@@ -63,7 +64,7 @@ pub fn draw_toolbar(
         width: 32.0,
         height: 10.0,
     };
-    vertices.extend(bpm_down.draw(&screen_config, LIGHT_GRAY));
+    vertices.extend(bpm_down.draw(&screen_config, LIGHT_GRAY, NO_RADIUS));
     if bpm_down.is_hovered(mouse_state.x, mouse_state.y) {
         cursor_icon = CursorIcon::Pointer;
         if mouse_state.left_clicked {
@@ -75,8 +76,8 @@ pub fn draw_toolbar(
     let play_button = Rectangle {
         x: PLAY_X_ORIGIN,
         y: PLAY_Y_ORIGIN,
-        width: ICON_WIDTH,
-        height: ICON_HEIGHT,
+        width: ICON_SIZE,
+        height: ICON_SIZE,
     };
     if play_button.is_hovered(mouse_state.x, mouse_state.y) {
         if mouse_state.left_clicked {
@@ -87,14 +88,15 @@ pub fn draw_toolbar(
     vertices.extend(play_button.draw(
         &screen_config,
         icon_color(&play_button, mouse_state.x, mouse_state.y, mouse_state.left_click_held),
+        NO_RADIUS,
     ));
 
     // stop button
     let stop_button = Rectangle {
         x: PLAY_X_ORIGIN + 64.0,
         y: PLAY_Y_ORIGIN,
-        width: ICON_WIDTH,
-        height: ICON_HEIGHT,
+        width: ICON_SIZE,
+        height: ICON_SIZE,
     };
     if stop_button.is_hovered(mouse_state.x, mouse_state.y) {
         if mouse_state.left_clicked && active_step != 0 {
@@ -105,18 +107,20 @@ pub fn draw_toolbar(
     vertices.extend(stop_button.draw(
         &screen_config,
         icon_color(&stop_button, mouse_state.x, mouse_state.y, mouse_state.left_click_held),
+        NO_RADIUS,
     ));
 
     let sequencer_toggle = Rectangle {
         x: PLAY_X_ORIGIN + 256.0,
         y: PLAY_Y_ORIGIN,
-        width: ICON_WIDTH,
-        height: ICON_HEIGHT,
+        width: ICON_SIZE,
+        height: ICON_SIZE,
     };
 
     vertices.extend(sequencer_toggle.draw(
         &screen_config,
         icon_color(&sequencer_toggle, mouse_state.x, mouse_state.y, mouse_state.left_click_held),
+        NO_RADIUS,
     ));
     if sequencer_toggle.is_hovered(mouse_state.x, mouse_state.y) {
         if mouse_state.left_clicked {
@@ -127,13 +131,14 @@ pub fn draw_toolbar(
     let mixer_toggle = Rectangle {
         x: PLAY_X_ORIGIN + 256.0 + (BUTTON_GAP * 2.0),
         y: PLAY_Y_ORIGIN,
-        width: ICON_WIDTH,
-        height: ICON_HEIGHT,
+        width: ICON_SIZE,
+        height: ICON_SIZE,
     };
 
     vertices.extend(mixer_toggle.draw(
         &screen_config,
         icon_color(&mixer_toggle, mouse_state.x, mouse_state.y, mouse_state.left_click_held),
+        NO_RADIUS,
     ));
     if mixer_toggle.is_hovered(mouse_state.x, mouse_state.y) {
         if mouse_state.left_clicked {
@@ -144,13 +149,14 @@ pub fn draw_toolbar(
     let playlist_toggle = Rectangle {
         x: PLAY_X_ORIGIN + 256.0 + (BUTTON_GAP * 2.0) * 2.0,
         y: PLAY_Y_ORIGIN,
-        width: ICON_WIDTH,
-        height: ICON_HEIGHT,
+        width: ICON_SIZE,
+        height: ICON_SIZE,
     };
 
     vertices.extend(playlist_toggle.draw(
         &screen_config,
         icon_color(&playlist_toggle, mouse_state.x, mouse_state.y, mouse_state.left_click_held),
+        NO_RADIUS,
     ));
     if playlist_toggle.is_hovered(mouse_state.x, mouse_state.y) {
         if mouse_state.left_clicked {
@@ -161,12 +167,13 @@ pub fn draw_toolbar(
     let piano_toggle = Rectangle {
         x: PLAY_X_ORIGIN + 256.0 + (BUTTON_GAP * 2.0) * 3.0,
         y: PLAY_Y_ORIGIN,
-        width: ICON_WIDTH,
-        height: ICON_HEIGHT,
+        width: ICON_SIZE,
+        height: ICON_SIZE,
     };
     vertices.extend(piano_toggle.draw(
         &screen_config,
         icon_color(&piano_toggle, mouse_state.x, mouse_state.y, mouse_state.left_click_held),
+        NO_RADIUS,
     ));
     if piano_toggle.is_hovered(mouse_state.x, mouse_state.y) {
         if mouse_state.left_clicked {
@@ -183,12 +190,13 @@ pub fn draw_toolbar(
     let load_file_button = Rectangle {
         x: screen_config.width as f32 - LOAD_PROJECT_ICON_OFFSET,
         y: TOOLBAR_MARGIN,
-        width: ICON_WIDTH,
-        height: ICON_HEIGHT,
+        width: ICON_SIZE,
+        height: ICON_SIZE,
     };
     vertices.extend(load_file_button.draw(
         screen_config,
         icon_color(&load_file_button, mouse_state.x, mouse_state.y, mouse_state.left_click_held),
+        NO_RADIUS,
     ));
     if load_file_button.is_hovered(mouse_state.x, mouse_state.y) {
         if mouse_state.left_clicked {
@@ -199,13 +207,14 @@ pub fn draw_toolbar(
     // load an instrument
     let instrument_button = Rectangle {
         x: screen_config.width as f32 - ADD_INSTRUMENT_ICON_OFFSET,
-        y: TOOLBAR_MARGIN as f32,
-        width: ICON_WIDTH as f32,
-        height: ICON_HEIGHT as f32,
+        y: TOOLBAR_MARGIN,
+        width: ICON_SIZE,
+        height: ICON_SIZE,
     };
     vertices.extend(instrument_button.draw(
         screen_config,
         icon_color(&instrument_button, mouse_state.x, mouse_state.y, mouse_state.left_click_held),
+        NO_RADIUS,
     ));
     if instrument_button.is_hovered(mouse_state.x, mouse_state.y) {
         if mouse_state.left_clicked {

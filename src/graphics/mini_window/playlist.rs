@@ -1,5 +1,6 @@
 use crate::app::MouseState;
 use crate::graphics::color::{BLUE, BLUE_HOVER, DARK_BLUE, DARK_BLUE_HOVER, LIGHT_GRAY, LL_GRAY};
+use crate::graphics::primitives::{BOTTOM_RADIUS, NO_RADIUS};
 use crate::graphics::{
     color::{ORANGE, PEBBLE, WHITE},
     font::TextItem,
@@ -62,7 +63,7 @@ pub fn draw(
     let tracks = 32;
 
     let playlist_background = window_background(&window);
-    static_vertices.extend(playlist_background.draw(&screen_config, MINI_WINDOW_BACKGROUND));
+    static_vertices.extend(playlist_background.draw(&screen_config, MINI_WINDOW_BACKGROUND, BOTTOM_RADIUS));
 
     // titlebar
     let (titlebar_verts, titlebar_texts, result, cursor) = window_title_bar(&window, screen_config, mouse_state);
@@ -112,7 +113,7 @@ pub fn draw(
                 }
             }
 
-            timeline_vertices.extend(pl_step.draw(&screen_config, color));
+            timeline_vertices.extend(pl_step.draw(&screen_config, color, NO_RADIUS));
 
             // every 4 measure display the measure (zoom feature later shows more measure labels)
             if step % 16 == 0 {
@@ -134,7 +135,7 @@ pub fn draw(
             width: TIMELINE_X_ORIGIN - PAD_4,
             height: PLAYLIST_STEP_HEIGHT,
         };
-        track_header_vertices.extend(background.draw(&screen_config, PEBBLE));
+        track_header_vertices.extend(background.draw(&screen_config, PEBBLE, NO_RADIUS));
         track_header_text_items.push(TextItem {
             text: format!("Track {}", track).to_string(),
             x: window.x + PAD_16 + PAD_8,
@@ -170,7 +171,7 @@ pub fn draw(
             } else {
                 LIGHT_GRAY
             };
-            timeline_vertices.extend(pl_pattern.draw(&screen_config, pl_pattern_color));
+            timeline_vertices.extend(pl_pattern.draw(&screen_config, pl_pattern_color, NO_RADIUS));
             // titlebar text
             let label: &str = &patterns[id as usize].name;
 
@@ -190,7 +191,7 @@ pub fn draw(
         width: PLAYHEAD_WIDTH,
         height: window.height,
     };
-    timeline_vertices.extend(playhead.draw(&screen_config, ORANGE));
+    timeline_vertices.extend(playhead.draw(&screen_config, ORANGE, NO_RADIUS));
     (
         static_vertices,
         static_text_items,
