@@ -40,9 +40,9 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
         r.x = select(r.y, r.x, in.local_pos.y > 0.0);
         let q = abs(in.local_pos) - in.half_size + r.x;
         let dist = min(max(q.x, q.y), 0.0) + length(max(q, vec2(0.0))) - r.x;
-        if dist > 0.0 {
-            discard;
-        }
+        let alpha = 1.0 - smoothstep(-0.001, 0.001, dist);
+        if alpha < 0.001 { discard; }
+        return vec4<f32>(in.color, alpha);
     }
     if in.uv.x < 0.0 {
         return vec4<f32>(in.color, 1.0);
