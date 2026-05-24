@@ -159,7 +159,9 @@ pub fn draw(
 
                 let hovered = piano_roll_step.is_hovered(mouse_state.x, mouse_state.y) && !mouse_state.left_click_held;
 
-                let color = if is_active {
+                let color = if active_step == step_index {
+                    GREEN
+                } else if is_active {
                     ORANGE
                 } else if hovered {
                     if (step_index / 4) % 2 == 0 {
