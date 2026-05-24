@@ -186,6 +186,10 @@ impl App {
                     }
                     UiCommand::LoadInstrument(instrument) => {
                         gfx.load_instrument(instrument);
+
+                        //ui
+                        gfx.mini_windows[SEQUENCER_ID].height = 100.0 + 52.0 * gfx.instruments.len() as f32;
+                        gfx.mini_windows[SEQUENCER_ID].is_open = true;
                     }
                     UiCommand::LoadBpm(bpm) => {
                         gfx.bpm = bpm;
@@ -446,14 +450,12 @@ impl App {
                     self.producer.try_push(AudioCommand::TogglePlay).ok();
                 }
                 ClickResult::DeleteTrack(i) => {
-                    // audio state
-                    //
                     self.producer.try_push(AudioCommand::DeleteTrack(i)).ok();
-                    self.project_is_dirty = true;
-
-                    // ui state
                     gfx.instruments.remove(i);
+                    gfx.mini_windows[SEQUENCER_ID].height = 100.0 + 52.0 * gfx.instruments.len() as f32;
+
                     gfx.context_menu = None;
+                    self.project_is_dirty = true;
                 }
                 ClickResult::ProjectFileDialog => {
                     if self.project_file_dialog_rx.is_none() {
@@ -480,7 +482,7 @@ impl App {
                             tx.send(file).ok();
                         });
                     }
-                } // TODO: adding instrument to ui causes the sequencer to  open
+                }
 
                 ClickResult::None => {
                     if self.mouse_state.left_clicked {

@@ -344,12 +344,13 @@ pub fn init(mut consumer: HeapCons<AudioCommand>, mut producer: HeapProd<UiComma
                     .collect();
 
                 for (id, vel, pitch) in triggers {
-                    instruments[id].position = 0.0;
-                    instruments[id].is_playing = true;
-                    instruments[id].data.target_volume = vel / 127.0;
-                    // store playback rate on instrument
-                    let semitones = pitch as f32 - instruments[id].data.root_note as f32;
-                    instruments[id].playback_rate = 2.0_f32.powf(semitones / 12.0);
+                    if let Some(inst) = instruments.iter_mut().find(|i| i.data.id as usize == id) {
+                        inst.position = 0.0;
+                        inst.is_playing = true;
+                        inst.data.target_volume = vel / 127.0;
+                        let semitones = pitch as f32 - inst.data.root_note as f32;
+                        inst.playback_rate = 2.0_f32.powf(semitones / 12.0);
+                    }
                 }
             }
         }
