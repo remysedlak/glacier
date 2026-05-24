@@ -29,6 +29,7 @@ pub struct MouseState {
     pub x: f32,
     pub y: f32,
     pub left_clicked: bool,
+    pub left_double_clicked: bool,
     pub right_clicked: bool,
     pub scroll_x: f32,
     pub scroll_y: f32,
@@ -67,6 +68,7 @@ pub struct App {
     consumer: HeapCons<UiCommand>,
     state: State,
     project_is_dirty: bool,
+    last_click_time: Option<std::time::Instant>,
 
     stream: Stream,
     pending_project: Option<String>,
@@ -100,12 +102,14 @@ impl App {
             // mouse state
             prev_mouse_x: 0.0,
             prev_mouse_y: 0.0,
+            last_click_time: None,
 
             right_click_held: false,
             mouse_state: MouseState {
                 x: 0.0,
                 y: 0.0,
                 left_clicked: false,
+                left_double_clicked: false,
                 right_clicked: false,
                 scroll_x: 0.0,
                 scroll_y: 0.0,
@@ -211,6 +215,15 @@ impl App {
 
             // dispatch audio commands based on what was clicked
             match result {
+                ClickResult::DuplicatePattern(pattern_id) => {
+                    self.producer.try_push(AudioCommand::DuplicatePattern(pattern_id)).ok();
+                    self.project_is_dirty = true;
+                    gfx.patterns.push(PatternData {
+                        id: gfx.patterns.len(),
+                        name: format!("Pattern {}", gfx.patterns.len()),
+                        sequences: gfx.patterns.iter().find(|p| p.id == pattern_id).unwrap().sequences.clone(),
+                    });
+                }
                 ClickResult::LoadPianoRoll(piano_state) => {
                     gfx.piano_roll_state = Some(piano_state);
 
@@ -434,6 +447,7 @@ impl App {
 
             // consume the interactions
             self.mouse_state.left_clicked = false;
+            self.mouse_state.left_double_clicked = false;
             self.mouse_state.right_clicked = false;
             self.mouse_state.scroll_x = 0.0;
             self.mouse_state.scroll_y = 0.0;
@@ -573,6 +587,13 @@ impl ApplicationHandler<Graphics> for App {
             WindowEvent::MouseInput { state, button, .. } => {
                 if state.is_pressed() && button == MouseButton::Left {
                     // change state
+                    let now = std::time::Instant::now();
+                    let is_double_click = self.last_click_time.map(|t| now.duration_since(t).as_millis() < 300).unwrap_or(false);
+                    self.last_click_time = Some(now);
+
+                    if is_double_click {
+                        self.mouse_state.left_double_clicked = true;
+                    }
                     self.mouse_state.left_click_held = true;
                     self.mouse_state.left_clicked = true;
 

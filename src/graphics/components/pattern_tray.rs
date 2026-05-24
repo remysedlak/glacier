@@ -104,6 +104,9 @@ pub fn draw(
             if mouse_state.left_clicked {
                 click_result = ClickResult::SelectPattern(pattern.id as usize);
             }
+            if mouse_state.left_double_clicked {
+                click_result = ClickResult::ToggleSequencerWindow;
+            }
             if mouse_state.right_clicked {
                 click_result = ClickResult::OpenPatternMenu(button_x, button_y, pattern.id as usize);
             }

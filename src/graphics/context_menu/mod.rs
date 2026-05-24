@@ -83,6 +83,10 @@ impl ContextMenu {
                             // delete
                             click_result = ClickResult::DeletePattern(id);
                         }
+                        2 => {
+                            // duplicate
+                            click_result = ClickResult::DuplicatePattern(id);
+                        }
                         _ => {
                             click_result = ClickResult::CloseContextMenu;
                         }
@@ -104,6 +108,15 @@ impl ContextMenu {
             text: "Delete".to_string(),
             x: self.x - PAD_64 + PAD_4,
             y: (self.y + (PAD_24 + PAD_8) * 1 as f32) + PAD_32 + PAD_2,
+            size: 14.0,
+            font: ROBOTO_FONT,
+            color: WHITE,
+        });
+        // duplicate text
+        texts.push(TextItem {
+            text: "Duplicate".to_string(),
+            x: self.x - PAD_64 + PAD_4,
+            y: (self.y + (PAD_24 + PAD_8) * 2 as f32) + PAD_32 + PAD_2,
             size: 14.0,
             font: ROBOTO_FONT,
             color: WHITE,
@@ -159,6 +172,7 @@ impl ContextMenu {
                                 instrument_id: (track_id as u32),
                             });
                         }
+
                         4 => {
                             // delete
                             click_result = ClickResult::DeleteTrack(track_id);
