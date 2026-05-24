@@ -19,6 +19,7 @@ pub enum WindowKind {
     InstrumentDetail(usize), // which instrument
 }
 
+#[derive(Debug)]
 pub struct MiniWindow {
     pub x: f32,
     pub y: f32,

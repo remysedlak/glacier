@@ -8,6 +8,9 @@ pub mod primitives;
 pub mod widgets;
 
 use crate::app::{MouseState, PianoRollState};
+use crate::audio::DEFAULT_BPM;
+use crate::graphics::mini_window::mixer::SLIDER_OFFSET;
+use crate::graphics::primitives::PAD_16;
 use crate::graphics::{
     color::{Color, DARK_GRAY, WHITE},
     components::{footer, pattern_tray},
@@ -15,12 +18,14 @@ use crate::graphics::{
     font::{TextItem, MONO_FONT, ROBOTO_FONT},
     icons::Tooltip,
     mini_window::{
-        instrument, mixer, piano_roll, playlist, sequencer,
+        instrument, mixer, piano_roll,
+        piano_roll::PIANO_ROLL_DEFAULT_Y,
+        playlist, sequencer,
         sequencer::{ACTIONS_Y_OFFSET, KNOB_OFFSET, KNOB_RADIUS, TRACK_GAP},
         MiniWindow, PianoRollDrawRanges, PlaylistDrawRanges, WindowDrawRange, WindowKind, MIXER_ID, PIANO_ROLL_ID, PLAYLIST_ID, SEQUENCER_ID,
     },
     primitives::{ScreenConfig, Vertex, NO_RADIUS, PAD_2, PAD_4, PAD_8},
-    widgets::{Rectangle, TITLEBAR_HEIGHT, TOOLBAR_THICKNESS, TOOLBAR_Y},
+    widgets::*,
 };
 use crate::project::{AudioBlock, AudioBlockType, Instrument, PatternData};
 use fontdue::layout::{CoordinateSystem, Layout, TextStyle};
@@ -155,13 +160,17 @@ pub async fn create_graphics(window: Rc<Window>, proxy: EventLoopProxy<Graphics>
 
     // init windows ; TODO: remove hardcoded coordinates, should be dynamic based on saved state
     let playlist_window = MiniWindow::new(900.0, 600.0, 1500.0, 900.0, "Playlist", WindowKind::Playlist, true);
-    mini_windows.push(playlist_window);
+
     let mixer_window = MiniWindow::new(128.0, 500.0, 800.0, 300.0, "Mixer", WindowKind::Mixer, false);
-    mini_windows.push(mixer_window);
+
     let piano_window = MiniWindow::new(256.0, 400.0, 1092.0, 600.0, "Piano", WindowKind::PianoRoll, true);
-    mini_windows.push(piano_window);
+
     let sequencer_window = MiniWindow::new(256.0, 128.0, 1092.0, 100.0, "Sequencer", WindowKind::Sequencer, false);
-    mini_windows.push(sequencer_window);
+
+    mini_windows.push(sequencer_window); // 0
+    mini_windows.push(playlist_window); // 1
+    mini_windows.push(mixer_window); // 2
+    mini_windows.push(piano_window); // 3
 
     // fonts
     let roboto = (
@@ -216,7 +225,7 @@ pub async fn create_graphics(window: Rc<Window>, proxy: EventLoopProxy<Graphics>
         events,
         active_step: 0,
         active_pattern_id: 0,
-        bpm: 120.0,
+        bpm: DEFAULT_BPM,
         is_playing: false,
         master_volume: 0.5,
 
@@ -237,7 +246,7 @@ pub async fn create_graphics(window: Rc<Window>, proxy: EventLoopProxy<Graphics>
         playlist_scroll_x: 0.0,
         playlist_scroll_y: 0.0,
         piano_roll_scroll_x: 0.0,
-        piano_roll_scroll_y: 1015.0,
+        piano_roll_scroll_y: PIANO_ROLL_DEFAULT_Y,
         z_order: vec![SEQUENCER_ID, PLAYLIST_ID, MIXER_ID, PIANO_ROLL_ID],
         context_menu,
     };
@@ -375,24 +384,21 @@ impl Graphics {
     pub fn load_event(&mut self, a: AudioBlock) {
         self.events.push(a);
     }
-
     /// Track if/where the user's mouse is dragging a component
-    pub fn handle_drag(&mut self, x: f32, y: f32, dy: f32, dx: f32) -> DragResult {
+    pub fn handle_drag(&mut self, mouse_x: f32, mouse_y: f32, dy: f32, dx: f32) -> DragResult {
         let sequencer_window = &self.mini_windows[SEQUENCER_ID];
         let mixer_window = &self.mini_windows[MIXER_ID];
 
-        // volume knobs
         if self.dragging_window == None {
             if self.dragging_knob == None {
-                let y_ceiling: f32 = mixer_window.y;
-                let track_height: f32 = 164.0;
-                let padding = 32.0;
-                if x > mixer_window.x - padding + 24.0
-                    && x < mixer_window.x + padding + 24.0
-                    && y > mixer_window.y
-                    && y < mixer_window.y + track_height
-                {
-                    self.master_volume = 1.0 - ((y - y_ceiling) / track_height).clamp(0.0, 1.0);
+                let slider_hit = Rectangle {
+                    x: mixer_window.x + PAD_16,
+                    y: mixer_window.y + PAD_16,
+                    width: MIXER_THUMB_WIDTH,
+                    height: MIXER_TRACK_HEIGHT,
+                };
+                if slider_hit.is_hovered(mouse_x, mouse_y) {
+                    self.master_volume = 1.0 - ((mouse_y - slider_hit.y) / MIXER_TRACK_HEIGHT).clamp(0.0, 1.0);
                     self.dragging = true;
                     return DragResult::DragVolumeSlider(self.master_volume);
                 }
@@ -409,7 +415,7 @@ impl Graphics {
                     width: KNOB_RADIUS * 2.0,
                     height: KNOB_RADIUS * 2.0,
                 };
-                if knob_rect.is_hovered(x, y) {
+                if knob_rect.is_hovered(mouse_x, mouse_y) {
                     self.dragging_knob = Some(i);
                     track.data.track_volume = (track.data.track_volume - dy * 0.01).clamp(0.0, 1.0);
                     self.dragging = true;
@@ -418,16 +424,11 @@ impl Graphics {
             }
         }
 
-        // update window dragging
         if let Some(i) = self.dragging_window {
             let win = &mut self.mini_windows[i];
-
-            // only enforce that the titlebar stays reachable
             let max_y = self.surface_config.height as f32 - TITLEBAR_HEIGHT;
-
             win.x = (win.x + dx).clamp(-(win.width - 64.0), self.surface_config.width as f32 - 246.0);
             win.y = (win.y + dy).clamp(TITLEBAR_HEIGHT + TOOLBAR_Y, max_y);
-
             return DragResult::None;
         }
 
@@ -439,12 +440,13 @@ impl Graphics {
                     width: win.width,
                     height: TITLEBAR_HEIGHT,
                 };
-                if titlebar.is_hovered(x, y) {
+                if titlebar.is_hovered(mouse_x, mouse_y) {
                     self.dragging_window = Some(i);
                     return DragResult::None;
                 }
             }
         }
+
         DragResult::None
     }
 
@@ -539,6 +541,17 @@ impl Graphics {
             }
         }
 
+        // which window has the mouse hovered and clicked with.
+        let click_owner: Option<usize> = if mouse_state.left_clicked {
+            self.z_order
+                .iter()
+                .rev()
+                .find(|&&id| self.mini_windows[id].is_open && self.mini_windows[id].is_hovered(mouse_state.x, mouse_state.y))
+                .copied()
+        } else {
+            None
+        };
+
         let mut char_draws: Vec<(wgpu::Buffer, &wgpu::BindGroup)> = Vec::new();
         let mut icon_draws: Vec<(wgpu::Buffer, &wgpu::BindGroup)> = Vec::new();
         let mut window_ranges: Vec<WindowDrawRange> = Vec::new();
@@ -548,6 +561,20 @@ impl Graphics {
             let vert_start = vertices.len() as u32;
             let char_start = char_draws.len();
 
+            // is there any open window above this one that also covers the mouse?
+            let blocked = self
+                .z_order
+                .iter()
+                .skip_while(|&&z_id| z_id != id)
+                .skip(1) // skip self, now iterating windows above id
+                .any(|&above_id| self.mini_windows[above_id].is_open && self.mini_windows[above_id].is_hovered(mouse_state.x, mouse_state.y));
+
+            let masked_mouse = MouseState {
+                left_clicked: mouse_state.left_clicked && click_owner == Some(id),
+                x: if !blocked { mouse_state.x } else { f32::NEG_INFINITY },
+                y: if !blocked { mouse_state.y } else { f32::NEG_INFINITY },
+                ..*mouse_state
+            };
             match id {
                 SEQUENCER_ID if self.mini_windows[SEQUENCER_ID].is_open => {
                     let window = &self.mini_windows[SEQUENCER_ID];
@@ -557,7 +584,7 @@ impl Graphics {
                         &mut self.instruments,
                         self.active_pattern_id,
                         self.active_step,
-                        &mouse_state,
+                        &masked_mouse,
                         &screen_config,
                     );
                     vertices.extend(verts);
@@ -588,7 +615,7 @@ impl Graphics {
                         window,
                         &self.events,
                         &self.patterns,
-                        &mouse_state,
+                        &masked_mouse,
                         self.active_pattern_id,
                         self.playlist_scroll_x,
                         self.playlist_scroll_y,
@@ -662,7 +689,7 @@ impl Graphics {
                 }
                 MIXER_ID if self.mini_windows[MIXER_ID].is_open => {
                     let window = &self.mini_windows[MIXER_ID];
-                    let (verts, texts, result, cursor) = mixer::draw(window, self.master_volume, &screen_config, &mouse_state);
+                    let (verts, texts, result, cursor) = mixer::draw(window, self.master_volume, &screen_config, &masked_mouse);
                     vertices.extend(verts);
                     Graphics::push_text_draws(&texts, &self.font_cache, &self.glyph_cache, &self.device, &screen_config, &mut char_draws);
                     click_result = click_result.or(result);
@@ -671,7 +698,7 @@ impl Graphics {
                     let window = &self.mini_windows[PIANO_ROLL_ID];
                     let (verts, texts, piano_key_verts, piano_key_texts, grid_verts, grid_texts, result, cursor) = piano_roll::window::draw(
                         window,
-                        &mouse_state,
+                        &masked_mouse,
                         self.piano_roll_scroll_x,
                         self.piano_roll_scroll_y,
                         &screen_config,
@@ -738,7 +765,7 @@ impl Graphics {
                     let window = &self.mini_windows[instrument];
                     if window.is_open {
                         if let WindowKind::InstrumentDetail(track) = window.window_kind {
-                            let (verts, texts, result, cursor) = instrument::draw(window, &mouse_state, &screen_config, &self.instruments[track]);
+                            let (verts, texts, result, cursor) = instrument::draw(window, &masked_mouse, &screen_config, &self.instruments[track]);
                             vertices.extend(verts);
                             click_result = click_result.or(result);
                             if !matches!(cursor, CursorIcon::Default) {

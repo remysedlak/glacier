@@ -9,7 +9,11 @@ use crate::graphics::{
 };
 use winit::window::CursorIcon;
 
+pub const TOOLTIP_MARGIN: f32 = 36.0;
+pub const TOOLTIP_RIGHT_MARGIN: f32 = 96.0;
 const LOAD_PROJECT_ICON_OFFSET: f32 = 40.0;
+const WINDOW_ICONS_OFFSET: f32 = 256.0;
+const ICON_GAP: f32 = 48.0;
 
 fn icon_color(rect: &Rectangle, mx: f32, my: f32, held: bool) -> Color {
     if rect.is_hovered(mx, my) && !held {
@@ -91,7 +95,7 @@ pub fn draw_toolbar(
 
     // stop button
     let stop_button = Rectangle {
-        x: PLAY_X_ORIGIN + 64.0,
+        x: PLAY_X_ORIGIN + ICON_GAP,
         y: PLAY_Y_ORIGIN,
         width: ICON_SIZE,
         height: ICON_SIZE,
@@ -109,7 +113,7 @@ pub fn draw_toolbar(
     ));
 
     let sequencer_toggle = Rectangle {
-        x: PLAY_X_ORIGIN + 256.0,
+        x: PLAY_X_ORIGIN + WINDOW_ICONS_OFFSET,
         y: PLAY_Y_ORIGIN,
         width: ICON_SIZE,
         height: ICON_SIZE,
@@ -127,7 +131,7 @@ pub fn draw_toolbar(
     }
 
     let mixer_toggle = Rectangle {
-        x: PLAY_X_ORIGIN + 256.0 + (BUTTON_GAP * 2.0),
+        x: PLAY_X_ORIGIN + WINDOW_ICONS_OFFSET + ICON_GAP,
         y: PLAY_Y_ORIGIN,
         width: ICON_SIZE,
         height: ICON_SIZE,
@@ -145,7 +149,7 @@ pub fn draw_toolbar(
     }
 
     let playlist_toggle = Rectangle {
-        x: PLAY_X_ORIGIN + 256.0 + (BUTTON_GAP * 2.0) * 2.0,
+        x: PLAY_X_ORIGIN + WINDOW_ICONS_OFFSET + (ICON_GAP * 2.0),
         y: PLAY_Y_ORIGIN,
         width: ICON_SIZE,
         height: ICON_SIZE,
@@ -163,7 +167,7 @@ pub fn draw_toolbar(
     }
 
     let piano_toggle = Rectangle {
-        x: PLAY_X_ORIGIN + 256.0 + (BUTTON_GAP * 2.0) * 3.0,
+        x: PLAY_X_ORIGIN + WINDOW_ICONS_OFFSET + (ICON_GAP * 3.0),
         y: PLAY_Y_ORIGIN,
         width: ICON_SIZE,
         height: ICON_SIZE,
@@ -231,17 +235,13 @@ pub fn draw_toolbar(
 
     let play_pause_label = if is_playing { "pause" } else { "play" };
 
-    let icon_size = 32.0;
-    pub const TOOLTIP_MARGIN: f32 = 36.0;
-    pub const TOOLTIP_RIGHT_MARGIN: f32 = 96.0;
-
     let icons = vec![
         IconDraw {
             name: "instrument",
             x: screen_config.width as f32 - ADD_INSTRUMENT_ICON_OFFSET,
             y: TOOLBAR_MARGIN,
-            width: icon_size,
-            height: icon_size,
+            width: ICON_SIZE,
+            height: ICON_SIZE,
             tooltip: Tooltip {
                 text: Some("Add Instrument"),
                 x: screen_config.width as f32 - ADD_INSTRUMENT_ICON_OFFSET - TOOLTIP_RIGHT_MARGIN,
@@ -252,8 +252,8 @@ pub fn draw_toolbar(
             name: "project",
             x: screen_config.width as f32 - PAD_32 - PAD_8,
             y: TOOLBAR_MARGIN,
-            width: icon_size,
-            height: icon_size,
+            width: ICON_SIZE,
+            height: ICON_SIZE,
             tooltip: Tooltip {
                 text: Some("Open Project"),
                 x: screen_config.width as f32 - PAD_32 - PAD_8 - TOOLTIP_RIGHT_MARGIN,
@@ -262,49 +262,49 @@ pub fn draw_toolbar(
         },
         IconDraw {
             name: "sequencer",
-            x: PLAY_X_ORIGIN + 256.0,
+            x: PLAY_X_ORIGIN + WINDOW_ICONS_OFFSET,
             y: PLAY_Y_ORIGIN,
-            width: icon_size,
-            height: icon_size,
+            width: ICON_SIZE,
+            height: ICON_SIZE,
             tooltip: Tooltip {
                 text: Some("Sequencer"),
-                x: PLAY_X_ORIGIN + 256.0,
+                x: PLAY_X_ORIGIN + WINDOW_ICONS_OFFSET,
                 y: PLAY_Y_ORIGIN + TOOLTIP_MARGIN,
             },
         },
         IconDraw {
             name: "mixer",
-            x: PLAY_X_ORIGIN + 256.0 + (BUTTON_GAP * 2.0),
+            x: PLAY_X_ORIGIN + WINDOW_ICONS_OFFSET + ICON_GAP,
             y: PLAY_Y_ORIGIN,
-            width: icon_size,
-            height: icon_size,
+            width: ICON_SIZE,
+            height: ICON_SIZE,
             tooltip: Tooltip {
                 text: Some("Mixer"),
-                x: PLAY_X_ORIGIN + 256.0 + (BUTTON_GAP * 2.0),
+                x: PLAY_X_ORIGIN + WINDOW_ICONS_OFFSET + ICON_GAP,
                 y: PLAY_Y_ORIGIN + TOOLTIP_MARGIN,
             },
         },
         IconDraw {
             name: "playlist",
-            x: PLAY_X_ORIGIN + 256.0 + (BUTTON_GAP * 2.0) * 2.0,
+            x: PLAY_X_ORIGIN + WINDOW_ICONS_OFFSET + ICON_GAP * 2.0,
             y: PLAY_Y_ORIGIN,
-            width: icon_size,
-            height: icon_size,
+            width: ICON_SIZE,
+            height: ICON_SIZE,
             tooltip: Tooltip {
                 text: Some("Playlist"),
-                x: PLAY_X_ORIGIN + 256.0 + (BUTTON_GAP * 2.0) * 2.0,
+                x: PLAY_X_ORIGIN + WINDOW_ICONS_OFFSET + ICON_GAP * 2.0,
                 y: PLAY_Y_ORIGIN + TOOLTIP_MARGIN,
             },
         },
         IconDraw {
             name: "piano",
-            x: PLAY_X_ORIGIN + 256.0 + (BUTTON_GAP * 2.0) * 3.0,
+            x: PLAY_X_ORIGIN + WINDOW_ICONS_OFFSET + ICON_GAP * 3.0,
             y: PLAY_Y_ORIGIN,
-            width: icon_size,
-            height: icon_size,
+            width: ICON_SIZE,
+            height: ICON_SIZE,
             tooltip: Tooltip {
                 text: Some("Piano Roll"),
-                x: PLAY_X_ORIGIN + 256.0 + (BUTTON_GAP * 2.0) * 3.0,
+                x: PLAY_X_ORIGIN + WINDOW_ICONS_OFFSET + ICON_GAP * 3.0,
                 y: PLAY_Y_ORIGIN + TOOLTIP_MARGIN,
             },
         },
@@ -312,8 +312,8 @@ pub fn draw_toolbar(
             name: play_pause_label,
             x: PLAY_X_ORIGIN,
             y: PLAY_Y_ORIGIN,
-            width: icon_size,
-            height: icon_size,
+            width: ICON_SIZE,
+            height: ICON_SIZE,
             tooltip: Tooltip {
                 text: Some(if is_playing { "Pause" } else { "Play" }),
                 x: (PLAY_X_ORIGIN),
@@ -322,10 +322,10 @@ pub fn draw_toolbar(
         },
         IconDraw {
             name: "stop",
-            x: PLAY_X_ORIGIN + 64.0,
+            x: PLAY_X_ORIGIN + ICON_GAP,
             y: PLAY_Y_ORIGIN,
-            width: icon_size,
-            height: icon_size,
+            width: ICON_SIZE,
+            height: ICON_SIZE,
             tooltip: Tooltip {
                 text: Some("Stop"),
                 x: (PLAY_X_ORIGIN + 64.0),

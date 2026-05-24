@@ -11,6 +11,8 @@ use ringbuf::{
     HeapCons, HeapProd,
 };
 
+pub const DEFAULT_BPM: f32 = 120.0;
+
 // commands retrieved from the user interface
 pub enum AudioCommand {
     // composition details

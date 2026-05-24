@@ -1,10 +1,9 @@
 use crate::app::MouseState;
-use crate::graphics::font::ROBOTO_FONT;
-use crate::graphics::primitives::NO_RADIUS;
 use crate::graphics::{
     color::{DARK_GRAY, PURPLE, WHITE},
+    font::ROBOTO_FONT,
     mini_window::MiniWindow,
-    primitives::{ScreenConfig, Vertex, PAD_16, PAD_64},
+    primitives::{ScreenConfig, Vertex, NO_RADIUS, PAD_16, PAD_64},
     widgets::{window_background, window_title_bar},
     {ClickResult, Rectangle, TextItem},
 };

@@ -6,11 +6,13 @@ use crate::{
         color::*,
         font::ROBOTO_FONT,
         mini_window::MiniWindow,
-        primitives::{ScreenConfig, BOTTOM_RADIUS_16},
-        widgets::{draw_slider, window_background, window_title_bar},
+        primitives::{ScreenConfig, BOTTOM_RADIUS_16, PAD_16, PAD_4, PAD_8},
+        widgets::{draw_slider, window_background, window_title_bar, MIXER_TRACK_HEIGHT},
         ClickResult, TextItem, Vertex,
     },
 };
+
+pub const SLIDER_OFFSET: f32 = PAD_16;
 
 pub fn draw(
     window: &MiniWindow,
@@ -37,15 +39,16 @@ pub fn draw(
     text_items.push(titlebar_texts);
 
     // master slider
-    vertices.extend(draw_slider(master_volume, window.x, window.y, &screen_config));
+    let slider_x = window.x + SLIDER_OFFSET;
+    let slider_y = window.y + SLIDER_OFFSET;
 
-    // text buffers
-    let label = &format!("{:.2}", master_volume);
+    vertices.extend(draw_slider(master_volume, slider_x, slider_y, screen_config));
+
     text_items.push(TextItem {
-        text: label.to_string(),
-        x: window.x,
+        text: format!("{:.2}", master_volume),
+        x: slider_x,
+        y: slider_y + MIXER_TRACK_HEIGHT + PAD_4,
         size: 18.0,
-        y: window.y,
         font: ROBOTO_FONT,
         color: WHITE,
     });

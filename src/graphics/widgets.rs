@@ -90,31 +90,34 @@ impl Rectangle {
     }
 }
 
+pub const MIXER_TRACK_HEIGHT: f32 = 164.0;
+pub const MIXER_TRACK_WIDTH: f32 = 4.0;
+pub const THUMB_HEIGHT: f32 = 16.0;
+pub const MIXER_THUMB_WIDTH: f32 = 32.0;
+
+fn volume_to_slider_position(volume: f32) -> f32 {
+    (1.0 - volume) * MIXER_TRACK_HEIGHT
+}
+
 /// draw one slider for master panel
 pub fn draw_slider(master_volume: f32, x: f32, y: f32, screen_config: &ScreenConfig) -> Vec<Vertex> {
-    let x_coord = x + PAD_16;
-    let y_ceiling = y + PAD_16;
-    let track_height = 164.0;
-    let track_width = 4.0;
-    let thumb_height = 16.0;
-    let thumb_width = 32.0;
-    let thumb_y_coord = ((1.0 - master_volume) * 164.0) + y_ceiling;
     let mut verts: Vec<Vertex> = Vec::new();
 
     // TRACK (static)
     let track = Rectangle {
-        x: x_coord + (thumb_width / 2.0), // the track is in the midle of the button
-        y: y_ceiling,
-        width: track_width,
-        height: track_height,
+        x: x + (MIXER_THUMB_WIDTH / 2.0), // the track is in the midle of the button
+        y,
+        width: MIXER_TRACK_WIDTH,
+        height: MIXER_TRACK_HEIGHT,
     };
     verts.extend(track.draw(screen_config, BLACK, NO_RADIUS));
 
+    // THUMB (movable)
     let thumb = Rectangle {
-        x: x_coord,
-        y: thumb_y_coord,
-        width: thumb_width,
-        height: thumb_height,
+        x,
+        y: volume_to_slider_position(master_volume) + y,
+        width: MIXER_THUMB_WIDTH,
+        height: THUMB_HEIGHT,
     };
     verts.extend(thumb.draw(screen_config, LIGHT_GRAY, NO_RADIUS));
     verts

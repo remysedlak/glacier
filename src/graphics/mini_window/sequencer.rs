@@ -1,11 +1,11 @@
 use crate::app::MouseState;
 use crate::graphics::color::BLUE_HOVER;
 use crate::graphics::{
-    color::{BLACK, BLUE, DARK_GRAY, DARK_GRAY_HOVER, LIGHT_GRAY, LL_GRAY, MINI_WINDOW_BACKGROUND, ORANGE, ORANGE_HOVER, WHITE},
+    color::*,
     font::ROBOTO_FONT,
     icons::IconDraw,
     mini_window::MiniWindow,
-    primitives::{draw_knob, ScreenConfig, Vertex, BOTTOM_RADIUS_16, BUTTON_GAP, NO_RADIUS, PAD_16, PAD_2, PAD_4, PAD_8},
+    primitives::*,
     widgets::window_title_bar,
     {ClickResult, Rectangle, TextItem},
 };
