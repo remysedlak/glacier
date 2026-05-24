@@ -1,11 +1,10 @@
 use crate::app::MouseState;
-use crate::graphics::color::{BLUE, BLUE_HOVER, DARK_BLUE, DARK_BLUE_HOVER, LIGHT_GRAY, LL_GRAY};
-use crate::graphics::primitives::{BOTTOM_RADIUS_16, NO_RADIUS};
+use crate::graphics::primitives::RADIUS_8;
 use crate::graphics::{
-    color::{ORANGE, PEBBLE, WHITE},
+    color::*,
     font::TextItem,
     mini_window::{MiniWindow, MINI_WINDOW_BACKGROUND},
-    primitives::{ScreenConfig, Vertex, PAD_16, PAD_4, PAD_64, PAD_8},
+    primitives::{ScreenConfig, Vertex, BOTTOM_RADIUS_16, NO_RADIUS, PAD_16, PAD_4, PAD_64, PAD_8},
     widgets::{window_background, window_title_bar},
     AudioBlockType, ClickResult, Rectangle,
 };
@@ -113,7 +112,7 @@ pub fn draw(
                 }
             };
 
-            if pl_step.is_hovered(mouse_state.x, mouse_state.y) && mouse_state.left_clicked && cursor != CursorIcon::ColResize {
+            if pl_step.is_hovered(mouse_state.x, mouse_state.y) && mouse_state.left_clicked {
                 click_result = ClickResult::AddPlaylistPattern(
                     track,
                     step,
@@ -168,7 +167,7 @@ pub fn draw(
             } else {
                 LIGHT_GRAY
             };
-            timeline_vertices.extend(pl_pattern.draw(&screen_config, pl_pattern_color, NO_RADIUS));
+            timeline_vertices.extend(pl_pattern.draw(&screen_config, pl_pattern_color, RADIUS_8));
 
             let label = &patterns[id as usize].name;
             timeline_text_items.push(TextItem {
