@@ -1,7 +1,7 @@
 use crate::{
     app::MouseState,
     graphics::{
-        color::*,
+        color::{Color, *},
         font::{TextItem, ROBOTO_FONT},
         mini_window::{MiniWindow, WindowKind},
         primitives::{draw_rectangle, Vertex, NO_RADIUS, PAD_16, PAD_4, PAD_8, TOP_RADIUS_16},
@@ -29,6 +29,31 @@ pub const ICON_SIZE: f32 = 32.0;
 pub const TITLEBAR_HEIGHT: f32 = 32.0;
 
 #[derive(Debug)]
+pub struct Square {
+    pub x: f32,
+    pub y: f32,
+    pub size: f32,
+}
+impl Square {
+    pub fn is_hovered(&self, mouse_x: f32, mouse_y: f32) -> bool {
+        mouse_x > self.x && mouse_x < self.x + self.size && mouse_y > self.y && mouse_y < self.y + self.size
+    }
+
+    // draw vertices with rectangle details
+    pub fn draw(&self, screen_config: &ScreenConfig, color: Color, corner_radius: [f32; 4]) -> Vec<Vertex> {
+        draw_rectangle(
+            self.x as f32,
+            self.y as f32,
+            self.size as f32,
+            self.size as f32,
+            screen_config,
+            color,
+            corner_radius,
+        )
+    }
+}
+
+#[derive(Debug)]
 pub struct Rectangle {
     pub x: f32,
     pub y: f32,
@@ -52,14 +77,14 @@ impl Rectangle {
         (mouse_x > self.x - PAD_4 && mouse_x < self.x + PAD_4) && mouse_y > self.y - TITLEBAR_HEIGHT && mouse_y < self.y + self.height
     }
     // draw vertices with rectangle details
-    pub fn draw(&self, screen_config: &ScreenConfig, (r, g, b): (f32, f32, f32), corner_radius: [f32; 4]) -> Vec<Vertex> {
+    pub fn draw(&self, screen_config: &ScreenConfig, color: Color, corner_radius: [f32; 4]) -> Vec<Vertex> {
         draw_rectangle(
             self.x as f32,
             self.y as f32,
             self.width as f32,
             self.height as f32,
             screen_config,
-            (r, g, b),
+            color,
             corner_radius,
         )
     }

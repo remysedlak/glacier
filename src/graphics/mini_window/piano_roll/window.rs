@@ -1,14 +1,8 @@
 use crate::app::{MouseState, PianoRollState};
 use crate::graphics::{
-    color::{BLACK, BLUE, BLUE_HOVER, DARK_BLUE, DARK_BLUE_HOVER, DARK_GRAY, LL_GRAY, ORANGE, WHITE},
+    color::*,
     font::{TextItem, MONO_FONT},
-    mini_window::{
-        piano_roll::{
-            white_piano_step_hover_color, BLACK_SEMITONE_INDEXES, OCTAVE_GAP, PIANO_ROLL_MARGIN, PIANO_ROLL_WIDTH, SEMITONE_GAP, SEMITONE_HEIGHT,
-            SEMITONE_OFFSET_X,
-        },
-        MiniWindow, MINI_WINDOW_BACKGROUND,
-    },
+    mini_window::{piano_roll::*, MiniWindow},
     primitives::{ScreenConfig, Vertex, BOTTOM_RADIUS_16, NO_RADIUS, PAD_16, PAD_2, PAD_32, PAD_4, PAD_8},
     widgets::{window_background, window_title_bar, Rectangle, ICON_SIZE, TITLEBAR_HEIGHT},
     ClickResult,

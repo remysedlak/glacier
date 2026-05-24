@@ -8,6 +8,7 @@ pub mod primitives;
 pub mod widgets;
 
 use crate::app::{MouseState, PianoRollState};
+use crate::graphics::color::Color;
 use crate::graphics::{
     color::{DARK_GRAY, WHITE},
     components::{footer, pattern_tray},
@@ -26,7 +27,7 @@ use crate::project::{AudioBlock, AudioBlockType, Instrument, PatternData};
 use fontdue::layout::{CoordinateSystem, Layout, TextStyle};
 use std::{borrow::Cow, collections::HashMap};
 use wgpu::{
-    util::DeviceExt, Color, CommandEncoderDescriptor, DeviceDescriptor, Features, FragmentState, Instance, Limits, LoadOp, MemoryHints, Operations,
+    util::DeviceExt, CommandEncoderDescriptor, DeviceDescriptor, Features, FragmentState, Instance, Limits, LoadOp, MemoryHints, Operations,
     PowerPreference, RenderPassColorAttachment, RenderPassDescriptor, RenderPipeline, RenderPipelineDescriptor, RequestAdapterOptions,
     ShaderModuleDescriptor, ShaderSource, StoreOp, SurfaceConfiguration, TextureFormat, TextureViewDescriptor, VertexState,
 };
@@ -478,6 +479,7 @@ impl Graphics {
             let Some(font) = font_cache.get(text_item.font) else { continue };
             let Some(gcache) = glyph_cache.get(text_item.font) else { continue };
             let mut layout = Layout::new(CoordinateSystem::PositiveYDown);
+            let Color { r, g, b } = text_item.color;
             layout.append(&[font], &TextStyle::new(&text_item.text, text_item.size, 0));
             for glyph in layout.glyphs() {
                 if let Some((_, bind_group, _)) = gcache.get(&(glyph.parent, text_item.size as u32)) {
@@ -487,7 +489,7 @@ impl Graphics {
                         glyph.width as f32,
                         glyph.height as f32,
                         screen_config,
-                        text_item.color,
+                        (r, g, b),
                     );
                     let buf = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
                         label: None,
@@ -914,7 +916,7 @@ impl Graphics {
                     view: &view,
                     resolve_target: None,
                     ops: Operations {
-                        load: LoadOp::Clear(Color {
+                        load: LoadOp::Clear(wgpu::Color {
                             r: 0.005,
                             g: 0.005,
                             b: 0.005,

@@ -8,8 +8,6 @@ pub const SEQUENCER_ID: usize = 0;
 pub const PLAYLIST_ID: usize = 1;
 pub const MIXER_ID: usize = 2;
 pub const PIANO_ROLL_ID: usize = 3;
-
-pub const MINI_WINDOW_BACKGROUND: (f32, f32, f32) = (0.1, 0.1, 0.1);
 use crate::graphics::TITLEBAR_HEIGHT;
 
 #[derive(Debug, PartialEq)]

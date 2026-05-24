@@ -3,7 +3,7 @@ use crate::graphics::primitives::RADIUS_8;
 use crate::graphics::{
     color::*,
     font::TextItem,
-    mini_window::{MiniWindow, MINI_WINDOW_BACKGROUND},
+    mini_window::MiniWindow,
     primitives::{ScreenConfig, Vertex, BOTTOM_RADIUS_16, NO_RADIUS, PAD_16, PAD_4, PAD_64, PAD_8},
     widgets::{window_background, window_title_bar},
     AudioBlockType, ClickResult, Rectangle,

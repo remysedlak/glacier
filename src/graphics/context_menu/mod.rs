@@ -3,7 +3,7 @@ use winit::window::CursorIcon;
 use crate::{
     app::MouseState,
     graphics::{
-        color::{DARK_GRAY, DARK_GRAY_HOVER, WHITE},
+        color::{Color, DARK_GRAY, DARK_GRAY_HOVER, WHITE},
         font::{TextItem, ROBOTO_FONT},
         primitives::{ScreenConfig, NO_RADIUS, PAD_2, PAD_24, PAD_32, PAD_4, PAD_64, PAD_8},
         widgets::Rectangle,
@@ -23,7 +23,7 @@ pub struct ContextMenu {
     pub height: f32,
     pub width: f32,
 }
-fn menu_item_color(rect: &Rectangle, mx: f32, my: f32, held: bool) -> (f32, f32, f32) {
+fn menu_item_color(rect: &Rectangle, mx: f32, my: f32, held: bool) -> Color {
     if rect.is_hovered(mx, my) && !held {
         DARK_GRAY_HOVER
     } else {

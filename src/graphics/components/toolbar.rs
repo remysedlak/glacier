@@ -1,12 +1,9 @@
 use crate::app::MouseState;
-use crate::graphics::color::{DARK_GRAY, DARK_GRAY_HOVER};
-use crate::graphics::font::ROBOTO_FONT;
-use crate::graphics::primitives::NO_RADIUS;
 use crate::graphics::{
-    color::{LIGHT_GRAY, PEBBLE, WHITE},
-    font::TextItem,
+    color::{Color, DARK_GRAY, DARK_GRAY_HOVER, LIGHT_GRAY, PEBBLE, WHITE},
+    font::{TextItem, ROBOTO_FONT},
     icons::{IconDraw, Tooltip},
-    primitives::{draw_h_line, BUTTON_GAP, PAD_32, PAD_8},
+    primitives::{draw_h_line, BUTTON_GAP, NO_RADIUS, PAD_32, PAD_8},
     widgets::{Rectangle, ADD_INSTRUMENT_ICON_OFFSET, ICON_SIZE, PLAY_X_ORIGIN, PLAY_Y_ORIGIN, TOOLBAR_MARGIN, TOOLBAR_Y},
     ClickResult, ScreenConfig, Vertex, TOOLBAR_THICKNESS,
 };
@@ -14,7 +11,7 @@ use winit::window::CursorIcon;
 
 const LOAD_PROJECT_ICON_OFFSET: f32 = 40.0;
 
-fn icon_color(rect: &Rectangle, mx: f32, my: f32, held: bool) -> (f32, f32, f32) {
+fn icon_color(rect: &Rectangle, mx: f32, my: f32, held: bool) -> Color {
     if rect.is_hovered(mx, my) && !held {
         DARK_GRAY_HOVER
     } else {
@@ -344,6 +341,15 @@ pub fn draw_toolbar(
             }
         }
     }
+
+    toolbar_texts.push(TextItem {
+        text: active_step.to_string(),
+        x: 600.0,
+        y: TOOLBAR_MARGIN,
+        size: 18.0,
+        color: WHITE,
+        font: ROBOTO_FONT,
+    });
 
     (vertices, toolbar_texts, icons, click_result, cursor_icon, tooltip)
 }

@@ -51,15 +51,7 @@ impl Vertex {
     }
 }
 
-pub fn draw_rectangle(
-    x: f32,
-    y: f32,
-    width: f32,
-    height: f32,
-    screen_config: &ScreenConfig,
-    (r, g, b): (f32, f32, f32),
-    corner_radius: [f32; 4],
-) -> Vec<Vertex> {
+pub fn draw_rectangle(x: f32, y: f32, width: f32, height: f32, screen_config: &ScreenConfig, color: Color, corner_radius: [f32; 4]) -> Vec<Vertex> {
     let ndc_x = 2.0 * (x / screen_config.width as f32) - 1.0;
     let ndc_y = 1.0 - (y / screen_config.height as f32) * 2.0;
     let ndc_r = |r: f32| (r / screen_config.width as f32) * 2.0;
@@ -77,7 +69,7 @@ pub fn draw_rectangle(
     vec![
         Vertex {
             position: [ndc_x, ndc_y, 0.0],
-            color: [r, g, b],
+            color: [color.r, color.g, color.b],
             uv: [-1.0, -1.0],
             radius,
             half_size: [hw, hh],
@@ -85,7 +77,7 @@ pub fn draw_rectangle(
         },
         Vertex {
             position: [ndc_x, ndc_y - ndc_height, 0.0],
-            color: [r, g, b],
+            color: [color.r, color.g, color.b],
             uv: [-1.0, -1.0],
             radius,
             half_size: [hw, hh],
@@ -93,7 +85,7 @@ pub fn draw_rectangle(
         },
         Vertex {
             position: [ndc_x + ndc_width, ndc_y, 0.0],
-            color: [r, g, b],
+            color: [color.r, color.g, color.b],
             uv: [-1.0, -1.0],
             radius,
             half_size: [hw, hh],
@@ -101,7 +93,7 @@ pub fn draw_rectangle(
         },
         Vertex {
             position: [ndc_x + ndc_width, ndc_y, 0.0],
-            color: [r, g, b],
+            color: [color.r, color.g, color.b],
             uv: [-1.0, -1.0],
             radius,
             half_size: [hw, hh],
@@ -109,7 +101,7 @@ pub fn draw_rectangle(
         },
         Vertex {
             position: [ndc_x, ndc_y - ndc_height, 0.0],
-            color: [r, g, b],
+            color: [color.r, color.g, color.b],
             uv: [-1.0, -1.0],
             radius,
             half_size: [hw, hh],
@@ -117,7 +109,7 @@ pub fn draw_rectangle(
         },
         Vertex {
             position: [ndc_x + ndc_width, ndc_y - ndc_height, 0.0],
-            color: [r, g, b],
+            color: [color.r, color.g, color.b],
             uv: [-1.0, -1.0],
             radius,
             half_size: [hw, hh],
@@ -126,7 +118,7 @@ pub fn draw_rectangle(
     ]
 }
 
-pub fn draw_circle(cx: f32, cy: f32, radius: f32, segments: u32, screen_config: &ScreenConfig, (r, g, b): (f32, f32, f32)) -> Vec<Vertex> {
+pub fn draw_circle(cx: f32, cy: f32, radius: f32, segments: u32, screen_config: &ScreenConfig, color: Color) -> Vec<Vertex> {
     let mut vec: Vec<Vertex> = Vec::new();
     let to_ndc = |x: f32, y: f32| -> [f32; 3] {
         [
@@ -138,7 +130,7 @@ pub fn draw_circle(cx: f32, cy: f32, radius: f32, segments: u32, screen_config: 
 
     let inert_v = |x: f32, y: f32| Vertex {
         position: to_ndc(x, y),
-        color: [r, g, b],
+        color: [color.r, color.g, color.b],
         uv: [-1.0, -1.0],
         radius: [0.0; 4],
         half_size: [1.0, 1.0],

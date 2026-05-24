@@ -1,7 +1,7 @@
 pub mod window;
 
 use crate::graphics::{
-    color::{BLACK, C_NOTE_COLOR, DARK_GRAY, ORANGE, WHITE},
+    color::{Color, BLACK, C_NOTE_COLOR, DARK_GRAY, ORANGE, WHITE},
     widgets::Rectangle,
 };
 
@@ -21,14 +21,14 @@ pub struct PianoNote {
 }
 
 // return color for hover logic
-pub fn black_piano_step_hover_color(rect: &Rectangle, mx: f32, my: f32) -> (f32, f32, f32) {
+pub fn black_piano_step_hover_color(rect: &Rectangle, mx: f32, my: f32) -> Color {
     if rect.is_hovered(mx, my) {
         DARK_GRAY
     } else {
         BLACK
     }
 }
-pub fn white_piano_step_hover_color(rect: &Rectangle, mx: f32, my: f32, index: u32) -> (f32, f32, f32) {
+pub fn white_piano_step_hover_color(rect: &Rectangle, mx: f32, my: f32, index: u32) -> Color {
     if rect.is_hovered(mx, my) && index == 11 {
         ORANGE
     } else if index == 11 {

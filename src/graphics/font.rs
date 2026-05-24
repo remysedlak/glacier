@@ -1,10 +1,13 @@
-use crate::graphics::primitives::{ScreenConfig, Vertex, NO_RADIUS};
+use crate::graphics::{
+    color::Color,
+    primitives::{ScreenConfig, Vertex, NO_RADIUS},
+};
 use std::collections::HashMap;
 
 pub struct TextItem {
     pub text: String,
     pub size: f32,
-    pub color: (f32, f32, f32),
+    pub color: Color,
     pub font: &'static str,
     pub x: f32,
     pub y: f32,
