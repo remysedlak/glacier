@@ -746,13 +746,6 @@ impl Graphics {
             });
         }
 
-        if let ClickResult::DeleteTrack(i) = click_result {
-            self.instruments.remove(i);
-        }
-        if let ClickResult::DeletePlaylistPattern(id) = click_result {
-            self.events.retain(|e| e.id != id);
-        }
-
         // --- toolbar (pattern tray + toolbar bar) ---
         let toolbar_vert_start = vertices.len() as u32;
         let toolbar_char_start = char_draws.len();
@@ -823,18 +816,8 @@ impl Graphics {
 
         let tooltip_vert_end = vertices.len() as u32;
         let tooltip_char_end = char_draws.len();
+        click_result = click_result.or(toolbar_result);
 
-        match toolbar_result {
-            ClickResult::Stop => {
-                self.is_playing = !self.is_playing;
-                self.active_step = 0;
-                click_result = ClickResult::Stop;
-            }
-            ClickResult::None => {}
-            other => {
-                click_result = click_result.or(other);
-            }
-        }
         Graphics::push_text_draws(
             &toolbar_texts,
             &self.font_cache,
@@ -867,12 +850,6 @@ impl Graphics {
                 cursor_icon = menu_cursor;
             }
             click_result = click_result.or(menu_result);
-
-            // delete the track and close the menu
-            if let ClickResult::DeleteTrack(i) = click_result {
-                self.instruments.remove(i);
-                self.context_menu = None;
-            }
         }
 
         let context_menu_vert_end = vertices.len() as u32;

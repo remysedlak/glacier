@@ -353,6 +353,9 @@ impl App {
                     self.project_is_dirty = true;
                 }
                 ClickResult::DeletePlaylistPattern(id) => {
+                    // ui
+                    gfx.events.retain(|e| e.id != id);
+                    // audio
                     self.producer.try_push(AudioCommand::DeleteAudioBlock(id)).ok();
                     self.project_is_dirty = true;
                 }
@@ -420,7 +423,13 @@ impl App {
                     self.project_is_dirty = true;
                 }
                 ClickResult::Stop => {
-                    // reset song to 0:00
+                    // resets song back to 0:00
+
+                    // ui state
+                    gfx.is_playing = !gfx.is_playing;
+                    gfx.active_step = 0;
+
+                    // audio state
                     self.producer.try_push(AudioCommand::Stop).ok();
                 }
                 ClickResult::ToggleTrackMute(track) => {
@@ -437,8 +446,14 @@ impl App {
                     self.producer.try_push(AudioCommand::TogglePlay).ok();
                 }
                 ClickResult::DeleteTrack(i) => {
+                    // audio state
+                    //
                     self.producer.try_push(AudioCommand::DeleteTrack(i)).ok();
                     self.project_is_dirty = true;
+
+                    // ui state
+                    gfx.instruments.remove(i);
+                    gfx.context_menu = None;
                 }
                 ClickResult::ProjectFileDialog => {
                     if self.project_file_dialog_rx.is_none() {
