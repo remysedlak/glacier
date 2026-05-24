@@ -1,6 +1,9 @@
 # glacier
 A DAW built from scratch in Rust as a deliberate learning project. No frameworks — raw wgpu, CPAL, and winit.
 
+<img width="1920" height="1080" alt="image" src="https://github.com/user-attachments/assets/22c30185-dde7-422d-bdd7-3d2c3207451e" />
+
+
 ## features
 - step sequencer with per-pattern sequences, MIDI velocity, and velocity bar view per track
 - piano roll — place and edit notes per instrument per pattern, scrollable note grid and fixed key column
