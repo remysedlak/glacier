@@ -1,35 +1,45 @@
 # glacier
 A DAW built from scratch in Rust as a deliberate learning project. No frameworks — raw wgpu, CPAL, and winit.
 
-<img width="1920" height="1080" alt="image" src="https://github.com/user-attachments/assets/51cfaf4a-645c-45d6-9c2b-1cd4440f6021" />
-
 ## features
-- step sequencer with per-pattern sequences and MIDI velocity
+- step sequencer with per-pattern sequences, MIDI velocity, and velocity bar view per track
+- piano roll — place and edit notes per instrument per pattern, scrollable note grid and fixed key column
 - load .wav instruments at runtime, add/delete tracks dynamically
 - variable step counts per track
-- multiple patterns, switchable from the UI
-- playlist view — arrange patterns across a timeline with scroll and scissor clipping
+- multiple patterns, switchable from the UI, with duplicate support
+- playlist view — arrange patterns across a timeline with x/y scroll and scissor clipping per region
 - mixer window with master volume slider
 - per-track volume knobs and mute controls
-- draggable, z-ordered mini-windows (sequencer, playlist, mixer)
+- draggable, z-ordered mini-windows with correct click and hover ownership across overlapping windows
+- instrument detail windows per track
 - right-click context menus on patterns and tracks
+- SVG icon pipeline — toolbar icons rasterized via resvg, tooltip system on hover
 - custom text rendering via fontdue — glyph cache, textured quads, painter's algorithm interleaving
+- multiple font support (variable + monospace)
 - play/pause, stop, BPM control, keyboard shortcuts (space, ctrl+s)
-- cursor icon feedback on interactive elements
+- cursor icon feedback on all interactive elements
 - project save/load via TOML
-- footer status bar showing current project path
+- footer status bar showing project path and FPS
 
 ## modules
-- `audio` — CPAL stream, sequencer callback, event-driven trigger resolution
-- `graphics` — wgpu pipeline, fontdue glyph cache, per-window draw ranges, painter's algorithm
-- `graphics/font` — glyph rasterization, texture upload, NDC quad generation
-- `graphics/sequencer`, `mixer`, `playlist` — per-window geometry and text
-- `graphics/context_menu` — ephemeral right-click menus
-- `graphics/footer` — status bar
-- `graphics/components/pattern_tray` — pattern list and selection
-- `graphics/ui` — shape primitives, layout constants, widget helpers
+- `audio` — CPAL stream, sequencer callback, event-driven trigger resolution by instrument ID
+- `app` — winit event loop, input handling, ring buffer dispatch, file dialog threads
 - `project` — serialization structs, WAV loading
-- `app` — winit event loop, input handling, ring buffer dispatch
+- `graphics/mod` — wgpu pipeline, draw loop, painter's algorithm, click owner and hover blocking
+- `graphics/font` — fontdue glyph cache, texture upload, NDC quad generation
+- `graphics/widgets` — Rectangle, Square, draw_slider, window_title_bar, layout constants
+- `graphics/primitives` — ScreenConfig, Vertex, draw_rectangle, draw_knob, padding constants
+- `graphics/icons` — SVG rasterization via resvg, icon cache, Tooltip
+- `graphics/color` — named color constants
+- `graphics/context_menu` — ephemeral right-click menus
+- `graphics/components/toolbar` — toolbar draw, icon positions, BPM controls
+- `graphics/components/pattern_tray` — pattern list and selection
+- `graphics/components/footer` — status bar
+- `graphics/mini_window/sequencer` — step sequencer window
+- `graphics/mini_window/mixer` — mixer window
+- `graphics/mini_window/playlist` — playlist arrangement
+- `graphics/mini_window/piano_roll` — piano roll window
+- `graphics/mini_window/instrument` — instrument detail window
 
 ## stack
-wgpu · winit · CPAL · fontdue · ringbuf · hound · serde/toml · rfd
+wgpu · winit · CPAL · fontdue · ringbuf · hound · serde/toml · rfd · resvg
