@@ -8,9 +8,8 @@ pub mod primitives;
 pub mod widgets;
 
 use crate::app::{MouseState, PianoRollState};
-use crate::graphics::color::Color;
 use crate::graphics::{
-    color::{DARK_GRAY, WHITE},
+    color::{Color, DARK_GRAY, WHITE},
     components::{footer, pattern_tray},
     context_menu::ContextMenu,
     font::{TextItem, MONO_FONT, ROBOTO_FONT},
@@ -102,8 +101,13 @@ pub const ONE_MEGABYTE: u64 = 1024 * 1024;
 
 /// Initialize the graphics with default/loaded state and find driver/display info
 pub async fn create_graphics(window: Rc<Window>, proxy: EventLoopProxy<Graphics>) {
+    // Context for all other wgpu objects. Instance of wgpu.
     let instance = Instance::default();
+    // Creates a new surface targeting a given window/canvas/surface/etc..
+    // Internally, this creates surfaces for all backends that are enabled for this WGPU instance.
     let surface = instance.create_surface(Rc::clone(&window)).unwrap();
+
+    // Handle to a physical graphics and/or compute device.
     let adapter = instance
         .request_adapter(&RequestAdapterOptions {
             power_preference: PowerPreference::default(),
@@ -113,6 +117,8 @@ pub async fn create_graphics(window: Rc<Window>, proxy: EventLoopProxy<Graphics>
         .await
         .expect("Could not get an adapter (GPU).");
 
+    // Requests a connection to a physical device, creating a logical device.
+    // Returns the Device together with a Queue that executes command buffers.
     let (device, queue) = adapter
         .request_device(&DeviceDescriptor {
             label: None,
@@ -124,19 +130,22 @@ pub async fn create_graphics(window: Rc<Window>, proxy: EventLoopProxy<Graphics>
         .await
         .expect("Failed to get device");
 
+    // Returns the physical size of the window’s client area
     let size = window.inner_size();
     let width = size.width.max(1);
     let height = size.height.max(1);
     let surface_config = surface.get_default_config(&adapter, width, height).unwrap();
     surface.configure(&device, &surface_config);
 
+    // init graphics state
     let vertices: Vec<Vertex> = Vec::new();
     let patterns: Vec<PatternData> = Vec::new();
     let instruments: Vec<Instrument> = Vec::new();
     let events: Vec<AudioBlock> = Vec::new();
-
+    let mut mini_windows: Vec<MiniWindow> = Vec::new();
     let context_menu = None;
 
+    // vertex buffer for collecting shapes to draw each frame
     let vertex_buffer = device.create_buffer(&wgpu::BufferDescriptor {
         label: Some("Vertex Buffer"),
         size: ONE_MEGABYTE * 8,
@@ -144,23 +153,17 @@ pub async fn create_graphics(window: Rc<Window>, proxy: EventLoopProxy<Graphics>
         mapped_at_creation: false,
     });
 
-    let mut mini_windows: Vec<MiniWindow> = Vec::new();
-
-    // init sequencer_window
+    // init windows ; TODO: remove hardcoded coordinates, should be dynamic based on saved state
+    let playlist_window = MiniWindow::new(900.0, 600.0, 1500.0, 900.0, "Playlist", WindowKind::Playlist, true);
+    mini_windows.push(playlist_window);
+    let mixer_window = MiniWindow::new(128.0, 500.0, 800.0, 300.0, "Mixer", WindowKind::Mixer, false);
+    mini_windows.push(mixer_window);
+    let piano_window = MiniWindow::new(256.0, 400.0, 1092.0, 600.0, "Piano", WindowKind::PianoRoll, true);
+    mini_windows.push(piano_window);
     let sequencer_window = MiniWindow::new(256.0, 128.0, 1092.0, 100.0, "Sequencer", WindowKind::Sequencer, false);
     mini_windows.push(sequencer_window);
 
-    // init playlist_window
-    let playlist_window = MiniWindow::new(900.0, 600.0, 1500.0, 900.0, "Playlist", WindowKind::Playlist, true);
-    mini_windows.push(playlist_window);
-
-    // init mixer window
-    let mixer_window = MiniWindow::new(128.0, 500.0, 800.0, 300.0, "Mixer", WindowKind::Mixer, false);
-    mini_windows.push(mixer_window);
-
-    // init piano window
-    let piano_window = MiniWindow::new(256.0, 400.0, 1092.0, 600.0, "Piano", WindowKind::PianoRoll, true);
-    mini_windows.push(piano_window);
+    // fonts
     let roboto = (
         ROBOTO_FONT,
         include_bytes!("../../assets/fonts/Roboto-VariableFont_wdth,wght.ttf") as &[u8],
@@ -168,17 +171,15 @@ pub async fn create_graphics(window: Rc<Window>, proxy: EventLoopProxy<Graphics>
     let mono = (MONO_FONT, include_bytes!("../../assets/fonts/IBMPlexMono-Regular.ttf") as &[u8]);
     let mut font_cache: HashMap<String, fontdue::Font> = HashMap::new();
     let mut glyph_cache: HashMap<String, HashMap<(char, u32), (wgpu::Texture, wgpu::BindGroup, fontdue::Metrics)>> = HashMap::new();
-
     let bind_group_layout = font::create_bind_group_layout(&device);
-    let render_pipeline = create_pipeline(&device, surface_config.format, &bind_group_layout);
-
     for (name, bytes) in [roboto, mono] {
         let font = fontdue::Font::from_bytes(bytes, fontdue::FontSettings::default()).unwrap();
         let cache = font::build_glyph_cache(&device, &queue, &font, &[8.0, 10.0, 12.0, 14.0, 16.0, 18.0, 24.0, 32.0]);
         font_cache.insert(name.to_string(), font);
         glyph_cache.insert(name.to_string(), cache);
     }
-    // init icon's
+
+    // svg icons
     let mut icon_cache = HashMap::new();
     for name in icons::ICON_NAMES {
         let svg_str = std::fs::read_to_string(format!("assets/icons/{}.svg", name)).unwrap();
@@ -190,6 +191,9 @@ pub async fn create_graphics(window: Rc<Window>, proxy: EventLoopProxy<Graphics>
         let (texture, bind_group, _, _, _) = icons::rasterize_icon(&device, &queue, icon);
         icon_cache.insert(name.to_string(), (texture, bind_group));
     }
+
+    // wgsl shader and render pipeline setup
+    let render_pipeline = create_pipeline(&device, surface_config.format, &bind_group_layout);
 
     let gfx = Graphics {
         // graphics
@@ -241,6 +245,7 @@ pub async fn create_graphics(window: Rc<Window>, proxy: EventLoopProxy<Graphics>
     let _ = proxy.send_event(gfx);
 }
 
+/// create the render pipeline, which describes how to process vertices and fragments, including shaders, blending, and output formats
 fn create_pipeline(device: &wgpu::Device, swap_chain_format: TextureFormat, bind_group_layout: &wgpu::BindGroupLayout) -> RenderPipeline {
     let shader = device.create_shader_module(ShaderModuleDescriptor {
         label: None,
@@ -278,6 +283,7 @@ fn create_pipeline(device: &wgpu::Device, swap_chain_format: TextureFormat, bind
     })
 }
 
+/// Main struct holding all graphics state, including wgpu objects, loaded fonts and icons, and UI state like open windows and dragging
 pub struct Graphics {
     //wgpu
     pub window: Rc<Window>,
@@ -325,12 +331,14 @@ pub struct Graphics {
     pub piano_roll_scroll_y: f32,
 }
 
+/// Bring a window to the front of the z-order
 pub fn bring_to_front(z_order: &mut Vec<usize>, id: usize) {
     z_order.retain(|&x| x != id);
     z_order.push(id);
 }
 
 impl Graphics {
+    //  helper function to draw a list of vertices with the same bind group (for shapes with the same color or texture)
     fn draw_geom(r_pass: &mut wgpu::RenderPass, vertex_buffer: &wgpu::Buffer, any_bg: &wgpu::BindGroup, start: u32, end: u32) {
         if start < end {
             r_pass.set_bind_group(0, any_bg, &[]);
@@ -339,6 +347,7 @@ impl Graphics {
         }
     }
 
+    // draw a list of characters, each with their own texture and bind group, so they can be different colors and fonts
     fn draw_chars(r_pass: &mut wgpu::RenderPass, char_draws: &[(wgpu::Buffer, &wgpu::BindGroup)], start: usize, end: usize) {
         for i in start..end {
             r_pass.set_bind_group(0, char_draws[i].1, &[]);
@@ -346,10 +355,13 @@ impl Graphics {
             r_pass.draw(0..6, 0..1);
         }
     }
+
+    // draw a list of icons, each with their own texture and bind group
     pub fn request_redraw(&self) {
         self.window.request_redraw();
     }
 
+    // loading project data into the graphics state, called from the app when a project is loaded or created new
     pub fn load_instrument(&mut self, i: Instrument) {
         if i.data.id >= self.instruments.len() as u32 {
             self.instruments.push(i);

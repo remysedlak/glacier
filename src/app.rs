@@ -480,7 +480,7 @@ impl App {
                             tx.send(file).ok();
                         });
                     }
-                }
+                } // TODO: adding instrument to ui causes the sequencer to  open
 
                 ClickResult::None => {
                     if self.mouse_state.left_clicked {
