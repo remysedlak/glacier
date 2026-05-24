@@ -4,7 +4,7 @@ use crate::graphics::{
     mini_window::{MiniWindow, WindowKind, MIXER_ID, PIANO_ROLL_ID, PLAYLIST_ID, SEQUENCER_ID},
     {bring_to_front, create_graphics, ClickResult, DragResult, Graphics, Rc},
 };
-use crate::project::{AudioBlock, Instrument, PatternData};
+use crate::project::{AudioBlock, Instrument, InstrumentData, PatternData};
 use cpal::{traits::StreamTrait, Stream};
 use rfd::FileDialog;
 use ringbuf::{
@@ -84,6 +84,7 @@ pub struct App {
 
     instrument_file_dialog_rx: Option<Receiver<Option<PathBuf>>>,
     project_file_dialog_rx: Option<Receiver<Option<PathBuf>>>,
+    instrument_load_rx: Option<Receiver<(InstrumentData, Vec<f32>)>>,
 }
 
 // app created for the main event loop
@@ -98,6 +99,7 @@ impl App {
             ctrl_pressed: false,
             instrument_file_dialog_rx: None,
             project_file_dialog_rx: None,
+            instrument_load_rx: None,
             project_is_dirty: false,
             // mouse state
             prev_mouse_x: 0.0,
@@ -128,9 +130,23 @@ impl App {
             if let Some(rx) = &self.instrument_file_dialog_rx {
                 match rx.try_recv() {
                     Ok(Some(path)) => {
-                        self.producer
-                            .try_push(AudioCommand::AddInstrument(path.to_str().unwrap().to_string()))
-                            .ok();
+                        let path_str = path.to_str().unwrap().to_string();
+                        let (tx, load_rx) = std::sync::mpsc::channel();
+                        self.instrument_load_rx = Some(load_rx);
+                        std::thread::spawn(move || {
+                            let samples = crate::project::path_to_vector(&path_str);
+                            let name = std::path::Path::new(&path_str).file_name().unwrap().to_str().unwrap().to_string();
+                            let data = crate::project::InstrumentData {
+                                id: 0,
+                                path: path_str,
+                                name,
+                                is_muted: false,
+                                target_volume: 1.0,
+                                track_volume: 1.0,
+                                root_note: 60,
+                            };
+                            tx.send((data, samples)).ok();
+                        });
                         self.project_is_dirty = true;
                         self.instrument_file_dialog_rx = None;
                     }
@@ -212,6 +228,19 @@ impl App {
             let (result, icon) = gfx.draw(&self.mouse_state, self.project_is_dirty);
             gfx.frame_ms = start.elapsed().as_secs_f32() * 1000.0;
             gfx.window.set_cursor(icon);
+
+            if let Some(rx) = &self.instrument_load_rx {
+                match rx.try_recv() {
+                    Ok((data, samples)) => {
+                        self.producer.try_push(AudioCommand::LoadInstrument(data, samples)).ok();
+                        self.instrument_load_rx = None;
+                    }
+                    Err(TryRecvError::Empty) => {}
+                    Err(TryRecvError::Disconnected) => {
+                        self.instrument_load_rx = None;
+                    }
+                }
+            }
 
             // dispatch audio commands based on what was clicked
             match result {

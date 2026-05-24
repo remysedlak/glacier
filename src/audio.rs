@@ -1,4 +1,6 @@
-use crate::project::*;
+use crate::project::{
+    get_instruments, get_project, save_project, AudioBlock, AudioBlockType, Instrument, InstrumentData, Note, PatternData, Project, Sequence,
+};
 use crate::UiCommand;
 use cpal::{
     traits::{DeviceTrait, HostTrait, StreamTrait},
@@ -11,11 +13,16 @@ use ringbuf::{
 
 // commands retrieved from the user interface
 pub enum AudioCommand {
+    // composition details
     ToggleStep(usize, usize, usize),
     ToggleNote(usize, u32, usize, u8), // pattern_id, instrument_id, step_idx, pitch
     ChangeBpm(f32),
+
+    // mixing
     ChangeMasterVolume(f32),
     ToggleTrackMute(usize),
+
+    // control
     TogglePlay,
     Stop,
     ShutDown,
@@ -23,7 +30,9 @@ pub enum AudioCommand {
     DuplicatePattern(usize),
     AddPattern,
     DeletePattern(usize),
-    AddInstrument(String),
+
+    LoadInstrument(InstrumentData, Vec<f32>),
+
     DeleteTrack(usize),
     ChangeTrackVolume(usize, f32),
     DeleteAudioBlock(usize),
@@ -82,6 +91,7 @@ pub fn init(mut consumer: HeapCons<AudioCommand>, mut producer: HeapProd<UiComma
         producer.try_push(UiCommand::LoadInstrument(instrument.clone())).ok();
     }
 
+    // initalize state
     let mut is_playing = false;
     let mut is_shutting_down = false;
     let mut shutdown_volume: f32 = 1.00;
@@ -103,6 +113,7 @@ pub fn init(mut consumer: HeapCons<AudioCommand>, mut producer: HeapProd<UiComma
                         producer.try_push(UiCommand::LoadPattern(new_pattern)).ok();
                     }
                 }
+
                 AudioCommand::ToggleNote(pattern_id, instrument_id, step_idx, pitch) => {
                     if let Some(seq) = patterns[pattern_id].sequences.iter_mut().find(|s| s.instrument_id == instrument_id) {
                         let note = &mut seq.steps[step_idx];
@@ -160,7 +171,7 @@ pub fn init(mut consumer: HeapCons<AudioCommand>, mut producer: HeapProd<UiComma
                     // add new event to playlist
                     events.push(AudioBlock {
                         id: events.len(),
-                        track: track,
+                        track,
                         start_step,
                         length: length as u32,
                         block_type,
@@ -192,25 +203,13 @@ pub fn init(mut consumer: HeapCons<AudioCommand>, mut producer: HeapProd<UiComma
                 AudioCommand::DeleteTrack(i) => {
                     instruments.remove(i);
                 }
-                AudioCommand::AddInstrument(path) => {
-                    let file_name = std::path::Path::new(&path) // get the file name
-                        .file_name()
-                        .unwrap()
-                        .to_str()
-                        .unwrap()
-                        .to_string();
+
+                AudioCommand::LoadInstrument(mut instrument_data, samples) => {
+                    instrument_data.id = instruments.len() as u32;
                     let instrument = Instrument {
-                        samples: path_to_vector(&path),
+                        samples,
                         position: 0.0,
-                        data: InstrumentData {
-                            id: (instruments.len()) as u32,
-                            path: path.clone(),
-                            track_volume: 1.0,
-                            target_volume: 1.0,
-                            is_muted: false,
-                            name: file_name.clone(),
-                            root_note: 60,
-                        },
+                        data: instrument_data,
                         is_playing: false,
                         current_volume: 0.0,
                         show_velocity: false,
@@ -233,7 +232,7 @@ pub fn init(mut consumer: HeapCons<AudioCommand>, mut producer: HeapProd<UiComma
                 AudioCommand::SaveProject => {
                     let project = Project {
                         name: name.clone(),
-                        bpm: bpm,
+                        bpm,
                         instruments: instruments.iter().map(|i| i.data.clone()).collect(),
                         patterns: patterns.clone(),
                         events: events.clone(),
@@ -314,14 +313,6 @@ pub fn init(mut consumer: HeapCons<AudioCommand>, mut producer: HeapProd<UiComma
             if sample_counter >= samples_per_step {
                 sample_counter = 0.0;
 
-                // // current step follows the longest instrument track
-                // current_step = (current_step + 1)
-                //     % patterns
-                //         .iter()
-                //         .flat_map(|p| p.sequences.iter())
-                //         .map(|s| s.steps.len())
-                //         .max()
-                //         .unwrap_or(16);
                 let total_steps = events.iter().map(|e| e.start_step + e.length).max().unwrap_or(16) as usize;
                 current_step = (current_step + 1) % total_steps;
 
