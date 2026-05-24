@@ -68,7 +68,7 @@ pub fn draw(
     if add_pattern_button.is_hovered(mouse_state.x, mouse_state.y) {
         cursor_icon = CursorIcon::Pointer;
         if mouse_state.left_clicked {
-            click_result = ClickResult::AddPlaylist;
+            click_result = ClickResult::CreatePattern;
         }
     }
 

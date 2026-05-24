@@ -319,7 +319,7 @@ impl App {
                         gfx.z_order.push(new_id);
                     }
                 }
-                ClickResult::AddPlaylist => {
+                ClickResult::CreatePattern => {
                     self.producer.try_push(AudioCommand::AddPattern).ok();
                     self.project_is_dirty = true;
                 }

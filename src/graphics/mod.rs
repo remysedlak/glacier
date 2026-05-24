@@ -40,9 +40,14 @@ pub type Rc<T> = std::sync::Arc<T>;
 
 #[derive(Debug)]
 pub enum ClickResult {
+    // sequencer
     ToggleStep(usize, usize, usize),   // pattern_id, instrument_id, step_idx
     ToggleNote(usize, u32, usize, u8), // pattern_id, instrument_id, step_idx, pitch
     ToggleTrackMute(usize),
+    DeleteTrack(usize),
+    ToggleSequencerWindow,
+
+    // toolbar
     Stop,
     ChangeBpmUp,
     ChangeBpmDown,
@@ -50,24 +55,34 @@ pub enum ClickResult {
     TogglePlay,
     ProjectFileDialog,
     InstrumentFileDialog,
-    DeleteTrack(usize),
-    DeletePlaylistPattern(usize),
-    DeletePattern(usize),
-    AddPlaylistPattern(usize, u32, usize, AudioBlockType),
-    AddPlaylist,
-    ToggleSequencerWindow,
-    ToggleMixerWindow,
-    TogglePlaylistWindow,
-    TogglePianoRollWindow,
-    LoadPianoRoll(PianoRollState),
-    ToggleTrackWindow(usize),
-    SelectPattern(usize),
-    OpenPatternMenu(f32, f32, usize),
+
+    // menus
     OpenTrackMenu(f32, f32, usize, usize),
     CloseContextMenu,
+
+    // patterns
+    DeletePlaylistPattern(usize),
+    DeletePattern(usize),
+    DuplicatePattern(usize),
+    CreatePattern,
+    AddPlaylistPattern(usize, u32, usize, AudioBlockType),
+    SelectPattern(usize),
+    OpenPatternMenu(f32, f32, usize),
+
+    // piano roll
+    TogglePianoRollWindow,
+    LoadPianoRoll(PianoRollState),
+
+    // playlist close button
+    ToggleMixerWindow,
+    TogglePlaylistWindow,
+    ToggleTrackWindow(usize),
+
+    // no click result
     None,
 }
 impl ClickResult {
+    /// combine click results, prioritizing the first if it's not None
     pub fn or(self, other: ClickResult) -> ClickResult {
         if matches!(self, ClickResult::None) {
             other
