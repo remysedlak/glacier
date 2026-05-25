@@ -8,7 +8,7 @@ use crate::graphics::{
     ClickResult,
 };
 use crate::project::{Instrument, PatternData, Sequence};
-use winit::window::CursorIcon;
+use winit::window::CursorIcon::{self, ColResize};
 
 pub fn draw(
     window: &MiniWindow,
@@ -157,6 +157,10 @@ pub fn draw(
                     .map(|n| n.velocity > 0.0 && n.pitch == midi_note)
                     .unwrap_or(false);
 
+                if piano_roll_step.is_hovered_right_edge(mouse_state.x, mouse_state.y) && is_active {
+                    cursor_icon = CursorIcon::ColResize;
+                }
+
                 let hovered = piano_roll_step.is_hovered(mouse_state.x, mouse_state.y) && !mouse_state.left_click_held;
 
                 let color = if is_active {
@@ -175,6 +179,7 @@ pub fn draw(
                     }
                 };
 
+                // trigger note on and off
                 if piano_roll_step.is_hovered(mouse_state.x, mouse_state.y) && mouse_state.left_clicked {
                     if let Some(state) = piano_roll_state {
                         click_result = ClickResult::ToggleNote(state.pattern_id, state.instrument_id, step_index, midi_note);

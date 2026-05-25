@@ -188,11 +188,21 @@ pub async fn create_graphics(window: Rc<Window>, proxy: EventLoopProxy<Graphics>
 
     // svg icons
     let mut icon_cache = HashMap::new();
-    for name in icons::ICON_NAMES {
-        let svg_str = std::fs::read_to_string(format!("assets/icons/{}.svg", name)).unwrap();
+    for name in icons::ICON_NAMES_128 {
+        let svg_str = std::fs::read_to_string(format!("assets/icons/128x128/{}.svg", name)).unwrap();
         let icon = icons::IconSvg {
             width: 128.0,
             height: 128.0,
+            path: svg_str,
+        };
+        let (texture, bind_group, _, _, _) = icons::rasterize_icon(&device, &queue, icon);
+        icon_cache.insert(name.to_string(), (texture, bind_group));
+    }
+    for name in icons::ICON_NAMES_32 {
+        let svg_str = std::fs::read_to_string(format!("assets/icons/32x32/{}.svg", name)).unwrap();
+        let icon = icons::IconSvg {
+            width: 32.0,
+            height: 32.0,
             path: svg_str,
         };
         let (texture, bind_group, _, _, _) = icons::rasterize_icon(&device, &queue, icon);
@@ -764,6 +774,9 @@ impl Graphics {
                     });
 
                     click_result = click_result.or(result);
+                    if cursor != CursorIcon::Default {
+                        cursor_icon = cursor;
+                    }
                 }
                 instrument => {
                     let window = &self.mini_windows[instrument];
