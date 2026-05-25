@@ -46,7 +46,7 @@ pub struct PianoRollState {
 
 // commands that the audio engine sends to the window
 pub enum UiCommand {
-    LoadProjectFile(String),
+    LoadProjectPath(String),
     StepAdvanced(usize),
     LoadInstrument(Instrument),
     LoadBpm(f32),
@@ -182,7 +182,7 @@ impl App {
             // consume audio -> ui commands
             while let Some(cmd) = self.consumer.try_pop() {
                 match cmd {
-                    UiCommand::LoadProjectFile(path) => {
+                    UiCommand::LoadProjectPath(path) => {
                         gfx.project_path = path;
                     }
                     UiCommand::LoadInstrument(instrument) => {
@@ -239,7 +239,7 @@ impl App {
             if let Some(rx) = &self.instrument_load_rx {
                 match rx.try_recv() {
                     Ok((data, samples)) => {
-                        self.producer.try_push(AudioCommand::LoadInstrument(data, samples)).ok();
+                        self.producer.try_push(AudioCommand::LoadTrack(data, samples)).ok();
                         self.instrument_load_rx = None;
                     }
                     Err(TryRecvError::Empty) => {}
@@ -248,9 +248,12 @@ impl App {
                     }
                 }
             }
-
+            dbg!(gfx.resizing_event);
             // dispatch audio commands based on what was clicked
             match result {
+                ClickResult::StartResizeEvent(id) => {
+                    gfx.resizing_event = Some(id);
+                }
                 ClickResult::DuplicatePattern(pattern_id) => {
                     self.producer.try_push(AudioCommand::DuplicatePattern(pattern_id)).ok();
                     self.project_is_dirty = true;
@@ -456,7 +459,7 @@ impl App {
                 ClickResult::DeleteTrack(i) => {
                     self.producer.try_push(AudioCommand::DeleteTrack(i)).ok();
                     gfx.instruments.remove(i);
-                    gfx.mini_windows[SEQUENCER_ID].height = 100.0 + 10.0 * gfx.instruments.len() as f32;
+                    gfx.mini_windows[SEQUENCER_ID].height = 100.0 + TRACK_GAP * gfx.instruments.len() as f32;
 
                     gfx.context_menu = None;
                     self.project_is_dirty = true;
@@ -624,8 +627,8 @@ impl ApplicationHandler<Graphics> for App {
 
             // mouse event
             WindowEvent::MouseInput { state, button, .. } => {
+                // left click is PRESSED
                 if state.is_pressed() && button == MouseButton::Left {
-                    // change state
                     let now = std::time::Instant::now();
                     let is_double_click = self.last_click_time.map(|t| now.duration_since(t).as_millis() < 300).unwrap_or(false);
                     self.last_click_time = Some(now);
@@ -638,14 +641,16 @@ impl ApplicationHandler<Graphics> for App {
 
                     // redraw
                     self.draw(&event_loop);
-                } else {
-                    // change state
+                }
+                // left click is RELEASED
+                else {
                     self.mouse_state.left_click_held = false;
                     self.mouse_state.left_clicked = false;
                     if let State::Ready(gfx) = &mut self.state {
                         gfx.dragging = false;
-                        gfx.dragging_window = None; // is this here?
+                        gfx.dragging_window = None;
                         gfx.dragging_knob = None;
+                        gfx.resizing_event = None;
                     }
                 }
                 if state.is_pressed() && button == MouseButton::Right {

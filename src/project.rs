@@ -5,9 +5,27 @@ use serde::{Deserialize, Serialize};
 pub struct Project {
     pub name: String,
     pub bpm: f32,
+    pub master_volume: f32,
     pub events: Vec<AudioBlock>,
     pub instruments: Vec<InstrumentData>,
     pub patterns: Vec<PatternData>,
+}
+
+impl Default for Project {
+    fn default() -> Project {
+        Project {
+            name: "New Project".to_string(),
+            bpm: 120.0,
+            master_volume: 1.00,
+            events: vec![],
+            instruments: vec![],
+            patterns: vec![PatternData {
+                id: 0,
+                name: "Pattern 1".to_string(),
+                sequences: vec![],
+            }],
+        }
+    }
 }
 
 // types of blocks to be placed

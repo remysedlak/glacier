@@ -19,26 +19,30 @@ pub enum AudioCommand {
     ToggleStep(usize, usize, usize),
     ToggleNote(usize, u32, usize, u8), // pattern_id, instrument_id, step_idx, pitch
     ChangeBpm(f32),
+    DeleteAudioBlock(usize),
+    CreateAudioBlock(usize, u32, usize, AudioBlockType),
 
     // mixing
     ChangeMasterVolume(f32),
     ToggleTrackMute(usize),
+    ChangeTrackVolume(usize, f32),
 
     // control
     TogglePlay,
     Stop,
+
+    // project state
     ShutDown,
     SaveProject,
+
+    // patterns
     DuplicatePattern(usize),
     AddPattern,
     DeletePattern(usize),
 
-    LoadInstrument(InstrumentData, Vec<f32>),
-
+    // instruments
+    LoadTrack(InstrumentData, Vec<f32>),
     DeleteTrack(usize),
-    ChangeTrackVolume(usize, f32),
-    DeleteAudioBlock(usize),
-    CreateAudioBlock(usize, u32, usize, AudioBlockType),
 }
 
 /// initialize the CPAL engine with project file data and return the audio stream
@@ -55,50 +59,44 @@ pub fn init(mut consumer: HeapCons<AudioCommand>, mut producer: HeapProd<UiComma
     let sample_rate_f: f32 = config.sample_rate as f32;
 
     // load project from file path
-    let project = project_file.as_deref().and_then(get_project).unwrap_or_else(|| Project {
-        name: "New Project".to_string(),
-        bpm: 120.0,
-        events: vec![],
-        instruments: vec![],
-        patterns: vec![PatternData {
-            id: 0,
-            name: "Pattern 1".to_string(),
-            sequences: vec![],
-        }],
-    });
+    let project = project_file.as_deref().and_then(get_project).unwrap_or_else(|| Project::default());
 
-    let project_file = project_file.unwrap_or_else(|| "assets/projects/new_project.toml".to_string());
+    let project_path = project_file.unwrap_or_else(|| "assets/projects/new_project.toml".to_string());
 
-    // load a set of instruments to play
+    // instruments state
     let mut instruments: Vec<Instrument> = get_instruments(&project);
+    for instrument in instruments.iter() {
+        producer.try_push(UiCommand::LoadInstrument(instrument.clone())).ok();
+    }
+
+    // patterns state
     let mut patterns = project.patterns;
     for pattern in &patterns {
         producer.try_push(UiCommand::LoadPattern(pattern.clone())).ok();
     }
-    let mut bpm: f32 = project.bpm;
+
+    // events state
     let mut events = project.events;
     for event in &events {
         producer.try_push(UiCommand::LoadEvent(event.clone())).ok();
     }
 
-    producer.try_push(UiCommand::LoadProjectFile(project_file.clone())).ok();
+    producer.try_push(UiCommand::LoadProjectPath(project_path.clone())).ok();
 
-    // wrap back on first hit (start on 0)
-    let mut current_step = events.iter().map(|e| e.start_step + e.length).max().unwrap_or(16) as usize - 1;
-
-    // load instruments, bpm, volume to UI
+    // saved bpm
+    let mut bpm: f32 = project.bpm;
     producer.try_push(UiCommand::LoadBpm(bpm)).ok();
-    producer.try_push(UiCommand::LoadMasterVolume(1.0)).ok();
-    for instrument in instruments.iter() {
-        producer.try_push(UiCommand::LoadInstrument(instrument.clone())).ok();
-    }
+
+    // master volume
+    let mut master_volume = project.master_volume;
+    producer.try_push(UiCommand::LoadMasterVolume(project.master_volume)).ok();
 
     // initalize state
+    let mut current_step = events.iter().map(|e| e.start_step + e.length).max().unwrap_or(16) as usize - 1;
     let mut is_playing = false;
     let mut is_shutting_down = false;
     let mut shutdown_volume: f32 = 1.00;
     let mut sample_counter: f32 = 0.0; // tracks how many samples passed, to track when a step passes
-    let mut master_volume = 1.0;
     let name = project.name.clone();
 
     // audio callback to fill samples requested from CPAL
@@ -206,7 +204,7 @@ pub fn init(mut consumer: HeapCons<AudioCommand>, mut producer: HeapProd<UiComma
                     instruments.remove(i);
                 }
 
-                AudioCommand::LoadInstrument(mut instrument_data, samples) => {
+                AudioCommand::LoadTrack(mut instrument_data, samples) => {
                     instrument_data.id = instruments.len() as u32;
                     let instrument = Instrument {
                         samples,
@@ -229,29 +227,35 @@ pub fn init(mut consumer: HeapCons<AudioCommand>, mut producer: HeapProd<UiComma
                     instruments[i].is_playing = false;
                 }
                 AudioCommand::TogglePlay => {
+                    // change state from pause to play, or play to pause
                     is_playing = !is_playing;
                 }
                 AudioCommand::SaveProject => {
+                    // everything from current state
                     let project = Project {
                         name: name.clone(),
                         bpm,
+                        master_volume,
                         instruments: instruments.iter().map(|i| i.data.clone()).collect(),
                         patterns: patterns.clone(),
                         events: events.clone(),
                     };
-                    save_project(&project, &project_file);
+                    save_project(&project, &project_path);
+
+                    // tell ui that we saved the audio finished up
                     producer.try_push(UiCommand::SaveComplete).ok();
-                    println!("saved to {}", project_file.clone());
+                    println!("saved to {}", &project_path);
                 }
                 AudioCommand::ShutDown => {
                     let project = Project {
                         name: name.clone(),
                         bpm,
+                        master_volume,
                         instruments: instruments.iter().map(|i| i.data.clone()).collect(),
                         patterns: patterns.clone(),
                         events: events.clone(),
                     };
-                    save_project(&project, &project_file);
+                    save_project(&project, &project_path);
 
                     // save is complete
                     producer.try_push(UiCommand::SaveComplete).ok();
@@ -320,7 +324,7 @@ pub fn init(mut consumer: HeapCons<AudioCommand>, mut producer: HeapProd<UiComma
 
                 producer.try_push(UiCommand::StepAdvanced(current_step)).ok();
 
-                // triggers now carry pitch too
+                // build out each note
                 let triggers: Vec<(usize, f32, u8)> = events
                     .iter()
                     .filter_map(|e| {
