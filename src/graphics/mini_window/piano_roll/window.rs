@@ -151,7 +151,7 @@ pub fn draw(
                     break;
                 }
 
-                let midi_note = ((8 - octave) * 12 + semitone) as u8;
+                let midi_note = ((8 - octave) * 12 + (11 - semitone)) as u8;
                 let is_active = sequence
                     .and_then(|s| s.steps.get(step_index))
                     .map(|n| n.velocity > 0.0 && n.pitch == midi_note)
