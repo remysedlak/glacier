@@ -112,12 +112,14 @@ pub fn draw(
             };
 
             if pl_step.is_hovered(mouse_state.x, mouse_state.y) && mouse_state.left_clicked {
-                click_result = ClickResult::AddPlaylistPattern(
-                    track,
-                    step,
-                    16, // default step count instead of sequences[0].steps.len()
-                    AudioBlockType::Pattern(active_pattern_id),
-                );
+                let length = patterns
+                    .iter()
+                    .find(|p| p.id == active_pattern_id)
+                    .and_then(|p| p.sequences.first())
+                    .map(|s| s.steps.len())
+                    .unwrap_or(16);
+
+                click_result = ClickResult::AddPlaylistPattern(track, step, length, AudioBlockType::Pattern(active_pattern_id));
             }
 
             timeline_vertices.extend(pl_step.draw(&screen_config, color, NO_RADIUS));
@@ -168,7 +170,7 @@ pub fn draw(
             };
             timeline_vertices.extend(pl_pattern.draw(&screen_config, pl_pattern_color, RADIUS_8));
 
-            let label = &patterns[id as usize].name;
+            let label = patterns.iter().find(|p| p.id == id).map(|p| p.name.as_str()).unwrap_or("?");
             timeline_text_items.push(TextItem {
                 text: label.to_string(),
                 x: window.x + (event.start_step as f32 * PLAYLIST_STEP_GAP) + PAD_16 + TIMELINE_X_ORIGIN + PAD_8 - scroll_x,

@@ -335,9 +335,9 @@ pub fn init(mut consumer: HeapCons<AudioCommand>, mut producer: HeapProd<UiComma
                     .flat_map(|(p, local_step)| {
                         p.sequences
                             .iter()
-                            .filter(move |s| s.steps[local_step % s.steps.len()].velocity > 0.0)
+                            .filter(move |s| local_step < s.steps.len() && s.steps[local_step].velocity > 0.0)
                             .map(move |s| {
-                                let note = &s.steps[local_step % s.steps.len()];
+                                let note = &s.steps[local_step];
                                 (s.instrument_id as usize, note.velocity, note.pitch)
                             })
                     })
