@@ -9,8 +9,6 @@ pub mod widgets;
 
 use crate::app::{MouseState, PianoRollState};
 use crate::audio::DEFAULT_BPM;
-use crate::graphics::mini_window::mixer::SLIDER_OFFSET;
-use crate::graphics::primitives::PAD_16;
 use crate::graphics::{
     color::{Color, DARK_GRAY, WHITE},
     components::{footer, pattern_tray},
@@ -24,7 +22,7 @@ use crate::graphics::{
         sequencer::{ACTIONS_Y_OFFSET, KNOB_OFFSET, KNOB_RADIUS, TRACK_GAP},
         MiniWindow, PianoRollDrawRanges, PlaylistDrawRanges, WindowDrawRange, WindowKind, MIXER_ID, PIANO_ROLL_ID, PLAYLIST_ID, SEQUENCER_ID,
     },
-    primitives::{ScreenConfig, Vertex, NO_RADIUS, PAD_2, PAD_4, PAD_8},
+    primitives::*,
     widgets::*,
 };
 use crate::project::{AudioBlock, AudioBlockType, Instrument, PatternData};
