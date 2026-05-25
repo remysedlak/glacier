@@ -3,7 +3,7 @@ use crate::{
     graphics::{
         color::{Color, *},
         font::{TextItem, ROBOTO_FONT},
-        mini_window::{MiniWindow, WindowKind},
+        mini_window::{piano_roll::window, MiniWindow, WindowKind},
         primitives::{draw_rectangle, Vertex, NO_RADIUS, PAD_16, PAD_4, PAD_8, TOP_RADIUS_16},
         ClickResult, ScreenConfig,
     },
@@ -170,13 +170,18 @@ pub fn window_title_bar(
     // build text item
     let window_title = TextItem {
         text: title.to_string(),
-        x: window.x + window.width / 2.2,
+        x: center_title_x(window, title),
         y: window.y - TITLEBAR_HEIGHT + PAD_4,
         color: WHITE,
         size: 18.0,
         font: ROBOTO_FONT,
     };
     (verticies, window_title, result, cursor_icon)
+}
+
+pub fn center_title_x(window: &MiniWindow, text: &str) -> f32 {
+    let center_x = window.x + (window.width / 2.0);
+    center_x - (text.len() as f32 * 9.0 / 2.0)
 }
 
 pub fn window_background(window: &MiniWindow) -> Rectangle {

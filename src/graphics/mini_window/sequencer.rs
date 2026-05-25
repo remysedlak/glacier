@@ -44,7 +44,7 @@ pub fn draw(
         x: window.x,
         y: window.y,
         width: window.width,
-        height: window.height + 52.0 * instruments.len() as f32,
+        height: window.height,
     };
     vertices.extend(window_background.draw(&screen_config, MINI_WINDOW_BACKGROUND, BOTTOM_RADIUS_16));
 

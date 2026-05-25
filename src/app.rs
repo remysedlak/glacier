@@ -1,4 +1,5 @@
 use crate::audio::{init, AudioCommand};
+use crate::graphics::mini_window::sequencer::TRACK_GAP;
 use crate::graphics::{
     context_menu::{ContextMenu, ContextMenuKind},
     mini_window::{MiniWindow, WindowKind, MIXER_ID, PIANO_ROLL_ID, PLAYLIST_ID, SEQUENCER_ID},
@@ -189,7 +190,7 @@ impl App {
 
                         //ui
                         let win = &mut gfx.mini_windows[SEQUENCER_ID];
-                        win.height = 100.0 + 10.0 * gfx.instruments.len() as f32;
+                        win.height = 100.0 + TRACK_GAP * gfx.instruments.len() as f32;
                         win.is_open = true;
                         bring_to_front(&mut gfx.z_order, SEQUENCER_ID);
                     }
@@ -345,8 +346,8 @@ impl App {
                         gfx.mini_windows.push(MiniWindow {
                             x: 128.0,
                             y: 128.0,
-                            width: 400.0,
-                            height: 300.0,
+                            width: 600.0,
+                            height: 500.0,
                             title: gfx.instruments[track].data.name.clone(),
                             is_open: true,
                             window_kind: WindowKind::InstrumentDetail(track),
