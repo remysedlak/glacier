@@ -3,9 +3,9 @@ use winit::window::CursorIcon;
 use crate::{
     app::MouseState,
     graphics::{
-        color::{Color, BLACK, DARK_GRAY, DARK_GRAY_HOVER, DARK_GRAY_HOVER_HOVER, LL_GRAY, WHITE},
+        color::{Color, DARK_GRAY, DARK_GRAY_HOVER, DARK_GRAY_HOVER_HOVER, LL_GRAY, WHITE},
         font::{TextItem, ROBOTO_FONT},
-        primitives::{ScreenConfig, NO_RADIUS, PAD_2, PAD_24, PAD_32, PAD_4, PAD_64, PAD_8, RADIUS_4, RADIUS_8},
+        primitives::{ScreenConfig, PAD_2, PAD_24, PAD_32, PAD_4, PAD_64, PAD_8, RADIUS_4, RADIUS_8},
         widgets::Rectangle,
         ClickResult, Vertex,
     },

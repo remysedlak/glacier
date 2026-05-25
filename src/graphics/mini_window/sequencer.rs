@@ -123,7 +123,7 @@ pub fn draw(
                 } else {
                     WHITE
                 };
-                vertices.extend(step_button.draw(screen_config, step_color, NO_RADIUS));
+                vertices.extend(step_button.draw(screen_config, step_color, RADIUS_4));
 
                 // check if the step was clicked
                 if step_button.is_hovered(mouse_state.x, mouse_state.y) {
@@ -177,7 +177,7 @@ pub fn draw(
         } else {
             DARK_GRAY
         };
-        vertices.extend(track_button.draw(&screen_config, track_button_color, NO_RADIUS));
+        vertices.extend(track_button.draw(&screen_config, track_button_color, RADIUS_4));
         if track_button.is_hovered(mouse_state.x, mouse_state.y) {
             cursor_icon = CursorIcon::Pointer;
             if mouse_state.left_clicked {
@@ -205,7 +205,7 @@ pub fn draw(
         } else {
             LIGHT_GRAY
         };
-        vertices.extend(mute_button.draw(&screen_config, mute_button_color, NO_RADIUS));
+        vertices.extend(mute_button.draw(&screen_config, mute_button_color, RADIUS_4));
 
         text_items.push(TextItem {
             text: "mut".to_string(),
@@ -217,7 +217,6 @@ pub fn draw(
         });
 
         if mute_button.is_hovered(mouse_state.x, mouse_state.y) {
-            cursor_icon = CursorIcon::Pointer;
             if mouse_state.left_clicked {
                 instrument.data.is_muted = !instrument.data.is_muted;
                 click_result = ClickResult::ToggleTrackMute(i);
@@ -242,7 +241,7 @@ pub fn draw(
         } else {
             LIGHT_GRAY
         };
-        vertices.extend(velocity_button.draw(&screen_config, velocity_button_color, NO_RADIUS));
+        vertices.extend(velocity_button.draw(&screen_config, velocity_button_color, RADIUS_4));
 
         text_items.push(TextItem {
             text: "vel".to_string(),
@@ -253,7 +252,6 @@ pub fn draw(
             font: ROBOTO_FONT,
         });
         if velocity_button.is_hovered(mouse_state.x, mouse_state.y) {
-            cursor_icon = CursorIcon::Pointer;
             if mouse_state.left_clicked {
                 instrument.show_velocity = !instrument.show_velocity;
             }
@@ -282,7 +280,7 @@ pub fn draw(
             text: instrument_button_text,
             x: window.x + PAD_16,
             y: window.y + i as f32 * TRACK_GAP + PAD_16 + PAD_4,
-            size: 16.0,
+            size: 12.0,
             color: WHITE,
             font: ROBOTO_FONT,
         });
