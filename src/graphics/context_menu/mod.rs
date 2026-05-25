@@ -44,6 +44,20 @@ impl ContextMenu {
         }
     }
 
+    pub fn is_hovered(&self, mx: f32, my: f32) -> bool {
+        let item_count = match &self.kind {
+            ContextMenuKind::PatternContext(_) => 3,
+            ContextMenuKind::TrackContext(_, _) => 5,
+        };
+        let rect = Rectangle {
+            x: self.x - PAD_64,
+            y: self.y + PAD_32,
+            width: self.width,
+            height: CONTEXT_MENU_ITEM_HEIGHT * item_count as f32 + PAD_8,
+        };
+        rect.is_hovered(mx, my)
+    }
+
     fn draw_pattern_context(
         &self,
         screen_config: &ScreenConfig,

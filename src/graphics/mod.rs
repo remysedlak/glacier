@@ -529,7 +529,13 @@ impl Graphics {
             height: self.surface_config.height,
         };
 
-        if mouse_state.left_clicked {
+        let menu_is_hovered = self
+            .context_menu
+            .as_ref()
+            .map(|m| m.is_hovered(mouse_state.x, mouse_state.y))
+            .unwrap_or(false);
+
+        if mouse_state.left_clicked && !menu_is_hovered {
             let z_order = self.z_order.clone();
             for &id in z_order.iter().rev() {
                 if self.mini_windows[id].is_open && self.mini_windows[id].is_hovered(mouse_state.x, mouse_state.y) {
@@ -539,8 +545,7 @@ impl Graphics {
             }
         }
 
-        // which window has the mouse hovered and clicked with.
-        let click_owner: Option<usize> = if mouse_state.left_clicked {
+        let click_owner: Option<usize> = if mouse_state.left_clicked && !menu_is_hovered {
             self.z_order
                 .iter()
                 .rev()
@@ -560,12 +565,13 @@ impl Graphics {
             let char_start = char_draws.len();
 
             // is there any open window above this one that also covers the mouse?
-            let blocked = self
-                .z_order
-                .iter()
-                .skip_while(|&&z_id| z_id != id)
-                .skip(1) // skip self, now iterating windows above id
-                .any(|&above_id| self.mini_windows[above_id].is_open && self.mini_windows[above_id].is_hovered(mouse_state.x, mouse_state.y));
+            let blocked = self.context_menu.is_some() && menu_is_hovered
+                || self
+                    .z_order
+                    .iter()
+                    .skip_while(|&&z_id| z_id != id)
+                    .skip(1)
+                    .any(|&above_id| self.mini_windows[above_id].is_open && self.mini_windows[above_id].is_hovered(mouse_state.x, mouse_state.y));
 
             let masked_mouse = MouseState {
                 left_clicked: mouse_state.left_clicked && click_owner == Some(id),
