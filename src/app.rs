@@ -189,7 +189,7 @@ impl App {
 
                         //ui
                         let win = &mut gfx.mini_windows[SEQUENCER_ID];
-                        win.height = 100.0 + 52.0 * gfx.instruments.len() as f32;
+                        win.height = 100.0 + 10.0 * gfx.instruments.len() as f32;
                         win.is_open = true;
                         bring_to_front(&mut gfx.z_order, SEQUENCER_ID);
                     }
@@ -260,8 +260,8 @@ impl App {
                     });
                 }
                 ClickResult::LoadPianoRoll(piano_state) => {
+                    gfx.context_menu = None; // add this
                     gfx.piano_roll_state = Some(piano_state);
-
                     if let Some(win) = gfx.mini_windows.iter_mut().find(|w| matches!(w.window_kind, WindowKind::PianoRoll)) {
                         bring_to_front(&mut gfx.z_order, PIANO_ROLL_ID);
                         win.is_open = true;
@@ -455,7 +455,7 @@ impl App {
                 ClickResult::DeleteTrack(i) => {
                     self.producer.try_push(AudioCommand::DeleteTrack(i)).ok();
                     gfx.instruments.remove(i);
-                    gfx.mini_windows[SEQUENCER_ID].height = 100.0 + 52.0 * gfx.instruments.len() as f32;
+                    gfx.mini_windows[SEQUENCER_ID].height = 100.0 + 10.0 * gfx.instruments.len() as f32;
 
                     gfx.context_menu = None;
                     self.project_is_dirty = true;
