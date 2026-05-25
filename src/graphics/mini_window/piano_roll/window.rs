@@ -159,9 +159,7 @@ pub fn draw(
 
                 let hovered = piano_roll_step.is_hovered(mouse_state.x, mouse_state.y) && !mouse_state.left_click_held;
 
-                let color = if active_step == step_index {
-                    GREEN
-                } else if is_active {
+                let color = if is_active {
                     ORANGE
                 } else if hovered {
                     if (step_index / 4) % 2 == 0 {
@@ -198,6 +196,15 @@ pub fn draw(
             color: BLACK,
         });
     } // end octave loop
+
+    // active step line
+    let active_step_line = Rectangle {
+        x: window.x + (active_step as f32 * PAD_32) + PIANO_ROLL_MARGIN + SEMITONE_OFFSET_X - scroll_x,
+        y: window.y + PIANO_ROLL_MARGIN + PAD_8 - scroll_y,
+        width: 4.0,
+        height: 9.0 * OCTAVE_GAP,
+    };
+    grid_vertices.extend(active_step_line.draw(screen_config, GREEN, NO_RADIUS));
     (
         static_vertices,
         static_text_items,
