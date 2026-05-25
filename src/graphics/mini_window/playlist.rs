@@ -162,8 +162,8 @@ pub fn draw(
             }
             if pl_pattern.is_hovered_edge(mouse_state.x, mouse_state.y) {
                 cursor_icon = CursorIcon::ColResize;
-                if mouse_state.left_click_held {
-                    
+                if mouse_state.left_clicked {
+                    click_result = ClickResult::StartResizeEvent(event.id);
                 }
             }
             let pl_pattern_color = if pl_pattern.is_hovered(mouse_state.x, mouse_state.y) {

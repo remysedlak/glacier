@@ -71,6 +71,7 @@ pub enum ClickResult {
     AddPlaylistPattern(usize, u32, usize, AudioBlockType),
     SelectPattern(usize),
     OpenPatternMenu(f32, f32, usize),
+    StartResizeEvent(usize),
 
     // piano roll
     TogglePianoRollWindow,
@@ -257,6 +258,7 @@ pub async fn create_graphics(window: Rc<Window>, proxy: EventLoopProxy<Graphics>
         piano_roll_scroll_y: PIANO_ROLL_DEFAULT_Y,
         z_order: vec![SEQUENCER_ID, PLAYLIST_ID, MIXER_ID, PIANO_ROLL_ID],
         context_menu,
+        resizing_event: None,
     };
 
     let _ = proxy.send_event(gfx);
@@ -337,9 +339,10 @@ pub struct Graphics {
     pub master_volume: f32,
 
     // dragging
-    pub dragging_knob: Option<usize>,
-    pub dragging_window: Option<usize>,
+    pub dragging_knob: Option<usize>,   // volume knob
+    pub dragging_window: Option<usize>, // window titlebar
     pub dragging: bool,
+    pub resizing_event: Option<usize>, // pattern resizing in playlist
 
     // scrolling
     pub playlist_scroll_x: f32,
@@ -522,6 +525,14 @@ impl Graphics {
                 }
             }
         }
+    }
+
+    fn safe_scissor(x: u32, y: u32, w: u32, h: u32, sw: u32, sh: u32) -> (u32, u32, u32, u32) {
+        let x = x.min(sw.saturating_sub(1));
+        let y = y.min(sh.saturating_sub(1));
+        let w = w.min(sw.saturating_sub(x)).max(1);
+        let h = h.min(sh.saturating_sub(y)).max(1);
+        (x, y, w, h)
     }
 
     /// main draw loop for the GUI - uses mouse state to return mouse input interactivity
@@ -1129,12 +1140,5 @@ impl Graphics {
         frame.present();
 
         (click_result, cursor_icon)
-    }
-    fn safe_scissor(x: u32, y: u32, w: u32, h: u32, sw: u32, sh: u32) -> (u32, u32, u32, u32) {
-        let x = x.min(sw.saturating_sub(1));
-        let y = y.min(sh.saturating_sub(1));
-        let w = w.min(sw.saturating_sub(x)).max(1);
-        let h = h.min(sh.saturating_sub(y)).max(1);
-        (x, y, w, h)
     }
 }
