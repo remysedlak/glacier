@@ -188,8 +188,10 @@ impl App {
                         gfx.load_instrument(instrument);
 
                         //ui
-                        gfx.mini_windows[SEQUENCER_ID].height = 100.0 + 52.0 * gfx.instruments.len() as f32;
-                        gfx.mini_windows[SEQUENCER_ID].is_open = true;
+                        let win = &mut gfx.mini_windows[SEQUENCER_ID];
+                        win.height = 100.0 + 52.0 * gfx.instruments.len() as f32;
+                        win.is_open = true;
+                        bring_to_front(&mut gfx.z_order, SEQUENCER_ID);
                     }
                     UiCommand::LoadBpm(bpm) => {
                         gfx.bpm = bpm;
