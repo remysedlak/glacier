@@ -143,7 +143,7 @@ pub fn draw(
             let pl_pattern = Rectangle {
                 x: window.x + (event.start_step as f32 * PLAYLIST_STEP_GAP) + PAD_16 + TIMELINE_X_ORIGIN - scroll_x,
                 y: window.y + (event.track as f32 * PLAYLIST_TRACK_GAP) + PAD_64 - scroll_y,
-                width: PLAYLIST_STEP_GAP * event.length as f32,
+                width: PLAYLIST_STEP_GAP * event.length as f32 - 2.0,
                 height: PLAYLIST_STEP_HEIGHT,
             };
 
@@ -162,6 +162,9 @@ pub fn draw(
             }
             if pl_pattern.is_hovered_edge(mouse_state.x, mouse_state.y) {
                 cursor_icon = CursorIcon::ColResize;
+                if mouse_state.left_click_held {
+                    
+                }
             }
             let pl_pattern_color = if pl_pattern.is_hovered(mouse_state.x, mouse_state.y) {
                 LL_GRAY

@@ -3,13 +3,18 @@ use winit::window::CursorIcon;
 use crate::{
     app::MouseState,
     graphics::{
-        color::{Color, DARK_GRAY, DARK_GRAY_HOVER, WHITE},
+        color::{Color, BLACK, DARK_GRAY, DARK_GRAY_HOVER, DARK_GRAY_HOVER_HOVER, LL_GRAY, WHITE},
         font::{TextItem, ROBOTO_FONT},
-        primitives::{ScreenConfig, NO_RADIUS, PAD_2, PAD_24, PAD_32, PAD_4, PAD_64, PAD_8},
+        primitives::{ScreenConfig, NO_RADIUS, PAD_2, PAD_24, PAD_32, PAD_4, PAD_64, PAD_8, RADIUS_4, RADIUS_8},
         widgets::Rectangle,
         ClickResult, Vertex,
     },
 };
+
+const CONTEXT_MENU_PADDING: f32 = 4.0;
+const CONTEXT_MENU_ITEM_HEIGHT: f32 = 24.0;
+const PATTERN_MENU_ITEM_COUNT: u32 = 6;
+const CONTEXT_MENU_FONT_SIZE: f32 = 14.0;
 
 pub enum ContextMenuKind {
     PatternContext(usize),
@@ -25,9 +30,9 @@ pub struct ContextMenu {
 }
 fn menu_item_color(rect: &Rectangle, mx: f32, my: f32, held: bool) -> Color {
     if rect.is_hovered(mx, my) && !held {
-        DARK_GRAY_HOVER
+        DARK_GRAY_HOVER_HOVER
     } else {
-        DARK_GRAY
+        DARK_GRAY_HOVER
     }
 }
 
@@ -50,25 +55,27 @@ impl ContextMenu {
         let mut cursor_icon = CursorIcon::Default;
         let mut click_result = ClickResult::None;
 
+        // dark background
         let menu_background = Rectangle {
-            height: 32.0 * 6.0,
+            height: (CONTEXT_MENU_ITEM_HEIGHT + CONTEXT_MENU_PADDING) * PATTERN_MENU_ITEM_COUNT as f32 + CONTEXT_MENU_PADDING,
             width: self.width + PAD_8,
-            x: self.x - PAD_64 - PAD_4,
-            y: self.y + (PAD_24 + PAD_8) - 4.0,
+            x: self.x - PAD_64 - CONTEXT_MENU_PADDING,
+            y: self.y + (CONTEXT_MENU_ITEM_HEIGHT + PAD_8) - CONTEXT_MENU_PADDING,
         };
-        vertices.extend(menu_background.draw(screen_config, DARK_GRAY, NO_RADIUS));
+        vertices.extend(menu_background.draw(screen_config, DARK_GRAY, RADIUS_8));
 
-        for item in 0..6 {
+        // render each item - lighter background
+        for item in 0..PATTERN_MENU_ITEM_COUNT {
             let context_item = Rectangle {
-                height: 24.0,
+                height: CONTEXT_MENU_ITEM_HEIGHT,
                 width: self.width,
                 x: self.x - PAD_64,
-                y: (self.y + (PAD_24 + PAD_8) * item as f32) + PAD_32,
+                y: (self.y + (CONTEXT_MENU_ITEM_HEIGHT + PAD_4) * item as f32) + PAD_32,
             };
             vertices.extend(context_item.draw(
                 screen_config,
                 menu_item_color(&context_item, mouse_state.x, mouse_state.y, mouse_state.left_clicked),
-                NO_RADIUS,
+                RADIUS_4,
             ));
 
             if context_item.is_hovered(mouse_state.x, mouse_state.y) {
@@ -97,40 +104,40 @@ impl ContextMenu {
         // delete text
         texts.push(TextItem {
             text: "Rename".to_string(),
-            x: self.x - PAD_64 + PAD_4,
+            x: self.x - PAD_64 + PAD_4 + PAD_2,
             y: (self.y + (PAD_24 + PAD_8) * 0 as f32) + PAD_32 + PAD_2,
             color: WHITE,
             font: ROBOTO_FONT,
-            size: 14.0,
+            size: CONTEXT_MENU_FONT_SIZE,
         });
         // delete text
         texts.push(TextItem {
             text: "Delete".to_string(),
-            x: self.x - PAD_64 + PAD_4,
-            y: (self.y + (PAD_24 + PAD_8) * 1 as f32) + PAD_32 + PAD_2,
-            size: 14.0,
+            x: self.x - PAD_64 + PAD_4 + PAD_2,
+            y: (self.y + (PAD_24 + PAD_8) * 1 as f32) + PAD_32,
+            size: CONTEXT_MENU_FONT_SIZE,
             font: ROBOTO_FONT,
             color: WHITE,
         });
         // duplicate text
         texts.push(TextItem {
             text: "Duplicate".to_string(),
-            x: self.x - PAD_64 + PAD_4,
-            y: (self.y + (PAD_24 + PAD_8) * 2 as f32) + PAD_32 + PAD_2,
-            size: 14.0,
+            x: self.x - PAD_64 + PAD_4 + PAD_2,
+            y: (self.y + (PAD_24 + PAD_8) * 2 as f32) + PAD_32 - PAD_4,
+            size: CONTEXT_MENU_FONT_SIZE,
             font: ROBOTO_FONT,
             color: WHITE,
         });
 
-        for line in 1..5 {
-            let divider = Rectangle {
-                height: 1.0,
-                width: self.width + 4.0,
-                x: (self.x + 2.0) - PAD_64 - 4.0,
-                y: PAD_24 + (self.y + (PAD_24 + PAD_8) * line as f32) + PAD_32 + 4.0,
-            };
-            vertices.extend(divider.draw(screen_config, WHITE, NO_RADIUS));
-        }
+        // for line in 1..5 {
+        //     let divider = Rectangle {
+        //         height: 1.0,
+        //         width: self.width + 4.0,
+        //         x: (self.x + 2.0) - PAD_64 - 4.0,
+        //         y: CONTEXT_MENU_ITEM_HEIGHT + (self.y + (CONTEXT_MENU_ITEM_HEIGHT + PAD_8) * line as f32) + PAD_32,
+        //     };
+        //     vertices.extend(divider.draw(screen_config, LL_GRAY, NO_RADIUS));
+        // }
         (vertices, texts, click_result, cursor_icon)
     }
 
@@ -145,17 +152,18 @@ impl ContextMenu {
         let mut texts: Vec<TextItem> = Vec::new();
         let mut cursor_icon = CursorIcon::Default;
         let mut click_result = ClickResult::None;
+
         for item in 0..5 {
             let context_item = Rectangle {
-                height: 24.0,
+                height: CONTEXT_MENU_ITEM_HEIGHT,
                 width: self.width,
                 x: self.x - PAD_64,
-                y: (self.y + PAD_24 * item as f32) + PAD_32,
+                y: self.y + (CONTEXT_MENU_ITEM_HEIGHT * item as f32) + PAD_32,
             };
             vertices.extend(context_item.draw(
                 screen_config,
                 menu_item_color(&context_item, mouse_state.x, mouse_state.y, mouse_state.left_clicked),
-                NO_RADIUS,
+                RADIUS_4,
             ));
             if context_item.is_hovered(mouse_state.x, mouse_state.y) {
                 cursor_icon = CursorIcon::Pointer;
@@ -192,14 +200,14 @@ impl ContextMenu {
                 x: (self.x + 2.0) - PAD_64,
                 y: PAD_24 + (self.y + PAD_24 * line as f32) + PAD_32,
             };
-            vertices.extend(divider.draw(screen_config, WHITE, NO_RADIUS));
+            vertices.extend(divider.draw(screen_config, LL_GRAY, RADIUS_8));
         }
         // delete text
         texts.push(TextItem {
             text: "Rename".to_string(),
             x: self.x - PAD_64 + PAD_4,
             y: (self.y + (PAD_24) * 0 as f32) + PAD_32 + PAD_2,
-            size: 14.0,
+            size: CONTEXT_MENU_FONT_SIZE,
             font: ROBOTO_FONT,
             color: WHITE,
         });
@@ -207,7 +215,7 @@ impl ContextMenu {
             text: "Delete".to_string(),
             x: self.x - PAD_64 + PAD_4,
             y: (self.y + (PAD_24) * 4 as f32) + PAD_32 + PAD_2,
-            size: 14.0,
+            size: CONTEXT_MENU_FONT_SIZE,
             font: ROBOTO_FONT,
             color: WHITE,
         });
@@ -215,7 +223,7 @@ impl ContextMenu {
             text: "Piano Roll".to_string(),
             x: self.x - PAD_64 + PAD_4,
             y: (self.y + (PAD_24) * 1 as f32) + PAD_32 + PAD_2,
-            size: 14.0,
+            size: CONTEXT_MENU_FONT_SIZE,
             font: ROBOTO_FONT,
             color: WHITE,
         });

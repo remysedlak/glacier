@@ -14,6 +14,7 @@ impl From<(f32, f32, f32)> for Color {
 pub const LIGHT_GRAY: Color = Color { r: 0.53, g: 0.53, b: 0.53 };
 pub const DARK_GRAY: Color = Color { r: 0.03, g: 0.03, b: 0.03 };
 pub const DARK_GRAY_HOVER: Color = Color { r: 0.05, g: 0.05, b: 0.05 };
+pub const DARK_GRAY_HOVER_HOVER: Color = Color { r: 0.06, g: 0.06, b: 0.06 };
 pub const BLACK: Color = Color { r: 0.00, g: 0.00, b: 0.00 };
 pub const LL_GRAY: Color = Color { r: 0.27, g: 0.27, b: 0.27 };
 pub const WHITE: Color = Color { r: 1.0, g: 1.0, b: 1.0 };
