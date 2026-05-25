@@ -271,6 +271,7 @@ impl App {
                             bring_to_front(&mut gfx.z_order, PIANO_ROLL_ID);
                         }
                         win.is_open = !win.is_open;
+                        gfx.context_menu = None;
                     }
                 }
                 ClickResult::ToggleNote(pattern_id, instrument_id, step_idx, pitch) => {
