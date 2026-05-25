@@ -583,47 +583,36 @@ impl ApplicationHandler<Graphics> for App {
 
             // scroll wheel on mouse
             WindowEvent::MouseWheel { delta, .. } => {
-                // delta
                 match delta {
                     winit::event::MouseScrollDelta::LineDelta(x, y) => {
-                        // x = horizontal, y = vertical
-                        // y is negative when scrolling down
                         self.mouse_state.scroll_x = x;
                         self.mouse_state.scroll_y = y;
                     }
                     winit::event::MouseScrollDelta::PixelDelta(pos) => {
-                        // pos.x, pos.y — from trackpads
                         self.mouse_state.scroll_x = pos.x as f32;
                         self.mouse_state.scroll_y = pos.y as f32;
                     }
                 }
 
-                // handle playlist scrolling
                 if let State::Ready(gfx) = &mut self.state {
-                    let playlist_win = &gfx.mini_windows[PLAYLIST_ID];
-                    let piano_roll_win = &gfx.mini_windows[PIANO_ROLL_ID];
-                    if playlist_win.is_open
-                        && playlist_win.is_hovered(self.mouse_state.x, self.mouse_state.y)
-                        && !piano_roll_win.is_hovered(self.mouse_state.x, self.mouse_state.y)
-                    {
+                    let scroll_owner = gfx
+                        .z_order
+                        .iter()
+                        .rev()
+                        .find(|&&id| gfx.mini_windows[id].is_open && gfx.mini_windows[id].is_hovered(self.mouse_state.x, self.mouse_state.y))
+                        .copied();
+
+                    if scroll_owner == Some(PLAYLIST_ID) {
                         if self.mouse_state.shift_pressed {
-                            if !(gfx.playlist_scroll_x == 0.0 && self.mouse_state.scroll_y < 0.0) {
-                                gfx.playlist_scroll_x += self.mouse_state.scroll_y * 35.0;
-                            }
+                            gfx.playlist_scroll_x -= self.mouse_state.scroll_y * 35.0;
                         } else {
-                            if !(gfx.playlist_scroll_y == 0.0 && self.mouse_state.scroll_y < 0.0) {
-                                gfx.playlist_scroll_y += self.mouse_state.scroll_y * 35.0;
-                            }
+                            gfx.playlist_scroll_y = (gfx.playlist_scroll_y - self.mouse_state.scroll_y * 35.0).clamp(0.0, 1448.0);
                         }
-                    } else if piano_roll_win.is_open && piano_roll_win.is_hovered(self.mouse_state.x, self.mouse_state.y) {
+                    } else if scroll_owner == Some(PIANO_ROLL_ID) {
                         if self.mouse_state.shift_pressed {
-                            if !(gfx.piano_roll_scroll_x == 0.0 && self.mouse_state.scroll_y < 0.0) {
-                                gfx.piano_roll_scroll_x += self.mouse_state.scroll_y * 35.0;
-                            }
+                            gfx.piano_roll_scroll_x -= self.mouse_state.scroll_y * 35.0;
                         } else {
-                            if !(gfx.piano_roll_scroll_y == 0.0 && self.mouse_state.scroll_y < 0.0) {
-                                gfx.piano_roll_scroll_y = (gfx.piano_roll_scroll_y + self.mouse_state.scroll_y * 35.0).clamp(0.0, 1448.0);
-                            }
+                            gfx.piano_roll_scroll_y = (gfx.piano_roll_scroll_y - self.mouse_state.scroll_y * 35.0).clamp(0.0, 1448.0);
                         }
                     }
                 }
