@@ -1,4 +1,5 @@
 use crate::audio::{init, AudioCommand};
+use crate::config::{self, UserSettings};
 use crate::graphics::{
     context_menu::{ContextMenu, ContextMenuKind},
     drag::DragResult,
@@ -73,6 +74,7 @@ pub struct App {
     consumer: HeapCons<UiCommand>,
     state: State,
     project_is_dirty: bool,
+    config: UserSettings,
 
     stream: Stream,
     pending_project: Option<String>,
@@ -94,7 +96,13 @@ pub struct App {
 
 // app created for the main event loop
 impl App {
-    pub fn new(producer: HeapProd<AudioCommand>, consumer: HeapCons<UiCommand>, event_loop: &EventLoop<Graphics>, stream: Stream) -> Self {
+    pub fn new(
+        producer: HeapProd<AudioCommand>,
+        consumer: HeapCons<UiCommand>,
+        event_loop: &EventLoop<Graphics>,
+        stream: Stream,
+        config: UserSettings,
+    ) -> Self {
         Self {
             producer,
             consumer,
@@ -110,6 +118,7 @@ impl App {
             prev_mouse_x: 0.0,
             prev_mouse_y: 0.0,
             last_click_time: None,
+            config,
 
             right_click_held: false,
             mouse_state: MouseState {
@@ -215,6 +224,7 @@ impl App {
                         gfx.request_redraw();
                     }
                     UiCommand::ShutdownComplete => {
+                        config::save(&self.config);
                         let _ = self.stream.pause();
                         should_exit = true;
                     }

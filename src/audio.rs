@@ -1,5 +1,5 @@
 use crate::project::{get_project, get_tracks, save_project, AudioBlock, AudioBlockType, Note, PatternData, Project, Sequence, Track, TrackData};
-use crate::UiCommand;
+use crate::{config, UiCommand};
 use cpal::{
     traits::{DeviceTrait, HostTrait, StreamTrait},
     {SampleFormat, Stream},

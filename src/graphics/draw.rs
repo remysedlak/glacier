@@ -1,3 +1,5 @@
+use crate::graphics::components::instrument_tray;
+
 use super::*;
 
 impl Graphics {
@@ -361,14 +363,32 @@ impl Graphics {
         let toolbar_vert_start = vertices.len() as u32;
         let toolbar_char_start = char_draws.len();
 
-        let (verts, texts, result, icon) = pattern_tray::draw(&screen_config, &self.patterns, self.active_pattern_id, mouse_state);
-        vertices.extend(verts);
-        if icon != CursorIcon::Default {
-            cursor_icon = icon;
+        // tray of project patterns
+        if self.show_pattern_tray {
+            let (verts, texts, result, icon) = pattern_tray::draw(&screen_config, &self.patterns, self.active_pattern_id, mouse_state);
+            vertices.extend(verts);
+            if icon != CursorIcon::Default {
+                cursor_icon = icon;
+            }
+            click_result = click_result.or(result);
+            Graphics::push_text_draws(&texts, &self.font_cache, &self.glyph_cache, &self.device, &screen_config, &mut char_draws);
         }
-        click_result = click_result.or(result);
-        Graphics::push_text_draws(&texts, &self.font_cache, &self.glyph_cache, &self.device, &screen_config, &mut char_draws);
 
+        // tray of audio files / folders
+        if self.show_instrument_tray {
+            let (instrument_tray_verts, instrument_tray_texts) = instrument_tray::draw(mouse_state, &screen_config);
+            Graphics::push_text_draws(
+                &instrument_tray_texts,
+                &self.font_cache,
+                &self.glyph_cache,
+                &self.device,
+                &screen_config,
+                &mut char_draws,
+            );
+            vertices.extend(instrument_tray_verts);
+        }
+
+        // top toolbar
         let (toolbar_verts, toolbar_texts, toolbar_icons, toolbar_result, toolbar_cursor, toolbar_tooltip) =
             components::toolbar::draw_toolbar(mouse_state, &screen_config, self.bpm, self.is_playing, self.active_step);
         vertices.extend(toolbar_verts);

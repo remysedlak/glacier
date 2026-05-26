@@ -261,6 +261,8 @@ pub async fn create_graphics(window: Rc<Window>, proxy: EventLoopProxy<Graphics>
         context_menu,
         resizing_event: None,
         resize_drag_accumulator: 0.0,
+        show_instrument_tray: true,
+        show_pattern_tray: true,
     };
 
     let _ = proxy.send_event(gfx);
@@ -329,6 +331,8 @@ pub struct Graphics {
     icon_cache: HashMap<String, (wgpu::Texture, wgpu::BindGroup)>,
     pub tooltip: Option<Tooltip>,
     pub frame_ms: f32,
+    pub show_instrument_tray: bool,
+    pub show_pattern_tray: bool,
 
     // song
     pub project_path: String,

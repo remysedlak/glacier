@@ -1,11 +1,13 @@
 mod app; // event loop
 mod audio; // audio engine
+mod config;
 mod graphics; // graphics engine
 mod project; // serialize data
 
 use crate::{
     app::{App, UiCommand},
     audio::AudioCommand,
+    config::{config_path, load, UserSettings},
     graphics::Graphics,
 };
 use ringbuf::{traits::Split, HeapRb};
@@ -35,7 +37,9 @@ fn main() {
     // start the audio stream with empty ringbuffers and no project
     let audio_stream = audio::init(audio_cons, ui_prod, None);
 
+    let config: UserSettings = load();
+
     // combine audio and ui buffers to create app logic owning the audio stream
-    let app = App::new(audio_prod, ui_cons, &event_loop, audio_stream);
+    let app = App::new(audio_prod, ui_cons, &event_loop, audio_stream, config);
     run_app(event_loop, app);
 }

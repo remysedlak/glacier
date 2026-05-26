@@ -1,6 +1,6 @@
 name = "New Project"
 bpm = 120.0
-master_volume = 0.9
+master_volume = 0.7443788
 
 [[events]]
 id = 0
