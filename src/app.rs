@@ -5,7 +5,7 @@ use crate::graphics::{
     mini_window::{MiniWindow, WindowKind, MIXER_ID, PIANO_ROLL_ID, PLAYLIST_ID, SEQUENCER_ID},
     {bring_to_front, create_graphics, ClickResult, DragResult, Graphics, Rc},
 };
-use crate::project::{AudioBlock, Instrument, InstrumentData, PatternData};
+use crate::project::{AudioBlock, PatternData, Track, TrackData};
 use cpal::{traits::StreamTrait, Stream};
 use rfd::FileDialog;
 use ringbuf::{
@@ -41,14 +41,14 @@ pub struct MouseState {
 #[derive(Debug)]
 pub struct PianoRollState {
     pub pattern_id: usize,
-    pub instrument_id: u32,
+    pub track_id: u32,
 }
 
 // commands that the audio engine sends to the window
 pub enum UiCommand {
     LoadProjectPath(String),
     StepAdvanced(usize),
-    LoadInstrument(Instrument),
+    LoadTrack(Track),
     LoadBpm(f32),
     LoadMasterVolume(f32),
     ShutdownComplete,
@@ -83,9 +83,9 @@ pub struct App {
     prev_mouse_y: f32,
     right_click_held: bool,
 
-    instrument_file_dialog_rx: Option<Receiver<Option<PathBuf>>>,
+    track_file_dialog_rx: Option<Receiver<Option<PathBuf>>>,
     project_file_dialog_rx: Option<Receiver<Option<PathBuf>>>,
-    instrument_load_rx: Option<Receiver<(InstrumentData, Vec<f32>)>>,
+    track_load_rx: Option<Receiver<(TrackData, Vec<f32>)>>,
 }
 
 // app created for the main event loop
@@ -98,9 +98,9 @@ impl App {
             stream,
             pending_project: None,
             ctrl_pressed: false,
-            instrument_file_dialog_rx: None,
+            track_file_dialog_rx: None,
             project_file_dialog_rx: None,
-            instrument_load_rx: None,
+            track_load_rx: None,
             project_is_dirty: false,
             // mouse state
             prev_mouse_x: 0.0,
@@ -127,17 +127,17 @@ impl App {
         let mut should_exit = false;
 
         if let State::Ready(gfx) = &mut self.state {
-            // handle instrument dialog
-            if let Some(rx) = &self.instrument_file_dialog_rx {
+            // handle track dialog
+            if let Some(rx) = &self.track_file_dialog_rx {
                 match rx.try_recv() {
                     Ok(Some(path)) => {
                         let path_str = path.to_str().unwrap().to_string();
                         let (tx, load_rx) = std::sync::mpsc::channel();
-                        self.instrument_load_rx = Some(load_rx);
+                        self.track_load_rx = Some(load_rx);
                         std::thread::spawn(move || {
                             let samples = crate::project::path_to_vector(&path_str);
                             let name = std::path::Path::new(&path_str).file_name().unwrap().to_str().unwrap().to_string();
-                            let data = crate::project::InstrumentData {
+                            let data = crate::project::TrackData {
                                 id: 0,
                                 path: path_str,
                                 name,
@@ -149,14 +149,14 @@ impl App {
                             tx.send((data, samples)).ok();
                         });
                         self.project_is_dirty = true;
-                        self.instrument_file_dialog_rx = None;
+                        self.track_file_dialog_rx = None;
                     }
                     Ok(None) => {
-                        self.instrument_file_dialog_rx = None;
+                        self.track_file_dialog_rx = None;
                     }
                     Err(TryRecvError::Empty) => {}
                     Err(TryRecvError::Disconnected) => {
-                        self.instrument_file_dialog_rx = None;
+                        self.track_file_dialog_rx = None;
                     }
                 }
             }
@@ -185,12 +185,12 @@ impl App {
                     UiCommand::LoadProjectPath(path) => {
                         gfx.project_path = path;
                     }
-                    UiCommand::LoadInstrument(instrument) => {
-                        gfx.load_instrument(instrument);
+                    UiCommand::LoadTrack(track) => {
+                        gfx.load_track(track);
 
                         //ui
                         let win = &mut gfx.mini_windows[SEQUENCER_ID];
-                        win.height = 100.0 + TRACK_GAP * gfx.instruments.len() as f32;
+                        win.height = 100.0 + TRACK_GAP * gfx.tracks.len() as f32;
                         win.is_open = true;
                         bring_to_front(&mut gfx.z_order, SEQUENCER_ID);
                     }
@@ -216,7 +216,7 @@ impl App {
                     }
                     UiCommand::SaveComplete => {
                         if let Some(path) = self.pending_project.take() {
-                            gfx.instruments.clear();
+                            gfx.tracks.clear();
                             gfx.patterns.clear();
                             let _ = self.stream.pause();
                             let (_prod, audio_cons) = HeapRb::<AudioCommand>::new(64).split();
@@ -236,21 +236,23 @@ impl App {
             gfx.frame_ms = start.elapsed().as_secs_f32() * 1000.0;
             gfx.window.set_cursor(icon);
 
-            if let Some(rx) = &self.instrument_load_rx {
+            if let Some(rx) = &self.track_load_rx {
                 match rx.try_recv() {
                     Ok((data, samples)) => {
                         self.producer.try_push(AudioCommand::LoadTrack(data, samples)).ok();
-                        self.instrument_load_rx = None;
+                        self.track_load_rx = None;
                     }
                     Err(TryRecvError::Empty) => {}
                     Err(TryRecvError::Disconnected) => {
-                        self.instrument_load_rx = None;
+                        self.track_load_rx = None;
                     }
                 }
             }
-            dbg!(gfx.resizing_event);
             // dispatch audio commands based on what was clicked
             match result {
+                ClickResult::OpenTrackFileLocation(path) => {
+                    dbg!(path);
+                }
                 ClickResult::StartResizeEvent(id) => {
                     gfx.resizing_event = Some(id);
                 }
@@ -280,14 +282,14 @@ impl App {
                         gfx.context_menu = None;
                     }
                 }
-                ClickResult::ToggleNote(pattern_id, instrument_id, step_idx, pitch) => {
+                ClickResult::ToggleNote(pattern_id, track_id, step_idx, pitch) => {
                     self.producer
-                        .try_push(AudioCommand::ToggleNote(pattern_id, instrument_id, step_idx, pitch))
+                        .try_push(AudioCommand::ToggleNote(pattern_id, track_id, step_idx, pitch))
                         .ok();
 
                     // also update UI state
                     if let Some(pattern) = gfx.patterns.iter_mut().find(|p| p.id == pattern_id) {
-                        if let Some(seq) = pattern.sequences.iter_mut().find(|s| s.instrument_id == instrument_id) {
+                        if let Some(seq) = pattern.sequences.iter_mut().find(|s| s.track_id == track_id) {
                             let note = &mut seq.steps[step_idx];
                             if note.velocity > 0.0 && note.pitch == pitch {
                                 *note = crate::project::Note::default();
@@ -297,7 +299,7 @@ impl App {
                         } else {
                             let mut steps = vec![crate::project::Note::default(); 32];
                             steps[step_idx] = crate::project::Note { velocity: 95.0, pitch };
-                            pattern.sequences.push(crate::project::Sequence { instrument_id, steps });
+                            pattern.sequences.push(crate::project::Sequence { track_id, steps });
                         }
                     }
                     self.project_is_dirty = true;
@@ -340,10 +342,10 @@ impl App {
                     // update piano roll state to show this track
                     gfx.piano_roll_state = Some(PianoRollState {
                         pattern_id: gfx.active_pattern_id,
-                        instrument_id: gfx.instruments[track].data.id,
+                        track_id: gfx.tracks[track].data.id,
                     });
 
-                    if let Some(pos) = gfx.mini_windows.iter().position(|w| w.window_kind == WindowKind::InstrumentDetail(track)) {
+                    if let Some(pos) = gfx.mini_windows.iter().position(|w| w.window_kind == WindowKind::TrackDetail(track)) {
                         gfx.mini_windows[pos].is_open = !gfx.mini_windows[pos].is_open;
                     } else {
                         gfx.mini_windows.push(MiniWindow {
@@ -351,9 +353,9 @@ impl App {
                             y: 128.0,
                             width: 600.0,
                             height: 500.0,
-                            title: gfx.instruments[track].data.name.clone(),
+                            title: gfx.tracks[track].data.name.clone(),
                             is_open: true,
-                            window_kind: WindowKind::InstrumentDetail(track),
+                            window_kind: WindowKind::TrackDetail(track),
                         });
                         let new_id = gfx.mini_windows.len() - 1;
                         gfx.z_order.push(new_id);
@@ -429,8 +431,8 @@ impl App {
                         win.is_open = !win.is_open;
                     }
                 }
-                ClickResult::ToggleStep(pattern_id, instrument_id, step) => {
-                    self.producer.try_push(AudioCommand::ToggleStep(pattern_id, instrument_id, step)).ok();
+                ClickResult::ToggleStep(pattern_id, track_id, step) => {
+                    self.producer.try_push(AudioCommand::ToggleStep(pattern_id, track_id, step)).ok();
                     self.project_is_dirty = true;
                 }
                 ClickResult::Stop => {
@@ -458,8 +460,8 @@ impl App {
                 }
                 ClickResult::DeleteTrack(i) => {
                     self.producer.try_push(AudioCommand::DeleteTrack(i)).ok();
-                    gfx.instruments.remove(i);
-                    gfx.mini_windows[SEQUENCER_ID].height = 100.0 + TRACK_GAP * gfx.instruments.len() as f32;
+                    gfx.tracks.remove(i);
+                    gfx.mini_windows[SEQUENCER_ID].height = 100.0 + TRACK_GAP * gfx.tracks.len() as f32;
 
                     gfx.context_menu = None;
                     self.project_is_dirty = true;
@@ -474,12 +476,12 @@ impl App {
                         });
                     }
                 }
-                ClickResult::InstrumentFileDialog => {
-                    // only allow one instrument to be added at a time.
-                    if self.instrument_file_dialog_rx.is_none() {
+                ClickResult::TrackFileDialog => {
+                    // only allow one track to be added at a time.
+                    if self.track_file_dialog_rx.is_none() {
                         // tx -> open file dialog
                         let (tx, rx) = std::sync::mpsc::channel::<Option<PathBuf>>();
-                        self.instrument_file_dialog_rx = Some(rx); // store it
+                        self.track_file_dialog_rx = Some(rx); // store it
                         thread::spawn(move || {
                             let file = FileDialog::new()
                                 .add_filter("wav", &["wav"])

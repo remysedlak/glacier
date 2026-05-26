@@ -4,7 +4,7 @@ use crate::graphics::{
     font::{TextItem, ROBOTO_FONT},
     icons::{IconDraw, Tooltip},
     primitives::{draw_h_line, NO_RADIUS, PAD_32, PAD_8},
-    widgets::{Rectangle, ADD_INSTRUMENT_ICON_OFFSET, ICON_SIZE, PLAY_X_ORIGIN, PLAY_Y_ORIGIN, TOOLBAR_MARGIN, TOOLBAR_Y},
+    widgets::{Rectangle, ADD_TRACK_ICON_OFFSET, ICON_SIZE, PLAY_X_ORIGIN, PLAY_Y_ORIGIN, TOOLBAR_MARGIN, TOOLBAR_Y},
     ClickResult, ScreenConfig, Vertex, TOOLBAR_THICKNESS,
 };
 use winit::window::CursorIcon;
@@ -86,7 +86,6 @@ pub fn draw_toolbar(
             click_result = ClickResult::TogglePlay;
         }
     }
-
     vertices.extend(play_button.draw(
         &screen_config,
         icon_color(&play_button, mouse_state.x, mouse_state.y, mouse_state.left_click_held),
@@ -206,21 +205,21 @@ pub fn draw_toolbar(
         }
     }
 
-    // load an instrument
-    let instrument_button = Rectangle {
-        x: screen_config.width as f32 - ADD_INSTRUMENT_ICON_OFFSET,
+    // load an track
+    let track_button = Rectangle {
+        x: screen_config.width as f32 - ADD_TRACK_ICON_OFFSET,
         y: TOOLBAR_MARGIN,
         width: ICON_SIZE,
         height: ICON_SIZE,
     };
-    vertices.extend(instrument_button.draw(
+    vertices.extend(track_button.draw(
         screen_config,
-        icon_color(&instrument_button, mouse_state.x, mouse_state.y, mouse_state.left_click_held),
+        icon_color(&track_button, mouse_state.x, mouse_state.y, mouse_state.left_click_held),
         NO_RADIUS,
     ));
-    if instrument_button.is_hovered(mouse_state.x, mouse_state.y) {
+    if track_button.is_hovered(mouse_state.x, mouse_state.y) {
         if mouse_state.left_clicked {
-            click_result = ClickResult::InstrumentFileDialog
+            click_result = ClickResult::TrackFileDialog
         }
     }
 
@@ -237,14 +236,14 @@ pub fn draw_toolbar(
 
     let icons = vec![
         IconDraw {
-            name: "instrument",
-            x: screen_config.width as f32 - ADD_INSTRUMENT_ICON_OFFSET,
+            name: "track",
+            x: screen_config.width as f32 - ADD_TRACK_ICON_OFFSET,
             y: TOOLBAR_MARGIN,
             width: ICON_SIZE,
             height: ICON_SIZE,
             tooltip: Tooltip {
-                text: Some("Add Instrument"),
-                x: screen_config.width as f32 - ADD_INSTRUMENT_ICON_OFFSET - TOOLTIP_RIGHT_MARGIN,
+                text: Some("Add Track"),
+                x: screen_config.width as f32 - ADD_TRACK_ICON_OFFSET - TOOLTIP_RIGHT_MARGIN,
                 y: TOOLBAR_MARGIN + TOOLTIP_MARGIN,
             },
         },

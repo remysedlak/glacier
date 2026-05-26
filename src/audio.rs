@@ -1,6 +1,4 @@
-use crate::project::{
-    get_instruments, get_project, save_project, AudioBlock, AudioBlockType, Instrument, InstrumentData, Note, PatternData, Project, Sequence,
-};
+use crate::project::{get_project, get_tracks, save_project, AudioBlock, AudioBlockType, Note, PatternData, Project, Sequence, Track, TrackData};
 use crate::UiCommand;
 use cpal::{
     traits::{DeviceTrait, HostTrait, StreamTrait},
@@ -17,7 +15,7 @@ pub const DEFAULT_BPM: f32 = 120.0;
 pub enum AudioCommand {
     // composition details
     ToggleStep(usize, usize, usize),
-    ToggleNote(usize, u32, usize, u8), // pattern_id, instrument_id, step_idx, pitch
+    ToggleNote(usize, u32, usize, u8), // pattern_id, track_id, step_idx, pitch
     ChangeBpm(f32),
     DeleteAudioBlock(usize),
     CreateAudioBlock(usize, u32, usize, AudioBlockType),
@@ -40,8 +38,8 @@ pub enum AudioCommand {
     AddPattern,
     DeletePattern(usize),
 
-    // instruments
-    LoadTrack(InstrumentData, Vec<f32>),
+    // tracks
+    LoadTrack(TrackData, Vec<f32>),
     DeleteTrack(usize),
 }
 
@@ -63,10 +61,10 @@ pub fn init(mut consumer: HeapCons<AudioCommand>, mut producer: HeapProd<UiComma
 
     let project_path = project_file.unwrap_or_else(|| "assets/projects/new_project.toml".to_string());
 
-    // instruments state
-    let mut instruments: Vec<Instrument> = get_instruments(&project);
-    for instrument in instruments.iter() {
-        producer.try_push(UiCommand::LoadInstrument(instrument.clone())).ok();
+    // Tracks state
+    let mut tracks: Vec<Track> = get_tracks(&project);
+    for track in tracks.iter() {
+        producer.try_push(UiCommand::LoadTrack(track.clone())).ok();
     }
 
     // patterns state
@@ -114,8 +112,8 @@ pub fn init(mut consumer: HeapCons<AudioCommand>, mut producer: HeapProd<UiComma
                     }
                 }
 
-                AudioCommand::ToggleNote(pattern_id, instrument_id, step_idx, pitch) => {
-                    if let Some(seq) = patterns[pattern_id].sequences.iter_mut().find(|s| s.instrument_id == instrument_id) {
+                AudioCommand::ToggleNote(pattern_id, track_id, step_idx, pitch) => {
+                    if let Some(seq) = patterns[pattern_id].sequences.iter_mut().find(|s| s.track_id == track_id) {
                         let note = &mut seq.steps[step_idx];
                         if note.velocity > 0.0 && note.pitch == pitch {
                             *note = Note::default();
@@ -125,15 +123,15 @@ pub fn init(mut consumer: HeapCons<AudioCommand>, mut producer: HeapProd<UiComma
                     } else {
                         let mut steps = vec![Note::default(); 32];
                         steps[step_idx] = Note { velocity: 95.0, pitch };
-                        patterns[pattern_id].sequences.push(Sequence { instrument_id, steps });
+                        patterns[pattern_id].sequences.push(Sequence { track_id, steps });
                     }
                 }
                 AudioCommand::AddPattern => {
                     let name = format!("Pattern {}", patterns.len() + 1);
-                    let sequences = instruments
+                    let sequences = tracks
                         .iter()
                         .map(|instr| Sequence {
-                            instrument_id: instr.data.id,
+                            track_id: instr.data.id,
                             steps: vec![Note::default(); 16],
                         })
                         .collect();
@@ -181,11 +179,11 @@ pub fn init(mut consumer: HeapCons<AudioCommand>, mut producer: HeapProd<UiComma
                     master_volume = volume;
                 }
                 AudioCommand::ChangeTrackVolume(i, vol) => {
-                    instruments[i].data.track_volume = vol;
+                    tracks[i].data.track_volume = vol;
                 }
-                AudioCommand::ToggleStep(pattern_id, instrument_idx, step_idx) => {
-                    let instrument_id = instruments[instrument_idx].data.id;
-                    if let Some(seq) = patterns[pattern_id].sequences.iter_mut().find(|s| s.instrument_id == instrument_id) {
+                AudioCommand::ToggleStep(pattern_id, track_idx, step_idx) => {
+                    let track_id = tracks[track_idx].data.id;
+                    if let Some(seq) = patterns[pattern_id].sequences.iter_mut().find(|s| s.track_id == track_id) {
                         seq.steps[step_idx] = if seq.steps[step_idx].velocity > 0.0 {
                             Note::default()
                         } else {
@@ -193,7 +191,7 @@ pub fn init(mut consumer: HeapCons<AudioCommand>, mut producer: HeapProd<UiComma
                         };
                     } else {
                         let mut seq = Sequence {
-                            instrument_id: instrument_idx as u32,
+                            track_id: track_idx as u32,
                             steps: vec![Note::default(); 32],
                         };
                         seq.steps[step_idx] = Note { velocity: 95.0, pitch: 60 };
@@ -201,30 +199,30 @@ pub fn init(mut consumer: HeapCons<AudioCommand>, mut producer: HeapProd<UiComma
                     }
                 }
                 AudioCommand::DeleteTrack(i) => {
-                    instruments.remove(i);
+                    tracks.remove(i);
                 }
 
-                AudioCommand::LoadTrack(mut instrument_data, samples) => {
-                    instrument_data.id = instruments.len() as u32;
-                    let instrument = Instrument {
+                AudioCommand::LoadTrack(mut track_data, samples) => {
+                    track_data.id = tracks.len() as u32;
+                    let track = Track {
                         samples,
                         position: 0.0,
-                        data: instrument_data,
+                        data: track_data,
                         is_playing: false,
                         current_volume: 0.0,
                         show_velocity: false,
                         playback_rate: 1.0,
                     };
-                    instruments.push(instrument.clone());
-                    producer.try_push(UiCommand::LoadInstrument(instrument)).ok();
+                    tracks.push(track.clone());
+                    producer.try_push(UiCommand::LoadTrack(track)).ok();
                 }
                 AudioCommand::ChangeBpm(new_bpm) => {
                     bpm = new_bpm;
                 }
                 AudioCommand::ToggleTrackMute(i) => {
-                    instruments[i].data.is_muted = !instruments[i].data.is_muted;
-                    instruments[i].position = 0.0;
-                    instruments[i].is_playing = false;
+                    tracks[i].data.is_muted = !tracks[i].data.is_muted;
+                    tracks[i].position = 0.0;
+                    tracks[i].is_playing = false;
                 }
                 AudioCommand::TogglePlay => {
                     // change state from pause to play, or play to pause
@@ -236,7 +234,7 @@ pub fn init(mut consumer: HeapCons<AudioCommand>, mut producer: HeapProd<UiComma
                         name: name.clone(),
                         bpm,
                         master_volume,
-                        instruments: instruments.iter().map(|i| i.data.clone()).collect(),
+                        tracks: tracks.iter().map(|i| i.data.clone()).collect(),
                         patterns: patterns.clone(),
                         events: events.clone(),
                     };
@@ -251,7 +249,7 @@ pub fn init(mut consumer: HeapCons<AudioCommand>, mut producer: HeapProd<UiComma
                         name: name.clone(),
                         bpm,
                         master_volume,
-                        instruments: instruments.iter().map(|i| i.data.clone()).collect(),
+                        tracks: tracks.iter().map(|i| i.data.clone()).collect(),
                         patterns: patterns.clone(),
                         events: events.clone(),
                     };
@@ -267,7 +265,7 @@ pub fn init(mut consumer: HeapCons<AudioCommand>, mut producer: HeapProd<UiComma
             }
         } // finish matching of commands sent from the UI
 
-        // for each sample requested, mix in the appropriate instrument samples
+        // for each sample requested, mix in the appropriate track samples
         for sample in data.chunks_mut(2) {
             sample[0] = 0.0; // left channel
             sample[1] = 0.0; // right channel
@@ -282,27 +280,22 @@ pub fn init(mut consumer: HeapCons<AudioCommand>, mut producer: HeapProd<UiComma
 
             // return audio data only when the song is actively playing
             if is_playing {
-                for instrument in &mut instruments {
-                    // ignore muted instruments
-                    if !instrument.data.is_muted && instrument.is_playing {
+                for track in &mut tracks {
+                    // ignore muted tracks
+                    if !track.data.is_muted && track.is_playing {
                         // if the sample has fully played, mark it as not playing anymore
-                        let pos = instrument.position as usize;
-                        if pos + 1 >= instrument.samples.len() {
-                            instrument.is_playing = false;
+                        let pos = track.position as usize;
+                        if pos + 1 >= track.samples.len() {
+                            track.is_playing = false;
                         } else {
                             // volume ramping
-                            if instrument.current_volume != instrument.data.target_volume {
-                                let difference = instrument.data.target_volume - instrument.current_volume;
-                                instrument.current_volume += difference * 0.01;
+                            if track.current_volume != track.data.target_volume {
+                                let difference = track.data.target_volume - track.current_volume;
+                                track.current_volume += difference * 0.01;
                             }
-                            sample[0] +=
-                                instrument.samples[pos] * instrument.current_volume * instrument.data.track_volume * shutdown_volume * master_volume;
-                            sample[1] += instrument.samples[pos + 1]
-                                * instrument.current_volume
-                                * instrument.data.track_volume
-                                * shutdown_volume
-                                * master_volume;
-                            instrument.position += 2.0 * instrument.playback_rate;
+                            sample[0] += track.samples[pos] * track.current_volume * track.data.track_volume * shutdown_volume * master_volume;
+                            sample[1] += track.samples[pos + 1] * track.current_volume * track.data.track_volume * shutdown_volume * master_volume;
+                            track.position += 2.0 * track.playback_rate;
                         }
                     }
                 }
@@ -342,13 +335,13 @@ pub fn init(mut consumer: HeapCons<AudioCommand>, mut producer: HeapProd<UiComma
                             .filter(move |s| local_step < s.steps.len() && s.steps[local_step].velocity > 0.0)
                             .map(move |s| {
                                 let note = &s.steps[local_step];
-                                (s.instrument_id as usize, note.velocity, note.pitch)
+                                (s.track_id as usize, note.velocity, note.pitch)
                             })
                     })
                     .collect();
 
                 for (id, vel, pitch) in triggers {
-                    if let Some(inst) = instruments.iter_mut().find(|i| i.data.id as usize == id) {
+                    if let Some(inst) = tracks.iter_mut().find(|i| i.data.id as usize == id) {
                         inst.position = 0.0;
                         inst.is_playing = true;
                         inst.data.target_volume = vel / 127.0;

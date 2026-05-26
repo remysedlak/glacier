@@ -1,8 +1,8 @@
-pub mod instrument;
 pub mod mixer;
 pub mod piano_roll;
 pub mod playlist;
 pub mod sequencer;
+pub mod track;
 
 pub const SEQUENCER_ID: usize = 0;
 pub const PLAYLIST_ID: usize = 1;
@@ -16,7 +16,7 @@ pub enum WindowKind {
     Playlist,
     Mixer,
     PianoRoll,
-    InstrumentDetail(usize), // which instrument
+    TrackDetail(usize), // which track
 }
 
 #[derive(Debug)]

@@ -191,7 +191,7 @@ impl ContextMenu {
                             // piano roll
                             click_result = ClickResult::LoadPianoRoll(crate::app::PianoRollState {
                                 pattern_id: (pattern_id),
-                                instrument_id: (track_id as u32),
+                                track_id: (track_id as u32),
                             });
                         }
 

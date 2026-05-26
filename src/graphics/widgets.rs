@@ -3,7 +3,7 @@ use crate::{
     graphics::{
         color::{Color, *},
         font::{TextItem, ROBOTO_FONT},
-        mini_window::{piano_roll::window, MiniWindow, WindowKind},
+        mini_window::{MiniWindow, WindowKind},
         primitives::{draw_rectangle, Vertex, NO_RADIUS, PAD_16, PAD_4, PAD_8, TOP_RADIUS_16},
         ClickResult, ScreenConfig,
     },
@@ -15,7 +15,7 @@ use winit::window::CursorIcon;
  * Each method returns Vec<Vertex>
  */
 
-pub const ADD_INSTRUMENT_ICON_OFFSET: f32 = 80.0;
+pub const ADD_TRACK_ICON_OFFSET: f32 = 80.0;
 
 pub const PLAY_Y_ORIGIN: f32 = 4.0;
 pub const PLAY_X_ORIGIN: f32 = 90.0;
@@ -168,7 +168,7 @@ pub fn window_title_bar(
                 WindowKind::Playlist => ClickResult::TogglePlaylistWindow,
                 WindowKind::Mixer => ClickResult::ToggleMixerWindow,
                 WindowKind::PianoRoll => ClickResult::TogglePianoRollWindow,
-                WindowKind::InstrumentDetail(usize) => ClickResult::ToggleTrackWindow(usize),
+                WindowKind::TrackDetail(usize) => ClickResult::ToggleTrackWindow(usize),
             }
         }
     }

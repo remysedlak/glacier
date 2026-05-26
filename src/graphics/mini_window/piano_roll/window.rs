@@ -7,7 +7,7 @@ use crate::graphics::{
     widgets::{window_background, window_title_bar, Rectangle, ICON_SIZE, TITLEBAR_HEIGHT},
     ClickResult,
 };
-use crate::project::{Instrument, PatternData, Sequence};
+use crate::project::{PatternData, Sequence, Track};
 use winit::window::CursorIcon::{self, ColResize};
 
 pub fn draw(
@@ -17,7 +17,7 @@ pub fn draw(
     scroll_y: f32,
     screen_config: &ScreenConfig,
     patterns: &[PatternData],
-    instruments: &[Instrument],
+    tracks: &[Track],
     active_step: usize,
     piano_roll_state: Option<&PianoRollState>,
 ) -> (
@@ -47,8 +47,8 @@ pub fn draw(
 
     // titlebar
     let title = if let Some(state) = piano_roll_state {
-        if let Some(instrument) = instruments.iter().find(|i| i.data.id == state.instrument_id) {
-            format!("Piano Roll - {}", instrument.data.name)
+        if let Some(track) = tracks.iter().find(|i| i.data.id == state.track_id) {
+            format!("Piano Roll - {}", track.data.name)
         } else {
             "Piano Roll".to_string()
         }
@@ -82,12 +82,12 @@ pub fn draw(
         static_vertices.extend(icon_rect.draw(screen_config, DARK_GRAY, NO_RADIUS));
     }
 
-    // find the sequence for the current pattern and instrument, if it exists
+    // find the sequence for the current pattern and track, if it exists
     let sequence: Option<&Sequence> = piano_roll_state.and_then(|state| {
         patterns
             .iter()
             .find(|p| p.id == state.pattern_id)
-            .and_then(|p| p.sequences.iter().find(|s| s.instrument_id == state.instrument_id))
+            .and_then(|p| p.sequences.iter().find(|s| s.track_id == state.track_id))
     });
 
     // piano roll keys and grid
@@ -182,7 +182,7 @@ pub fn draw(
                 // trigger note on and off
                 if piano_roll_step.is_hovered(mouse_state.x, mouse_state.y) && mouse_state.left_clicked {
                     if let Some(state) = piano_roll_state {
-                        click_result = ClickResult::ToggleNote(state.pattern_id, state.instrument_id, step_index, midi_note);
+                        click_result = ClickResult::ToggleNote(state.pattern_id, state.track_id, step_index, midi_note);
                     }
                 }
 

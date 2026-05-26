@@ -9,7 +9,7 @@ use crate::graphics::{
     widgets::window_title_bar,
     {ClickResult, Rectangle, TextItem},
 };
-use crate::project::{Instrument, Note, PatternData, Sequence};
+use crate::project::{Note, PatternData, Sequence, Track};
 use winit::window::CursorIcon;
 
 pub const BAR_GAP: f32 = 12.0;
@@ -26,7 +26,7 @@ pub fn draw(
     window: &MiniWindow,
     patterns: &mut [PatternData],
 
-    instruments: &mut [Instrument],
+    tracks: &mut [Track],
     active_pattern_id: usize,
     active_step: usize,
     mouse_state: &MouseState,
@@ -60,21 +60,21 @@ pub fn draw(
     // collect steps values for each row
     let steps_data: Vec<(u32, Vec<Note>)> = patterns
         .get(active_pattern_id)
-        .map(|p| p.sequences.iter().map(|s| (s.instrument_id, s.steps.clone())).collect())
+        .map(|p| p.sequences.iter().map(|s| (s.track_id, s.steps.clone())).collect())
         .unwrap_or_default();
 
-    // render ever instrument for every pattern
-    for (i, instrument) in instruments.iter_mut().enumerate() {
+    // render ever track for every pattern
+    for (i, track) in tracks.iter_mut().enumerate() {
         let y = PAD_16 + window.y + (i as f32 * TRACK_GAP);
         let empty = vec![Note::default(); 32];
         let steps_slice: &[Note] = steps_data
             .iter()
-            .find(|(id, _)| *id == instrument.data.id)
+            .find(|(id, _)| *id == track.data.id)
             .map(|(_, s)| s.as_slice())
             .unwrap_or(&empty);
 
         // velocity view
-        if instrument.show_velocity {
+        if track.show_velocity {
             // for each step
             for (j, step) in steps_slice.iter().enumerate() {
                 // velocity bar
@@ -129,11 +129,7 @@ pub fn draw(
                 if step_button.is_hovered(mouse_state.x, mouse_state.y) {
                     if mouse_state.left_clicked {
                         // if the click is on an existing sequence
-                        if let Some(seq) = patterns[active_pattern_id]
-                            .sequences
-                            .iter_mut()
-                            .find(|s| s.instrument_id == instrument.data.id)
-                        {
+                        if let Some(seq) = patterns[active_pattern_id].sequences.iter_mut().find(|s| s.track_id == track.data.id) {
                             seq.steps[j] = if seq.steps[j].velocity > 0.0 {
                                 Note::default()
                             } else {
@@ -145,18 +141,18 @@ pub fn draw(
                         }
                         // if the click is on a nonexisting sequence
                         else {
-                            // add a new sequence to the active pattern with the instrument used
+                            // add a new sequence to the active pattern with the track used
                             let mut steps = vec![Note::default(); 32];
                             steps[j] = Note {
                                 velocity: 95.0,
                                 ..Default::default()
                             };
                             patterns[active_pattern_id].sequences.push(Sequence {
-                                instrument_id: instrument.data.id,
+                                track_id: track.data.id,
                                 steps,
                             });
                         }
-                        click_result = ClickResult::ToggleStep(active_pattern_id, instrument.data.id as usize, j);
+                        click_result = ClickResult::ToggleStep(active_pattern_id, track.data.id as usize, j);
                     }
                 }
             }
@@ -196,11 +192,11 @@ pub fn draw(
             height: MUTE_SQUARE_LENGTH,
         };
         let hovered = mute_button.is_hovered(mouse_state.x, mouse_state.y) && !mouse_state.left_click_held;
-        let mute_button_color = if hovered && instrument.data.is_muted {
+        let mute_button_color = if hovered && track.data.is_muted {
             ORANGE_HOVER
         } else if hovered {
             LL_GRAY
-        } else if instrument.data.is_muted {
+        } else if track.data.is_muted {
             ORANGE
         } else {
             LIGHT_GRAY
@@ -218,7 +214,7 @@ pub fn draw(
 
         if mute_button.is_hovered(mouse_state.x, mouse_state.y) {
             if mouse_state.left_clicked {
-                instrument.data.is_muted = !instrument.data.is_muted;
+                track.data.is_muted = !track.data.is_muted;
                 click_result = ClickResult::ToggleTrackMute(i);
             }
         }
@@ -232,11 +228,11 @@ pub fn draw(
         };
 
         let hovered = velocity_button.is_hovered(mouse_state.x, mouse_state.y) && !mouse_state.left_click_held;
-        let velocity_button_color = if hovered && instrument.show_velocity {
+        let velocity_button_color = if hovered && track.show_velocity {
             ORANGE_HOVER
         } else if hovered {
             LL_GRAY
-        } else if instrument.show_velocity {
+        } else if track.show_velocity {
             ORANGE
         } else {
             LIGHT_GRAY
@@ -253,7 +249,7 @@ pub fn draw(
         });
         if velocity_button.is_hovered(mouse_state.x, mouse_state.y) {
             if mouse_state.left_clicked {
-                instrument.show_velocity = !instrument.show_velocity;
+                track.show_velocity = !track.show_velocity;
             }
         }
 
@@ -261,23 +257,23 @@ pub fn draw(
         for vert in draw_knob(
             window.x + KNOB_OFFSET,
             window.y + (i as f32 * TRACK_GAP) + ACTIONS_Y_OFFSET + PAD_8,
-            instrument.data.track_volume,
+            track.data.track_volume,
             screen_config,
         ) {
             vertices.push(vert);
         }
 
-        // instrument name
-        let instrument_button_text: String = if instrument.data.name.len() > 23 {
-            let end = instrument.data.name.floor_char_boundary(23);
-            let truncated_name = &instrument.data.name[..end].to_string(); // Safely gets "こん" (6 bytes)
+        // track name
+        let track_button_text: String = if track.data.name.len() > 23 {
+            let end = track.data.name.floor_char_boundary(23);
+            let truncated_name = &track.data.name[..end].to_string(); // Safely gets "こん" (6 bytes)
             format!("{}{}", truncated_name, "...",)
         } else {
-            instrument.data.name.to_string()
+            track.data.name.to_string()
         };
 
         text_items.push(TextItem {
-            text: instrument_button_text,
+            text: track_button_text,
             x: window.x + PAD_16,
             y: window.y + i as f32 * TRACK_GAP + PAD_16 + PAD_4,
             size: 12.0,

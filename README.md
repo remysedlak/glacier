@@ -6,15 +6,15 @@ A DAW built from scratch in Rust as a deliberate learning project. No frameworks
 
 ## features
 - step sequencer with per-pattern sequences, MIDI velocity, and velocity bar view per track
-- piano roll — place and edit notes per instrument per pattern, scrollable note grid and fixed key column
-- load .wav instruments at runtime, add/delete tracks dynamically
+- piano roll — place and edit notes per track per pattern, scrollable note grid and fixed key column
+- load .wav tracks at runtime, add/delete tracks dynamically
 - variable step counts per track
 - multiple patterns, switchable from the UI, with duplicate support
 - playlist view — arrange patterns across a timeline with x/y scroll and scissor clipping per region
 - mixer window with master volume slider
 - per-track volume knobs and mute controls
 - draggable, z-ordered mini-windows with correct click and hover ownership across overlapping windows
-- instrument detail windows per track
+- track detail windows per track
 - right-click context menus on patterns and tracks
 - SVG icon pipeline — toolbar icons rasterized via resvg, tooltip system on hover
 - custom text rendering via fontdue — glyph cache, textured quads, painter's algorithm interleaving
@@ -25,7 +25,7 @@ A DAW built from scratch in Rust as a deliberate learning project. No frameworks
 - footer status bar showing project path and FPS
 
 ## modules
-- `audio` — CPAL stream, sequencer callback, event-driven trigger resolution by instrument ID
+- `audio` — CPAL stream, sequencer callback, event-driven trigger resolution by track ID
 - `app` — winit event loop, input handling, ring buffer dispatch, file dialog threads
 - `project` — serialization structs, WAV loading
 - `graphics/mod` — wgpu pipeline, draw loop, painter's algorithm, click owner and hover blocking
@@ -42,7 +42,7 @@ A DAW built from scratch in Rust as a deliberate learning project. No frameworks
 - `graphics/mini_window/mixer` — mixer window
 - `graphics/mini_window/playlist` — playlist arrangement
 - `graphics/mini_window/piano_roll` — piano roll window
-- `graphics/mini_window/instrument` — instrument detail window
+- `graphics/mini_window/track` — track detail window
 
 ## stack
 wgpu · winit · CPAL · fontdue · ringbuf · hound · serde/toml · rfd · resvg

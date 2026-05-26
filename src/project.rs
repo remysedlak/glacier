@@ -7,7 +7,7 @@ pub struct Project {
     pub bpm: f32,
     pub master_volume: f32,
     pub events: Vec<AudioBlock>,
-    pub instruments: Vec<InstrumentData>,
+    pub tracks: Vec<TrackData>,
     pub patterns: Vec<PatternData>,
 }
 
@@ -18,7 +18,7 @@ impl Default for Project {
             bpm: 120.0,
             master_volume: 1.00,
             events: vec![],
-            instruments: vec![],
+            tracks: vec![],
             patterns: vec![PatternData {
                 id: 0,
                 name: "Pattern 1".to_string(),
@@ -47,10 +47,10 @@ pub struct AudioBlock {
     pub block_type: AudioBlockType,
 }
 
-/// Instrument data used at runtime for sound
+/// Track data used at runtime for sound
 #[derive(Clone)]
-pub struct Instrument {
-    pub data: InstrumentData,
+pub struct Track {
+    pub data: TrackData,
     pub samples: Vec<f32>, // loaded from hound
     pub position: f32,
     pub is_playing: bool,
@@ -59,9 +59,9 @@ pub struct Instrument {
     pub playback_rate: f32,
 }
 
-/// Instrument metadata stored on disk
+/// Track  metadata stored on disk
 #[derive(Serialize, Deserialize, Clone)]
-pub struct InstrumentData {
+pub struct TrackData {
     pub id: u32,
     pub name: String,
     pub path: String,
@@ -83,13 +83,13 @@ pub struct PatternData {
     pub sequences: Vec<Sequence>,
 }
 
-// A sequencer is a grid of steps for each instrument in ONE pattern
+// A sequencer is a grid of steps for each track in ONE pattern
 // The sequencer has a row of Sequence's
 
-/// One row of steps for an instrument in a pattern
+/// One row of steps for an track in a pattern
 #[derive(Serialize, Deserialize, Clone)]
 pub struct Sequence {
-    pub instrument_id: u32,
+    pub track_id: u32,
     pub steps: Vec<Note>,
 }
 
@@ -111,12 +111,12 @@ pub fn get_project(file_path: &str) -> Option<Project> {
     toml::from_str(&text).ok()
 }
 
-/// load list of instruments with their audio data from project details
-pub fn get_instruments(project: &Project) -> Vec<Instrument> {
+/// load list of tracks with their audio data from project details
+pub fn get_tracks(project: &Project) -> Vec<Track> {
     project
-        .instruments
+        .tracks
         .iter()
-        .map(|track| Instrument {
+        .map(|track| Track {
             samples: path_to_vector(&track.path),
             position: 0.0,
             data: track.clone(),
@@ -137,12 +137,12 @@ pub fn save_project(project: &Project, file_path: &str) {
     std::fs::write(file_path, text).unwrap();
 }
 
-/// load an instrument's float data from it's file path
-pub fn path_to_vector(instrument_path: &str) -> Vec<f32> {
-    let mut reader = match hound::WavReader::open(instrument_path) {
+/// load a track's float data from it's file path
+pub fn path_to_vector(track_path: &str) -> Vec<f32> {
+    let mut reader = match hound::WavReader::open(track_path) {
         Ok(r) => r,
         Err(e) => {
-            eprintln!("Failed to load {}: {}", instrument_path, e);
+            eprintln!("Failed to load {}: {}", track_path, e);
             return Vec::new();
         }
     };

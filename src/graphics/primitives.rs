@@ -196,34 +196,6 @@ pub fn draw_knob(cx: f32, cy: f32, vol: f32, screen_config: &ScreenConfig) -> Ve
     vec
 }
 
-// vertical line of vartius sizes
-pub fn draw_v_line(x: f32, y: f32, height: f32, thickness: f32, screen_config: &ScreenConfig) -> Vec<Vertex> {
-    // x coordinate of the vertical line
-    let ndc_x = to_ndc_x(x, screen_config);
-    let ndc_y = to_ndc_y(y, screen_config);
-    let ndc_t = (thickness / screen_config.width as f32) * 2.0;
-
-    let v = |px: f32, py: f32| Vertex {
-        position: [px, py, 0.0],
-        color: [0.0, 0.0, 0.0],
-        uv: [-1.0, -1.0],
-        radius: [0.0; 4],
-        half_size: [1.0, 1.0],
-        local_pos: [0.0, 0.0],
-    };
-
-    let ndc_height = (height / screen_config.height as f32) * 2.0;
-
-    vec![
-        v(ndc_x, ndc_y),
-        v(ndc_x + ndc_t, ndc_y),
-        v(ndc_x + ndc_t, ndc_y - ndc_height),
-        v(ndc_x, ndc_y),
-        v(ndc_x + ndc_t, ndc_y - ndc_height),
-        v(ndc_x, ndc_y - ndc_height),
-    ]
-}
-
 // draw a line across the entire screen
 pub fn draw_h_line(y: f32, thickness: f32, screen_config: &ScreenConfig) -> Vec<Vertex> {
     // top edge of the line

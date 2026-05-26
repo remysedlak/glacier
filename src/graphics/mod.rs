@@ -16,16 +16,16 @@ use crate::graphics::{
     font::{TextItem, MONO_FONT, ROBOTO_FONT},
     icons::Tooltip,
     mini_window::{
-        instrument, mixer, piano_roll,
+        mixer, piano_roll,
         piano_roll::PIANO_ROLL_DEFAULT_Y,
         playlist, sequencer,
         sequencer::{ACTIONS_Y_OFFSET, KNOB_OFFSET, KNOB_RADIUS, TRACK_GAP},
-        MiniWindow, PianoRollDrawRanges, PlaylistDrawRanges, WindowDrawRange, WindowKind, MIXER_ID, PIANO_ROLL_ID, PLAYLIST_ID, SEQUENCER_ID,
+        track, MiniWindow, PianoRollDrawRanges, PlaylistDrawRanges, WindowDrawRange, WindowKind, MIXER_ID, PIANO_ROLL_ID, PLAYLIST_ID, SEQUENCER_ID,
     },
     primitives::*,
     widgets::*,
 };
-use crate::project::{AudioBlock, AudioBlockType, Instrument, PatternData};
+use crate::project::{AudioBlock, AudioBlockType, PatternData, Track};
 use fontdue::layout::{CoordinateSystem, Layout, TextStyle};
 use std::{borrow::Cow, collections::HashMap};
 use wgpu::{
@@ -44,11 +44,12 @@ pub type Rc<T> = std::sync::Arc<T>;
 #[derive(Debug)]
 pub enum ClickResult {
     // sequencer
-    ToggleStep(usize, usize, usize),   // pattern_id, instrument_id, step_idx
-    ToggleNote(usize, u32, usize, u8), // pattern_id, instrument_id, step_idx, pitch
+    ToggleStep(usize, usize, usize),   // pattern_id, track_id, step_idx
+    ToggleNote(usize, u32, usize, u8), // pattern_id, track_id, step_idx, pitch
     ToggleTrackMute(usize),
     DeleteTrack(usize),
     ToggleSequencerWindow,
+    OpenTrackFileLocation(String),
 
     // toolbar
     Stop,
@@ -57,7 +58,7 @@ pub enum ClickResult {
     ChangeBpm(f32),
     TogglePlay,
     ProjectFileDialog,
-    InstrumentFileDialog,
+    TrackFileDialog,
 
     // menus
     OpenTrackMenu(f32, f32, usize, usize),
@@ -144,7 +145,7 @@ pub async fn create_graphics(window: Rc<Window>, proxy: EventLoopProxy<Graphics>
     // init graphics state
     let vertices: Vec<Vertex> = Vec::new();
     let patterns: Vec<PatternData> = Vec::new();
-    let instruments: Vec<Instrument> = Vec::new();
+    let tracks: Vec<Track> = Vec::new();
     let events: Vec<AudioBlock> = Vec::new();
     let mut mini_windows: Vec<MiniWindow> = Vec::new();
     let context_menu = None;
@@ -229,7 +230,7 @@ pub async fn create_graphics(window: Rc<Window>, proxy: EventLoopProxy<Graphics>
         frame_ms: 0.0,
 
         // song information
-        instruments,
+        tracks,
         patterns,
         events,
         active_step: 0,
@@ -330,7 +331,7 @@ pub struct Graphics {
 
     // song
     pub project_path: String,
-    pub instruments: Vec<Instrument>,
+    pub tracks: Vec<Track>,
     pub patterns: Vec<PatternData>,
     pub events: Vec<AudioBlock>,
     pub active_step: usize,
@@ -382,9 +383,9 @@ impl Graphics {
     }
 
     // loading project data into the graphics state, called from the app when a project is loaded or created new
-    pub fn load_instrument(&mut self, i: Instrument) {
-        if i.data.id >= self.instruments.len() as u32 {
-            self.instruments.push(i);
+    pub fn load_track(&mut self, i: Track) {
+        if i.data.id >= self.tracks.len() as u32 {
+            self.tracks.push(i);
         }
     }
     pub fn load_pattern(&mut self, p: PatternData) {
@@ -415,11 +416,11 @@ impl Graphics {
                 }
             }
             if let Some(i) = self.dragging_knob {
-                self.instruments[i].data.track_volume = (self.instruments[i].data.track_volume - dy * 0.005).clamp(0.0, 1.0);
+                self.tracks[i].data.track_volume = (self.tracks[i].data.track_volume - dy * 0.005).clamp(0.0, 1.0);
                 self.dragging = true;
-                return DragResult::DragVolumeKnob(i, self.instruments[i].data.track_volume);
+                return DragResult::DragVolumeKnob(i, self.tracks[i].data.track_volume);
             }
-            for (i, track) in &mut self.instruments.iter_mut().enumerate() {
+            for (i, track) in &mut self.tracks.iter_mut().enumerate() {
                 let knob_rect = Rectangle {
                     x: sequencer_window.x + KNOB_OFFSET,
                     y: sequencer_window.y + (i as f32 * TRACK_GAP) + ACTIONS_Y_OFFSET + PAD_8,
@@ -606,7 +607,7 @@ impl Graphics {
                     let (verts, texts, icons, result, cursor) = sequencer::draw(
                         window,
                         &mut self.patterns,
-                        &mut self.instruments,
+                        &mut self.tracks,
                         self.active_pattern_id,
                         self.active_step,
                         &masked_mouse,
@@ -728,7 +729,7 @@ impl Graphics {
                         self.piano_roll_scroll_y,
                         &screen_config,
                         &self.patterns,
-                        &self.instruments,
+                        &self.tracks,
                         self.active_step,
                         self.piano_roll_state.as_ref(),
                     );
@@ -789,17 +790,34 @@ impl Graphics {
                         cursor_icon = cursor;
                     }
                 }
-                instrument => {
-                    let window = &self.mini_windows[instrument];
+                track => {
+                    let window = &self.mini_windows[track];
                     if window.is_open {
-                        if let WindowKind::InstrumentDetail(track) = window.window_kind {
-                            let (verts, texts, result, cursor) = instrument::draw(window, &masked_mouse, &screen_config, &self.instruments[track]);
+                        if let WindowKind::TrackDetail(track) = window.window_kind {
+                            let (verts, texts, icons, result, cursor, track_window_tooltip) =
+                                track::draw(window, &masked_mouse, &screen_config, &self.tracks[track]);
                             vertices.extend(verts);
                             click_result = click_result.or(result);
                             if !matches!(cursor, CursorIcon::Default) {
                                 cursor_icon = cursor;
                             }
+                            for icon in icons {
+                                Graphics::push_icon_draw(
+                                    &self.icon_cache,
+                                    &self.device,
+                                    &screen_config,
+                                    icon.name,
+                                    icon.x,
+                                    icon.y,
+                                    icon.width,
+                                    icon.height,
+                                    &mut icon_draws,
+                                )
+                            }
                             Graphics::push_text_draws(&texts, &self.font_cache, &self.glyph_cache, &self.device, &screen_config, &mut char_draws);
+                            if track_window_tooltip.is_some() {
+                                self.tooltip = track_window_tooltip;
+                            }
                         }
                     }
                 }

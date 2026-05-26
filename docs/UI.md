@@ -150,12 +150,12 @@ ICON_HEIGHT: f32 = 24.0
 ## Result Types
 ```rust
 pub enum ClickResult {
-    Step(usize, usize, usize),         // pattern_id, instrument_idx, step_idx
+    Step(usize, usize, usize),         // pattern_id, track_idx, step_idx
     Mute(usize),
     ChangeBpm(f32),
     TogglePlay,
     ProjectFileDialog,
-    InstrumentFileDialog,
+    TrackFileDialog,
     DeleteTrack(usize),
     ToggleSequencerWindow,
     ToggleMixerWindow,

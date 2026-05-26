@@ -6,7 +6,7 @@ use crate::{
         color::*,
         font::ROBOTO_FONT,
         mini_window::MiniWindow,
-        primitives::{ScreenConfig, BOTTOM_RADIUS_16, PAD_16, PAD_4, PAD_8},
+        primitives::{ScreenConfig, BOTTOM_RADIUS_16, PAD_16, PAD_4},
         widgets::{draw_slider, window_background, window_title_bar, MIXER_TRACK_HEIGHT},
         ClickResult, TextItem, Vertex,
     },

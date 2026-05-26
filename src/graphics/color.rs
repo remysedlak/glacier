@@ -37,4 +37,4 @@ pub const PURPLE: Color = Color { r: 0.20, g: 0.20, b: 0.99 };
 pub const ORANGE: Color = Color { r: 0.99, g: 0.1, b: 0.0 };
 pub const ORANGE_HOVER: Color = Color { r: 0.79, g: 0.2, b: 0.0 };
 pub const GREEN: Color = Color { r: 0.1, g: 0.99, b: 0.1 };
-pub const GREEN_HOVER: Color = Color { r: 0.1, g: 0.79, b: 0.1 };
+// pub const GREEN_HOVER: Color = Color { r: 0.1, g: 0.79, b: 0.1 };
