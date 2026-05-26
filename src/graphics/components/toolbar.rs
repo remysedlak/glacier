@@ -1,4 +1,5 @@
 use crate::app::MouseState;
+use crate::graphics::color::BLACK;
 use crate::graphics::widgets::Square;
 use crate::graphics::{
     color::{Color, DARK_GRAY, DARK_GRAY_HOVER, LIGHT_GRAY, PEBBLE, WHITE},
@@ -109,6 +110,14 @@ pub fn draw_toolbar(
         icon_color(&stop_button, mouse_state.x, mouse_state.y, mouse_state.left_click_held),
         NO_RADIUS,
     ));
+
+    let time_background = Rectangle {
+        x: PLAY_X_ORIGIN + ICON_GAP + ICON_GAP,
+        y: PLAY_Y_ORIGIN,
+        width: ICON_SIZE * 4.0,
+        height: ICON_SIZE,
+    };
+    vertices.extend(time_background.draw(&screen_config, BLACK, NO_RADIUS));
 
     let sequencer_toggle = Square {
         x: PLAY_X_ORIGIN + WINDOW_ICONS_OFFSET,
