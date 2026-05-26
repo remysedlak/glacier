@@ -19,6 +19,7 @@ pub enum AudioCommand {
     ChangeBpm(f32),
     DeleteAudioBlock(usize),
     CreateAudioBlock(usize, u32, usize, AudioBlockType),
+    ResizeAudioBlock(usize, u32),
 
     // mixing
     ChangeMasterVolume(f32),
@@ -102,6 +103,11 @@ pub fn init(mut consumer: HeapCons<AudioCommand>, mut producer: HeapProd<UiComma
         // parse incoming UI commands before fulfilling data callback
         while let Some(cmd) = consumer.try_pop() {
             match cmd {
+                AudioCommand::ResizeAudioBlock(event_id, new_length) => {
+                    if let Some(event) = events.iter_mut().find(|event| event.id == event_id) {
+                        event.length = new_length;
+                    }
+                }
                 AudioCommand::DuplicatePattern(pattern_id) => {
                     if let Some(pattern) = patterns.iter().find(|p| p.id == pattern_id).cloned() {
                         let mut new_pattern = pattern.clone();

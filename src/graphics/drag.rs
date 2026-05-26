@@ -1,8 +1,11 @@
+use crate::graphics::mini_window::playlist::PLAYLIST_STEP_GAP;
+
 use super::*;
 
 pub enum DragResult {
     DragMasterVolumeSlider(f32),
     DragTrackVolumeKnob(usize, f32),
+    ResizeAudioBlock(usize, u32),
     None,
 }
 impl Graphics {
@@ -58,10 +61,17 @@ impl Graphics {
         }
 
         // PATTERN RESIZE ON PLAYLIST
-        if let Some(id) = self.resizing_event {
-            let win = &mut self.mini_windows[PLAYLIST_ID];
-            win.x = (win.x + dx).clamp(-(win.width - 64.0), self.surface_config.width as f32 - 246.0);
-
+        if let Some(event_id) = self.resizing_event {
+            // find event
+            if let Some(event) = self.events.iter_mut().find(|event| event.id == event_id) {
+                self.resize_drag_accumulator += dx;
+                let delta_steps = (self.resize_drag_accumulator / PLAYLIST_STEP_GAP) as i32;
+                if delta_steps != 0 {
+                    self.resize_drag_accumulator -= delta_steps as f32 * PLAYLIST_STEP_GAP;
+                    event.length = (event.length as i32 + delta_steps).max(1) as u32;
+                    return DragResult::ResizeAudioBlock(event_id, event.length);
+                }
+            }
             return DragResult::None;
         }
 

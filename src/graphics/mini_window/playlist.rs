@@ -12,7 +12,7 @@ use winit::window::CursorIcon;
 
 const PLAYLIST_STEP_WIDTH: f32 = 32.0;
 const PLAYLIST_STEP_HEIGHT: f32 = 64.0;
-const PLAYLIST_STEP_GAP: f32 = 35.0;
+pub const PLAYLIST_STEP_GAP: f32 = 35.0;
 const PLAYLIST_TRACK_GAP: f32 = 70.0;
 const TIMELINE_X_ORIGIN: f32 = 128.0;
 const PLAYHEAD_WIDTH: f32 = 4.0;
@@ -160,7 +160,7 @@ pub fn draw(
                     click_result = ClickResult::DeletePlaylistPattern(event.id);
                 }
             }
-            if pl_pattern.is_hovered_edge(mouse_state.x, mouse_state.y) {
+            if pl_pattern.is_hovered_right_edge(mouse_state.x, mouse_state.y) {
                 cursor_icon = CursorIcon::ColResize;
                 if mouse_state.left_clicked {
                     click_result = ClickResult::StartResizeEvent(event.id);

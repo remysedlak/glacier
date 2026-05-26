@@ -260,6 +260,7 @@ pub async fn create_graphics(window: Rc<Window>, proxy: EventLoopProxy<Graphics>
         z_order: vec![SEQUENCER_ID, PLAYLIST_ID, MIXER_ID, PIANO_ROLL_ID],
         context_menu,
         resizing_event: None,
+        resize_drag_accumulator: 0.0,
     };
 
     let _ = proxy.send_event(gfx);
@@ -344,6 +345,7 @@ pub struct Graphics {
     pub dragging_window: Option<usize>, // window titlebar
     pub dragging: bool,
     pub resizing_event: Option<usize>, // pattern resizing in playlist
+    pub resize_drag_accumulator: f32,
 
     // scrolling
     pub playlist_scroll_x: f32,
