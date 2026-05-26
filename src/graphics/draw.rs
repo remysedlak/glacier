@@ -1,6 +1,5 @@
-use crate::graphics::components::instrument_tray;
-
 use super::*;
+use crate::graphics::components::track_tray;
 
 impl Graphics {
     /// pushing texts to draw
@@ -375,8 +374,8 @@ impl Graphics {
         }
 
         // tray of audio files / folders
-        if self.show_instrument_tray {
-            let (instrument_tray_verts, instrument_tray_texts) = instrument_tray::draw(mouse_state, &screen_config);
+        if self.show_track_tray {
+            let (instrument_tray_verts, instrument_tray_texts) = track_tray::draw(mouse_state, &screen_config);
             Graphics::push_text_draws(
                 &instrument_tray_texts,
                 &self.font_cache,

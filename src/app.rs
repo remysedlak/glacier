@@ -264,6 +264,12 @@ impl App {
             }
             // dispatch audio commands based on what was clicked
             match result {
+                ClickResult::TogglePatternTray => {
+                    gfx.show_pattern_tray = !gfx.show_pattern_tray;
+                }
+                ClickResult::ToggleTrackTray => {
+                    gfx.show_track_tray = !gfx.show_track_tray;
+                }
                 ClickResult::OpenTrackFileLocation(path) => {
                     // open the track file in the default file system
                     showfile::show_path_in_file_manager(path);

@@ -7,7 +7,19 @@ use crate::graphics::{
     primitives::{ScreenConfig, Vertex, NO_RADIUS},
 };
 
-pub const ICON_NAMES_128: &[&str] = &["play", "stop", "pause", "mixer", "sequencer", "playlist", "track", "project", "piano"];
+pub const ICON_NAMES_128: &[&str] = &[
+    "play",
+    "stop",
+    "pause",
+    "mixer",
+    "sequencer",
+    "playlist",
+    "track",
+    "project",
+    "piano",
+    "track_tray",
+    "pattern_tray",
+];
 
 pub const ICON_NAMES_32: &[&str] = &["file"];
 

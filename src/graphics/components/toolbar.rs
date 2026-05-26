@@ -1,12 +1,10 @@
 use crate::app::MouseState;
-use crate::graphics::color::BLACK;
-use crate::graphics::widgets::Square;
 use crate::graphics::{
-    color::{Color, DARK_GRAY, DARK_GRAY_HOVER, LIGHT_GRAY, PEBBLE, WHITE},
+    color::*,
     font::{TextItem, ROBOTO_FONT},
     icons::{IconDraw, Tooltip},
     primitives::{draw_h_line, NO_RADIUS, PAD_32, PAD_8},
-    widgets::{Rectangle, ADD_TRACK_ICON_OFFSET, ICON_SIZE, PLAY_X_ORIGIN, PLAY_Y_ORIGIN, TOOLBAR_MARGIN, TOOLBAR_Y},
+    widgets::*,
     ClickResult, ScreenConfig, Vertex, TOOLBAR_THICKNESS,
 };
 use winit::window::CursorIcon;
@@ -189,6 +187,40 @@ pub fn draw_toolbar(
         }
     }
 
+    let track_selection_toggle = Square {
+        x: PLAY_X_ORIGIN + WINDOW_ICONS_OFFSET + (ICON_GAP * 4.0),
+        y: PLAY_Y_ORIGIN,
+
+        size: ICON_SIZE,
+    };
+    vertices.extend(track_selection_toggle.draw(
+        &screen_config,
+        icon_color(&track_selection_toggle, mouse_state.x, mouse_state.y, mouse_state.left_click_held),
+        NO_RADIUS,
+    ));
+    if track_selection_toggle.is_hovered(mouse_state.x, mouse_state.y) {
+        if mouse_state.left_clicked {
+            click_result = ClickResult::ToggleTrackTray;
+        }
+    }
+
+    let patterns_toggle = Square {
+        x: PLAY_X_ORIGIN + WINDOW_ICONS_OFFSET + (ICON_GAP * 5.0),
+        y: PLAY_Y_ORIGIN,
+
+        size: ICON_SIZE,
+    };
+    vertices.extend(patterns_toggle.draw(
+        &screen_config,
+        icon_color(&patterns_toggle, mouse_state.x, mouse_state.y, mouse_state.left_click_held),
+        NO_RADIUS,
+    ));
+    if patterns_toggle.is_hovered(mouse_state.x, mouse_state.y) {
+        if mouse_state.left_clicked {
+            click_result = ClickResult::TogglePatternTray;
+        }
+    }
+
     // toolbar line
     for vert in draw_h_line(TOOLBAR_Y, TOOLBAR_THICKNESS, screen_config) {
         vertices.push(vert);
@@ -336,6 +368,30 @@ pub fn draw_toolbar(
                 y: (PLAY_Y_ORIGIN + TOOLTIP_MARGIN),
             },
         },
+        IconDraw {
+            name: "track_tray",
+            x: PLAY_X_ORIGIN + WINDOW_ICONS_OFFSET + (ICON_GAP * 4.0),
+            y: PLAY_Y_ORIGIN,
+            width: ICON_SIZE,
+            height: ICON_SIZE,
+            tooltip: Tooltip {
+                text: Some("Tracks"),
+                x: PLAY_X_ORIGIN + WINDOW_ICONS_OFFSET + (ICON_GAP * 4.0),
+                y: PLAY_Y_ORIGIN + TOOLTIP_MARGIN,
+            },
+        },
+        IconDraw {
+            name: "pattern_tray",
+            x: PLAY_X_ORIGIN + WINDOW_ICONS_OFFSET + (ICON_GAP * 5.0),
+            y: PLAY_Y_ORIGIN,
+            width: ICON_SIZE,
+            height: ICON_SIZE,
+            tooltip: Tooltip {
+                text: Some("Patterns"),
+                x: PLAY_X_ORIGIN + WINDOW_ICONS_OFFSET + (ICON_GAP * 4.0),
+                y: PLAY_Y_ORIGIN + TOOLTIP_MARGIN,
+            },
+        },
     ];
 
     if !mouse_state.left_click_held {
@@ -346,9 +402,10 @@ pub fn draw_toolbar(
         }
     }
 
+    // debug
     toolbar_texts.push(TextItem {
         text: active_step.to_string(),
-        x: 600.0,
+        x: 680.0,
         y: TOOLBAR_MARGIN,
         size: 18.0,
         color: WHITE,
