@@ -27,15 +27,18 @@ use std::thread;
 
 #[derive(Debug)]
 pub struct MouseState {
+    // posiiton
     pub x: f32,
     pub y: f32,
+    // clicking
     pub left_clicked: bool,
     pub left_double_clicked: bool,
+    pub left_click_held: bool,
     pub right_clicked: bool,
+    // scrolling
     pub scroll_x: f32,
     pub scroll_y: f32,
     pub shift_pressed: bool,
-    pub left_click_held: bool,
 }
 
 #[derive(Debug)]
@@ -65,11 +68,11 @@ enum State {
 
 // gui app state
 pub struct App {
+    // app state/logic
     producer: HeapProd<AudioCommand>,
     consumer: HeapCons<UiCommand>,
     state: State,
     project_is_dirty: bool,
-    last_click_time: Option<std::time::Instant>,
 
     stream: Stream,
     pending_project: Option<String>,
@@ -82,6 +85,7 @@ pub struct App {
     prev_mouse_x: f32,
     prev_mouse_y: f32,
     right_click_held: bool,
+    last_click_time: Option<std::time::Instant>,
 
     track_file_dialog_rx: Option<Receiver<Option<PathBuf>>>,
     project_file_dialog_rx: Option<Receiver<Option<PathBuf>>>,
@@ -203,11 +207,11 @@ impl App {
                     UiCommand::LoadPattern(pattern) => {
                         gfx.load_pattern(pattern);
                     }
-                    UiCommand::LoadMasterVolume(fl) => {
-                        gfx.master_volume = fl;
+                    UiCommand::LoadMasterVolume(volume) => {
+                        gfx.master_volume = volume;
                     }
-                    UiCommand::StepAdvanced(size) => {
-                        gfx.active_step = size;
+                    UiCommand::StepAdvanced(step) => {
+                        gfx.active_step = step;
                         gfx.request_redraw();
                     }
                     UiCommand::ShutdownComplete => {
@@ -308,9 +312,9 @@ impl App {
                 ClickResult::CloseContextMenu => {
                     gfx.context_menu = None;
                 }
-                ClickResult::OpenPatternMenu(x, y, id) => {
+                ClickResult::OpenPatternMenu(x, y, pattern_id) => {
                     gfx.context_menu = Some(ContextMenu {
-                        kind: ContextMenuKind::PatternContext(id),
+                        kind: ContextMenuKind::PatternContext(pattern_id),
                         x,
                         y,
                         height: 128.0,
@@ -336,8 +340,8 @@ impl App {
                     self.producer.try_push(AudioCommand::ChangeBpm(gfx.bpm)).ok();
                     self.project_is_dirty = true;
                 }
-                ClickResult::SelectPattern(id) => {
-                    gfx.active_pattern_id = id;
+                ClickResult::SelectPattern(pattern_id) => {
+                    gfx.active_pattern_id = pattern_id;
                 }
                 ClickResult::ToggleTrackWindow(track) => {
                     // update piano roll state to show this track
@@ -386,15 +390,15 @@ impl App {
                     });
                     self.project_is_dirty = true;
                 }
-                ClickResult::DeletePattern(id) => {
+                ClickResult::DeletePattern(pattern_id) => {
                     // delete from audio state
-                    self.producer.try_push(AudioCommand::DeletePattern(id)).ok();
+                    self.producer.try_push(AudioCommand::DeletePattern(pattern_id)).ok();
 
                     // delete from ui state
-                    gfx.patterns.retain(|p| p.id != id);
+                    gfx.patterns.retain(|p| p.id != pattern_id);
                     gfx.events.retain(|e| {
                         if let crate::project::AudioBlockType::Pattern(pid) = e.block_type {
-                            pid != id
+                            pid != pattern_id
                         } else {
                             true
                         }
@@ -440,18 +444,18 @@ impl App {
                     // resets song back to 0:00
 
                     // ui state
-                    gfx.is_playing = !gfx.is_playing;
+                    gfx.is_playing = false;
                     gfx.active_step = 0;
 
                     // audio state
                     self.producer.try_push(AudioCommand::Stop).ok();
                 }
-                ClickResult::ToggleTrackMute(track) => {
-                    self.producer.try_push(AudioCommand::ToggleTrackMute(track)).ok();
+                ClickResult::ToggleTrackMute(track_id) => {
+                    self.producer.try_push(AudioCommand::ToggleTrackMute(track_id)).ok();
                     self.project_is_dirty = true;
                 }
-                ClickResult::ChangeBpm(bpm) => {
-                    self.producer.try_push(AudioCommand::ChangeBpm(bpm)).ok();
+                ClickResult::ChangeBpm(new_bpm) => {
+                    self.producer.try_push(AudioCommand::ChangeBpm(new_bpm)).ok();
                     self.project_is_dirty = true;
                 }
                 ClickResult::TogglePlay => {
@@ -459,9 +463,9 @@ impl App {
 
                     self.producer.try_push(AudioCommand::TogglePlay).ok();
                 }
-                ClickResult::DeleteTrack(i) => {
-                    self.producer.try_push(AudioCommand::DeleteTrack(i)).ok();
-                    gfx.tracks.remove(i);
+                ClickResult::DeleteTrack(track_id) => {
+                    self.producer.try_push(AudioCommand::DeleteTrack(track_id)).ok();
+                    gfx.tracks.remove(track_id);
                     gfx.mini_windows[SEQUENCER_ID].height = 100.0 + TRACK_GAP * gfx.tracks.len() as f32;
 
                     gfx.context_menu = None;
@@ -682,12 +686,12 @@ impl ApplicationHandler<Graphics> for App {
                     if self.mouse_state.left_click_held {
                         match gfx.handle_drag(position.x as f32, position.y as f32, delta_y, delta_x) {
                             DragResult::None => {}
-                            DragResult::DragVolumeSlider(fl) => {
-                                self.producer.try_push(AudioCommand::ChangeMasterVolume(fl)).ok();
+                            DragResult::DragMasterVolumeSlider(new_volume) => {
+                                self.producer.try_push(AudioCommand::ChangeMasterVolume(new_volume)).ok();
                                 gfx.request_redraw();
                             }
-                            DragResult::DragVolumeKnob(i, fl) => {
-                                self.producer.try_push(AudioCommand::ChangeTrackVolume(i, fl)).ok();
+                            DragResult::DragTrackVolumeKnob(track_id, new_volume) => {
+                                self.producer.try_push(AudioCommand::ChangeTrackVolume(track_id, new_volume)).ok();
                                 gfx.request_redraw();
                             }
                         }

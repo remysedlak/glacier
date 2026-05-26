@@ -1,8 +1,8 @@
 use super::*;
 
 pub enum DragResult {
-    DragVolumeSlider(f32),
-    DragVolumeKnob(usize, f32),
+    DragMasterVolumeSlider(f32),
+    DragTrackVolumeKnob(usize, f32),
     None,
 }
 impl Graphics {
@@ -23,14 +23,14 @@ impl Graphics {
                 if slider_hit.is_hovered(mouse_x, mouse_y) {
                     self.master_volume = 1.0 - ((mouse_y - slider_hit.y) / MIXER_TRACK_HEIGHT).clamp(0.0, 1.0);
                     self.dragging = true;
-                    return DragResult::DragVolumeSlider(self.master_volume);
+                    return DragResult::DragMasterVolumeSlider(self.master_volume);
                 }
             }
             // TRACK VOLUME KNOB
             if let Some(i) = self.dragging_knob {
                 self.tracks[i].data.track_volume = (self.tracks[i].data.track_volume - dy * 0.005).clamp(0.0, 1.0);
                 self.dragging = true;
-                return DragResult::DragVolumeKnob(i, self.tracks[i].data.track_volume);
+                return DragResult::DragTrackVolumeKnob(i, self.tracks[i].data.track_volume);
             }
             for (i, track) in &mut self.tracks.iter_mut().enumerate() {
                 let knob_rect = Rectangle {
@@ -43,7 +43,7 @@ impl Graphics {
                     self.dragging_knob = Some(i);
                     track.data.track_volume = (track.data.track_volume - dy * 0.01).clamp(0.0, 1.0);
                     self.dragging = true;
-                    return DragResult::DragVolumeKnob(i, track.data.track_volume);
+                    return DragResult::DragTrackVolumeKnob(i, track.data.track_volume);
                 }
             }
         }
@@ -58,11 +58,10 @@ impl Graphics {
         }
 
         // PATTERN RESIZE ON PLAYLIST
-        if let Some(i) = self.resizing_event {
+        if let Some(id) = self.resizing_event {
             let win = &mut self.mini_windows[PLAYLIST_ID];
-            let max_y = self.surface_config.height as f32 - TITLEBAR_HEIGHT;
             win.x = (win.x + dx).clamp(-(win.width - 64.0), self.surface_config.width as f32 - 246.0);
-            win.y = (win.y + dy).clamp(TITLEBAR_HEIGHT + TOOLBAR_Y, max_y);
+
             return DragResult::None;
         }
 

@@ -33,9 +33,9 @@ fn main() {
     let (ui_prod, ui_cons) = HeapRb::<UiCommand>::new(64).split();
 
     // start the audio stream with empty ringbuffers and no project
-    let stream = audio::init(audio_cons, ui_prod, None);
+    let audio_stream = audio::init(audio_cons, ui_prod, None);
 
     // combine audio and ui buffers to create app logic owning the audio stream
-    let app = App::new(audio_prod, ui_cons, &event_loop, stream);
+    let app = App::new(audio_prod, ui_cons, &event_loop, audio_stream);
     run_app(event_loop, app);
 }

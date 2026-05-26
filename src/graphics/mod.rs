@@ -9,6 +9,8 @@ pub mod mini_window;
 pub mod primitives;
 pub mod widgets;
 
+pub const ONE_MEGABYTE: u64 = 1024 * 1024;
+
 use crate::app::{MouseState, PianoRollState};
 use crate::audio::DEFAULT_BPM;
 use crate::graphics::{
@@ -101,8 +103,6 @@ impl ClickResult {
         }
     }
 }
-
-pub const ONE_MEGABYTE: u64 = 1024 * 1024;
 
 /// Initialize the graphics with default/loaded state and find driver/display info
 pub async fn create_graphics(window: Rc<Window>, proxy: EventLoopProxy<Graphics>) {

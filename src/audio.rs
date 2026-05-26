@@ -143,13 +143,13 @@ pub fn init(mut consumer: HeapCons<AudioCommand>, mut producer: HeapProd<UiComma
                     patterns.push(p.clone());
                     producer.try_push(UiCommand::LoadPattern(p)).ok();
                 }
-                AudioCommand::DeletePattern(id) => {
+                AudioCommand::DeletePattern(pattern_id) => {
                     // remove the pattern from list of patterns
-                    patterns.retain(|p| p.id != id);
+                    patterns.retain(|p| p.id != pattern_id);
                     // remove the pattern from list of events
                     events.retain(|e| {
                         if let AudioBlockType::Pattern(pid) = e.block_type {
-                            pid != id
+                            pid != pattern_id
                         } else {
                             true
                         }
@@ -158,8 +158,8 @@ pub fn init(mut consumer: HeapCons<AudioCommand>, mut producer: HeapProd<UiComma
                         p.id = i;
                     }
                 }
-                AudioCommand::DeleteAudioBlock(id) => {
-                    events.retain(|e| e.id != id);
+                AudioCommand::DeleteAudioBlock(audio_block_id) => {
+                    events.retain(|e| e.id != audio_block_id);
                 }
                 AudioCommand::Stop => {
                     is_playing = false;
@@ -175,11 +175,11 @@ pub fn init(mut consumer: HeapCons<AudioCommand>, mut producer: HeapProd<UiComma
                         block_type,
                     });
                 }
-                AudioCommand::ChangeMasterVolume(volume) => {
-                    master_volume = volume;
+                AudioCommand::ChangeMasterVolume(new_volume) => {
+                    master_volume = new_volume;
                 }
-                AudioCommand::ChangeTrackVolume(i, vol) => {
-                    tracks[i].data.track_volume = vol;
+                AudioCommand::ChangeTrackVolume(track_id, new_volume) => {
+                    tracks[track_id].data.track_volume = new_volume;
                 }
                 AudioCommand::ToggleStep(pattern_id, track_idx, step_idx) => {
                     let track_id = tracks[track_idx].data.id;
@@ -198,8 +198,8 @@ pub fn init(mut consumer: HeapCons<AudioCommand>, mut producer: HeapProd<UiComma
                         patterns[pattern_id].sequences.push(seq);
                     }
                 }
-                AudioCommand::DeleteTrack(i) => {
-                    tracks.remove(i);
+                AudioCommand::DeleteTrack(track_id) => {
+                    tracks.remove(track_id);
                 }
 
                 AudioCommand::LoadTrack(mut track_data, samples) => {
@@ -219,10 +219,10 @@ pub fn init(mut consumer: HeapCons<AudioCommand>, mut producer: HeapProd<UiComma
                 AudioCommand::ChangeBpm(new_bpm) => {
                     bpm = new_bpm;
                 }
-                AudioCommand::ToggleTrackMute(i) => {
-                    tracks[i].data.is_muted = !tracks[i].data.is_muted;
-                    tracks[i].position = 0.0;
-                    tracks[i].is_playing = false;
+                AudioCommand::ToggleTrackMute(track_id) => {
+                    tracks[track_id].data.is_muted = !tracks[track_id].data.is_muted;
+                    tracks[track_id].position = 0.0;
+                    tracks[track_id].is_playing = false;
                 }
                 AudioCommand::TogglePlay => {
                     // change state from pause to play, or play to pause
@@ -234,7 +234,7 @@ pub fn init(mut consumer: HeapCons<AudioCommand>, mut producer: HeapProd<UiComma
                         name: name.clone(),
                         bpm,
                         master_volume,
-                        tracks: tracks.iter().map(|i| i.data.clone()).collect(),
+                        tracks: tracks.iter().map(|track| track.data.clone()).collect(),
                         patterns: patterns.clone(),
                         events: events.clone(),
                     };
@@ -249,7 +249,7 @@ pub fn init(mut consumer: HeapCons<AudioCommand>, mut producer: HeapProd<UiComma
                         name: name.clone(),
                         bpm,
                         master_volume,
-                        tracks: tracks.iter().map(|i| i.data.clone()).collect(),
+                        tracks: tracks.iter().map(|track| track.data.clone()).collect(),
                         patterns: patterns.clone(),
                         events: events.clone(),
                     };
@@ -283,7 +283,7 @@ pub fn init(mut consumer: HeapCons<AudioCommand>, mut producer: HeapProd<UiComma
                 for track in &mut tracks {
                     // ignore muted tracks
                     if !track.data.is_muted && track.is_playing {
-                        // if the sample has fully played, mark it as not playing anymore
+                        // if the sample  has fully played, mark it as not playing anymore
                         let pos = track.position as usize;
                         if pos + 1 >= track.samples.len() {
                             track.is_playing = false;
@@ -321,10 +321,10 @@ pub fn init(mut consumer: HeapCons<AudioCommand>, mut producer: HeapProd<UiComma
                 let triggers: Vec<(usize, f32, u8)> = events
                     .iter()
                     .filter_map(|e| {
-                        if let AudioBlockType::Pattern(pid) = e.block_type {
+                        if let AudioBlockType::Pattern(pattern_id) = e.block_type {
                             if current_step >= e.start_step as usize && current_step < (e.start_step + e.length) as usize {
                                 let local_step = current_step - e.start_step as usize;
-                                return patterns.iter().find(|p| p.id == pid).map(|p| (p, local_step));
+                                return patterns.iter().find(|p| p.id == pattern_id).map(|p| (p, local_step));
                             }
                         }
                         None
@@ -340,13 +340,13 @@ pub fn init(mut consumer: HeapCons<AudioCommand>, mut producer: HeapProd<UiComma
                     })
                     .collect();
 
-                for (id, vel, pitch) in triggers {
-                    if let Some(inst) = tracks.iter_mut().find(|i| i.data.id as usize == id) {
-                        inst.position = 0.0;
-                        inst.is_playing = true;
-                        inst.data.target_volume = vel / 127.0;
-                        let semitones = pitch as f32 - inst.data.root_note as f32;
-                        inst.playback_rate = 2.0_f32.powf(semitones / 12.0);
+                for (track_id, velocity, pitch) in triggers {
+                    if let Some(track) = tracks.iter_mut().find(|track| track.data.id as usize == track_id) {
+                        track.position = 0.0;
+                        track.is_playing = true;
+                        track.data.target_volume = velocity / 127.0;
+                        let semitones = pitch as f32 - track.data.root_note as f32;
+                        track.playback_rate = 2.0_f32.powf(semitones / 12.0);
                     }
                 }
             }
