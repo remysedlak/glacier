@@ -1,4 +1,5 @@
 use crate::app::MouseState;
+use crate::graphics::widgets::Square;
 use crate::graphics::{
     color::{Color, DARK_GRAY, DARK_GRAY_HOVER, LIGHT_GRAY, PEBBLE, WHITE},
     font::{TextItem, ROBOTO_FONT},
@@ -15,7 +16,7 @@ const LOAD_PROJECT_ICON_OFFSET: f32 = 40.0;
 const WINDOW_ICONS_OFFSET: f32 = 256.0;
 const ICON_GAP: f32 = 48.0;
 
-fn icon_color(rect: &Rectangle, mx: f32, my: f32, held: bool) -> Color {
+pub fn icon_color(rect: &Square, mx: f32, my: f32, held: bool) -> Color {
     if rect.is_hovered(mx, my) && !held {
         DARK_GRAY_HOVER
     } else {
@@ -75,11 +76,10 @@ pub fn draw_toolbar(
     }
 
     // play / pauses button
-    let play_button = Rectangle {
+    let play_button = Square {
         x: PLAY_X_ORIGIN,
         y: PLAY_Y_ORIGIN,
-        width: ICON_SIZE,
-        height: ICON_SIZE,
+        size: ICON_SIZE,
     };
     if play_button.is_hovered(mouse_state.x, mouse_state.y) {
         if mouse_state.left_clicked {
@@ -93,11 +93,10 @@ pub fn draw_toolbar(
     ));
 
     // stop button
-    let stop_button = Rectangle {
+    let stop_button = Square {
         x: PLAY_X_ORIGIN + ICON_GAP,
         y: PLAY_Y_ORIGIN,
-        width: ICON_SIZE,
-        height: ICON_SIZE,
+        size: ICON_SIZE,
     };
     if stop_button.is_hovered(mouse_state.x, mouse_state.y) {
         if mouse_state.left_clicked && active_step != 0 {
@@ -111,11 +110,10 @@ pub fn draw_toolbar(
         NO_RADIUS,
     ));
 
-    let sequencer_toggle = Rectangle {
+    let sequencer_toggle = Square {
         x: PLAY_X_ORIGIN + WINDOW_ICONS_OFFSET,
         y: PLAY_Y_ORIGIN,
-        width: ICON_SIZE,
-        height: ICON_SIZE,
+        size: ICON_SIZE,
     };
 
     vertices.extend(sequencer_toggle.draw(
@@ -129,11 +127,11 @@ pub fn draw_toolbar(
         }
     }
 
-    let mixer_toggle = Rectangle {
+    let mixer_toggle = Square {
         x: PLAY_X_ORIGIN + WINDOW_ICONS_OFFSET + ICON_GAP,
         y: PLAY_Y_ORIGIN,
-        width: ICON_SIZE,
-        height: ICON_SIZE,
+
+        size: ICON_SIZE,
     };
 
     vertices.extend(mixer_toggle.draw(
@@ -147,11 +145,11 @@ pub fn draw_toolbar(
         }
     }
 
-    let playlist_toggle = Rectangle {
+    let playlist_toggle = Square {
         x: PLAY_X_ORIGIN + WINDOW_ICONS_OFFSET + (ICON_GAP * 2.0),
         y: PLAY_Y_ORIGIN,
-        width: ICON_SIZE,
-        height: ICON_SIZE,
+
+        size: ICON_SIZE,
     };
 
     vertices.extend(playlist_toggle.draw(
@@ -165,11 +163,11 @@ pub fn draw_toolbar(
         }
     }
 
-    let piano_toggle = Rectangle {
+    let piano_toggle = Square {
         x: PLAY_X_ORIGIN + WINDOW_ICONS_OFFSET + (ICON_GAP * 3.0),
         y: PLAY_Y_ORIGIN,
-        width: ICON_SIZE,
-        height: ICON_SIZE,
+
+        size: ICON_SIZE,
     };
     vertices.extend(piano_toggle.draw(
         &screen_config,
@@ -188,11 +186,10 @@ pub fn draw_toolbar(
     }
 
     // load a file
-    let load_file_button = Rectangle {
+    let load_file_button = Square {
         x: screen_config.width as f32 - LOAD_PROJECT_ICON_OFFSET,
         y: TOOLBAR_MARGIN,
-        width: ICON_SIZE,
-        height: ICON_SIZE,
+        size: ICON_SIZE,
     };
     vertices.extend(load_file_button.draw(
         screen_config,
@@ -206,11 +203,10 @@ pub fn draw_toolbar(
     }
 
     // load an track
-    let track_button = Rectangle {
+    let track_button = Square {
         x: screen_config.width as f32 - ADD_TRACK_ICON_OFFSET,
         y: TOOLBAR_MARGIN,
-        width: ICON_SIZE,
-        height: ICON_SIZE,
+        size: ICON_SIZE,
     };
     vertices.extend(track_button.draw(
         screen_config,

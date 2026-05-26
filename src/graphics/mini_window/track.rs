@@ -88,7 +88,11 @@ pub fn draw(
             click_result = ClickResult::OpenTrackFileLocation(track.data.path.clone())
         }
     }
-    vertices.extend(open_file_background.draw(screen_config, DARK_GRAY, RADIUS_4));
+    vertices.extend(open_file_background.draw(
+        screen_config,
+        crate::graphics::components::toolbar::icon_color(&open_file_background, mouse_state.x, mouse_state.y, mouse_state.left_click_held),
+        RADIUS_4,
+    ));
     icons.push(IconDraw {
         name: "file",
         x: open_file_button_x - 2.0,

@@ -251,7 +251,8 @@ impl App {
             // dispatch audio commands based on what was clicked
             match result {
                 ClickResult::OpenTrackFileLocation(path) => {
-                    dbg!(path);
+                    // open the track file in the default file system
+                    showfile::show_path_in_file_manager(path);
                 }
                 ClickResult::StartResizeEvent(id) => {
                     gfx.resizing_event = Some(id);
