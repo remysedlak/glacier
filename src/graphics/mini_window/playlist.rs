@@ -26,6 +26,7 @@ pub fn draw(
     scroll_x: f32,
     scroll_y: f32,
     current_step: usize,
+    resizing_event: Option<usize>,
     screen_config: &ScreenConfig,
 ) -> (
     Vec<Vertex>,
@@ -166,8 +167,8 @@ pub fn draw(
                     click_result = ClickResult::StartResizeEvent(event.id);
                 }
             }
-            let pl_pattern_color = if pl_pattern.is_hovered(mouse_state.x, mouse_state.y) {
-                LL_GRAY
+            let pl_pattern_color = if pl_pattern.is_hovered(mouse_state.x, mouse_state.y) && resizing_event.is_none() {
+                LIGHT_GRAY_HOVER
             } else {
                 LIGHT_GRAY
             };
@@ -180,7 +181,7 @@ pub fn draw(
                 y: window.y + (event.track as f32 * PLAYLIST_TRACK_GAP) + PAD_64 + PAD_4 - scroll_y,
                 size: 18.0,
                 font: "roboto",
-                color: WHITE,
+                color: BLACK,
             });
         }
     }

@@ -155,7 +155,7 @@ pub fn window_title_bar(
         height: 5.0,
     };
     let close_window_color = if close_window_button.is_hovered(mouse_state.x, mouse_state.y) {
-        LL_GRAY
+        LIGHT_GRAY_HOVER
     } else {
         LIGHT_GRAY
     };

@@ -1,4 +1,5 @@
 use crate::app::MouseState;
+use crate::graphics::color::LIGHT_GRAY_HOVER;
 use crate::graphics::{
     color::{BLACK, LIGHT_GRAY, LL_GRAY, PEBBLE, WHITE},
     font::{TextItem, ROBOTO_FONT},
@@ -60,7 +61,7 @@ pub fn draw(
         height: 16.0,
     };
     let add_pattern_button_color = if add_pattern_button.is_hovered(mouse_state.x, mouse_state.y) {
-        LL_GRAY
+        LIGHT_GRAY_HOVER
     } else {
         LIGHT_GRAY
     };
@@ -93,7 +94,7 @@ pub fn draw(
         }
 
         let pattern_button_color = if pattern_button.is_hovered(mouse_state.x, mouse_state.y) {
-            LL_GRAY
+            LIGHT_GRAY_HOVER
         } else {
             LIGHT_GRAY
         };

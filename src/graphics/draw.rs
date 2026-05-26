@@ -171,6 +171,7 @@ impl Graphics {
                         self.playlist_scroll_x,
                         self.playlist_scroll_y,
                         self.active_step,
+                        self.resizing_event,
                         &screen_config,
                     );
 
