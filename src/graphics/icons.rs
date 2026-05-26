@@ -1,4 +1,11 @@
-use crate::graphics::primitives::{ScreenConfig, Vertex, NO_RADIUS};
+use std::collections::HashMap;
+
+use wgpu::util::DeviceExt;
+
+use crate::graphics::{
+    icons,
+    primitives::{ScreenConfig, Vertex, NO_RADIUS},
+};
 
 pub const ICON_NAMES_128: &[&str] = &["play", "stop", "pause", "mixer", "sequencer", "playlist", "track", "project", "piano"];
 
@@ -28,6 +35,29 @@ pub struct IconDraw {
 impl IconDraw {
     pub fn is_hovered(&self, mx: f32, my: f32) -> bool {
         mx > self.x && mx < self.x + self.width && my > self.y && my < self.y + self.height
+    }
+}
+
+/// pushing icons to draw
+pub fn push_icon_draw<'a>(
+    icon_cache: &'a HashMap<String, (wgpu::Texture, wgpu::BindGroup)>,
+    device: &wgpu::Device,
+    screen_config: &ScreenConfig,
+    name: &str,
+    x: f32,
+    y: f32,
+    w: f32,
+    h: f32,
+    icon_draws: &mut Vec<(wgpu::Buffer, &'a wgpu::BindGroup)>,
+) {
+    if let Some((_, bind_group)) = icon_cache.get(name) {
+        let verts = icons::draw_icon(x, y, w, h, screen_config);
+        let buf = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: None,
+            contents: bytemuck::cast_slice(&verts),
+            usage: wgpu::BufferUsages::VERTEX,
+        });
+        icon_draws.push((buf, bind_group));
     }
 }
 
