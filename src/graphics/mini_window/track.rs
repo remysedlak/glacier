@@ -1,14 +1,11 @@
 use crate::app::MouseState;
-use crate::graphics::color::WHITE;
-use crate::graphics::components::toolbar::TOOLTIP_MARGIN;
-use crate::graphics::icons::{IconDraw, Tooltip};
-use crate::graphics::primitives::PAD_16;
-use crate::graphics::widgets::Square;
 use crate::graphics::{
-    color::{DARK_GRAY, MINI_WINDOW_BACKGROUND},
+    color::{DARK_GRAY, MINI_WINDOW_BACKGROUND, WHITE},
+    components::toolbar::TOOLTIP_MARGIN,
+    icons::{IconDraw, Tooltip},
     mini_window::MiniWindow,
-    primitives::{ScreenConfig, Vertex, NO_RADIUS, PAD_4, PAD_8, RADIUS_4},
-    widgets::{window_background, window_title_bar, TITLEBAR_HEIGHT},
+    primitives::{ScreenConfig, Vertex, NO_RADIUS, PAD_16, PAD_8, RADIUS_4},
+    widgets::{window_background, window_title_bar, Square, TITLEBAR_HEIGHT},
     {ClickResult, Rectangle, TextItem},
 };
 use crate::project::Track;
