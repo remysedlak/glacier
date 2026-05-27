@@ -1,4 +1,5 @@
 use crate::app::MouseState;
+use crate::graphics::font::MONOSPACED;
 use crate::graphics::{
     color::*,
     font::{TextItem, ROBOTO, TITLE},
@@ -11,7 +12,6 @@ use winit::window::CursorIcon;
 
 pub const TOOLTIP_MARGIN: f32 = 36.0;
 pub const TOOLTIP_RIGHT_MARGIN: f32 = 96.0;
-const LOAD_PROJECT_ICON_OFFSET: f32 = 40.0;
 const WINDOW_ICONS_OFFSET: f32 = 256.0;
 const ICON_GAP: f32 = 48.0;
 
@@ -50,6 +50,15 @@ pub fn draw_toolbar(
      * Down
      */
 
+    let bpm_counter = TextItem {
+        text: bpm.to_string(),
+        x: PAD_8,
+        y: 10.0,
+        size: TITLE,
+        color: WHITE,
+        font: MONOSPACED,
+    };
+
     let color = |rect: &Rectangle, m: &MouseState| {
         if rect.is_hovered(m.x, m.y) && !m.left_click_held {
             DARK_GRAY_HOVER
@@ -60,9 +69,9 @@ pub fn draw_toolbar(
 
     // bpm button increment
     let bpm_up = Rectangle {
-        x: 48.0,
+        x: bpm_counter.x + 40.0,
         y: 6.0,
-        width: 32.0,
+        width: PAD_32,
         height: 12.0,
     };
     vertices.extend(bpm_up.draw(&screen_config, color(&bpm_up, mouse_state), NO_RADIUS));
@@ -86,15 +95,7 @@ pub fn draw_toolbar(
             click_result = ClickResult::ChangeBpmDown;
         }
     }
-
-    toolbar_texts.push(TextItem {
-        text: bpm.to_string(),
-        x: PAD_8,
-        y: 10.0,
-        size: TITLE,
-        color: WHITE,
-        font: ROBOTO,
-    });
+    toolbar_texts.push(bpm_counter);
 
     /* TRANSPORT CONTROL
 
@@ -275,7 +276,7 @@ pub fn draw_toolbar(
      * Load Track
      */
     let load_project_button = Square {
-        x: screen_config.width as f32 - LOAD_PROJECT_ICON_OFFSET,
+        x: screen_config.width as f32 - 40.0,
         y: TOOLBAR_MARGIN,
         size: ICON_SIZE,
     };
@@ -292,7 +293,7 @@ pub fn draw_toolbar(
 
     // load an track
     let load_track_button = Square {
-        x: screen_config.width as f32 - ADD_TRACK_ICON_OFFSET,
+        x: load_project_button.x - ICON_GAP,
         y: TOOLBAR_MARGIN,
         size: ICON_SIZE,
     };
@@ -307,127 +308,125 @@ pub fn draw_toolbar(
         }
     }
 
-    let play_pause_label = if is_playing { "pause" } else { "play" };
-
     let icons = vec![
         IconDraw {
             name: "track",
-            x: screen_config.width as f32 - ADD_TRACK_ICON_OFFSET,
-            y: TOOLBAR_MARGIN,
+            x: load_track_button.x,
+            y: load_track_button.y,
             width: ICON_SIZE,
             height: ICON_SIZE,
             tooltip: Tooltip {
                 text: Some("Add Track"),
-                x: screen_config.width as f32 - ADD_TRACK_ICON_OFFSET - TOOLTIP_RIGHT_MARGIN,
-                y: TOOLBAR_MARGIN + TOOLTIP_MARGIN,
+                x: load_project_button.x - ICON_GAP - TOOLTIP_RIGHT_MARGIN,
+                y: load_track_button.y + TOOLTIP_MARGIN,
             },
         },
         IconDraw {
             name: "project",
-            x: screen_config.width as f32 - PAD_32 - PAD_8,
-            y: TOOLBAR_MARGIN,
+            x: load_project_button.x,
+            y: load_project_button.y,
             width: ICON_SIZE,
             height: ICON_SIZE,
             tooltip: Tooltip {
                 text: Some("Open Project"),
-                x: screen_config.width as f32 - PAD_32 - PAD_8 - TOOLTIP_RIGHT_MARGIN,
-                y: TOOLBAR_MARGIN + TOOLTIP_MARGIN,
+                x: load_project_button.x - TOOLTIP_RIGHT_MARGIN,
+                y: load_project_button.y + TOOLTIP_MARGIN,
             },
         },
         IconDraw {
             name: "sequencer",
-            x: PLAY_X_ORIGIN + WINDOW_ICONS_OFFSET,
-            y: PLAY_Y_ORIGIN,
+            x: sequencer_toggle.x,
+            y: sequencer_toggle.y,
             width: ICON_SIZE,
             height: ICON_SIZE,
             tooltip: Tooltip {
                 text: Some("Sequencer"),
-                x: PLAY_X_ORIGIN + WINDOW_ICONS_OFFSET,
-                y: PLAY_Y_ORIGIN + TOOLTIP_MARGIN,
+                x: sequencer_toggle.x,
+                y: sequencer_toggle.y + TOOLTIP_MARGIN,
             },
         },
         IconDraw {
             name: "mixer",
-            x: PLAY_X_ORIGIN + WINDOW_ICONS_OFFSET + ICON_GAP,
-            y: PLAY_Y_ORIGIN,
+            x: mixer_toggle.x,
+            y: mixer_toggle.y,
             width: ICON_SIZE,
             height: ICON_SIZE,
             tooltip: Tooltip {
                 text: Some("Mixer"),
-                x: PLAY_X_ORIGIN + WINDOW_ICONS_OFFSET + ICON_GAP,
-                y: PLAY_Y_ORIGIN + TOOLTIP_MARGIN,
+                x: mixer_toggle.x,
+                y: mixer_toggle.y + TOOLTIP_MARGIN,
             },
         },
         IconDraw {
             name: "playlist",
-            x: PLAY_X_ORIGIN + WINDOW_ICONS_OFFSET + ICON_GAP * 2.0,
-            y: PLAY_Y_ORIGIN,
+            x: playlist_toggle.x,
+            y: playlist_toggle.y,
             width: ICON_SIZE,
             height: ICON_SIZE,
             tooltip: Tooltip {
                 text: Some("Playlist"),
-                x: PLAY_X_ORIGIN + WINDOW_ICONS_OFFSET + ICON_GAP * 2.0,
-                y: PLAY_Y_ORIGIN + TOOLTIP_MARGIN,
+                x: playlist_toggle.x,
+                y: playlist_toggle.y + TOOLTIP_MARGIN,
             },
         },
         IconDraw {
             name: "piano",
-            x: PLAY_X_ORIGIN + WINDOW_ICONS_OFFSET + ICON_GAP * 3.0,
-            y: PLAY_Y_ORIGIN,
+            x: piano_toggle.x,
+            y: piano_toggle.y,
             width: ICON_SIZE,
             height: ICON_SIZE,
             tooltip: Tooltip {
                 text: Some("Piano Roll"),
-                x: PLAY_X_ORIGIN + WINDOW_ICONS_OFFSET + ICON_GAP * 3.0,
-                y: PLAY_Y_ORIGIN + TOOLTIP_MARGIN,
+                x: piano_toggle.x,
+                y: piano_toggle.y + TOOLTIP_MARGIN,
             },
         },
         IconDraw {
-            name: play_pause_label,
-            x: PLAY_X_ORIGIN,
-            y: PLAY_Y_ORIGIN,
+            name: if is_playing { "pause" } else { "play" },
+            x: play_button.x,
+            y: play_button.y,
             width: ICON_SIZE,
             height: ICON_SIZE,
             tooltip: Tooltip {
                 text: Some(if is_playing { "Pause" } else { "Play" }),
-                x: (PLAY_X_ORIGIN),
-                y: (PLAY_Y_ORIGIN + TOOLTIP_MARGIN),
+                x: play_button.x,
+                y: play_button.y + TOOLTIP_MARGIN,
             },
         },
         IconDraw {
             name: "stop",
-            x: PLAY_X_ORIGIN + ICON_GAP,
-            y: PLAY_Y_ORIGIN,
+            x: stop_button.x,
+            y: stop_button.y,
             width: ICON_SIZE,
             height: ICON_SIZE,
             tooltip: Tooltip {
                 text: Some("Stop"),
-                x: (PLAY_X_ORIGIN + 64.0),
-                y: (PLAY_Y_ORIGIN + TOOLTIP_MARGIN),
+                x: stop_button.x,
+                y: stop_button.y + TOOLTIP_MARGIN,
             },
         },
         IconDraw {
             name: "track_tray",
-            x: PLAY_X_ORIGIN + WINDOW_ICONS_OFFSET + (ICON_GAP * 4.0),
-            y: PLAY_Y_ORIGIN,
+            x: track_selection_toggle.x,
+            y: track_selection_toggle.y,
             width: ICON_SIZE,
             height: ICON_SIZE,
             tooltip: Tooltip {
                 text: Some("Tracks"),
-                x: PLAY_X_ORIGIN + WINDOW_ICONS_OFFSET + (ICON_GAP * 4.0),
-                y: PLAY_Y_ORIGIN + TOOLTIP_MARGIN,
+                x: track_selection_toggle.x,
+                y: track_selection_toggle.y + TOOLTIP_MARGIN,
             },
         },
         IconDraw {
             name: "pattern_tray",
-            x: PLAY_X_ORIGIN + WINDOW_ICONS_OFFSET + (ICON_GAP * 5.0),
-            y: PLAY_Y_ORIGIN,
+            x: patterns_toggle.x,
+            y: patterns_toggle.y,
             width: ICON_SIZE,
             height: ICON_SIZE,
             tooltip: Tooltip {
                 text: Some("Patterns"),
-                x: PLAY_X_ORIGIN + WINDOW_ICONS_OFFSET + (ICON_GAP * 4.0),
-                y: PLAY_Y_ORIGIN + TOOLTIP_MARGIN,
+                x: patterns_toggle.x,
+                y: patterns_toggle.y + TOOLTIP_MARGIN,
             },
         },
         IconDraw {
@@ -437,7 +436,7 @@ pub fn draw_toolbar(
             width: bpm_up.width,
             height: bpm_up.height,
             tooltip: Tooltip {
-                text: Some("Decrement BPM"),
+                text: Some("Increment BPM"),
                 x: bpm_up.x,
                 y: bpm_up.y + TOOLTIP_MARGIN,
             },
@@ -449,7 +448,7 @@ pub fn draw_toolbar(
             width: bpm_up.width,
             height: bpm_up.height,
             tooltip: Tooltip {
-                text: Some("Increment BPM"),
+                text: Some("Decrement BPM"),
                 x: bpm_up.x,
                 y: bpm_up.y + TOOLTIP_MARGIN,
             },

@@ -15,8 +15,6 @@ use winit::window::CursorIcon;
  * Each method returns Vec<Vertex>
  */
 
-pub const ADD_TRACK_ICON_OFFSET: f32 = 80.0;
-
 pub const PLAY_Y_ORIGIN: f32 = 4.0;
 pub const PLAY_X_ORIGIN: f32 = 90.0;
 
