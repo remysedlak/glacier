@@ -1,13 +1,12 @@
-use crate::graphics::components::side_panel::draw_title;
 use crate::project::Track;
 use crate::{
     app::MouseState,
     graphics::{
         color::{BLACK, LIGHT_GRAY, LIGHT_GRAY_HOVER, PEBBLE, WHITE},
         components::side_panel::{PATTERN_TRAY_HEADER_MARGIN, PATTERN_TRAY_ITEM_GAP, TRAY_WIDTH},
-        font::{truncate, TextItem, ROBOTO, TITLE},
+        font::{truncate_text, TextItem, ROBOTO, TITLE},
         primitives::*,
-        side_panel::PATTERN_TRAY_ITEM_HEIGHT,
+        side_panel::{draw_title, PATTERN_TRAY_ITEM_HEIGHT},
         widgets::{Rectangle, TOOLBAR_Y},
     },
 };
@@ -51,7 +50,7 @@ pub fn draw(mouse_state: &MouseState, screen_config: &ScreenConfig, tracks: &[Tr
         vertices.extend(track_button.draw(screen_config, track_button_color, RADIUS_4));
 
         text_items.push(TextItem {
-            text: truncate(&track.data.name, 9),
+            text: truncate_text(&track.data.name, 9),
             x: track_button.x + PAD_4,
             y: PATTERN_TRAY_HEADER_MARGIN + (PATTERN_TRAY_ITEM_GAP * i as f32) + PAD_32 + PAD_2,
             size: 16.0,

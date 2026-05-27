@@ -1,11 +1,9 @@
 use crate::app::MouseState;
-use crate::graphics::color::LIGHT_GRAY_HOVER;
-use crate::graphics::components::side_panel::{
-    draw_title, PATTERN_TRAY_HEADER_MARGIN, PATTERN_TRAY_ITEM_GAP, PATTERN_TRAY_ITEM_HEIGHT, PATTERN_TRAY_ITEM_WIDTH, TRAY_WIDTH,
-};
-use crate::graphics::font::TITLE;
 use crate::graphics::{
-    color::{BLACK, LIGHT_GRAY, PEBBLE, WHITE},
+    color::{BLACK, LIGHT_GRAY, LIGHT_GRAY_HOVER, PEBBLE},
+    components::side_panel::{
+        draw_title, PATTERN_TRAY_HEADER_MARGIN, PATTERN_TRAY_ITEM_GAP, PATTERN_TRAY_ITEM_HEIGHT, PATTERN_TRAY_ITEM_WIDTH, TRAY_WIDTH,
+    },
     font::{TextItem, ROBOTO},
     primitives::{ScreenConfig, PAD_16, PAD_32, PAD_8},
     {ClickResult, CursorIcon, PatternData, Rectangle, Vertex, NO_RADIUS, PAD_2, TOOLBAR_THICKNESS, TOOLBAR_Y},

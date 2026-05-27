@@ -1,8 +1,7 @@
 use crate::app::MouseState;
-use crate::graphics::font::TITLE;
 use crate::graphics::{
     color::*,
-    font::{TextItem, ROBOTO},
+    font::{TextItem, ROBOTO, TITLE},
     icons::{IconDraw, Tooltip},
     primitives::{draw_h_line, NO_RADIUS, PAD_32, PAD_8},
     widgets::*,

@@ -1,9 +1,7 @@
 use crate::app::MouseState;
-use crate::graphics::color::BLUE_HOVER;
-use crate::graphics::font;
 use crate::graphics::{
     color::*,
-    font::ROBOTO,
+    font::{truncate_text, ROBOTO},
     icons::IconDraw,
     mini_window::MiniWindow,
     primitives::*,
@@ -267,7 +265,7 @@ pub fn draw(
         // track name
 
         text_items.push(TextItem {
-            text: font::truncate(&track.data.name, 23),
+            text: truncate_text(&track.data.name, 23),
             x: window.x + PAD_16,
             y: window.y + i as f32 * TRACK_GAP + PAD_16 + PAD_4,
             size: 12.0,

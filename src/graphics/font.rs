@@ -13,7 +13,7 @@ pub struct TextItem {
     pub y: f32,
 }
 
-pub fn truncate(name: &str, length: usize) -> String {
+pub fn truncate_text(name: &str, length: usize) -> String {
     let track_button_text: String = if name.len() > length {
         let end = name.floor_char_boundary(length);
         let truncated_name = &name[..end].to_string(); // Safely gets "こん" (6 bytes)
