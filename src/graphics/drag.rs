@@ -1,10 +1,14 @@
-use crate::graphics::mini_window::playlist::PLAYLIST_STEP_GAP;
+use crate::graphics::mini_window::{mixer::MIXER_ITEM_WIDTH, playlist::PLAYLIST_STEP_GAP};
 
 use super::*;
 
 pub enum DragResult {
+    // mixer
     DragMasterVolumeSlider(f32),
+    DragTrackVolumeSlider(usize, f32),
+    // sequencer
     DragTrackVolumeKnob(usize, f32),
+    // playlist
     ResizeAudioBlock(usize, u32),
     None,
 }
@@ -27,6 +31,20 @@ impl Graphics {
                     self.master_volume = 1.0 - ((mouse_y - slider_hit.y) / MIXER_TRACK_HEIGHT).clamp(0.0, 1.0);
                     self.dragging = true;
                     return DragResult::DragMasterVolumeSlider(self.master_volume);
+                }
+
+                for (i, track) in self.tracks.iter_mut().enumerate() {
+                    let slider_hit = Rectangle {
+                        x: mixer_window.x + PAD_16 + (MIXER_ITEM_WIDTH + PAD_4) * (track.data.id + 1) as f32 + PAD_8,
+                        y: mixer_window.y + PAD_16,
+                        width: MIXER_THUMB_WIDTH,
+                        height: MIXER_TRACK_HEIGHT,
+                    };
+                    if slider_hit.is_hovered(mouse_x, mouse_y) {
+                        track.data.track_volume = 1.0 - ((mouse_y - slider_hit.y) / MIXER_TRACK_HEIGHT).clamp(0.0, 1.0);
+                        self.dragging = true;
+                        return DragResult::DragTrackVolumeSlider(i, track.data.track_volume);
+                    }
                 }
             }
             // TRACK VOLUME KNOB

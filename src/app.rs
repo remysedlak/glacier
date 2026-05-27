@@ -710,6 +710,10 @@ impl ApplicationHandler<Graphics> for App {
                                 self.producer.try_push(AudioCommand::ChangeTrackVolume(track_id, new_volume)).ok();
                                 gfx.request_redraw();
                             }
+                            DragResult::DragTrackVolumeSlider(track_id, new_volume) => {
+                                self.producer.try_push(AudioCommand::ChangeTrackVolume(track_id, new_volume)).ok();
+                                gfx.request_redraw();
+                            }
                             DragResult::ResizeAudioBlock(event_id, amount) => {
                                 self.producer.try_push(AudioCommand::ResizeAudioBlock(event_id, amount)).ok();
                             }

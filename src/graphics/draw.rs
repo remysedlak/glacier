@@ -241,7 +241,7 @@ impl Graphics {
                 }
                 MIXER_ID if self.mini_windows[MIXER_ID].is_open => {
                     let window = &self.mini_windows[MIXER_ID];
-                    let (verts, texts, result, cursor) = mixer::draw(window, self.master_volume, &screen_config, &masked_mouse);
+                    let (verts, texts, result, cursor) = mixer::draw(window, &self.tracks, self.master_volume, &screen_config, &masked_mouse);
                     vertices.extend(verts);
                     Graphics::push_text_draws(&texts, &self.font_cache, &self.glyph_cache, &self.device, &screen_config, &mut char_draws);
                     click_result = click_result.or(result);

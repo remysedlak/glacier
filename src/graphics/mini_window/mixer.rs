@@ -4,18 +4,21 @@ use crate::{
     app::MouseState,
     graphics::{
         color::*,
-        font::{ROBOTO, TITLE},
+        font::{BODY, MONOSPACED},
         mini_window::MiniWindow,
-        primitives::{ScreenConfig, BOTTOM_RADIUS_16, PAD_16, PAD_4},
-        widgets::{draw_slider, window_background, window_title_bar, MIXER_TRACK_HEIGHT},
+        primitives::{ScreenConfig, BOTTOM_RADIUS_16, NO_RADIUS, PAD_16, PAD_32, PAD_4, PAD_8},
+        widgets::{draw_slider, window_background, window_title_bar, Rectangle, MIXER_TRACK_HEIGHT},
         ClickResult, TextItem, Vertex,
     },
+    project::Track,
 };
 
 pub const SLIDER_OFFSET: f32 = PAD_16;
+pub const MIXER_ITEM_WIDTH: f32 = 50.0;
 
 pub fn draw(
     window: &MiniWindow,
+    tracks: &[Track],
     master_volume: f32,
     screen_config: &ScreenConfig,
     mouse_state: &MouseState,
@@ -27,7 +30,7 @@ pub fn draw(
 
     // window background
     let window_background = window_background(&window);
-    vertices.extend(window_background.draw(&screen_config, PURPLE, BOTTOM_RADIUS_16));
+    vertices.extend(window_background.draw(&screen_config, MINI_WINDOW_BACKGROUND, BOTTOM_RADIUS_16));
 
     // window titlebar
     let (titlebar_verts, titlebar_texts, result, cursor) = window_title_bar(&window, "Mixer", screen_config, mouse_state);
@@ -39,18 +42,48 @@ pub fn draw(
     text_items.push(titlebar_texts);
 
     // master slider
-    let slider_x = window.x + SLIDER_OFFSET;
-    let slider_y = window.y + SLIDER_OFFSET;
-
-    vertices.extend(draw_slider(master_volume, slider_x, slider_y, screen_config));
-
+    let master_slider_x = window.x + SLIDER_OFFSET;
+    let master_slider_y = window.y + SLIDER_OFFSET;
+    let slider_background = Rectangle {
+        x: master_slider_x - PAD_8,
+        y: master_slider_y - PAD_8,
+        width: MIXER_ITEM_WIDTH,
+        height: window.height - PAD_32,
+    };
+    vertices.extend(slider_background.draw(screen_config, DARK_GRAY, NO_RADIUS));
+    for track in tracks {
+        let slider_x = (slider_background.x + PAD_16) + ((slider_background.width + PAD_4) * (track.data.id + 1) as f32);
+        let slider_background = Rectangle {
+            x: slider_x,
+            y: slider_background.y,
+            width: slider_background.width,
+            height: slider_background.height,
+        };
+        vertices.extend(slider_background.draw(screen_config, DARK_GRAY, NO_RADIUS));
+        vertices.extend(draw_slider(
+            track.data.track_volume,
+            slider_background.x + PAD_8,
+            slider_background.y + PAD_8,
+            screen_config,
+        ));
+        text_items.push(TextItem {
+            text: format!("{:.2}", track.data.track_volume),
+            x: slider_x + PAD_8,
+            y: master_slider_y + MIXER_TRACK_HEIGHT + PAD_16,
+            size: BODY,
+            font: MONOSPACED,
+            color: LIGHT_GRAY,
+        });
+    }
+    vertices.extend(draw_slider(master_volume, master_slider_x, master_slider_y, screen_config));
     text_items.push(TextItem {
         text: format!("{:.2}", master_volume),
-        x: slider_x,
-        y: slider_y + MIXER_TRACK_HEIGHT + PAD_4,
-        size: TITLE,
-        font: ROBOTO,
-        color: WHITE,
+        x: master_slider_x,
+        y: master_slider_y + MIXER_TRACK_HEIGHT + PAD_16,
+        size: BODY,
+        font: MONOSPACED,
+        color: LIGHT_GRAY,
     });
+
     (vertices, text_items, click_result, cursor_icon)
 }
