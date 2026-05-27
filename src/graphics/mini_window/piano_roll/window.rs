@@ -1,7 +1,7 @@
 use crate::app::{MouseState, PianoRollState};
 use crate::graphics::{
     color::*,
-    font::{TextItem, MONO_FONT},
+    font::{TextItem, MONOSPACED},
     mini_window::{piano_roll::*, MiniWindow},
     primitives::{ScreenConfig, Vertex, BOTTOM_RADIUS_16, NO_RADIUS, PAD_16, PAD_2, PAD_32, PAD_4, PAD_8},
     widgets::{window_background, window_title_bar, Rectangle, ICON_SIZE, TITLEBAR_HEIGHT},
@@ -197,7 +197,7 @@ pub fn draw(
             x: window.x + PAD_32 + PAD_16 + PAD_2 + PAD_8,
             y: window.y + (11.0 * SEMITONE_GAP) + (octave as f32 * OCTAVE_GAP) + PIANO_ROLL_MARGIN + PAD_8 - scroll_y,
             size: 10.0,
-            font: MONO_FONT,
+            font: MONOSPACED,
             color: BLACK,
         });
     } // end octave loop

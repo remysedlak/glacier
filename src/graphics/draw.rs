@@ -1,5 +1,4 @@
 use super::*;
-use crate::graphics::components::track_tray;
 
 impl Graphics {
     /// pushing texts to draw
@@ -364,7 +363,7 @@ impl Graphics {
 
         // tray of project patterns
         if self.show_pattern_tray {
-            let (verts, texts, result, icon) = pattern_tray::draw(&screen_config, &self.patterns, self.active_pattern_id, mouse_state);
+            let (verts, texts, result, icon) = side_panel::pattern_tray::draw(&screen_config, &self.patterns, self.active_pattern_id, mouse_state);
             vertices.extend(verts);
             if icon != CursorIcon::Default {
                 cursor_icon = icon;
@@ -375,7 +374,7 @@ impl Graphics {
 
         // tray of audio files / folders
         if self.show_track_tray {
-            let (instrument_tray_verts, instrument_tray_texts) = track_tray::draw(mouse_state, &screen_config);
+            let (instrument_tray_verts, instrument_tray_texts) = side_panel::track_tray::draw(mouse_state, &screen_config, &self.tracks);
             Graphics::push_text_draws(
                 &instrument_tray_texts,
                 &self.font_cache,
@@ -430,7 +429,7 @@ impl Graphics {
                     x: tt.x + PAD_4,
                     y: tt.y + PAD_2,
                     size: 14.0,
-                    font: MONO_FONT,
+                    font: MONOSPACED,
                     color: WHITE,
                 }];
                 Graphics::push_text_draws(

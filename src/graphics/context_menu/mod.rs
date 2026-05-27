@@ -4,7 +4,7 @@ use crate::{
     app::MouseState,
     graphics::{
         color::{Color, DARK_GRAY, DARK_GRAY_HOVER, DARK_GRAY_HOVER_HOVER, LL_GRAY, WHITE},
-        font::{TextItem, ROBOTO_FONT},
+        font::{TextItem, ROBOTO},
         primitives::{ScreenConfig, PAD_2, PAD_24, PAD_32, PAD_4, PAD_64, PAD_8, RADIUS_4, RADIUS_8},
         widgets::Rectangle,
         ClickResult, Vertex,
@@ -121,7 +121,7 @@ impl ContextMenu {
             x: self.x - PAD_64 + PAD_4 + PAD_2,
             y: (self.y + (PAD_24 + PAD_8) * 0 as f32) + PAD_32 + PAD_2,
             color: WHITE,
-            font: ROBOTO_FONT,
+            font: ROBOTO,
             size: CONTEXT_MENU_FONT_SIZE,
         });
         // delete text
@@ -130,7 +130,7 @@ impl ContextMenu {
             x: self.x - PAD_64 + PAD_4 + PAD_2,
             y: (self.y + (PAD_24 + PAD_8) * 1 as f32) + PAD_32,
             size: CONTEXT_MENU_FONT_SIZE,
-            font: ROBOTO_FONT,
+            font: ROBOTO,
             color: WHITE,
         });
         // duplicate text
@@ -139,7 +139,7 @@ impl ContextMenu {
             x: self.x - PAD_64 + PAD_4 + PAD_2,
             y: (self.y + (PAD_24 + PAD_8) * 2 as f32) + PAD_32 - PAD_4,
             size: CONTEXT_MENU_FONT_SIZE,
-            font: ROBOTO_FONT,
+            font: ROBOTO,
             color: WHITE,
         });
 
@@ -222,7 +222,7 @@ impl ContextMenu {
             x: self.x - PAD_64 + PAD_4,
             y: (self.y + (PAD_24) * 0 as f32) + PAD_32 + PAD_2,
             size: CONTEXT_MENU_FONT_SIZE,
-            font: ROBOTO_FONT,
+            font: ROBOTO,
             color: WHITE,
         });
         texts.push(TextItem {
@@ -230,7 +230,7 @@ impl ContextMenu {
             x: self.x - PAD_64 + PAD_4,
             y: (self.y + (PAD_24) * 4 as f32) + PAD_32 + PAD_2,
             size: CONTEXT_MENU_FONT_SIZE,
-            font: ROBOTO_FONT,
+            font: ROBOTO,
             color: WHITE,
         });
         texts.push(TextItem {
@@ -238,7 +238,7 @@ impl ContextMenu {
             x: self.x - PAD_64 + PAD_4,
             y: (self.y + (PAD_24) * 1 as f32) + PAD_32 + PAD_2,
             size: CONTEXT_MENU_FONT_SIZE,
-            font: ROBOTO_FONT,
+            font: ROBOTO,
             color: WHITE,
         });
         (vertices, texts, click_result, cursor_icon)

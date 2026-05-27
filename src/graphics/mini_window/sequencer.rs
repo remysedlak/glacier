@@ -1,8 +1,9 @@
 use crate::app::MouseState;
 use crate::graphics::color::BLUE_HOVER;
+use crate::graphics::font;
 use crate::graphics::{
     color::*,
-    font::ROBOTO_FONT,
+    font::ROBOTO,
     icons::IconDraw,
     mini_window::MiniWindow,
     primitives::*,
@@ -209,7 +210,7 @@ pub fn draw(
             y: window.y + i as f32 * TRACK_GAP + ACTIONS_Y_OFFSET + PAD_2,
             size: 14.0,
             color: BLACK,
-            font: ROBOTO_FONT,
+            font: ROBOTO,
         });
 
         if mute_button.is_hovered(mouse_state.x, mouse_state.y) {
@@ -245,7 +246,7 @@ pub fn draw(
             y: window.y + i as f32 * TRACK_GAP + ACTIONS_Y_OFFSET + PAD_2,
             size: 14.0,
             color: BLACK,
-            font: ROBOTO_FONT,
+            font: ROBOTO,
         });
         if velocity_button.is_hovered(mouse_state.x, mouse_state.y) {
             if mouse_state.left_clicked {
@@ -264,21 +265,14 @@ pub fn draw(
         }
 
         // track name
-        let track_button_text: String = if track.data.name.len() > 23 {
-            let end = track.data.name.floor_char_boundary(23);
-            let truncated_name = &track.data.name[..end].to_string(); // Safely gets "こん" (6 bytes)
-            format!("{}{}", truncated_name, "...",)
-        } else {
-            track.data.name.to_string()
-        };
 
         text_items.push(TextItem {
-            text: track_button_text,
+            text: font::truncate(&track.data.name, 23),
             x: window.x + PAD_16,
             y: window.y + i as f32 * TRACK_GAP + PAD_16 + PAD_4,
             size: 12.0,
             color: WHITE,
-            font: ROBOTO_FONT,
+            font: ROBOTO,
         });
     }
 

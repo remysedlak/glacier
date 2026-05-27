@@ -13,8 +13,22 @@ pub struct TextItem {
     pub y: f32,
 }
 
-pub const ROBOTO_FONT: &str = "roboto";
-pub const MONO_FONT: &str = "mono";
+pub fn truncate(name: &str, length: usize) -> String {
+    let track_button_text: String = if name.len() > length {
+        let end = name.floor_char_boundary(length);
+        let truncated_name = &name[..end].to_string(); // Safely gets "こん" (6 bytes)
+        format!("{}{}", truncated_name, "...",)
+    } else {
+        name.to_string()
+    };
+    track_button_text
+}
+
+pub const ROBOTO: &str = "roboto";
+pub const MONOSPACED: &str = "mono";
+
+pub const TITLE: f32 = 18.0;
+pub const BODY: f32 = 12.0;
 
 pub fn create_bind_group_layout(device: &wgpu::Device) -> wgpu::BindGroupLayout {
     device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {

@@ -15,9 +15,9 @@ use crate::app::{MouseState, PianoRollState};
 use crate::audio::DEFAULT_BPM;
 use crate::graphics::{
     color::{Color, DARK_GRAY, WHITE},
-    components::{footer, pattern_tray},
+    components::{footer, side_panel},
     context_menu::ContextMenu,
-    font::{TextItem, MONO_FONT, ROBOTO_FONT},
+    font::{TextItem, MONOSPACED, ROBOTO},
     icons::{push_icon_draw, Tooltip},
     mini_window::{
         mixer, piano_roll,
@@ -175,11 +175,8 @@ pub async fn create_graphics(window: Rc<Window>, proxy: EventLoopProxy<Graphics>
     mini_windows.push(piano_window); // 3
 
     // fonts
-    let roboto = (
-        ROBOTO_FONT,
-        include_bytes!("../../assets/fonts/Roboto-VariableFont_wdth,wght.ttf") as &[u8],
-    );
-    let mono = (MONO_FONT, include_bytes!("../../assets/fonts/IBMPlexMono-Regular.ttf") as &[u8]);
+    let roboto = (ROBOTO, include_bytes!("../../assets/fonts/Roboto-VariableFont_wdth,wght.ttf") as &[u8]);
+    let mono = (MONOSPACED, include_bytes!("../../assets/fonts/IBMPlexMono-Regular.ttf") as &[u8]);
     let mut font_cache: HashMap<String, fontdue::Font> = HashMap::new();
     let mut glyph_cache: HashMap<String, HashMap<(char, u32), (wgpu::Texture, wgpu::BindGroup, fontdue::Metrics)>> = HashMap::new();
     let bind_group_layout = font::create_bind_group_layout(&device);

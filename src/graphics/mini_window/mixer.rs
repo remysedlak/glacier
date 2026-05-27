@@ -4,7 +4,7 @@ use crate::{
     app::MouseState,
     graphics::{
         color::*,
-        font::ROBOTO_FONT,
+        font::{ROBOTO, TITLE},
         mini_window::MiniWindow,
         primitives::{ScreenConfig, BOTTOM_RADIUS_16, PAD_16, PAD_4},
         widgets::{draw_slider, window_background, window_title_bar, MIXER_TRACK_HEIGHT},
@@ -48,8 +48,8 @@ pub fn draw(
         text: format!("{:.2}", master_volume),
         x: slider_x,
         y: slider_y + MIXER_TRACK_HEIGHT + PAD_4,
-        size: 18.0,
-        font: ROBOTO_FONT,
+        size: TITLE,
+        font: ROBOTO,
         color: WHITE,
     });
     (vertices, text_items, click_result, cursor_icon)

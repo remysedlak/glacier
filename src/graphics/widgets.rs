@@ -2,7 +2,7 @@ use crate::{
     app::MouseState,
     graphics::{
         color::{Color, *},
-        font::{TextItem, ROBOTO_FONT},
+        font::{TextItem, ROBOTO},
         mini_window::{MiniWindow, WindowKind},
         primitives::{draw_rectangle, Vertex, NO_RADIUS, PAD_16, PAD_4, PAD_8, TOP_RADIUS_16},
         ClickResult, ScreenConfig,
@@ -179,7 +179,7 @@ pub fn window_title_bar(
         y: window.y - TITLEBAR_HEIGHT + PAD_4,
         color: WHITE,
         size: 18.0,
-        font: ROBOTO_FONT,
+        font: ROBOTO,
     };
     (verticies, window_title, result, cursor_icon)
 }

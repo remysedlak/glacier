@@ -1,6 +1,6 @@
 use crate::graphics::{
     color::{BLACK, ORANGE, WHITE},
-    font::{TextItem, MONO_FONT, ROBOTO_FONT},
+    font::{TextItem, BODY, MONOSPACED, ROBOTO},
     primitives::{ScreenConfig, Vertex, NO_RADIUS, PAD_4, PAD_8},
     widgets::Rectangle,
 };
@@ -28,9 +28,9 @@ pub fn draw(screen_config: &ScreenConfig, path: &String, frame_rate: f32) -> (Ve
         text: path.to_string(),
         x: footer_x + PAD_4,
         y: screen_config.height as f32 - FOOTER_Y_HEIGHT + PAD_8,
-        size: 12.0,
+        size: BODY,
         color: WHITE,
-        font: ROBOTO_FONT,
+        font: ROBOTO,
     });
 
     // display frames per second
@@ -38,9 +38,9 @@ pub fn draw(screen_config: &ScreenConfig, path: &String, frame_rate: f32) -> (Ve
         text: frame_rate.to_string(),
         x: screen_config.width as f32 - FPS_COUNTER_X_OFFSET,
         y: screen_config.height as f32 - FOOTER_Y_HEIGHT + PAD_8,
-        size: 12.0,
+        size: BODY,
         color: ORANGE,
-        font: MONO_FONT,
+        font: MONOSPACED,
     });
     (vertices, texts)
 }

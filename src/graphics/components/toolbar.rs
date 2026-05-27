@@ -1,7 +1,8 @@
 use crate::app::MouseState;
+use crate::graphics::font::TITLE;
 use crate::graphics::{
     color::*,
-    font::{TextItem, ROBOTO_FONT},
+    font::{TextItem, ROBOTO},
     icons::{IconDraw, Tooltip},
     primitives::{draw_h_line, NO_RADIUS, PAD_32, PAD_8},
     widgets::*,
@@ -74,6 +75,13 @@ pub fn draw_toolbar(
         }
     }
 
+    /* TRANSPORT CONTROL
+
+        PLAY - start the song at the current step
+        PAUSE - pause the song at the current step
+        STOP - pause the song, reset current step
+    */
+
     // play / pauses button
     let play_button = Square {
         x: PLAY_X_ORIGIN,
@@ -109,6 +117,10 @@ pub fn draw_toolbar(
         NO_RADIUS,
     ));
 
+    /* AUDIO TIME
+
+    */
+
     let time_background = Rectangle {
         x: PLAY_X_ORIGIN + ICON_GAP + ICON_GAP,
         y: PLAY_Y_ORIGIN,
@@ -116,6 +128,16 @@ pub fn draw_toolbar(
         height: ICON_SIZE,
     };
     vertices.extend(time_background.draw(&screen_config, BLACK, NO_RADIUS));
+
+    /* MINI WINDOW TOGGLING
+     *
+     *  Sequencer
+     *  Mixer
+     *  Playlist
+     *  Piano Roll
+     *  Pattern Tray
+     *  Track Tray
+     */
 
     let sequencer_toggle = Square {
         x: PLAY_X_ORIGIN + WINDOW_ICONS_OFFSET,
@@ -226,35 +248,39 @@ pub fn draw_toolbar(
         vertices.push(vert);
     }
 
-    // load a file
-    let load_file_button = Square {
+    /*  Project Composition I/O
+     *
+     * Load Project
+     * Load Track
+     */
+    let load_project_button = Square {
         x: screen_config.width as f32 - LOAD_PROJECT_ICON_OFFSET,
         y: TOOLBAR_MARGIN,
         size: ICON_SIZE,
     };
-    vertices.extend(load_file_button.draw(
+    vertices.extend(load_project_button.draw(
         screen_config,
-        icon_color(&load_file_button, mouse_state.x, mouse_state.y, mouse_state.left_click_held),
+        icon_color(&load_project_button, mouse_state.x, mouse_state.y, mouse_state.left_click_held),
         NO_RADIUS,
     ));
-    if load_file_button.is_hovered(mouse_state.x, mouse_state.y) {
+    if load_project_button.is_hovered(mouse_state.x, mouse_state.y) {
         if mouse_state.left_clicked {
             click_result = ClickResult::ProjectFileDialog
         }
     }
 
     // load an track
-    let track_button = Square {
+    let load_track_button = Square {
         x: screen_config.width as f32 - ADD_TRACK_ICON_OFFSET,
         y: TOOLBAR_MARGIN,
         size: ICON_SIZE,
     };
-    vertices.extend(track_button.draw(
+    vertices.extend(load_track_button.draw(
         screen_config,
-        icon_color(&track_button, mouse_state.x, mouse_state.y, mouse_state.left_click_held),
+        icon_color(&load_track_button, mouse_state.x, mouse_state.y, mouse_state.left_click_held),
         NO_RADIUS,
     ));
-    if track_button.is_hovered(mouse_state.x, mouse_state.y) {
+    if load_track_button.is_hovered(mouse_state.x, mouse_state.y) {
         if mouse_state.left_clicked {
             click_result = ClickResult::TrackFileDialog
         }
@@ -262,11 +288,11 @@ pub fn draw_toolbar(
 
     toolbar_texts.push(TextItem {
         text: bpm.to_string(),
-        x: 10.0,
+        x: PAD_8,
         y: TOOLBAR_MARGIN,
-        size: 18.0,
+        size: TITLE,
         color: WHITE,
-        font: ROBOTO_FONT,
+        font: ROBOTO,
     });
 
     let play_pause_label = if is_playing { "pause" } else { "play" };
@@ -402,14 +428,14 @@ pub fn draw_toolbar(
         }
     }
 
-    // debug
+    // debug current step
     toolbar_texts.push(TextItem {
         text: active_step.to_string(),
         x: 680.0,
         y: TOOLBAR_MARGIN,
-        size: 18.0,
+        size: TITLE,
         color: WHITE,
-        font: ROBOTO_FONT,
+        font: ROBOTO,
     });
 
     (vertices, toolbar_texts, icons, click_result, cursor_icon, tooltip)
