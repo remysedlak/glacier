@@ -35,7 +35,7 @@ fn main() {
     let (ui_prod, ui_cons) = HeapRb::<UiCommand>::new(64).split();
 
     // start the audio stream with empty ringbuffers and no project
-    let audio_stream = audio::init(audio_cons, ui_prod, Some("assets/projects/new_song.toml".to_string()));
+    let audio_stream = audio::init(audio_cons, ui_prod, None);
 
     let config: UserSettings = load();
 
