@@ -44,6 +44,50 @@ impl ContextMenu {
         }
     }
 
+    pub fn draw_background(&self) -> Rectangle {
+        Rectangle {
+            height: (CONTEXT_MENU_ITEM_HEIGHT + CONTEXT_MENU_PADDING) * PATTERN_MENU_ITEM_COUNT as f32 + CONTEXT_MENU_PADDING,
+            width: self.width + PAD_8,
+            x: self.x - PAD_64 - CONTEXT_MENU_PADDING,
+            y: self.y + (CONTEXT_MENU_ITEM_HEIGHT + PAD_8) - CONTEXT_MENU_PADDING,
+        }
+    }
+
+    pub fn draw_pattern_context_item_text(&self, index: usize) -> TextItem {
+        let label = match index {
+            0 => "Rename",
+            1 => "Delete",
+            2 => "Duplicate",
+            _ => "N/A",
+        };
+        TextItem {
+            text: label.to_string(),
+            x: self.x - PAD_64 + PAD_4 + PAD_2,
+            y: (self.y + (CONTEXT_MENU_ITEM_HEIGHT + PAD_4) * index as f32) + PAD_32,
+            color: WHITE,
+            font: ROBOTO,
+            size: CONTEXT_MENU_FONT_SIZE,
+        }
+    }
+
+    pub fn draw_track_context_item_text(&self, index: usize) -> TextItem {
+        let label = match index {
+            0 => "Rename",
+            1 => "Piano Roll",
+            4 => "Delete",
+            _ => "N/A",
+        };
+
+        TextItem {
+            text: label.to_string(),
+            x: self.x - PAD_64 + PAD_4,
+            y: (self.y + (CONTEXT_MENU_ITEM_HEIGHT + PAD_4) * index as f32) + PAD_32 + PAD_4,
+            size: CONTEXT_MENU_FONT_SIZE,
+            font: ROBOTO,
+            color: WHITE,
+        }
+    }
+
     pub fn is_hovered(&self, mx: f32, my: f32) -> bool {
         let item_count = match &self.kind {
             ContextMenuKind::PatternContext(_) => 3,
@@ -65,34 +109,33 @@ impl ContextMenu {
         id: usize,
     ) -> (Vec<Vertex>, Vec<TextItem>, ClickResult, CursorIcon) {
         let mut vertices: Vec<Vertex> = Vec::new();
-        let mut texts: Vec<TextItem> = Vec::new();
+        let mut text_items: Vec<TextItem> = Vec::new();
         let mut cursor_icon = CursorIcon::Default;
         let mut click_result = ClickResult::None;
 
         // dark background
-        let menu_background = Rectangle {
-            height: (CONTEXT_MENU_ITEM_HEIGHT + CONTEXT_MENU_PADDING) * PATTERN_MENU_ITEM_COUNT as f32 + CONTEXT_MENU_PADDING,
-            width: self.width + PAD_8,
-            x: self.x - PAD_64 - CONTEXT_MENU_PADDING,
-            y: self.y + (CONTEXT_MENU_ITEM_HEIGHT + PAD_8) - CONTEXT_MENU_PADDING,
-        };
+        let menu_background = self.draw_background();
         vertices.extend(menu_background.draw(screen_config, DARK_GRAY, RADIUS_8));
 
         // render each item - lighter background
+        let item_x = self.x - PAD_64;
         for item in 0..PATTERN_MENU_ITEM_COUNT {
-            let context_item = Rectangle {
+            // background for ContextMenu item
+            let context_item_background = Rectangle {
                 height: CONTEXT_MENU_ITEM_HEIGHT,
                 width: self.width,
-                x: self.x - PAD_64,
+                x: item_x,
                 y: (self.y + (CONTEXT_MENU_ITEM_HEIGHT + PAD_4) * item as f32) + PAD_32,
             };
-            vertices.extend(context_item.draw(
+            vertices.extend(context_item_background.draw(
                 screen_config,
-                menu_item_color(&context_item, mouse_state.x, mouse_state.y, mouse_state.left_clicked),
+                menu_item_color(&context_item_background, mouse_state.x, mouse_state.y, mouse_state.left_clicked),
                 RADIUS_4,
             ));
 
-            if context_item.is_hovered(mouse_state.x, mouse_state.y) {
+            text_items.push(self.draw_pattern_context_item_text(item as usize));
+
+            if context_item_background.is_hovered(mouse_state.x, mouse_state.y) {
                 cursor_icon = CursorIcon::Pointer;
                 if mouse_state.right_clicked || mouse_state.left_clicked {
                     match item {
@@ -115,44 +158,8 @@ impl ContextMenu {
                 }
             }
         }
-        // delete text
-        texts.push(TextItem {
-            text: "Rename".to_string(),
-            x: self.x - PAD_64 + PAD_4 + PAD_2,
-            y: (self.y + (PAD_24 + PAD_8) * 0 as f32) + PAD_32 + PAD_2,
-            color: WHITE,
-            font: ROBOTO,
-            size: CONTEXT_MENU_FONT_SIZE,
-        });
-        // delete text
-        texts.push(TextItem {
-            text: "Delete".to_string(),
-            x: self.x - PAD_64 + PAD_4 + PAD_2,
-            y: (self.y + (PAD_24 + PAD_8) * 1 as f32) + PAD_32,
-            size: CONTEXT_MENU_FONT_SIZE,
-            font: ROBOTO,
-            color: WHITE,
-        });
-        // duplicate text
-        texts.push(TextItem {
-            text: "Duplicate".to_string(),
-            x: self.x - PAD_64 + PAD_4 + PAD_2,
-            y: (self.y + (PAD_24 + PAD_8) * 2 as f32) + PAD_32 - PAD_4,
-            size: CONTEXT_MENU_FONT_SIZE,
-            font: ROBOTO,
-            color: WHITE,
-        });
 
-        // for line in 1..5 {
-        //     let divider = Rectangle {
-        //         height: 1.0,
-        //         width: self.width + 4.0,
-        //         x: (self.x + 2.0) - PAD_64 - 4.0,
-        //         y: CONTEXT_MENU_ITEM_HEIGHT + (self.y + (CONTEXT_MENU_ITEM_HEIGHT + PAD_8) * line as f32) + PAD_32,
-        //     };
-        //     vertices.extend(divider.draw(screen_config, LL_GRAY, NO_RADIUS));
-        // }
-        (vertices, texts, click_result, cursor_icon)
+        (vertices, text_items, click_result, cursor_icon)
     }
 
     fn draw_track_context(
@@ -163,43 +170,62 @@ impl ContextMenu {
         track_id: usize,
     ) -> (Vec<Vertex>, Vec<TextItem>, ClickResult, CursorIcon) {
         let mut vertices: Vec<Vertex> = Vec::new();
-        let mut texts: Vec<TextItem> = Vec::new();
+        let mut text_items: Vec<TextItem> = Vec::new();
         let mut cursor_icon = CursorIcon::Default;
         let mut click_result = ClickResult::None;
 
+        // dark background
+        let menu_background = self.draw_background();
+        vertices.extend(menu_background.draw(screen_config, DARK_GRAY, RADIUS_8));
+
         for item in 0..5 {
-            let context_item = Rectangle {
+            let context_item_background = Rectangle {
                 height: CONTEXT_MENU_ITEM_HEIGHT,
                 width: self.width,
                 x: self.x - PAD_64,
-                y: self.y + (CONTEXT_MENU_ITEM_HEIGHT * item as f32) + PAD_32,
+                y: (self.y + (CONTEXT_MENU_ITEM_HEIGHT + PAD_4) * item as f32) + PAD_32,
             };
-            vertices.extend(context_item.draw(
+
+            // background for ContextMenu item
+            vertices.extend(context_item_background.draw(
                 screen_config,
-                menu_item_color(&context_item, mouse_state.x, mouse_state.y, mouse_state.left_clicked),
+                menu_item_color(&context_item_background, mouse_state.x, mouse_state.y, mouse_state.left_clicked),
                 RADIUS_4,
             ));
-            if context_item.is_hovered(mouse_state.x, mouse_state.y) {
+
+            // label for ContextMenu item
+            text_items.push(self.draw_track_context_item_text(item as usize));
+
+            if context_item_background.is_hovered(mouse_state.x, mouse_state.y) {
                 cursor_icon = CursorIcon::Pointer;
-                if mouse_state.right_clicked || mouse_state.left_clicked {
-                    match item {
-                        0 => {
-                            // rename
-                            click_result = ClickResult::CloseContextMenu;
+
+                match item {
+                    0 => {
+                        // rename
+                        {
+                            if mouse_state.right_clicked || mouse_state.left_clicked {
+                                click_result = ClickResult::CloseContextMenu;
+                            }
                         }
-                        1 => {
-                            // piano roll
+                    }
+                    1 => {
+                        // piano roll
+                        if mouse_state.right_clicked || mouse_state.left_clicked {
                             click_result = ClickResult::LoadPianoRoll(crate::app::PianoRollState {
                                 pattern_id: (pattern_id),
                                 track_id: (track_id as u32),
                             });
                         }
+                    }
 
-                        4 => {
-                            // delete
+                    4 => {
+                        // delete
+                        if mouse_state.right_clicked || mouse_state.left_clicked {
                             click_result = ClickResult::DeleteTrack(track_id);
                         }
-                        _ => {
+                    }
+                    _ => {
+                        if mouse_state.right_clicked || mouse_state.left_clicked {
                             click_result = ClickResult::CloseContextMenu;
                         }
                     }
@@ -207,40 +233,6 @@ impl ContextMenu {
             }
         }
 
-        for line in 0..4 {
-            let divider = Rectangle {
-                height: 1.0,
-                width: self.width - 4.0,
-                x: (self.x + 2.0) - PAD_64,
-                y: PAD_24 + (self.y + PAD_24 * line as f32) + PAD_32,
-            };
-            vertices.extend(divider.draw(screen_config, LL_GRAY, RADIUS_8));
-        }
-        // delete text
-        texts.push(TextItem {
-            text: "Rename".to_string(),
-            x: self.x - PAD_64 + PAD_4,
-            y: (self.y + (PAD_24) * 0 as f32) + PAD_32 + PAD_2,
-            size: CONTEXT_MENU_FONT_SIZE,
-            font: ROBOTO,
-            color: WHITE,
-        });
-        texts.push(TextItem {
-            text: "Delete".to_string(),
-            x: self.x - PAD_64 + PAD_4,
-            y: (self.y + (PAD_24) * 4 as f32) + PAD_32 + PAD_2,
-            size: CONTEXT_MENU_FONT_SIZE,
-            font: ROBOTO,
-            color: WHITE,
-        });
-        texts.push(TextItem {
-            text: "Piano Roll".to_string(),
-            x: self.x - PAD_64 + PAD_4,
-            y: (self.y + (PAD_24) * 1 as f32) + PAD_32 + PAD_2,
-            size: CONTEXT_MENU_FONT_SIZE,
-            font: ROBOTO,
-            color: WHITE,
-        });
-        (vertices, texts, click_result, cursor_icon)
+        (vertices, text_items, click_result, cursor_icon)
     }
 }
