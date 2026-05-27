@@ -165,9 +165,9 @@ pub async fn create_graphics(window: Rc<Window>, proxy: EventLoopProxy<Graphics>
 
     let mixer_window = MiniWindow::new(128.0, 500.0, 800.0, 300.0, "Mixer", WindowKind::Mixer, false);
 
-    let piano_window = MiniWindow::new(256.0, 400.0, 1092.0, 600.0, "Piano", WindowKind::PianoRoll, true);
+    let piano_window = MiniWindow::new(256.0, 700.0, 1092.0, 600.0, "Piano", WindowKind::PianoRoll, true);
 
-    let sequencer_window = MiniWindow::new(256.0, 128.0, 1092.0, 100.0, "Sequencer", WindowKind::Sequencer, false);
+    let sequencer_window = MiniWindow::new(150.0, 90.0, 1092.0, 100.0, "Sequencer", WindowKind::Sequencer, false);
 
     mini_windows.push(sequencer_window); // 0
     mini_windows.push(playlist_window); // 1
