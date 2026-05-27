@@ -189,25 +189,15 @@ pub async fn create_graphics(window: Rc<Window>, proxy: EventLoopProxy<Graphics>
 
     // svg icons
     let mut icon_cache = HashMap::new();
-    for name in icons::ICON_NAMES_128 {
-        let svg_str = std::fs::read_to_string(format!("assets/icons/128x128/{}.svg", name)).unwrap();
-        let icon = icons::IconSvg {
-            width: 128.0,
-            height: 128.0,
+    for icon in icons::ICONS {
+        let svg_str = std::fs::read_to_string(format!("assets/icons/{}x{}/{}.svg", icon.1, icon.2, icon.0)).unwrap();
+        let svg = icons::IconSvg {
+            width: icon.1 as f32,
+            height: icon.2 as f32,
             path: svg_str,
         };
-        let (texture, bind_group, _, _, _) = icons::rasterize_icon(&device, &queue, icon);
-        icon_cache.insert(name.to_string(), (texture, bind_group));
-    }
-    for name in icons::ICON_NAMES_32 {
-        let svg_str = std::fs::read_to_string(format!("assets/icons/32x32/{}.svg", name)).unwrap();
-        let icon = icons::IconSvg {
-            width: 32.0,
-            height: 32.0,
-            path: svg_str,
-        };
-        let (texture, bind_group, _, _, _) = icons::rasterize_icon(&device, &queue, icon);
-        icon_cache.insert(name.to_string(), (texture, bind_group));
+        let (texture, bind_group, _, _, _) = icons::rasterize_icon(&device, &queue, svg);
+        icon_cache.insert(icon.0.to_string(), (texture, bind_group));
     }
 
     // wgsl shader and render pipeline setup

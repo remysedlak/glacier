@@ -7,21 +7,23 @@ use crate::graphics::{
     primitives::{ScreenConfig, Vertex, NO_RADIUS},
 };
 
-pub const ICON_NAMES_128: &[&str] = &[
-    "play",
-    "stop",
-    "pause",
-    "mixer",
-    "sequencer",
-    "playlist",
-    "track",
-    "project",
-    "piano",
-    "track_tray",
-    "pattern_tray",
+pub const ICONS: &[(&str, u32, u32)] = &[
+    ("play", 128, 128),
+    ("stop", 128, 128),
+    ("pause", 128, 128),
+    ("mixer", 128, 128),
+    ("sequencer", 128, 128),
+    ("playlist", 128, 128),
+    ("track", 128, 128),
+    ("project", 128, 128),
+    ("piano", 128, 128),
+    ("track_tray", 128, 128),
+    ("pattern_tray", 128, 128),
+    ("file", 32, 32),
+    ("add", 32, 32),
+    ("bpm_up", 32, 12),
+    ("bpm_down", 32, 12),
 ];
-
-pub const ICON_NAMES_32: &[&str] = &["file", "add"];
 
 pub struct IconSvg {
     pub width: f32,
