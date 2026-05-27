@@ -1,16 +1,11 @@
 use crate::app::MouseState;
-use crate::graphics::components::toolbar::{icon_color, TOOLTIP_MARGIN};
-use crate::graphics::icons::Tooltip;
-use crate::graphics::primitives::{PAD_64, RADIUS_8};
-use crate::graphics::widgets::Square;
 use crate::graphics::{
     color::{BLACK, LIGHT_GRAY, LIGHT_GRAY_HOVER, PEBBLE},
-    components::side_panel::{
-        draw_title, PATTERN_TRAY_HEADER_MARGIN, PATTERN_TRAY_ITEM_GAP, PATTERN_TRAY_ITEM_HEIGHT, PATTERN_TRAY_ITEM_WIDTH, TRAY_WIDTH,
-    },
+    components::{side_panel::*, toolbar::icon_color},
     font::{TextItem, ROBOTO},
-    icons::IconDraw,
-    primitives::{ScreenConfig, PAD_16, PAD_32, PAD_8},
+    icons::{IconDraw, Tooltip},
+    primitives::{ScreenConfig, PAD_16, PAD_32, PAD_64, PAD_8, RADIUS_8},
+    widgets::Square,
     {ClickResult, CursorIcon, PatternData, Rectangle, Vertex, NO_RADIUS, PAD_2, TOOLBAR_THICKNESS, TOOLBAR_Y},
 };
 
@@ -21,6 +16,7 @@ pub fn draw(
     patterns: &[PatternData],
     active_pattern_id: usize,
     mouse_state: &MouseState,
+    sequencer_is_open: bool,
 ) -> (Vec<Vertex>, Vec<TextItem>, ClickResult, CursorIcon, IconDraw, Option<Tooltip>) {
     // setup return
     let mut vertices: Vec<Vertex> = Vec::new();
@@ -107,7 +103,7 @@ pub fn draw(
             if mouse_state.left_clicked {
                 click_result = ClickResult::SelectPattern(pattern.id as usize);
             }
-            if mouse_state.left_double_clicked {
+            if mouse_state.left_double_clicked && !sequencer_is_open {
                 click_result = ClickResult::ToggleSequencerWindow;
             }
             if mouse_state.right_clicked {

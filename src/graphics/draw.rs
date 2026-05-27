@@ -361,10 +361,20 @@ impl Graphics {
         let toolbar_vert_start = vertices.len() as u32;
         let toolbar_char_start = char_draws.len();
 
+        let sequencer_is_open: bool = if let Some(win) = self.mini_windows.iter_mut().find(|w| matches!(w.window_kind, WindowKind::Sequencer)) {
+            if win.is_open {
+                true
+            } else {
+                false
+            }
+        } else {
+            false
+        };
+
         // tray of project patterns
         if self.show_pattern_tray {
             let (verts, texts, result, cursor, icon, pattern_tray_tooltip) =
-                side_panel::pattern_tray::draw(&screen_config, &self.patterns, self.active_pattern_id, mouse_state);
+                side_panel::pattern_tray::draw(&screen_config, &self.patterns, self.active_pattern_id, mouse_state, sequencer_is_open);
             vertices.extend(verts);
             if cursor != CursorIcon::Default {
                 cursor_icon = cursor;
@@ -389,7 +399,10 @@ impl Graphics {
 
         // tray of audio files / folders
         if self.show_track_tray {
-            let (instrument_tray_verts, instrument_tray_texts) = side_panel::track_tray::draw(mouse_state, &screen_config, &self.tracks);
+            let (instrument_tray_verts, instrument_tray_texts, cursor) = side_panel::track_tray::draw(mouse_state, &screen_config, &self.tracks);
+            if cursor != CursorIcon::Default {
+                cursor_icon = cursor;
+            }
             Graphics::push_text_draws(
                 &instrument_tray_texts,
                 &self.font_cache,
