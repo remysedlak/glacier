@@ -45,14 +45,27 @@ pub fn draw_toolbar(
     };
     vertices.extend(toolbar_background.draw(&screen_config, PEBBLE, NO_RADIUS));
 
+    /* BPM Control
+     * Up
+     * Down
+     */
+
+    let color = |rect: &Rectangle, m: &MouseState| {
+        if rect.is_hovered(m.x, m.y) && !m.left_click_held {
+            DARK_GRAY_HOVER
+        } else {
+            DARK_GRAY
+        }
+    };
+
     // bpm button increment
     let bpm_up = Rectangle {
         x: 48.0,
-        y: 4.0,
+        y: 6.0,
         width: 32.0,
-        height: 10.0,
+        height: 12.0,
     };
-    vertices.extend(bpm_up.draw(&screen_config, LIGHT_GRAY, NO_RADIUS));
+    vertices.extend(bpm_up.draw(&screen_config, color(&bpm_up, mouse_state), NO_RADIUS));
     if bpm_up.is_hovered(mouse_state.x, mouse_state.y) {
         cursor_icon = CursorIcon::Pointer;
         if mouse_state.left_clicked {
@@ -61,18 +74,27 @@ pub fn draw_toolbar(
     }
     // bpm button decrement
     let bpm_down = Rectangle {
-        x: 48.0,
-        y: 16.0,
-        width: 32.0,
-        height: 10.0,
+        x: bpm_up.x,
+        y: bpm_up.y + 18.0,
+        width: bpm_up.width,
+        height: bpm_up.height,
     };
-    vertices.extend(bpm_down.draw(&screen_config, LIGHT_GRAY, NO_RADIUS));
+    vertices.extend(bpm_down.draw(&screen_config, color(&bpm_down, mouse_state), NO_RADIUS));
     if bpm_down.is_hovered(mouse_state.x, mouse_state.y) {
         cursor_icon = CursorIcon::Pointer;
         if mouse_state.left_clicked {
             click_result = ClickResult::ChangeBpmDown;
         }
     }
+
+    toolbar_texts.push(TextItem {
+        text: bpm.to_string(),
+        x: PAD_8,
+        y: 10.0,
+        size: TITLE,
+        color: WHITE,
+        font: ROBOTO,
+    });
 
     /* TRANSPORT CONTROL
 
@@ -285,15 +307,6 @@ pub fn draw_toolbar(
         }
     }
 
-    toolbar_texts.push(TextItem {
-        text: bpm.to_string(),
-        x: PAD_8,
-        y: TOOLBAR_MARGIN,
-        size: TITLE,
-        color: WHITE,
-        font: ROBOTO,
-    });
-
     let play_pause_label = if is_playing { "pause" } else { "play" };
 
     let icons = vec![
@@ -415,6 +428,30 @@ pub fn draw_toolbar(
                 text: Some("Patterns"),
                 x: PLAY_X_ORIGIN + WINDOW_ICONS_OFFSET + (ICON_GAP * 4.0),
                 y: PLAY_Y_ORIGIN + TOOLTIP_MARGIN,
+            },
+        },
+        IconDraw {
+            name: "bpm_up",
+            x: bpm_up.x,
+            y: bpm_up.y,
+            width: bpm_up.width,
+            height: bpm_up.height,
+            tooltip: Tooltip {
+                text: Some("Decrement BPM"),
+                x: bpm_up.x,
+                y: bpm_up.y + TOOLTIP_MARGIN,
+            },
+        },
+        IconDraw {
+            name: "bpm_down",
+            x: bpm_up.x,
+            y: bpm_up.y + 18.0,
+            width: bpm_up.width,
+            height: bpm_up.height,
+            tooltip: Tooltip {
+                text: Some("Increment BPM"),
+                x: bpm_up.x,
+                y: bpm_up.y + TOOLTIP_MARGIN,
             },
         },
     ];
