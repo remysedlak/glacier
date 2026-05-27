@@ -363,13 +363,28 @@ impl Graphics {
 
         // tray of project patterns
         if self.show_pattern_tray {
-            let (verts, texts, result, icon) = side_panel::pattern_tray::draw(&screen_config, &self.patterns, self.active_pattern_id, mouse_state);
+            let (verts, texts, result, cursor, icon, pattern_tray_tooltip) =
+                side_panel::pattern_tray::draw(&screen_config, &self.patterns, self.active_pattern_id, mouse_state);
             vertices.extend(verts);
-            if icon != CursorIcon::Default {
-                cursor_icon = icon;
+            if cursor != CursorIcon::Default {
+                cursor_icon = cursor;
             }
             click_result = click_result.or(result);
             Graphics::push_text_draws(&texts, &self.font_cache, &self.glyph_cache, &self.device, &screen_config, &mut char_draws);
+            push_icon_draw(
+                &self.icon_cache,
+                &self.device,
+                &screen_config,
+                icon.name,
+                icon.x,
+                icon.y,
+                icon.width,
+                icon.height,
+                &mut icon_draws,
+            );
+            if pattern_tray_tooltip.is_some() {
+                self.tooltip = pattern_tray_tooltip;
+            }
         }
 
         // tray of audio files / folders

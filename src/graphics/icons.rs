@@ -21,7 +21,7 @@ pub const ICON_NAMES_128: &[&str] = &[
     "pattern_tray",
 ];
 
-pub const ICON_NAMES_32: &[&str] = &["file"];
+pub const ICON_NAMES_32: &[&str] = &["file", "add"];
 
 pub struct IconSvg {
     pub width: f32,

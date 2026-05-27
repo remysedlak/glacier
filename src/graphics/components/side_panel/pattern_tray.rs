@@ -1,25 +1,33 @@
 use crate::app::MouseState;
+use crate::graphics::components::toolbar::{icon_color, TOOLTIP_MARGIN};
+use crate::graphics::icons::Tooltip;
+use crate::graphics::primitives::{PAD_64, RADIUS_8};
+use crate::graphics::widgets::Square;
 use crate::graphics::{
     color::{BLACK, LIGHT_GRAY, LIGHT_GRAY_HOVER, PEBBLE},
     components::side_panel::{
         draw_title, PATTERN_TRAY_HEADER_MARGIN, PATTERN_TRAY_ITEM_GAP, PATTERN_TRAY_ITEM_HEIGHT, PATTERN_TRAY_ITEM_WIDTH, TRAY_WIDTH,
     },
     font::{TextItem, ROBOTO},
+    icons::IconDraw,
     primitives::{ScreenConfig, PAD_16, PAD_32, PAD_8},
     {ClickResult, CursorIcon, PatternData, Rectangle, Vertex, NO_RADIUS, PAD_2, TOOLBAR_THICKNESS, TOOLBAR_Y},
 };
+
+const ICON_SIZE: f32 = 20.0;
 
 pub fn draw(
     screen_config: &ScreenConfig,
     patterns: &[PatternData],
     active_pattern_id: usize,
     mouse_state: &MouseState,
-) -> (Vec<Vertex>, Vec<TextItem>, ClickResult, CursorIcon) {
+) -> (Vec<Vertex>, Vec<TextItem>, ClickResult, CursorIcon, IconDraw, Option<Tooltip>) {
     // setup return
     let mut vertices: Vec<Vertex> = Vec::new();
     let mut text_items: Vec<TextItem> = Vec::new();
     let mut click_result = ClickResult::None;
     let mut cursor_icon = CursorIcon::Default;
+    let mut tooltip = None;
 
     // patterns tray
     let pattern_tray = Rectangle {
@@ -36,18 +44,16 @@ pub fn draw(
     text_items.push(draw_title("Patterns", (pattern_tray.x, pattern_tray.y)));
 
     // add pattern button
-    let add_pattern_button = Rectangle {
+    let add_pattern_button = Square {
         x: screen_config.width as f32 - PAD_32,
         y: pattern_tray.y + PAD_8,
-        width: 16.0,
-        height: 16.0,
+        size: ICON_SIZE,
     };
-    let add_pattern_button_color = if add_pattern_button.is_hovered(mouse_state.x, mouse_state.y) {
-        LIGHT_GRAY_HOVER
-    } else {
-        LIGHT_GRAY
-    };
-    vertices.extend(add_pattern_button.draw(&screen_config, add_pattern_button_color, NO_RADIUS));
+    vertices.extend(add_pattern_button.draw(
+        &screen_config,
+        icon_color(&add_pattern_button, mouse_state.x, mouse_state.y, mouse_state.left_click_held),
+        RADIUS_8,
+    ));
     if add_pattern_button.is_hovered(mouse_state.x, mouse_state.y) {
         cursor_icon = CursorIcon::Pointer;
         if mouse_state.left_clicked {
@@ -55,13 +61,27 @@ pub fn draw(
         }
     }
 
-    for (i, pattern) in patterns.iter().enumerate() {
-        let button_x = pattern_tray.x + PAD_16;
-        let button_y = PATTERN_TRAY_HEADER_MARGIN + (PATTERN_TRAY_ITEM_GAP * i as f32) + PAD_32;
+    let add_icon = IconDraw {
+        name: "add",
+        x: add_pattern_button.x,
+        y: add_pattern_button.y,
+        width: ICON_SIZE,
+        height: ICON_SIZE,
+        tooltip: Tooltip {
+            text: Some("Add pattern"),
+            x: add_pattern_button.x - PAD_64 - PAD_64 - PAD_8,
+            y: add_pattern_button.y,
+        },
+    };
+    if add_icon.is_hovered(mouse_state.x, mouse_state.y) {
+        tooltip = Some(add_icon.tooltip.clone());
+    }
 
+    for (i, pattern) in patterns.iter().enumerate() {
+        // draw the shape
         let pattern_button = Rectangle {
-            x: button_x,
-            y: button_y,
+            x: pattern_tray.x + PAD_16,
+            y: PATTERN_TRAY_HEADER_MARGIN + (PATTERN_TRAY_ITEM_GAP * i as f32) + PAD_32,
             width: pattern_tray.width - PAD_32,
             height: PATTERN_TRAY_ITEM_HEIGHT,
         };
@@ -74,14 +94,14 @@ pub fn draw(
             };
             vertices.extend(indicator.draw(&screen_config, crate::graphics::color::ORANGE, [7.0, 7.0, 7.0, 7.0]));
         }
-
         let pattern_button_color = if pattern_button.is_hovered(mouse_state.x, mouse_state.y) {
             LIGHT_GRAY_HOVER
         } else {
             LIGHT_GRAY
         };
-
         vertices.extend(pattern_button.draw(&screen_config, pattern_button_color, [4.0, 4.0, 4.0, 4.0]));
+
+        // handle interaction
         if pattern_button.is_hovered(mouse_state.x, mouse_state.y) {
             cursor_icon = CursorIcon::Pointer;
             if mouse_state.left_clicked {
@@ -91,7 +111,7 @@ pub fn draw(
                 click_result = ClickResult::ToggleSequencerWindow;
             }
             if mouse_state.right_clicked {
-                click_result = ClickResult::OpenPatternMenu(button_x, button_y, pattern.id as usize);
+                click_result = ClickResult::OpenPatternMenu(pattern_button.x, pattern_button.y, pattern.id as usize);
             }
         }
     }
@@ -107,5 +127,5 @@ pub fn draw(
         });
     }
 
-    (vertices, text_items, click_result, cursor_icon)
+    (vertices, text_items, click_result, cursor_icon, add_icon, tooltip)
 }
