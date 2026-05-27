@@ -1,3 +1,5 @@
+use winit::window::CursorIcon;
+
 use crate::project::Track;
 use crate::{
     app::MouseState,
@@ -11,9 +13,10 @@ use crate::{
     },
 };
 
-pub fn draw(mouse_state: &MouseState, screen_config: &ScreenConfig, tracks: &[Track]) -> (Vec<Vertex>, Vec<TextItem>) {
+pub fn draw(mouse_state: &MouseState, screen_config: &ScreenConfig, tracks: &[Track]) -> (Vec<Vertex>, Vec<TextItem>, CursorIcon) {
     let mut vertices: Vec<Vertex> = Vec::new();
     let mut text_items: Vec<TextItem> = Vec::new();
+    let mut cursor_icon: CursorIcon = CursorIcon::Default;
     let track_tray = Rectangle {
         x: 0.0,
         y: TOOLBAR_Y,
@@ -48,6 +51,9 @@ pub fn draw(mouse_state: &MouseState, screen_config: &ScreenConfig, tracks: &[Tr
         };
 
         vertices.extend(track_button.draw(screen_config, track_button_color, RADIUS_4));
+        if track_button.is_hovered(mouse_state.x, mouse_state.y) {
+            cursor_icon = CursorIcon::Pointer;
+        }
 
         text_items.push(TextItem {
             text: truncate_text(&track.data.name, 9),
@@ -59,5 +65,5 @@ pub fn draw(mouse_state: &MouseState, screen_config: &ScreenConfig, tracks: &[Tr
         });
     }
 
-    (vertices, text_items)
+    (vertices, text_items, cursor_icon)
 }
