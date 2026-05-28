@@ -10,13 +10,17 @@ use crate::{
         primitives::*,
         side_panel::{draw_title, PATTERN_TRAY_ITEM_HEIGHT},
         widgets::{Rectangle, TOOLBAR_Y},
+        ClickResult,
     },
 };
 
-pub fn draw(mouse_state: &MouseState, screen_config: &ScreenConfig, tracks: &[Track]) -> (Vec<Vertex>, Vec<TextItem>, CursorIcon) {
+pub fn draw(mouse_state: &MouseState, screen_config: &ScreenConfig, tracks: &[Track]) -> (Vec<Vertex>, Vec<TextItem>, ClickResult, CursorIcon) {
+    // setup
     let mut vertices: Vec<Vertex> = Vec::new();
     let mut text_items: Vec<TextItem> = Vec::new();
     let mut cursor_icon: CursorIcon = CursorIcon::Default;
+    let mut click_result: ClickResult = ClickResult::None;
+
     let track_tray = Rectangle {
         x: 0.0,
         y: TOOLBAR_Y,
@@ -53,6 +57,9 @@ pub fn draw(mouse_state: &MouseState, screen_config: &ScreenConfig, tracks: &[Tr
         vertices.extend(track_button.draw(screen_config, track_button_color, RADIUS_4));
         if track_button.is_hovered(mouse_state.x, mouse_state.y) {
             cursor_icon = CursorIcon::Pointer;
+            if mouse_state.left_double_clicked {
+                click_result = ClickResult::ToggleTrackWindow(i);
+            }
         }
 
         text_items.push(TextItem {
@@ -65,5 +72,5 @@ pub fn draw(mouse_state: &MouseState, screen_config: &ScreenConfig, tracks: &[Tr
         });
     }
 
-    (vertices, text_items, cursor_icon)
+    (vertices, text_items, click_result, cursor_icon)
 }

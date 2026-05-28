@@ -9,9 +9,9 @@ pub const FOOTER_Y_HEIGHT: f32 = 32.0;
 pub const FPS_COUNTER_X_OFFSET: f32 = 80.0;
 
 pub fn draw(screen_config: &ScreenConfig, path: &String, frame_rate: f32) -> (Vec<Vertex>, Vec<TextItem>) {
-    // setup vectors
+    // setup
     let mut vertices: Vec<Vertex> = Vec::new();
-    let mut texts: Vec<TextItem> = Vec::new();
+    let mut text_items: Vec<TextItem> = Vec::new();
 
     // coordinates
     let footer_x = 0.0;
@@ -24,7 +24,7 @@ pub fn draw(screen_config: &ScreenConfig, path: &String, frame_rate: f32) -> (Ve
     };
     vertices.extend(footer.draw(screen_config, BLACK, NO_RADIUS));
 
-    texts.push(TextItem {
+    text_items.push(TextItem {
         text: path.to_string(),
         x: footer_x + PAD_4,
         y: screen_config.height as f32 - FOOTER_Y_HEIGHT + PAD_8,
@@ -34,7 +34,7 @@ pub fn draw(screen_config: &ScreenConfig, path: &String, frame_rate: f32) -> (Ve
     });
 
     // display frames per second
-    texts.push(TextItem {
+    text_items.push(TextItem {
         text: frame_rate.to_string(),
         x: screen_config.width as f32 - FPS_COUNTER_X_OFFSET,
         y: screen_config.height as f32 - FOOTER_Y_HEIGHT + PAD_8,
@@ -42,5 +42,5 @@ pub fn draw(screen_config: &ScreenConfig, path: &String, frame_rate: f32) -> (Ve
         color: ORANGE,
         font: MONOSPACED,
     });
-    (vertices, texts)
+    (vertices, text_items)
 }

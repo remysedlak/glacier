@@ -18,7 +18,7 @@ pub fn draw(
     mouse_state: &MouseState,
     sequencer_is_open: bool,
 ) -> (Vec<Vertex>, Vec<TextItem>, ClickResult, CursorIcon, IconDraw, Option<Tooltip>) {
-    // setup return
+    // setup
     let mut vertices: Vec<Vertex> = Vec::new();
     let mut text_items: Vec<TextItem> = Vec::new();
     let mut click_result = ClickResult::None;

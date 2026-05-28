@@ -21,6 +21,7 @@ pub fn draw(
     screen_config: &ScreenConfig,
     track: &Track,
 ) -> (Vec<Vertex>, Vec<TextItem>, Vec<IconDraw>, ClickResult, CursorIcon, Option<Tooltip>) {
+    // setup
     let mut vertices: Vec<Vertex> = Vec::new();
     let mut text_items: Vec<TextItem> = Vec::new();
     let mut icons: Vec<IconDraw> = Vec::new();

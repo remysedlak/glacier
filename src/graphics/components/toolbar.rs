@@ -1,11 +1,9 @@
 use crate::app::MouseState;
-use crate::graphics::font::MONOSPACED;
-use crate::graphics::primitives::{NO_RADIUS, PAD_16, PAD_2, PAD_4};
 use crate::graphics::{
     color::*,
-    font::{TextItem, ROBOTO, TITLE},
+    font::{TextItem, MONOSPACED, TITLE},
     icons::{IconDraw, Tooltip},
-    primitives::{draw_h_line, PAD_32, PAD_8, RADIUS_4},
+    primitives::*,
     widgets::*,
     ClickResult, ScreenConfig, Vertex, TOOLBAR_THICKNESS,
 };
@@ -31,8 +29,9 @@ pub fn draw_toolbar(
     is_playing: bool,
     active_step: usize,
 ) -> (Vec<Vertex>, Vec<TextItem>, Vec<IconDraw>, ClickResult, CursorIcon, Option<Tooltip>) {
+    // setup
     let mut vertices: Vec<Vertex> = Vec::new();
-    let mut toolbar_texts: Vec<TextItem> = Vec::new();
+    let mut text_items: Vec<TextItem> = Vec::new();
     let mut click_result = ClickResult::None;
     let mut cursor_icon = CursorIcon::Default;
     let mut tooltip: Option<Tooltip> = None;
@@ -96,7 +95,7 @@ pub fn draw_toolbar(
             click_result = ClickResult::ChangeBpmDown;
         }
     }
-    toolbar_texts.push(bpm_counter);
+    text_items.push(bpm_counter);
 
     /* TRANSPORT CONTROL
 
@@ -471,7 +470,7 @@ pub fn draw_toolbar(
     };
 
     // debug current step
-    toolbar_texts.push(TextItem {
+    text_items.push(TextItem {
         text: step_label,
         x: time_background.x + time_background.width - PAD_16 - PAD_8 - PAD_4 - PAD_2,
         y: TOOLBAR_MARGIN + PAD_2,
@@ -487,5 +486,5 @@ pub fn draw_toolbar(
     };
     vertices.extend(step_divider_line.draw(screen_config, DARK_GRAY, NO_RADIUS));
 
-    (vertices, toolbar_texts, icons, click_result, cursor_icon, tooltip)
+    (vertices, text_items, icons, click_result, cursor_icon, tooltip)
 }

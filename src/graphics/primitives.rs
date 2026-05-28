@@ -16,6 +16,8 @@ pub const RADIUS_4: [f32; 4] = [4.0; 4];
 pub const RADIUS_2: [f32; 4] = [2.0; 4];
 pub const BUTTON_GAP: f32 = 24.0;
 
+pub const ONE_MEGABYTE: u64 = 1024 * 1024;
+
 pub struct ScreenConfig {
     pub width: u32,
     pub height: u32,

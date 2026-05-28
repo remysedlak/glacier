@@ -38,6 +38,7 @@ pub fn draw(
     ClickResult,
     CursorIcon,
 ) {
+    // setup
     let mut track_header_vertices: Vec<Vertex> = Vec::new();
     let mut track_header_text_items: Vec<TextItem> = Vec::new();
     let mut timeline_vertices: Vec<Vertex> = Vec::new();

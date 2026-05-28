@@ -320,7 +320,7 @@ impl Graphics {
                     let window = &self.mini_windows[track];
                     if window.is_open {
                         if let WindowKind::TrackDetail(track) = window.window_kind {
-                            let (verts, texts, icons, result, cursor, track_window_tooltip) =
+                            let (verts, texts, icons, result, cursor, tooltip) =
                                 track::draw(window, &masked_mouse, &screen_config, &self.tracks[track]);
                             vertices.extend(verts);
                             click_result = click_result.or(result);
@@ -341,9 +341,7 @@ impl Graphics {
                                 )
                             }
                             Graphics::push_text_draws(&texts, &self.font_cache, &self.glyph_cache, &self.device, &screen_config, &mut char_draws);
-                            if track_window_tooltip.is_some() {
-                                self.tooltip = track_window_tooltip;
-                            }
+                            self.tooltip = tooltip;
                         }
                     }
                 }
@@ -361,19 +359,14 @@ impl Graphics {
         let toolbar_vert_start = vertices.len() as u32;
         let toolbar_char_start = char_draws.len();
 
-        let sequencer_is_open: bool = if let Some(win) = self.mini_windows.iter_mut().find(|w| matches!(w.window_kind, WindowKind::Sequencer)) {
-            if win.is_open {
-                true
-            } else {
-                false
-            }
-        } else {
-            false
-        };
+        let sequencer_is_open = self
+            .mini_windows
+            .iter()
+            .any(|w| matches!(w.window_kind, WindowKind::Sequencer) && w.is_open);
 
         // tray of project patterns
         if self.show_pattern_tray {
-            let (verts, texts, result, cursor, icon, pattern_tray_tooltip) =
+            let (verts, texts, result, cursor, icon, tooltip) =
                 side_panel::pattern_tray::draw(&screen_config, &self.patterns, self.active_pattern_id, mouse_state, sequencer_is_open);
             vertices.extend(verts);
             if cursor != CursorIcon::Default {
@@ -392,34 +385,30 @@ impl Graphics {
                 icon.height,
                 &mut icon_draws,
             );
-            if pattern_tray_tooltip.is_some() {
-                self.tooltip = pattern_tray_tooltip;
-            }
+            self.tooltip = tooltip
         }
 
         // tray of audio files / folders
         if self.show_track_tray {
-            let (instrument_tray_verts, instrument_tray_texts, cursor) = side_panel::track_tray::draw(mouse_state, &screen_config, &self.tracks);
+            let (verts, texts, result, cursor) = side_panel::track_tray::draw(mouse_state, &screen_config, &self.tracks);
             if cursor != CursorIcon::Default {
                 cursor_icon = cursor;
             }
-            Graphics::push_text_draws(
-                &instrument_tray_texts,
-                &self.font_cache,
-                &self.glyph_cache,
-                &self.device,
-                &screen_config,
-                &mut char_draws,
-            );
-            vertices.extend(instrument_tray_verts);
+            click_result = click_result.or(result);
+            Graphics::push_text_draws(&texts, &self.font_cache, &self.glyph_cache, &self.device, &screen_config, &mut char_draws);
+            vertices.extend(verts);
         }
 
         // top toolbar
-        let (toolbar_verts, toolbar_texts, toolbar_icons, toolbar_result, toolbar_cursor, toolbar_tooltip) =
+        let (verts, texts, icons, result, cursor, tooltip) =
             components::toolbar::draw_toolbar(mouse_state, &screen_config, self.bpm, self.is_playing, self.active_step);
-        vertices.extend(toolbar_verts);
+        vertices.extend(verts);
+        click_result = click_result.or(result);
+        if cursor != CursorIcon::Default {
+            cursor_icon = cursor;
+        }
 
-        for icon in toolbar_icons {
+        for icon in icons {
             push_icon_draw(
                 &self.icon_cache,
                 &self.device,
@@ -433,13 +422,7 @@ impl Graphics {
             )
         }
 
-        if toolbar_cursor != CursorIcon::Default {
-            cursor_icon = toolbar_cursor;
-        }
-
-        if toolbar_tooltip.is_some() {
-            self.tooltip = toolbar_tooltip;
-        }
+        self.tooltip = tooltip;
         let tooltip_vert_start = vertices.len() as u32;
         let tooltip_char_start = char_draws.len();
         // tool tip
@@ -473,16 +456,8 @@ impl Graphics {
 
         let tooltip_vert_end = vertices.len() as u32;
         let tooltip_char_end = char_draws.len();
-        click_result = click_result.or(toolbar_result);
 
-        Graphics::push_text_draws(
-            &toolbar_texts,
-            &self.font_cache,
-            &self.glyph_cache,
-            &self.device,
-            &screen_config,
-            &mut char_draws,
-        );
+        Graphics::push_text_draws(&texts, &self.font_cache, &self.glyph_cache, &self.device, &screen_config, &mut char_draws);
 
         let toolbar_vert_end = vertices.len() as u32;
         let toolbar_char_end = char_draws.len();
@@ -492,21 +467,14 @@ impl Graphics {
         let context_menu_char_start = char_draws.len();
 
         if let Some(menu) = &self.context_menu {
-            let (verts, menu_texts, menu_result, menu_cursor) = menu.draw(&screen_config, mouse_state);
+            let (verts, texts, result, cursor) = menu.draw(&screen_config, mouse_state);
             vertices.extend(verts);
-            Graphics::push_text_draws(
-                &menu_texts,
-                &self.font_cache,
-                &self.glyph_cache,
-                &self.device,
-                &screen_config,
-                &mut char_draws,
-            );
+            Graphics::push_text_draws(&texts, &self.font_cache, &self.glyph_cache, &self.device, &screen_config, &mut char_draws);
 
-            if menu_cursor != CursorIcon::Default {
-                cursor_icon = menu_cursor;
+            if cursor != CursorIcon::Default {
+                cursor_icon = cursor;
             }
-            click_result = click_result.or(menu_result);
+            click_result = click_result.or(result);
         }
 
         let context_menu_vert_end = vertices.len() as u32;
@@ -521,16 +489,9 @@ impl Graphics {
         } else {
             self.project_path.clone()
         };
-        let (verts, footer_texts) = footer::draw(&screen_config, &title, 1000.0 / self.frame_ms);
+        let (verts, texts) = footer::draw(&screen_config, &title, 1000.0 / self.frame_ms);
         vertices.extend(verts);
-        Graphics::push_text_draws(
-            &footer_texts,
-            &self.font_cache,
-            &self.glyph_cache,
-            &self.device,
-            &screen_config,
-            &mut char_draws,
-        );
+        Graphics::push_text_draws(&texts, &self.font_cache, &self.glyph_cache, &self.device, &screen_config, &mut char_draws);
 
         let footer_vert_end = vertices.len() as u32;
         let footer_char_end = char_draws.len();

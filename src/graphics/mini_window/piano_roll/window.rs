@@ -8,7 +8,7 @@ use crate::graphics::{
     ClickResult,
 };
 use crate::project::{PatternData, Sequence, Track};
-use winit::window::CursorIcon::{self, ColResize};
+use winit::window::CursorIcon;
 
 pub fn draw(
     window: &MiniWindow,
@@ -30,15 +30,16 @@ pub fn draw(
     ClickResult,
     CursorIcon,
 ) {
+    // setup
     let mut static_vertices: Vec<Vertex> = Vec::new();
     let mut static_text_items: Vec<TextItem> = Vec::new();
-    //
+
     let mut piano_key_vertices: Vec<Vertex> = Vec::new();
     let mut piano_key_text_items: Vec<TextItem> = Vec::new();
-    //
+
     let mut grid_vertices: Vec<Vertex> = Vec::new();
     let mut grid_text_items: Vec<TextItem> = Vec::new();
-    //
+
     let mut cursor_icon = CursorIcon::Default;
     let mut click_result = ClickResult::None;
 

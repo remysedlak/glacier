@@ -9,15 +9,13 @@ pub mod mini_window;
 pub mod primitives;
 pub mod widgets;
 
-pub const ONE_MEGABYTE: u64 = 1024 * 1024;
-
 use crate::app::{MouseState, PianoRollState};
 use crate::audio::DEFAULT_BPM;
 use crate::graphics::{
     color::{Color, DARK_GRAY, WHITE},
     components::{footer, side_panel},
     context_menu::ContextMenu,
-    font::{TextItem, MONOSPACED, ROBOTO},
+    font::{build_glyph_cache, create_bind_group_layout, TextItem, MONOSPACED, ROBOTO},
     icons::{push_icon_draw, Tooltip},
     mini_window::{
         mixer, piano_roll,
@@ -144,14 +142,6 @@ pub async fn create_graphics(window: Rc<Window>, proxy: EventLoopProxy<Graphics>
     let surface_config = surface.get_default_config(&adapter, width, height).unwrap();
     surface.configure(&device, &surface_config);
 
-    // init graphics state
-    let vertices: Vec<Vertex> = Vec::new();
-    let patterns: Vec<PatternData> = Vec::new();
-    let tracks: Vec<Track> = Vec::new();
-    let events: Vec<AudioBlock> = Vec::new();
-    let mut mini_windows: Vec<MiniWindow> = Vec::new();
-    let context_menu = None;
-
     // vertex buffer for collecting shapes to draw each frame
     let vertex_buffer = device.create_buffer(&wgpu::BufferDescriptor {
         label: Some("Vertex Buffer"),
@@ -162,13 +152,11 @@ pub async fn create_graphics(window: Rc<Window>, proxy: EventLoopProxy<Graphics>
 
     // init windows ; TODO: remove hardcoded coordinates, should be dynamic based on saved state
     let playlist_window = MiniWindow::new(900.0, 600.0, 1500.0, 900.0, "Playlist", WindowKind::Playlist, true);
-
     let mixer_window = MiniWindow::new(128.0, 500.0, 800.0, 300.0, "Mixer", WindowKind::Mixer, false);
-
     let piano_window = MiniWindow::new(256.0, 700.0, 1092.0, 600.0, "Piano", WindowKind::PianoRoll, true);
-
     let sequencer_window = MiniWindow::new(150.0, 90.0, 1092.0, 100.0, "Sequencer", WindowKind::Sequencer, false);
 
+    let mut mini_windows: Vec<MiniWindow> = Vec::new();
     mini_windows.push(sequencer_window); // 0
     mini_windows.push(playlist_window); // 1
     mini_windows.push(mixer_window); // 2
@@ -179,10 +167,10 @@ pub async fn create_graphics(window: Rc<Window>, proxy: EventLoopProxy<Graphics>
     let mono = (MONOSPACED, include_bytes!("../../assets/fonts/IBMPlexMono-Regular.ttf") as &[u8]);
     let mut font_cache: HashMap<String, fontdue::Font> = HashMap::new();
     let mut glyph_cache: HashMap<String, HashMap<(char, u32), (wgpu::Texture, wgpu::BindGroup, fontdue::Metrics)>> = HashMap::new();
-    let bind_group_layout = font::create_bind_group_layout(&device);
+    let bind_group_layout = create_bind_group_layout(&device);
     for (name, bytes) in [roboto, mono] {
         let font = fontdue::Font::from_bytes(bytes, fontdue::FontSettings::default()).unwrap();
-        let cache = font::build_glyph_cache(&device, &queue, &font, &[8.0, 10.0, 12.0, 14.0, 16.0, 18.0, 24.0, 32.0]);
+        let cache = build_glyph_cache(&device, &queue, &font, &[8.0, 10.0, 12.0, 14.0, 16.0, 18.0, 24.0, 32.0]);
         font_cache.insert(name.to_string(), font);
         glyph_cache.insert(name.to_string(), cache);
     }
@@ -215,13 +203,13 @@ pub async fn create_graphics(window: Rc<Window>, proxy: EventLoopProxy<Graphics>
 
         // shapes
         vertex_buffer,
-        num_vertices: vertices.len() as u32,
+        num_vertices: 0,
         frame_ms: 0.0,
 
         // song information
-        tracks,
-        patterns,
-        events,
+        tracks: Vec::new(),
+        patterns: Vec::new(),
+        events: Vec::new(),
         active_step: 0,
         active_pattern_id: 0,
         bpm: DEFAULT_BPM,
@@ -247,7 +235,7 @@ pub async fn create_graphics(window: Rc<Window>, proxy: EventLoopProxy<Graphics>
         piano_roll_scroll_x: 0.0,
         piano_roll_scroll_y: PIANO_ROLL_DEFAULT_Y,
         z_order: vec![SEQUENCER_ID, PLAYLIST_ID, MIXER_ID, PIANO_ROLL_ID],
-        context_menu,
+        context_menu: None,
         resizing_event: None,
         resize_drag_accumulator: 0.0,
         show_track_tray: true,

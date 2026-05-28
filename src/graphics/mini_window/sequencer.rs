@@ -31,7 +31,7 @@ pub fn draw(
     mouse_state: &MouseState,
     screen_config: &ScreenConfig,
 ) -> (Vec<Vertex>, Vec<TextItem>, Vec<IconDraw>, ClickResult, CursorIcon) {
-    // buckets
+    // setup
     let mut vertices: Vec<Vertex> = Vec::new();
     let mut text_items: Vec<TextItem> = Vec::new();
     let mut click_result = ClickResult::None;
