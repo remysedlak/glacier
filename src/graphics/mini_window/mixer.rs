@@ -23,6 +23,7 @@ pub fn draw(
     screen_config: &ScreenConfig,
     mouse_state: &MouseState,
 ) -> (Vec<Vertex>, Vec<TextItem>, ClickResult, CursorIcon) {
+    // setup
     let mut vertices: Vec<Vertex> = Vec::new();
     let mut text_items: Vec<TextItem> = Vec::new();
     let mut click_result = ClickResult::None;

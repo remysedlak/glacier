@@ -1,5 +1,5 @@
-/// USER CONFIGURATION FOR STORING LONG TERM USER PREFERENCES
-///
+// config.rs - user configs store long term ui preferences & customizations
+
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Default)]

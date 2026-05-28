@@ -1,3 +1,4 @@
+// project.rs - structured objects to store song data
 use serde::{Deserialize, Serialize};
 
 /// Project data stores song information

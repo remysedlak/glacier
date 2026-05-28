@@ -1,3 +1,5 @@
+// app.rs - main state logic for audio and ui decoupling
+
 use crate::audio::{init, AudioCommand};
 use crate::config::{self, UserSettings};
 use crate::graphics::{

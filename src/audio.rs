@@ -1,3 +1,6 @@
+// audio.rs -  audio engine for sequencing compositions and applying DSP
+
+use crate::dsp;
 use crate::project::*;
 use crate::UiCommand;
 use cpal::{
