@@ -4,6 +4,9 @@ use serde::{Deserialize, Serialize};
 /// Project data stores song information
 #[derive(Serialize, Deserialize, Clone)]
 pub struct Project {
+    pub name: String,
+    pub bpm: f32,
+    pub master_volume: f32,
     pub events: Vec<AudioBlock>,
     pub tracks: Vec<TrackData>,
     pub patterns: Vec<PatternData>,
