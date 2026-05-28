@@ -11,6 +11,19 @@ pub struct Project {
     pub patterns: Vec<PatternData>,
 }
 
+impl Project {
+    pub fn new(name: String, bpm: f32, master_volume: f32, tracks: &Vec<Track>, patterns: Vec<PatternData>, events: Vec<AudioBlock>) -> Project {
+        Project {
+            name: name.clone(),
+            bpm,
+            master_volume,
+            tracks: tracks.iter().map(|track| track.data.clone()).collect(),
+            patterns: patterns.clone(),
+            events: events.clone(),
+        }
+    }
+}
+
 impl Default for Project {
     fn default() -> Project {
         Project {
@@ -57,6 +70,21 @@ pub struct Track {
     pub current_volume: f32,
     pub show_velocity: bool,
     pub playback_rate: f32,
+}
+
+impl Track {
+    // build track with data at default states
+    pub fn from_data(data: TrackData, samples: Vec<f32>) -> Track {
+        Track {
+            samples,
+            position: 0.0,
+            data,
+            is_playing: false,
+            current_volume: 0.0,
+            show_velocity: false,
+            playback_rate: 1.0,
+        }
+    }
 }
 
 /// Track  metadata stored on disk
@@ -116,20 +144,12 @@ pub fn get_tracks(project: &Project) -> Vec<Track> {
     project
         .tracks
         .iter()
-        .map(|track| Track {
-            samples: path_to_vector(&track.path),
-            position: 0.0,
-            data: track.clone(),
-            is_playing: false,
-            current_volume: 0.0,
-            show_velocity: false,
-            playback_rate: 1.0,
-        })
+        .map(|track| Track::from_data(track.clone(), path_to_vector(&track.path)))
         .collect()
 }
 
 /// Save the project details to a location on disk
-pub fn save_project(project: &Project, file_path: &str) {
+pub fn save_project_to_file(project: &Project, file_path: &str) {
     // convert project data to TOML format
     let text = toml::to_string(&project).unwrap();
 

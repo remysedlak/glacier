@@ -1,6 +1,7 @@
 mod app; // event loop
 mod audio; // audio engine
 mod config;
+mod dsp;
 mod graphics; // graphics engine
 mod project; // serialize data
 

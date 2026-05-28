@@ -92,7 +92,7 @@ pub fn init(mut consumer: HeapCons<AudioCommand>, mut producer: HeapProd<UiComma
 
     // initalize state
     let mut current_step = events.iter().map(|e| e.start_step + e.length).max().unwrap_or(16) as usize - 1;
-    let mut is_playing = false;
+    let mut is_playing = false; // step function
     let mut is_shutting_down = false;
     let mut shutdown_volume: f32 = 1.00;
     let mut sample_counter: f32 = 0.0; // tracks how many samples passed, to track when a step passes
@@ -210,15 +210,7 @@ pub fn init(mut consumer: HeapCons<AudioCommand>, mut producer: HeapProd<UiComma
 
                 AudioCommand::LoadTrack(mut track_data, samples) => {
                     track_data.id = tracks.len() as u32;
-                    let track = Track {
-                        samples,
-                        position: 0.0,
-                        data: track_data,
-                        is_playing: false,
-                        current_volume: 0.0,
-                        show_velocity: false,
-                        playback_rate: 1.0,
-                    };
+                    let track = Track::from_data(track_data, samples);
                     tracks.push(track.clone());
                     producer.try_push(UiCommand::LoadTrack(track)).ok();
                 }
@@ -236,30 +228,16 @@ pub fn init(mut consumer: HeapCons<AudioCommand>, mut producer: HeapProd<UiComma
                 }
                 AudioCommand::SaveProject => {
                     // everything from current state
-                    let project = Project {
-                        name: name.clone(),
-                        bpm,
-                        master_volume,
-                        tracks: tracks.iter().map(|track| track.data.clone()).collect(),
-                        patterns: patterns.clone(),
-                        events: events.clone(),
-                    };
-                    save_project(&project, &project_path);
+                    let project = Project::new(name.clone(), bpm, master_volume, &tracks, patterns.clone(), events.clone());
+                    save_project_to_file(&project, &project_path);
 
                     // tell ui that we saved the audio finished up
                     producer.try_push(UiCommand::SaveComplete).ok();
                     println!("saved to {}", &project_path);
                 }
                 AudioCommand::ShutDown => {
-                    let project = Project {
-                        name: name.clone(),
-                        bpm,
-                        master_volume,
-                        tracks: tracks.iter().map(|track| track.data.clone()).collect(),
-                        patterns: patterns.clone(),
-                        events: events.clone(),
-                    };
-                    save_project(&project, &project_path);
+                    let project = Project::new(name.clone(), bpm, master_volume, &tracks, patterns.clone(), events.clone());
+                    save_project_to_file(&project, &project_path);
 
                     // save is complete
                     producer.try_push(UiCommand::SaveComplete).ok();
@@ -276,7 +254,7 @@ pub fn init(mut consumer: HeapCons<AudioCommand>, mut producer: HeapProd<UiComma
             sample[0] = 0.0; // left channel
             sample[1] = 0.0; // right channel
 
-            // fade out volume on shutdown
+            // negated linear ramp
             if is_shutting_down {
                 shutdown_volume -= 0.0001;
                 if shutdown_volume <= 0.0 {
@@ -295,13 +273,10 @@ pub fn init(mut consumer: HeapCons<AudioCommand>, mut producer: HeapProd<UiComma
                             track.is_playing = false;
                         } else {
                             // volume ramping
-                            if track.current_volume != track.data.target_volume {
-                                let difference = track.data.target_volume - track.current_volume;
-                                track.current_volume += difference * 0.01;
-                            }
+                            track.current_volume = dsp::smooth_toward(track.current_volume, track.data.target_volume, 0.01);
                             sample[0] += track.samples[pos] * track.current_volume * track.data.track_volume * shutdown_volume * master_volume;
                             sample[1] += track.samples[pos + 1] * track.current_volume * track.data.track_volume * shutdown_volume * master_volume;
-                            track.position += 2.0 * track.playback_rate;
+                            track.position += 2.0 * track.playback_rate; // ramping
                         }
                     }
                 }
@@ -312,7 +287,7 @@ pub fn init(mut consumer: HeapCons<AudioCommand>, mut producer: HeapProd<UiComma
             sample_counter += data.len() as f32 / 2.0; // increment sample counter by number of samples requested : keep track of sample position
 
             // get amount of samples per step
-            let samples_per_step = sample_rate_f / (bpm / 60.0 * 4.0);
+            let samples_per_step = dsp::samples_per_step(sample_rate_f, bpm);
 
             // increment the step if enough samples have passed
             if sample_counter >= samples_per_step {
@@ -349,10 +324,9 @@ pub fn init(mut consumer: HeapCons<AudioCommand>, mut producer: HeapProd<UiComma
                 for (track_id, velocity, pitch) in triggers {
                     if let Some(track) = tracks.iter_mut().find(|track| track.data.id as usize == track_id) {
                         track.position = 0.0;
-                        track.is_playing = true;
+                        track.is_playing = true; // step function
                         track.data.target_volume = velocity / 127.0;
-                        let semitones = pitch as f32 - track.data.root_note as f32;
-                        track.playback_rate = 2.0_f32.powf(semitones / 12.0);
+                        track.playback_rate = dsp::semitones_to_rate(pitch, track.data.root_note)
                     }
                 }
             }
