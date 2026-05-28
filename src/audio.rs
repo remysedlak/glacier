@@ -113,9 +113,7 @@ pub fn init(mut consumer: HeapCons<AudioCommand>, mut producer: HeapProd<UiComma
                 }
                 AudioCommand::DuplicatePattern(pattern_id) => {
                     if let Some(pattern) = patterns.iter().find(|p| p.id == pattern_id).cloned() {
-                        let mut new_pattern = pattern.clone();
-                        new_pattern.id = patterns.len();
-                        new_pattern.name = format!("{} Copy", pattern.name);
+                        let new_pattern = pattern.duplicate(patterns.len());
                         patterns.push(new_pattern.clone());
                         producer.try_push(UiCommand::LoadPattern(new_pattern)).ok();
                     }
@@ -129,7 +127,9 @@ pub fn init(mut consumer: HeapCons<AudioCommand>, mut producer: HeapProd<UiComma
                         } else {
                             *note = Note { velocity: 95.0, pitch };
                         }
-                    } else {
+                    }
+                    // lazy allocation - allocate a new sequence only if needed
+                    else {
                         let mut steps = vec![Note::default(); 32];
                         steps[step_idx] = Note { velocity: 95.0, pitch };
                         patterns[pattern_id].sequences.push(Sequence { track_id, steps });
@@ -184,9 +184,7 @@ pub fn init(mut consumer: HeapCons<AudioCommand>, mut producer: HeapProd<UiComma
                         block_type,
                     });
                 }
-                AudioCommand::ChangeMasterVolume(new_volume) => {
-                    master_volume = new_volume;
-                }
+                AudioCommand::ChangeMasterVolume(new_volume) => master_volume = new_volume,
                 AudioCommand::ChangeTrackVolume(track_id, new_volume) => {
                     tracks[track_id].data.track_volume = new_volume;
                 }
@@ -208,31 +206,27 @@ pub fn init(mut consumer: HeapCons<AudioCommand>, mut producer: HeapProd<UiComma
                     }
                 }
                 AudioCommand::DeleteTrack(track_id) => {
+                    // remove all references of this track_id from saved patterns
+                    let data_id = tracks[track_id].data.id;
+                    for pattern in patterns.iter_mut() {
+                        pattern.sequences.retain(|s| s.track_id != data_id);
+                    }
                     tracks.remove(track_id);
                 }
 
                 AudioCommand::LoadTrack(mut track_data, samples) => {
                     track_data.id = tracks.len() as u32;
                     let track = Track::from_data(track_data, samples);
-                    tracks.push(track.clone());
+                    tracks.push(track.clone()); // ownership clone
                     producer.try_push(UiCommand::LoadTrack(track)).ok();
                 }
-                AudioCommand::ChangeBpm(new_bpm) => {
-                    bpm = new_bpm;
-                }
-                AudioCommand::ToggleTrackMute(track_id) => {
-                    tracks[track_id].data.is_muted = !tracks[track_id].data.is_muted;
-                    tracks[track_id].position = 0.0;
-                    tracks[track_id].is_playing = false;
-                }
-                AudioCommand::TogglePlay => {
-                    // change state from pause to play, or play to pause
-                    is_playing = !is_playing;
-                }
+                AudioCommand::ChangeBpm(new_bpm) => bpm = new_bpm,
+                AudioCommand::ToggleTrackMute(track_id) => tracks[track_id].mute(),
+                AudioCommand::TogglePlay => is_playing = !is_playing,
                 AudioCommand::SaveProject => {
                     // everything from current state
                     let project = Project::new(name.clone(), bpm, master_volume, &tracks, patterns.clone(), events.clone());
-                    save_project_to_file(&project, &project_path);
+                    project.save_to_toml(&project_path);
 
                     // tell ui that we saved the audio finished up
                     producer.try_push(UiCommand::SaveComplete).ok();
@@ -240,7 +234,7 @@ pub fn init(mut consumer: HeapCons<AudioCommand>, mut producer: HeapProd<UiComma
                 }
                 AudioCommand::ShutDown => {
                     let project = Project::new(name.clone(), bpm, master_volume, &tracks, patterns.clone(), events.clone());
-                    save_project_to_file(&project, &project_path);
+                    project.save_to_toml(&project_path);
 
                     // save is complete
                     producer.try_push(UiCommand::SaveComplete).ok();
@@ -250,7 +244,7 @@ pub fn init(mut consumer: HeapCons<AudioCommand>, mut producer: HeapProd<UiComma
                     is_shutting_down = true;
                 }
             }
-        } // finish matching of commands sent from the UI
+        }
 
         // for each sample requested, mix in the appropriate track samples
         for sample in data.chunks_mut(2) {

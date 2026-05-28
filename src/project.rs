@@ -4,9 +4,6 @@ use serde::{Deserialize, Serialize};
 /// Project data stores song information
 #[derive(Serialize, Deserialize, Clone)]
 pub struct Project {
-    pub name: String,
-    pub bpm: f32,
-    pub master_volume: f32,
     pub events: Vec<AudioBlock>,
     pub tracks: Vec<TrackData>,
     pub patterns: Vec<PatternData>,
@@ -22,6 +19,12 @@ impl Project {
             patterns: patterns.clone(),
             events: events.clone(),
         }
+    }
+    /// Save the project details to a location on disk
+    pub fn save_to_toml(&self, file_path: &str) {
+        // convert project data to TOML and write to disk
+        let text = toml::to_string(self).unwrap();
+        std::fs::write(file_path, text).unwrap();
     }
 }
 
@@ -86,6 +89,11 @@ impl Track {
             playback_rate: 1.0,
         }
     }
+    pub fn mute(&mut self) {
+        self.data.is_muted = !self.data.is_muted;
+        self.position = 0.0;
+        self.is_playing = false;
+    }
 }
 
 /// Track  metadata stored on disk
@@ -110,6 +118,15 @@ pub struct PatternData {
     pub id: usize,
     pub name: String,
     pub sequences: Vec<Sequence>,
+}
+
+impl PatternData {
+    pub fn duplicate(&self, id: usize) -> PatternData {
+        let mut new_pattern = self.clone();
+        new_pattern.id = id;
+        new_pattern.name = format!("{} Copy", self.name);
+        new_pattern
+    }
 }
 
 // A sequencer is a grid of steps for each track in ONE pattern
@@ -147,15 +164,6 @@ pub fn get_tracks(project: &Project) -> Vec<Track> {
         .iter()
         .map(|track| Track::from_data(track.clone(), path_to_vector(&track.path)))
         .collect()
-}
-
-/// Save the project details to a location on disk
-pub fn save_project_to_file(project: &Project, file_path: &str) {
-    // convert project data to TOML format
-    let text = toml::to_string(&project).unwrap();
-
-    // write toml data to project file
-    std::fs::write(file_path, text).unwrap();
 }
 
 /// load a track's float data from it's file path
