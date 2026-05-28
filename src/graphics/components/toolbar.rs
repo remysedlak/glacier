@@ -1,10 +1,11 @@
 use crate::app::MouseState;
 use crate::graphics::font::MONOSPACED;
+use crate::graphics::primitives::{NO_RADIUS, PAD_16, PAD_2, PAD_4};
 use crate::graphics::{
     color::*,
     font::{TextItem, ROBOTO, TITLE},
     icons::{IconDraw, Tooltip},
-    primitives::{draw_h_line, NO_RADIUS, PAD_32, PAD_8},
+    primitives::{draw_h_line, PAD_32, PAD_8, RADIUS_4},
     widgets::*,
     ClickResult, ScreenConfig, Vertex, TOOLBAR_THICKNESS,
 };
@@ -43,7 +44,7 @@ pub fn draw_toolbar(
         width: screen_config.width as f32,
         height: TOOLBAR_Y,
     };
-    vertices.extend(toolbar_background.draw(&screen_config, PEBBLE, NO_RADIUS));
+    vertices.extend(toolbar_background.draw(&screen_config, PEBBLE, RADIUS_4));
 
     /* BPM Control
      * Up
@@ -74,7 +75,7 @@ pub fn draw_toolbar(
         width: PAD_32,
         height: 12.0,
     };
-    vertices.extend(bpm_up.draw(&screen_config, color(&bpm_up, mouse_state), NO_RADIUS));
+    vertices.extend(bpm_up.draw(&screen_config, color(&bpm_up, mouse_state), RADIUS_4));
     if bpm_up.is_hovered(mouse_state.x, mouse_state.y) {
         cursor_icon = CursorIcon::Pointer;
         if mouse_state.left_clicked {
@@ -88,7 +89,7 @@ pub fn draw_toolbar(
         width: bpm_up.width,
         height: bpm_up.height,
     };
-    vertices.extend(bpm_down.draw(&screen_config, color(&bpm_down, mouse_state), NO_RADIUS));
+    vertices.extend(bpm_down.draw(&screen_config, color(&bpm_down, mouse_state), RADIUS_4));
     if bpm_down.is_hovered(mouse_state.x, mouse_state.y) {
         cursor_icon = CursorIcon::Pointer;
         if mouse_state.left_clicked {
@@ -118,7 +119,7 @@ pub fn draw_toolbar(
     vertices.extend(play_button.draw(
         &screen_config,
         icon_color(&play_button, mouse_state.x, mouse_state.y, mouse_state.left_click_held),
-        NO_RADIUS,
+        RADIUS_4,
     ));
 
     // stop button
@@ -136,7 +137,7 @@ pub fn draw_toolbar(
     vertices.extend(stop_button.draw(
         &screen_config,
         icon_color(&stop_button, mouse_state.x, mouse_state.y, mouse_state.left_click_held),
-        NO_RADIUS,
+        RADIUS_4,
     ));
 
     /* AUDIO TIME
@@ -149,7 +150,7 @@ pub fn draw_toolbar(
         width: ICON_SIZE * 4.0,
         height: ICON_SIZE,
     };
-    vertices.extend(time_background.draw(&screen_config, BLACK, NO_RADIUS));
+    vertices.extend(time_background.draw(&screen_config, BLACK, RADIUS_4));
 
     /* MINI WINDOW TOGGLING
      *
@@ -170,7 +171,7 @@ pub fn draw_toolbar(
     vertices.extend(sequencer_toggle.draw(
         &screen_config,
         icon_color(&sequencer_toggle, mouse_state.x, mouse_state.y, mouse_state.left_click_held),
-        NO_RADIUS,
+        RADIUS_4,
     ));
     if sequencer_toggle.is_hovered(mouse_state.x, mouse_state.y) {
         if mouse_state.left_clicked {
@@ -188,7 +189,7 @@ pub fn draw_toolbar(
     vertices.extend(mixer_toggle.draw(
         &screen_config,
         icon_color(&mixer_toggle, mouse_state.x, mouse_state.y, mouse_state.left_click_held),
-        NO_RADIUS,
+        RADIUS_4,
     ));
     if mixer_toggle.is_hovered(mouse_state.x, mouse_state.y) {
         if mouse_state.left_clicked {
@@ -206,7 +207,7 @@ pub fn draw_toolbar(
     vertices.extend(playlist_toggle.draw(
         &screen_config,
         icon_color(&playlist_toggle, mouse_state.x, mouse_state.y, mouse_state.left_click_held),
-        NO_RADIUS,
+        RADIUS_4,
     ));
     if playlist_toggle.is_hovered(mouse_state.x, mouse_state.y) {
         if mouse_state.left_clicked {
@@ -223,7 +224,7 @@ pub fn draw_toolbar(
     vertices.extend(piano_toggle.draw(
         &screen_config,
         icon_color(&piano_toggle, mouse_state.x, mouse_state.y, mouse_state.left_click_held),
-        NO_RADIUS,
+        RADIUS_4,
     ));
     if piano_toggle.is_hovered(mouse_state.x, mouse_state.y) {
         if mouse_state.left_clicked {
@@ -240,7 +241,7 @@ pub fn draw_toolbar(
     vertices.extend(track_selection_toggle.draw(
         &screen_config,
         icon_color(&track_selection_toggle, mouse_state.x, mouse_state.y, mouse_state.left_click_held),
-        NO_RADIUS,
+        RADIUS_4,
     ));
     if track_selection_toggle.is_hovered(mouse_state.x, mouse_state.y) {
         if mouse_state.left_clicked {
@@ -257,7 +258,7 @@ pub fn draw_toolbar(
     vertices.extend(patterns_toggle.draw(
         &screen_config,
         icon_color(&patterns_toggle, mouse_state.x, mouse_state.y, mouse_state.left_click_held),
-        NO_RADIUS,
+        RADIUS_4,
     ));
     if patterns_toggle.is_hovered(mouse_state.x, mouse_state.y) {
         if mouse_state.left_clicked {
@@ -283,7 +284,7 @@ pub fn draw_toolbar(
     vertices.extend(load_project_button.draw(
         screen_config,
         icon_color(&load_project_button, mouse_state.x, mouse_state.y, mouse_state.left_click_held),
-        NO_RADIUS,
+        RADIUS_4,
     ));
     if load_project_button.is_hovered(mouse_state.x, mouse_state.y) {
         if mouse_state.left_clicked {
@@ -300,7 +301,7 @@ pub fn draw_toolbar(
     vertices.extend(load_track_button.draw(
         screen_config,
         icon_color(&load_track_button, mouse_state.x, mouse_state.y, mouse_state.left_click_held),
-        NO_RADIUS,
+        RADIUS_4,
     ));
     if load_track_button.is_hovered(mouse_state.x, mouse_state.y) {
         if mouse_state.left_clicked {
@@ -463,15 +464,28 @@ pub fn draw_toolbar(
         }
     }
 
+    let step_label = if active_step < 10 {
+        format!("0{}", active_step)
+    } else {
+        active_step.to_string()
+    };
+
     // debug current step
     toolbar_texts.push(TextItem {
-        text: active_step.to_string(),
-        x: 680.0,
-        y: TOOLBAR_MARGIN,
+        text: step_label,
+        x: time_background.x + time_background.width - PAD_16 - PAD_8 - PAD_4 - PAD_2,
+        y: TOOLBAR_MARGIN + PAD_2,
         size: TITLE,
-        color: WHITE,
-        font: ROBOTO,
+        color: ORANGE,
+        font: MONOSPACED,
     });
+    let step_divider_line = Rectangle {
+        x: time_background.x + time_background.width - PAD_16 - PAD_8 - PAD_16,
+        y: PAD_4,
+        height: TOOLBAR_Y - PAD_8 - PAD_2,
+        width: 2.0,
+    };
+    vertices.extend(step_divider_line.draw(screen_config, DARK_GRAY, NO_RADIUS));
 
     (vertices, toolbar_texts, icons, click_result, cursor_icon, tooltip)
 }
