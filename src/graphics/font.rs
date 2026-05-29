@@ -4,6 +4,7 @@ use crate::graphics::{
 };
 use std::collections::HashMap;
 
+#[expect(dead_code)] // wgpu texture is not used, just needs to exist
 pub struct GlyphEntry(wgpu::Texture, wgpu::BindGroup, fontdue::Metrics);
 impl GlyphEntry {
     pub fn bind_group(&self) -> &wgpu::BindGroup {

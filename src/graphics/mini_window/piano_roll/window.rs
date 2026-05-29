@@ -14,7 +14,6 @@ use winit::window::CursorIcon;
 pub fn draw(
     window: &MiniWindow,
     mouse_state: &MouseState,
-    piano_roll_scroll_offset: &ScrollOffset,
     screen_config: &ScreenConfig,
     patterns: &[PatternData],
     tracks: &[Track],
@@ -88,6 +87,8 @@ pub fn draw(
             .and_then(|p| p.sequences.iter().find(|s| s.track_id == state.track_id))
     });
 
+    let scroll = piano_roll_state.map(|s| &s.scroll_offset).unwrap_or(&ScrollOffset { x: (0.0), y: (0.0) });
+
     // piano roll keys and grid
     for octave in 0..9 {
         for semitone in 0..12 {
@@ -96,15 +97,13 @@ pub fn draw(
                 let black_key_width = PIANO_ROLL_WIDTH - white_key_width;
                 let black_piano_key = Rectangle {
                     x: window.x + SEMITONE_OFFSET_X,
-                    y: window.y + (semitone as f32 * SEMITONE_GAP) + (octave as f32 * OCTAVE_GAP) + PIANO_ROLL_MARGIN + PAD_8
-                        - piano_roll_scroll_offset.y,
+                    y: window.y + (semitone as f32 * SEMITONE_GAP) + (octave as f32 * OCTAVE_GAP) + PIANO_ROLL_MARGIN + PAD_8 - scroll.y,
                     height: SEMITONE_HEIGHT,
                     width: black_key_width,
                 };
                 let white_piano_key = Rectangle {
                     x: window.x + black_key_width + SEMITONE_OFFSET_X,
-                    y: window.y + (semitone as f32 * SEMITONE_GAP) + (octave as f32 * OCTAVE_GAP) + PIANO_ROLL_MARGIN + PAD_8
-                        - piano_roll_scroll_offset.y,
+                    y: window.y + (semitone as f32 * SEMITONE_GAP) + (octave as f32 * OCTAVE_GAP) + PIANO_ROLL_MARGIN + PAD_8 - scroll.y,
                     height: SEMITONE_HEIGHT,
                     width: white_key_width,
                 };
@@ -121,8 +120,7 @@ pub fn draw(
             } else {
                 let piano_key = Rectangle {
                     x: window.x + SEMITONE_OFFSET_X,
-                    y: window.y + (semitone as f32 * SEMITONE_GAP) + (octave as f32 * OCTAVE_GAP) + PIANO_ROLL_MARGIN + PAD_8
-                        - piano_roll_scroll_offset.y,
+                    y: window.y + (semitone as f32 * SEMITONE_GAP) + (octave as f32 * OCTAVE_GAP) + PIANO_ROLL_MARGIN + PAD_8 - scroll.y,
                     height: SEMITONE_HEIGHT,
                     width: PIANO_ROLL_WIDTH,
                 };
@@ -136,9 +134,8 @@ pub fn draw(
             // draw steps
             for step_index in 0..127 {
                 let piano_roll_step = Rectangle {
-                    x: window.x + (step_index as f32 * PAD_32) + PIANO_ROLL_MARGIN + SEMITONE_OFFSET_X - piano_roll_scroll_offset.x,
-                    y: window.y + (semitone as f32 * SEMITONE_GAP) + (octave as f32 * OCTAVE_GAP) + PIANO_ROLL_MARGIN + PAD_8
-                        - piano_roll_scroll_offset.y,
+                    x: window.x + (step_index as f32 * PAD_32) + PIANO_ROLL_MARGIN + SEMITONE_OFFSET_X - scroll.x,
+                    y: window.y + (semitone as f32 * SEMITONE_GAP) + (octave as f32 * OCTAVE_GAP) + PIANO_ROLL_MARGIN + PAD_8 - scroll.y,
                     height: SEMITONE_HEIGHT,
                     width: 30.0,
                 };
@@ -197,7 +194,7 @@ pub fn draw(
         piano_key_text_items.push(TextItem {
             text: c_label.to_string(),
             x: window.x + PAD_32 + PAD_16 + PAD_2 + PAD_8,
-            y: window.y + (11.0 * SEMITONE_GAP) + (octave as f32 * OCTAVE_GAP) + PIANO_ROLL_MARGIN + PAD_8 - piano_roll_scroll_offset.y,
+            y: window.y + (11.0 * SEMITONE_GAP) + (octave as f32 * OCTAVE_GAP) + PIANO_ROLL_MARGIN + PAD_8 - scroll.y,
             size: 10.0,
             font: MONOSPACED,
             color: BLACK,
@@ -206,8 +203,8 @@ pub fn draw(
 
     // active step line
     let active_step_line = Rectangle {
-        x: window.x + (active_step as f32 * PAD_32) + PIANO_ROLL_MARGIN + SEMITONE_OFFSET_X - piano_roll_scroll_offset.x,
-        y: window.y + PIANO_ROLL_MARGIN + PAD_8 - piano_roll_scroll_offset.y,
+        x: window.x + (active_step as f32 * PAD_32) + PIANO_ROLL_MARGIN + SEMITONE_OFFSET_X - scroll.x,
+        y: window.y + PIANO_ROLL_MARGIN + PAD_8 - scroll.y,
         width: 4.0,
         height: 9.0 * OCTAVE_GAP,
     };

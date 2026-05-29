@@ -1,7 +1,7 @@
 use winit::window::CursorIcon;
 
 use crate::{
-    app::MouseState,
+    app::{MouseState, ScrollOffset},
     graphics::{
         color::{Color, DARK_GRAY, DARK_GRAY_HOVER, DARK_GRAY_HOVER_HOVER, WHITE},
         font::{TextItem, ROBOTO},
@@ -213,6 +213,7 @@ impl ContextMenu {
                             click_result = ClickResult::LoadPianoRoll(crate::app::PianoRollState {
                                 pattern_id: (pattern_id),
                                 track_id: (track_id as u32),
+                                scroll_offset: ScrollOffset::default(),
                             });
                         }
                     }

@@ -239,7 +239,6 @@ impl Graphics {
                     let (static_draw_region, piano_key_draw_region, grid_draw_region, result, cursor) = piano_roll::window::draw(
                         window,
                         &masked_mouse,
-                        &self.piano_roll_scroll_offset,
                         &screen_config,
                         &self.patterns,
                         &self.tracks,

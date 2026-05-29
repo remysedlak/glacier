@@ -19,9 +19,7 @@ use crate::graphics::{
     font::{build_glyph_cache, create_bind_group_layout, TextItem, MONOSPACED, ROBOTO},
     icons::{push_icon_draw, Tooltip},
     mini_window::{
-        mixer, piano_roll,
-        piano_roll::PIANO_ROLL_DEFAULT_Y,
-        playlist, sequencer,
+        mixer, piano_roll, playlist, sequencer,
         sequencer::{ACTIONS_Y_OFFSET, KNOB_OFFSET, KNOB_RADIUS, TRACK_GAP},
         track, MiniWindow, PianoRollDrawRanges, PlaylistDrawRanges, WindowDrawRange, WindowKind, MIXER_ID, PIANO_ROLL_ID, PLAYLIST_ID, SEQUENCER_ID,
     },
@@ -47,7 +45,6 @@ use winit::{
 
 pub type Rc<T> = std::sync::Arc<T>;
 
-#[derive(Debug)]
 pub enum ClickResult {
     // sequencer
     ToggleStep(usize, usize, usize),   // pattern_id, track_id, step_idx
@@ -234,10 +231,6 @@ pub async fn create_graphics(window: Rc<Window>, proxy: EventLoopProxy<Graphics>
         dragging_window: None,
         dragging: false,
         playlist_scroll_offset: ScrollOffset::default(),
-        piano_roll_scroll_offset: ScrollOffset {
-            x: 0.0,
-            y: PIANO_ROLL_DEFAULT_Y,
-        },
         z_order: vec![SEQUENCER_ID, PLAYLIST_ID, MIXER_ID, PIANO_ROLL_ID],
         context_menu: None,
         resizing_event: None,
@@ -333,7 +326,6 @@ pub struct Graphics {
 
     // scrolling
     pub playlist_scroll_offset: ScrollOffset,
-    pub piano_roll_scroll_offset: ScrollOffset,
 }
 
 /// Bring a window to the front of the z-order

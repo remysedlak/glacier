@@ -2,6 +2,7 @@
 
 use crate::audio::{init, AudioCommand};
 use crate::config::{self, UserSettings};
+use crate::graphics::mini_window::piano_roll::PIANO_ROLL_DEFAULT_Y;
 use crate::graphics::{
     context_menu::{ContextMenu, ContextMenuKind},
     drag::DragResult,
@@ -44,6 +45,7 @@ pub struct MouseState {
     pub shift_pressed: bool,
 }
 
+#[derive(Clone, Copy)]
 pub struct ScrollOffset {
     pub x: f32,
     pub y: f32,
@@ -54,10 +56,10 @@ impl Default for ScrollOffset {
     }
 }
 
-#[derive(Debug)]
 pub struct PianoRollState {
     pub pattern_id: usize,
     pub track_id: u32,
+    pub scroll_offset: ScrollOffset,
 }
 
 // commands that the audio engine sends to the window
@@ -299,7 +301,7 @@ impl App {
                     });
                 }
                 ClickResult::LoadPianoRoll(piano_state) => {
-                    gfx.context_menu = None; // add this
+                    gfx.context_menu = None;
                     gfx.piano_roll_state = Some(piano_state);
                     if let Some(win) = gfx.mini_windows.iter_mut().find(|w| matches!(w.window_kind, WindowKind::PianoRoll)) {
                         bring_to_front(&mut gfx.z_order, PIANO_ROLL_ID);
@@ -374,6 +376,10 @@ impl App {
                     gfx.piano_roll_state = Some(PianoRollState {
                         pattern_id: gfx.active_pattern_id,
                         track_id: gfx.tracks[track].data.id,
+                        scroll_offset: ScrollOffset {
+                            x: 0.0,
+                            y: PIANO_ROLL_DEFAULT_Y,
+                        },
                     });
 
                     if let Some(pos) = gfx.mini_windows.iter().position(|w| w.window_kind == WindowKind::TrackDetail(track)) {
@@ -524,8 +530,11 @@ impl App {
                     }
                 }
 
-                ClickResult::None if self.mouse_state.left_clicked => gfx.context_menu = None,
-                _ => unreachable!(),
+                ClickResult::None => {
+                    if self.mouse_state.left_clicked {
+                        gfx.context_menu = None
+                    }
+                }
             }
 
             // consume the interactions
@@ -642,13 +651,15 @@ impl ApplicationHandler<Graphics> for App {
                         if self.mouse_state.shift_pressed {
                             gfx.playlist_scroll_offset.x -= self.mouse_state.scroll_y * 35.0;
                         } else {
-                            gfx.piano_roll_scroll_offset.y = (gfx.piano_roll_scroll_offset.y - self.mouse_state.scroll_y * 35.0).clamp(0.0, 1448.0);
+                            gfx.playlist_scroll_offset.y = (gfx.playlist_scroll_offset.y - self.mouse_state.scroll_y * 35.0).clamp(0.0, 1448.0);
                         }
                     } else if scroll_owner == Some(PIANO_ROLL_ID) {
-                        if self.mouse_state.shift_pressed {
-                            gfx.piano_roll_scroll_offset.x -= self.mouse_state.scroll_y * 35.0;
-                        } else {
-                            gfx.piano_roll_scroll_offset.y = (gfx.piano_roll_scroll_offset.y - self.mouse_state.scroll_y * 35.0).clamp(0.0, 1448.0);
+                        if let Some(state) = gfx.piano_roll_state.as_mut() {
+                            if self.mouse_state.shift_pressed {
+                                state.scroll_offset.x -= self.mouse_state.scroll_y * 35.0;
+                            } else {
+                                state.scroll_offset.y = (state.scroll_offset.y - self.mouse_state.scroll_y * 35.0).clamp(0.0, 1448.0);
+                            }
                         }
                     }
                 }
