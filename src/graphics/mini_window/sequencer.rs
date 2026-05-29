@@ -45,10 +45,10 @@ pub fn draw(
         width: window.width,
         height: window.height,
     };
-    vertices.extend(window_background.draw(&screen_config, MINI_WINDOW_BACKGROUND, BOTTOM_RADIUS_16));
+    vertices.extend(window_background.draw(screen_config, MINI_WINDOW_BACKGROUND, BOTTOM_RADIUS_16));
 
     // titlebar
-    let (titlebar_verts, titlebar_texts, result, cursor) = window_title_bar(&window, "Sequencer", &screen_config, &mouse_state);
+    let (titlebar_verts, titlebar_texts, result, cursor) = window_title_bar(window, &window.title, screen_config, mouse_state);
     if !matches!(cursor, CursorIcon::Default) {
         cursor_icon = cursor;
     }
@@ -87,14 +87,14 @@ pub fn draw(
                     width: SEQUENCER_STEP_WIDTH,
                     height: SEQUENCER_STEP_HEIGHT,
                 };
-                vertices.extend(background.draw(&screen_config, DARK_GRAY, NO_RADIUS));
+                vertices.extend(background.draw(screen_config, DARK_GRAY, NO_RADIUS));
                 let bar = Rectangle {
                     x: step_x,
                     y: y + SEQUENCER_STEP_HEIGHT - filled_height,
                     width: SEQUENCER_STEP_WIDTH,
                     height: filled_height,
                 };
-                vertices.extend(bar.draw(&screen_config, BLUE, NO_RADIUS));
+                vertices.extend(bar.draw(screen_config, BLUE, NO_RADIUS));
             }
         }
         // steps view
@@ -125,34 +125,32 @@ pub fn draw(
                 vertices.extend(step_button.draw(screen_config, step_color, RADIUS_4));
 
                 // check if the step was clicked
-                if step_button.is_hovered(mouse_state.x, mouse_state.y) {
-                    if mouse_state.left_clicked {
-                        // if the click is on an existing sequence
-                        if let Some(seq) = patterns[active_pattern_id].sequences.iter_mut().find(|s| s.track_id == track.data.id) {
-                            seq.steps[j] = if seq.steps[j].velocity > 0.0 {
-                                Note::default()
-                            } else {
-                                Note {
-                                    velocity: 95.0,
-                                    ..Default::default()
-                                }
-                            };
-                        }
-                        // if the click is on a nonexisting sequence
-                        else {
-                            // add a new sequence to the active pattern with the track used
-                            let mut steps = vec![Note::default(); 32];
-                            steps[j] = Note {
+                if step_button.is_hovered(mouse_state.x, mouse_state.y) && mouse_state.left_clicked {
+                    // if the click is on an existing sequence
+                    if let Some(seq) = patterns[active_pattern_id].sequences.iter_mut().find(|s| s.track_id == track.data.id) {
+                        seq.steps[j] = if seq.steps[j].velocity > 0.0 {
+                            Note::default()
+                        } else {
+                            Note {
                                 velocity: 95.0,
                                 ..Default::default()
-                            };
-                            patterns[active_pattern_id].sequences.push(Sequence {
-                                track_id: track.data.id,
-                                steps,
-                            });
-                        }
-                        click_result = ClickResult::ToggleStep(active_pattern_id, track.data.id as usize, j);
+                            }
+                        };
                     }
+                    // if the click is on a nonexisting sequence
+                    else {
+                        // add a new sequence to the active pattern with the track used
+                        let mut steps = vec![Note::default(); 32];
+                        steps[j] = Note {
+                            velocity: 95.0,
+                            ..Default::default()
+                        };
+                        patterns[active_pattern_id].sequences.push(Sequence {
+                            track_id: track.data.id,
+                            steps,
+                        });
+                    }
+                    click_result = ClickResult::ToggleStep(active_pattern_id, track.data.id as usize, j);
                 }
             }
         }
@@ -172,7 +170,7 @@ pub fn draw(
         } else {
             DARK_GRAY
         };
-        vertices.extend(track_button.draw(&screen_config, track_button_color, RADIUS_4));
+        vertices.extend(track_button.draw(screen_config, track_button_color, RADIUS_4));
         if track_button.is_hovered(mouse_state.x, mouse_state.y) {
             cursor_icon = CursorIcon::Pointer;
             if mouse_state.left_clicked {
@@ -200,7 +198,7 @@ pub fn draw(
         } else {
             LIGHT_GRAY
         };
-        vertices.extend(mute_button.draw(&screen_config, mute_button_color, RADIUS_4));
+        vertices.extend(mute_button.draw(screen_config, mute_button_color, RADIUS_4));
 
         text_items.push(TextItem {
             text: "mut".to_string(),
@@ -211,12 +209,10 @@ pub fn draw(
             font: ROBOTO,
         });
 
-        if mute_button.is_hovered(mouse_state.x, mouse_state.y) {
-            if mouse_state.left_clicked {
-                track.data.is_muted = !track.data.is_muted;
-                click_result = ClickResult::ToggleTrackMute(i);
-            }
-        }
+        if mute_button.is_hovered(mouse_state.x, mouse_state.y) && mouse_state.left_clicked {
+            track.data.is_muted = !track.data.is_muted;
+            click_result = ClickResult::ToggleTrackMute(i);
+        };
 
         // velocity button
         let velocity_button = Rectangle {
@@ -236,7 +232,7 @@ pub fn draw(
         } else {
             LIGHT_GRAY
         };
-        vertices.extend(velocity_button.draw(&screen_config, velocity_button_color, RADIUS_4));
+        vertices.extend(velocity_button.draw(screen_config, velocity_button_color, RADIUS_4));
 
         text_items.push(TextItem {
             text: "vel".to_string(),
@@ -246,11 +242,9 @@ pub fn draw(
             color: BLACK,
             font: ROBOTO,
         });
-        if velocity_button.is_hovered(mouse_state.x, mouse_state.y) {
-            if mouse_state.left_clicked {
-                track.show_velocity = !track.show_velocity;
-            }
-        }
+        if velocity_button.is_hovered(mouse_state.x, mouse_state.y) && mouse_state.left_clicked {
+            track.show_velocity = !track.show_velocity;
+        };
 
         // track volume knob
         for vert in draw_knob(

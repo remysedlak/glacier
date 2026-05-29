@@ -4,6 +4,28 @@ use crate::graphics::{
 };
 use std::collections::HashMap;
 
+pub struct GlyphEntry(wgpu::Texture, wgpu::BindGroup, fontdue::Metrics);
+impl GlyphEntry {
+    pub fn bind_group(&self) -> &wgpu::BindGroup {
+        &self.1
+    }
+}
+pub struct GlyphCache(HashMap<String, HashMap<(char, u32), GlyphEntry>>);
+impl GlyphCache {
+    pub fn new() -> Self {
+        GlyphCache(HashMap::new())
+    }
+    pub fn insert(&mut self, name: String, entry: HashMap<(char, u32), GlyphEntry>) {
+        self.0.insert(name, entry);
+    }
+    pub fn get(&self, font: &str, ch: char, size: u32) -> Option<&GlyphEntry> {
+        self.0.get(font)?.get(&(ch, size))
+    }
+    pub fn any_bind_group(&self) -> Option<&wgpu::BindGroup> {
+        Some(&self.0.values().next()?.values().next()?.1)
+    }
+}
+
 pub struct TextItem {
     pub text: String,
     pub size: f32,
@@ -55,12 +77,7 @@ pub fn create_bind_group_layout(device: &wgpu::Device) -> wgpu::BindGroupLayout 
 }
 
 /// returns the glyph cache (a hashmap of characters to bitmaps for one size)
-pub fn build_glyph_cache(
-    device: &wgpu::Device,
-    queue: &wgpu::Queue,
-    font: &fontdue::Font,
-    sizes: &[f32],
-) -> HashMap<(char, u32), (wgpu::Texture, wgpu::BindGroup, fontdue::Metrics)> {
+pub fn build_glyph_cache(device: &wgpu::Device, queue: &wgpu::Queue, font: &fontdue::Font, sizes: &[f32]) -> HashMap<(char, u32), GlyphEntry> {
     let mut cache = HashMap::new();
     for &size in sizes {
         for c in ' '..='~' {
@@ -70,7 +87,7 @@ pub fn build_glyph_cache(
             }
             let (texture, bind_group, _, _, _) = rasterize_glyph(device, queue, font, c, size);
             let (metrics, _) = font.rasterize(c, size);
-            cache.insert((c, size as u32), (texture, bind_group, metrics));
+            cache.insert((c, size as u32), GlyphEntry(texture, bind_group, metrics));
         }
     }
     cache

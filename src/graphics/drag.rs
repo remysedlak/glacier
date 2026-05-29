@@ -18,8 +18,8 @@ impl Graphics {
         let sequencer_window = &self.mini_windows[SEQUENCER_ID];
         let mixer_window = &self.mini_windows[MIXER_ID];
 
-        if self.dragging_window == None {
-            if self.dragging_knob == None {
+        if self.dragging_window.is_none() {
+            if self.dragging_knob.is_none() {
                 // MASTER VOLUME SLIDER
                 let slider_hit = Rectangle {
                     x: mixer_window.x + PAD_16,

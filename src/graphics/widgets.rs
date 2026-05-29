@@ -39,15 +39,7 @@ impl Square {
 
     // draw vertices with rectangle details
     pub fn draw(&self, screen_config: &ScreenConfig, color: Color, corner_radius: [f32; 4]) -> Vec<Vertex> {
-        draw_rectangle(
-            self.x as f32,
-            self.y as f32,
-            self.size as f32,
-            self.size as f32,
-            screen_config,
-            color,
-            corner_radius,
-        )
+        draw_rectangle(self.x, self.y, self.size, self.size, screen_config, color, corner_radius)
     }
 }
 
@@ -64,11 +56,11 @@ impl Rectangle {
         mouse_x > self.x && mouse_x < self.x + self.width && mouse_y > self.y && mouse_y < self.y + self.height
     }
     // if either edge of a rectangle has the mouse hovered
-    pub fn is_hovered_edge(&self, mouse_x: f32, mouse_y: f32) -> bool {
-        ((mouse_x > self.x + self.width - PAD_8 && mouse_x < self.x + self.width + PAD_8) || (mouse_x > self.x - PAD_8 && mouse_x < self.x + PAD_8))
-            && mouse_y > self.y
-            && mouse_y < self.y + self.height
-    }
+    // pub fn is_hovered_edge(&self, mouse_x: f32, mouse_y: f32) -> bool {
+    //     ((mouse_x > self.x + self.width - PAD_8 && mouse_x < self.x + self.width + PAD_8) || (mouse_x > self.x - PAD_8 && mouse_x < self.x + PAD_8))
+    //         && mouse_y > self.y
+    //         && mouse_y < self.y + self.height
+    // }
     // if the left edge of a rectangle has the mouse hovered
     pub fn is_hovered_left_edge(&self, mouse_x: f32, mouse_y: f32) -> bool {
         // on left edge within y range
@@ -81,15 +73,7 @@ impl Rectangle {
     }
     // draw vertices with rectangle details
     pub fn draw(&self, screen_config: &ScreenConfig, color: Color, corner_radius: [f32; 4]) -> Vec<Vertex> {
-        draw_rectangle(
-            self.x as f32,
-            self.y as f32,
-            self.width as f32,
-            self.height as f32,
-            screen_config,
-            color,
-            corner_radius,
-        )
+        draw_rectangle(self.x, self.y, self.width, self.height, screen_config, color, corner_radius)
     }
 }
 

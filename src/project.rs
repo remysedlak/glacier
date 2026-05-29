@@ -13,7 +13,7 @@ pub struct Project {
 }
 
 impl Project {
-    pub fn new(name: String, bpm: f32, master_volume: f32, tracks: &Vec<Track>, patterns: Vec<PatternData>, events: Vec<AudioBlock>) -> Project {
+    pub fn new(name: String, bpm: f32, master_volume: f32, tracks: &[Track], patterns: Vec<PatternData>, events: Vec<AudioBlock>) -> Project {
         Project {
             name: name.clone(),
             bpm,

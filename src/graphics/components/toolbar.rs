@@ -43,7 +43,7 @@ pub fn draw_toolbar(
         width: screen_config.width as f32,
         height: TOOLBAR_Y,
     };
-    vertices.extend(toolbar_background.draw(&screen_config, PEBBLE, RADIUS_4));
+    vertices.extend(toolbar_background.draw(screen_config, PEBBLE, RADIUS_4));
 
     /* BPM Control
      * Up
@@ -74,7 +74,7 @@ pub fn draw_toolbar(
         width: PAD_32,
         height: 12.0,
     };
-    vertices.extend(bpm_up.draw(&screen_config, color(&bpm_up, mouse_state), RADIUS_4));
+    vertices.extend(bpm_up.draw(screen_config, color(&bpm_up, mouse_state), RADIUS_4));
     if bpm_up.is_hovered(mouse_state.x, mouse_state.y) {
         cursor_icon = CursorIcon::Pointer;
         if mouse_state.left_clicked {
@@ -88,7 +88,7 @@ pub fn draw_toolbar(
         width: bpm_up.width,
         height: bpm_up.height,
     };
-    vertices.extend(bpm_down.draw(&screen_config, color(&bpm_down, mouse_state), RADIUS_4));
+    vertices.extend(bpm_down.draw(screen_config, color(&bpm_down, mouse_state), RADIUS_4));
     if bpm_down.is_hovered(mouse_state.x, mouse_state.y) {
         cursor_icon = CursorIcon::Pointer;
         if mouse_state.left_clicked {
@@ -110,13 +110,11 @@ pub fn draw_toolbar(
         y: PLAY_Y_ORIGIN,
         size: ICON_SIZE,
     };
-    if play_button.is_hovered(mouse_state.x, mouse_state.y) {
-        if mouse_state.left_clicked {
-            click_result = ClickResult::TogglePlay;
-        }
-    }
+    if play_button.is_hovered(mouse_state.x, mouse_state.y) && mouse_state.left_clicked {
+        click_result = ClickResult::TogglePlay;
+    };
     vertices.extend(play_button.draw(
-        &screen_config,
+        screen_config,
         icon_color(&play_button, mouse_state.x, mouse_state.y, mouse_state.left_click_held),
         RADIUS_4,
     ));
@@ -127,14 +125,12 @@ pub fn draw_toolbar(
         y: PLAY_Y_ORIGIN,
         size: ICON_SIZE,
     };
-    if stop_button.is_hovered(mouse_state.x, mouse_state.y) {
-        if mouse_state.left_clicked && active_step != 0 {
-            click_result = ClickResult::Stop;
-        }
-    }
+    if stop_button.is_hovered(mouse_state.x, mouse_state.y) && mouse_state.left_clicked && active_step != 0 {
+        click_result = ClickResult::Stop;
+    };
 
     vertices.extend(stop_button.draw(
-        &screen_config,
+        screen_config,
         icon_color(&stop_button, mouse_state.x, mouse_state.y, mouse_state.left_click_held),
         RADIUS_4,
     ));
@@ -149,7 +145,7 @@ pub fn draw_toolbar(
         width: ICON_SIZE * 4.0,
         height: ICON_SIZE,
     };
-    vertices.extend(time_background.draw(&screen_config, BLACK, RADIUS_4));
+    vertices.extend(time_background.draw(screen_config, BLACK, RADIUS_4));
 
     /* MINI WINDOW TOGGLING
      *
@@ -168,15 +164,13 @@ pub fn draw_toolbar(
     };
 
     vertices.extend(sequencer_toggle.draw(
-        &screen_config,
+        screen_config,
         icon_color(&sequencer_toggle, mouse_state.x, mouse_state.y, mouse_state.left_click_held),
         RADIUS_4,
     ));
-    if sequencer_toggle.is_hovered(mouse_state.x, mouse_state.y) {
-        if mouse_state.left_clicked {
-            click_result = ClickResult::ToggleSequencerWindow;
-        }
-    }
+    if sequencer_toggle.is_hovered(mouse_state.x, mouse_state.y) && mouse_state.left_clicked {
+        click_result = ClickResult::ToggleSequencerWindow;
+    };
 
     let mixer_toggle = Square {
         x: PLAY_X_ORIGIN + WINDOW_ICONS_OFFSET + ICON_GAP,
@@ -186,15 +180,13 @@ pub fn draw_toolbar(
     };
 
     vertices.extend(mixer_toggle.draw(
-        &screen_config,
+        screen_config,
         icon_color(&mixer_toggle, mouse_state.x, mouse_state.y, mouse_state.left_click_held),
         RADIUS_4,
     ));
-    if mixer_toggle.is_hovered(mouse_state.x, mouse_state.y) {
-        if mouse_state.left_clicked {
-            click_result = ClickResult::ToggleMixerWindow;
-        }
-    }
+    if mixer_toggle.is_hovered(mouse_state.x, mouse_state.y) && mouse_state.left_clicked {
+        click_result = ClickResult::ToggleMixerWindow;
+    };
 
     let playlist_toggle = Square {
         x: PLAY_X_ORIGIN + WINDOW_ICONS_OFFSET + (ICON_GAP * 2.0),
@@ -204,15 +196,13 @@ pub fn draw_toolbar(
     };
 
     vertices.extend(playlist_toggle.draw(
-        &screen_config,
+        screen_config,
         icon_color(&playlist_toggle, mouse_state.x, mouse_state.y, mouse_state.left_click_held),
         RADIUS_4,
     ));
-    if playlist_toggle.is_hovered(mouse_state.x, mouse_state.y) {
-        if mouse_state.left_clicked {
-            click_result = ClickResult::TogglePlaylistWindow;
-        }
-    }
+    if playlist_toggle.is_hovered(mouse_state.x, mouse_state.y) && mouse_state.left_clicked {
+        click_result = ClickResult::TogglePlaylistWindow;
+    };
 
     let piano_toggle = Square {
         x: PLAY_X_ORIGIN + WINDOW_ICONS_OFFSET + (ICON_GAP * 3.0),
@@ -221,15 +211,13 @@ pub fn draw_toolbar(
         size: ICON_SIZE,
     };
     vertices.extend(piano_toggle.draw(
-        &screen_config,
+        screen_config,
         icon_color(&piano_toggle, mouse_state.x, mouse_state.y, mouse_state.left_click_held),
         RADIUS_4,
     ));
-    if piano_toggle.is_hovered(mouse_state.x, mouse_state.y) {
-        if mouse_state.left_clicked {
-            click_result = ClickResult::TogglePianoRollWindow;
-        }
-    }
+    if piano_toggle.is_hovered(mouse_state.x, mouse_state.y) && mouse_state.left_clicked {
+        click_result = ClickResult::TogglePianoRollWindow;
+    };
 
     let track_selection_toggle = Square {
         x: PLAY_X_ORIGIN + WINDOW_ICONS_OFFSET + (ICON_GAP * 4.0),
@@ -238,15 +226,13 @@ pub fn draw_toolbar(
         size: ICON_SIZE,
     };
     vertices.extend(track_selection_toggle.draw(
-        &screen_config,
+        screen_config,
         icon_color(&track_selection_toggle, mouse_state.x, mouse_state.y, mouse_state.left_click_held),
         RADIUS_4,
     ));
-    if track_selection_toggle.is_hovered(mouse_state.x, mouse_state.y) {
-        if mouse_state.left_clicked {
-            click_result = ClickResult::ToggleTrackTray;
-        }
-    }
+    if track_selection_toggle.is_hovered(mouse_state.x, mouse_state.y) && mouse_state.left_clicked {
+        click_result = ClickResult::ToggleTrackTray;
+    };
 
     let patterns_toggle = Square {
         x: PLAY_X_ORIGIN + WINDOW_ICONS_OFFSET + (ICON_GAP * 5.0),
@@ -255,15 +241,13 @@ pub fn draw_toolbar(
         size: ICON_SIZE,
     };
     vertices.extend(patterns_toggle.draw(
-        &screen_config,
+        screen_config,
         icon_color(&patterns_toggle, mouse_state.x, mouse_state.y, mouse_state.left_click_held),
         RADIUS_4,
     ));
-    if patterns_toggle.is_hovered(mouse_state.x, mouse_state.y) {
-        if mouse_state.left_clicked {
-            click_result = ClickResult::TogglePatternTray;
-        }
-    }
+    if patterns_toggle.is_hovered(mouse_state.x, mouse_state.y) && mouse_state.left_clicked {
+        click_result = ClickResult::TogglePatternTray;
+    };
 
     // toolbar line
     for vert in draw_h_line(TOOLBAR_Y, TOOLBAR_THICKNESS, screen_config) {
@@ -285,11 +269,9 @@ pub fn draw_toolbar(
         icon_color(&load_project_button, mouse_state.x, mouse_state.y, mouse_state.left_click_held),
         RADIUS_4,
     ));
-    if load_project_button.is_hovered(mouse_state.x, mouse_state.y) {
-        if mouse_state.left_clicked {
-            click_result = ClickResult::ProjectFileDialog
-        }
-    }
+    if load_project_button.is_hovered(mouse_state.x, mouse_state.y) && mouse_state.left_clicked {
+        click_result = ClickResult::ProjectFileDialog
+    };
 
     // load an track
     let load_track_button = Square {
@@ -302,11 +284,9 @@ pub fn draw_toolbar(
         icon_color(&load_track_button, mouse_state.x, mouse_state.y, mouse_state.left_click_held),
         RADIUS_4,
     ));
-    if load_track_button.is_hovered(mouse_state.x, mouse_state.y) {
-        if mouse_state.left_clicked {
-            click_result = ClickResult::TrackFileDialog
-        }
-    }
+    if load_track_button.is_hovered(mouse_state.x, mouse_state.y) && mouse_state.left_clicked {
+        click_result = ClickResult::TrackFileDialog
+    };
 
     let icons = vec![
         IconDraw {

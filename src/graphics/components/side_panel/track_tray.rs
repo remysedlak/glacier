@@ -38,7 +38,7 @@ pub fn draw(mouse_state: &MouseState, screen_config: &ScreenConfig, tracks: &[Tr
     });
     text_items.push(draw_title("Tracks", (track_tray.x, track_tray.y)));
 
-    for (i, track) in tracks.into_iter().enumerate() {
+    for (i, track) in tracks.iter().enumerate() {
         let button_x = track_tray.x + PAD_16;
         let button_y = PATTERN_TRAY_HEADER_MARGIN + (PATTERN_TRAY_ITEM_GAP * i as f32) + PAD_32;
         let track_button = Rectangle {

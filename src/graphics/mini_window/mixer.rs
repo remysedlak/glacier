@@ -30,11 +30,11 @@ pub fn draw(
     let mut cursor_icon = CursorIcon::Default;
 
     // window background
-    let window_background = window_background(&window);
-    vertices.extend(window_background.draw(&screen_config, MINI_WINDOW_BACKGROUND, BOTTOM_RADIUS_16));
+    let window_background = window_background(window);
+    vertices.extend(window_background.draw(screen_config, MINI_WINDOW_BACKGROUND, BOTTOM_RADIUS_16));
 
     // window titlebar
-    let (titlebar_verts, titlebar_texts, result, cursor) = window_title_bar(&window, "Mixer", screen_config, mouse_state);
+    let (titlebar_verts, titlebar_texts, result, cursor) = window_title_bar(window, "Mixer", screen_config, mouse_state);
     if !matches!(cursor, CursorIcon::Default) {
         cursor_icon = cursor;
     }

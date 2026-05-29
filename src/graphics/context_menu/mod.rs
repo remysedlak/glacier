@@ -25,7 +25,6 @@ pub struct ContextMenu {
     pub kind: ContextMenuKind,
     pub x: f32,
     pub y: f32,
-    pub height: f32,
     pub width: f32,
 }
 fn menu_item_color(rect: &Rectangle, mx: f32, my: f32, held: bool) -> Color {

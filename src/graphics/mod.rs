@@ -9,8 +9,9 @@ pub mod mini_window;
 pub mod primitives;
 pub mod widgets;
 
-use crate::app::{MouseState, PianoRollState};
+use crate::app::{MouseState, PianoRollState, ScrollOffset};
 use crate::audio::DEFAULT_BPM;
+use crate::graphics::font::{GlyphCache, GlyphEntry};
 use crate::graphics::{
     color::{Color, DARK_GRAY, WHITE},
     components::{footer, side_panel},
@@ -60,6 +61,7 @@ pub enum ClickResult {
     Stop,
     ChangeBpmUp,
     ChangeBpmDown,
+    #[expect(dead_code)]
     ChangeBpm(f32),
     TogglePlay,
     ProjectFileDialog,
@@ -156,21 +158,22 @@ pub async fn create_graphics(window: Rc<Window>, proxy: EventLoopProxy<Graphics>
     let piano_window = MiniWindow::new(256.0, 700.0, 1092.0, 600.0, "Piano", WindowKind::PianoRoll, true);
     let sequencer_window = MiniWindow::new(150.0, 90.0, 1092.0, 100.0, "Sequencer", WindowKind::Sequencer, false);
 
-    let mut mini_windows: Vec<MiniWindow> = Vec::new();
-    mini_windows.push(sequencer_window); // 0
-    mini_windows.push(playlist_window); // 1
-    mini_windows.push(mixer_window); // 2
-    mini_windows.push(piano_window); // 3
+    let mini_windows: Vec<MiniWindow> = vec![
+        sequencer_window, // 0
+        playlist_window,  // 1
+        mixer_window,     // 2
+        piano_window,     // 3
+    ];
 
     // fonts
     let roboto = (ROBOTO, include_bytes!("../../assets/fonts/Roboto-VariableFont_wdth,wght.ttf") as &[u8]);
     let mono = (MONOSPACED, include_bytes!("../../assets/fonts/IBMPlexMono-Regular.ttf") as &[u8]);
     let mut font_cache: HashMap<String, fontdue::Font> = HashMap::new();
-    let mut glyph_cache: HashMap<String, HashMap<(char, u32), (wgpu::Texture, wgpu::BindGroup, fontdue::Metrics)>> = HashMap::new();
+    let mut glyph_cache = GlyphCache::new();
     let bind_group_layout = create_bind_group_layout(&device);
     for (name, bytes) in [roboto, mono] {
         let font = fontdue::Font::from_bytes(bytes, fontdue::FontSettings::default()).unwrap();
-        let cache = build_glyph_cache(&device, &queue, &font, &[8.0, 10.0, 12.0, 14.0, 16.0, 18.0, 24.0, 32.0]);
+        let cache: HashMap<(char, u32), GlyphEntry> = build_glyph_cache(&device, &queue, &font, &[8.0, 10.0, 12.0, 14.0, 16.0, 18.0, 24.0, 32.0]);
         font_cache.insert(name.to_string(), font);
         glyph_cache.insert(name.to_string(), cache);
     }
@@ -230,10 +233,11 @@ pub async fn create_graphics(window: Rc<Window>, proxy: EventLoopProxy<Graphics>
         mini_windows,
         dragging_window: None,
         dragging: false,
-        playlist_scroll_x: 0.0,
-        playlist_scroll_y: 0.0,
-        piano_roll_scroll_x: 0.0,
-        piano_roll_scroll_y: PIANO_ROLL_DEFAULT_Y,
+        playlist_scroll_offset: ScrollOffset::default(),
+        piano_roll_scroll_offset: ScrollOffset {
+            x: 0.0,
+            y: PIANO_ROLL_DEFAULT_Y,
+        },
         z_order: vec![SEQUENCER_ID, PLAYLIST_ID, MIXER_ID, PIANO_ROLL_ID],
         context_menu: None,
         resizing_event: None,
@@ -295,7 +299,7 @@ pub struct Graphics {
     vertex_buffer: wgpu::Buffer,
 
     // text
-    glyph_cache: HashMap<String, HashMap<(char, u32), (wgpu::Texture, wgpu::BindGroup, fontdue::Metrics)>>,
+    glyph_cache: GlyphCache,
     font_cache: HashMap<String, fontdue::Font>,
 
     //ui
@@ -310,7 +314,6 @@ pub struct Graphics {
     pub frame_ms: f32,
     pub show_track_tray: bool,
     pub show_pattern_tray: bool,
-
     // song
     pub project_path: String,
     pub tracks: Vec<Track>,
@@ -329,10 +332,8 @@ pub struct Graphics {
     pub resize_drag_accumulator: f32,
 
     // scrolling
-    pub playlist_scroll_x: f32,
-    pub playlist_scroll_y: f32,
-    pub piano_roll_scroll_x: f32,
-    pub piano_roll_scroll_y: f32,
+    pub playlist_scroll_offset: ScrollOffset,
+    pub piano_roll_scroll_offset: ScrollOffset,
 }
 
 /// Bring a window to the front of the z-order

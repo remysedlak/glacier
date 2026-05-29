@@ -29,12 +29,12 @@ pub fn draw(
     let mut cursor_icon = CursorIcon::Default;
     let mut tooltip: Option<Tooltip> = None;
     // window background
-    let window_background = window_background(&window);
-    vertices.extend(window_background.draw(&screen_config, MINI_WINDOW_BACKGROUND, [0.0, 16.0, 0.0, 16.0]));
+    let window_background = window_background(window);
+    vertices.extend(window_background.draw(screen_config, MINI_WINDOW_BACKGROUND, [0.0, 16.0, 0.0, 16.0]));
 
     // titlebar
     let (titlebar_verts, titlebar_texts, result, cursor) =
-        window_title_bar(&window, &format!("Track: {}", track.data.name), screen_config, mouse_state);
+        window_title_bar(window, &format!("Track: {}", track.data.name), screen_config, mouse_state);
     click_result = click_result.or(result);
     if !matches!(cursor, CursorIcon::Default) {
         cursor_icon = cursor;
@@ -51,7 +51,7 @@ pub fn draw(
         width: TRACK_GRAPHICS_WIDTH,
         height: TRACK_GRAPHICS_HEIGHT,
     };
-    vertices.extend(track_wave_background.draw(&screen_config, DARK_GRAY, NO_RADIUS));
+    vertices.extend(track_wave_background.draw(screen_config, DARK_GRAY, NO_RADIUS));
 
     let samples_averaged: Vec<f32> = track.samples.chunks(2).map(|pair| (pair[0] + pair[1]) / 2.0).collect::<Vec<f32>>();
     let sample_stride = samples_averaged.len() / TRACK_GRAPHICS_WIDTH as usize;
@@ -59,8 +59,8 @@ pub fn draw(
     // 200 pixel columns for 200 pixel graphics
     for pixel_column in 0..199 {
         // get the first and last position of the stride
-        let start = pixel_column * sample_stride as usize;
-        let end = (start + sample_stride as usize).min(samples_averaged.len());
+        let start = pixel_column * sample_stride;
+        let end = (start + sample_stride).min(samples_averaged.len());
         // using  the start and end range,  find the highest and lowest amplitude within that stride
         let max = samples_averaged[start..end].iter().cloned().fold(f32::NEG_INFINITY, f32::max);
         let min = samples_averaged[start..end].iter().cloned().fold(f32::INFINITY, f32::min);
@@ -81,11 +81,9 @@ pub fn draw(
         y: open_file_button_y - SVG_PADDING,
         size: 32.0 + SVG_PADDING,
     };
-    if open_file_background.is_hovered(mouse_state.x, mouse_state.y) {
-        if mouse_state.left_clicked {
-            click_result = ClickResult::OpenTrackFileLocation(track.data.path.clone())
-        }
-    }
+    if open_file_background.is_hovered(mouse_state.x, mouse_state.y) && mouse_state.left_clicked {
+        click_result = ClickResult::OpenTrackFileLocation(track.data.path.clone())
+    };
     vertices.extend(open_file_background.draw(
         screen_config,
         crate::graphics::components::toolbar::icon_color(&open_file_background, mouse_state.x, mouse_state.y, mouse_state.left_click_held),

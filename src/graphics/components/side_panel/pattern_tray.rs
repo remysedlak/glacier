@@ -32,7 +32,7 @@ pub fn draw(
         width: TRAY_WIDTH,
         height: screen_config.height as f32 - TOOLBAR_THICKNESS,
     };
-    vertices.extend(pattern_tray.draw(&screen_config, PEBBLE, NO_RADIUS));
+    vertices.extend(pattern_tray.draw(screen_config, PEBBLE, NO_RADIUS));
     if pattern_tray.is_hovered_left_edge(mouse_state.x, mouse_state.y) {
         cursor_icon = CursorIcon::ColResize
     }
@@ -46,7 +46,7 @@ pub fn draw(
         size: ICON_SIZE,
     };
     vertices.extend(add_pattern_button.draw(
-        &screen_config,
+        screen_config,
         icon_color(&add_pattern_button, mouse_state.x, mouse_state.y, mouse_state.left_click_held),
         RADIUS_8,
     ));
@@ -88,26 +88,26 @@ pub fn draw(
                 width: 4.0,
                 height: PATTERN_TRAY_ITEM_HEIGHT,
             };
-            vertices.extend(indicator.draw(&screen_config, crate::graphics::color::ORANGE, [7.0, 7.0, 7.0, 7.0]));
+            vertices.extend(indicator.draw(screen_config, crate::graphics::color::ORANGE, [7.0, 7.0, 7.0, 7.0]));
         }
         let pattern_button_color = if pattern_button.is_hovered(mouse_state.x, mouse_state.y) {
             LIGHT_GRAY_HOVER
         } else {
             LIGHT_GRAY
         };
-        vertices.extend(pattern_button.draw(&screen_config, pattern_button_color, [4.0, 4.0, 4.0, 4.0]));
+        vertices.extend(pattern_button.draw(screen_config, pattern_button_color, [4.0, 4.0, 4.0, 4.0]));
 
         // handle interaction
         if pattern_button.is_hovered(mouse_state.x, mouse_state.y) {
             cursor_icon = CursorIcon::Pointer;
             if mouse_state.left_clicked {
-                click_result = ClickResult::SelectPattern(pattern.id as usize);
+                click_result = ClickResult::SelectPattern(pattern.id);
             }
             if mouse_state.left_double_clicked && !sequencer_is_open {
                 click_result = ClickResult::ToggleSequencerWindow;
             }
             if mouse_state.right_clicked {
-                click_result = ClickResult::OpenPatternMenu(pattern_button.x, pattern_button.y, pattern.id as usize);
+                click_result = ClickResult::OpenPatternMenu(pattern_button.x, pattern_button.y, pattern.id);
             }
         }
     }

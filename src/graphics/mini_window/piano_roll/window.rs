@@ -1,4 +1,5 @@
-use crate::app::{MouseState, PianoRollState};
+use crate::app::{MouseState, PianoRollState, ScrollOffset};
+use crate::graphics::primitives::DrawRegion;
 use crate::graphics::{
     color::*,
     font::{TextItem, MONOSPACED},
@@ -13,20 +14,16 @@ use winit::window::CursorIcon;
 pub fn draw(
     window: &MiniWindow,
     mouse_state: &MouseState,
-    scroll_x: f32,
-    scroll_y: f32,
+    piano_roll_scroll_offset: &ScrollOffset,
     screen_config: &ScreenConfig,
     patterns: &[PatternData],
     tracks: &[Track],
     active_step: usize,
     piano_roll_state: Option<&PianoRollState>,
 ) -> (
-    Vec<Vertex>, // static vertices (background, titlebar, toolbar)
-    Vec<TextItem>,
-    Vec<Vertex>, // piano key vertices
-    Vec<TextItem>,
-    Vec<Vertex>, // grid vertices
-    Vec<TextItem>,
+    DrawRegion, // static
+    DrawRegion, // piano key
+    DrawRegion, // grid
     ClickResult,
     CursorIcon,
 ) {
@@ -38,13 +35,13 @@ pub fn draw(
     let mut piano_key_text_items: Vec<TextItem> = Vec::new();
 
     let mut grid_vertices: Vec<Vertex> = Vec::new();
-    let mut grid_text_items: Vec<TextItem> = Vec::new();
+    let grid_text_items: Vec<TextItem> = Vec::new();
 
     let mut cursor_icon = CursorIcon::Default;
     let mut click_result = ClickResult::None;
 
-    let playlist_background = window_background(&window);
-    static_vertices.extend(playlist_background.draw(&screen_config, MINI_WINDOW_BACKGROUND, BOTTOM_RADIUS_16));
+    let playlist_background = window_background(window);
+    static_vertices.extend(playlist_background.draw(screen_config, MINI_WINDOW_BACKGROUND, BOTTOM_RADIUS_16));
 
     // titlebar
     let title = if let Some(state) = piano_roll_state {
@@ -56,7 +53,7 @@ pub fn draw(
     } else {
         "Piano Roll".to_string()
     };
-    let (titlebar_verts, titlebar_texts, result, cursor) = window_title_bar(&window, &title, screen_config, mouse_state);
+    let (titlebar_verts, titlebar_texts, result, cursor) = window_title_bar(window, &title, screen_config, mouse_state);
     if !matches!(cursor, CursorIcon::Default) {
         cursor_icon = cursor;
     }
@@ -71,7 +68,7 @@ pub fn draw(
         width: window.width - PAD_16 - PAD_8 - PIANO_ROLL_WIDTH,
         height: 24.0,
     };
-    static_vertices.extend(bottom_toolbar_background.draw(&screen_config, LL_GRAY, NO_RADIUS));
+    static_vertices.extend(bottom_toolbar_background.draw(screen_config, LL_GRAY, NO_RADIUS));
     for icon in 0..8 {
         let icon_rect = Rectangle {
             x: window.x + SEMITONE_OFFSET_X + PIANO_ROLL_WIDTH + (icon as f32 * 36.0) + PAD_4,
@@ -99,13 +96,15 @@ pub fn draw(
                 let black_key_width = PIANO_ROLL_WIDTH - white_key_width;
                 let black_piano_key = Rectangle {
                     x: window.x + SEMITONE_OFFSET_X,
-                    y: window.y + (semitone as f32 * SEMITONE_GAP) + (octave as f32 * OCTAVE_GAP) + PIANO_ROLL_MARGIN + PAD_8 - scroll_y,
+                    y: window.y + (semitone as f32 * SEMITONE_GAP) + (octave as f32 * OCTAVE_GAP) + PIANO_ROLL_MARGIN + PAD_8
+                        - piano_roll_scroll_offset.y,
                     height: SEMITONE_HEIGHT,
                     width: black_key_width,
                 };
                 let white_piano_key = Rectangle {
                     x: window.x + black_key_width + SEMITONE_OFFSET_X,
-                    y: window.y + (semitone as f32 * SEMITONE_GAP) + (octave as f32 * OCTAVE_GAP) + PIANO_ROLL_MARGIN + PAD_8 - scroll_y,
+                    y: window.y + (semitone as f32 * SEMITONE_GAP) + (octave as f32 * OCTAVE_GAP) + PIANO_ROLL_MARGIN + PAD_8
+                        - piano_roll_scroll_offset.y,
                     height: SEMITONE_HEIGHT,
                     width: white_key_width,
                 };
@@ -122,7 +121,8 @@ pub fn draw(
             } else {
                 let piano_key = Rectangle {
                     x: window.x + SEMITONE_OFFSET_X,
-                    y: window.y + (semitone as f32 * SEMITONE_GAP) + (octave as f32 * OCTAVE_GAP) + PIANO_ROLL_MARGIN + PAD_8 - scroll_y,
+                    y: window.y + (semitone as f32 * SEMITONE_GAP) + (octave as f32 * OCTAVE_GAP) + PIANO_ROLL_MARGIN + PAD_8
+                        - piano_roll_scroll_offset.y,
                     height: SEMITONE_HEIGHT,
                     width: PIANO_ROLL_WIDTH,
                 };
@@ -136,8 +136,9 @@ pub fn draw(
             // draw steps
             for step_index in 0..127 {
                 let piano_roll_step = Rectangle {
-                    x: window.x + (step_index as f32 * PAD_32) + PIANO_ROLL_MARGIN + SEMITONE_OFFSET_X - scroll_x,
-                    y: window.y + (semitone as f32 * SEMITONE_GAP) + (octave as f32 * OCTAVE_GAP) + PIANO_ROLL_MARGIN + PAD_8 - scroll_y,
+                    x: window.x + (step_index as f32 * PAD_32) + PIANO_ROLL_MARGIN + SEMITONE_OFFSET_X - piano_roll_scroll_offset.x,
+                    y: window.y + (semitone as f32 * SEMITONE_GAP) + (octave as f32 * OCTAVE_GAP) + PIANO_ROLL_MARGIN + PAD_8
+                        - piano_roll_scroll_offset.y,
                     height: SEMITONE_HEIGHT,
                     width: 30.0,
                 };
@@ -196,7 +197,7 @@ pub fn draw(
         piano_key_text_items.push(TextItem {
             text: c_label.to_string(),
             x: window.x + PAD_32 + PAD_16 + PAD_2 + PAD_8,
-            y: window.y + (11.0 * SEMITONE_GAP) + (octave as f32 * OCTAVE_GAP) + PIANO_ROLL_MARGIN + PAD_8 - scroll_y,
+            y: window.y + (11.0 * SEMITONE_GAP) + (octave as f32 * OCTAVE_GAP) + PIANO_ROLL_MARGIN + PAD_8 - piano_roll_scroll_offset.y,
             size: 10.0,
             font: MONOSPACED,
             color: BLACK,
@@ -205,19 +206,25 @@ pub fn draw(
 
     // active step line
     let active_step_line = Rectangle {
-        x: window.x + (active_step as f32 * PAD_32) + PIANO_ROLL_MARGIN + SEMITONE_OFFSET_X - scroll_x,
-        y: window.y + PIANO_ROLL_MARGIN + PAD_8 - scroll_y,
+        x: window.x + (active_step as f32 * PAD_32) + PIANO_ROLL_MARGIN + SEMITONE_OFFSET_X - piano_roll_scroll_offset.x,
+        y: window.y + PIANO_ROLL_MARGIN + PAD_8 - piano_roll_scroll_offset.y,
         width: 4.0,
         height: 9.0 * OCTAVE_GAP,
     };
     grid_vertices.extend(active_step_line.draw(screen_config, GREEN, NO_RADIUS));
     (
-        static_vertices,
-        static_text_items,
-        piano_key_vertices,
-        piano_key_text_items,
-        grid_vertices,
-        grid_text_items,
+        DrawRegion {
+            vertices: static_vertices,
+            text_items: static_text_items,
+        },
+        DrawRegion {
+            vertices: piano_key_vertices,
+            text_items: piano_key_text_items,
+        },
+        DrawRegion {
+            vertices: grid_vertices,
+            text_items: grid_text_items,
+        },
         click_result,
         cursor_icon,
     )

@@ -1,6 +1,6 @@
 pub mod window;
 use crate::graphics::{
-    color::{Color, BLACK, C_NOTE_COLOR, DARK_GRAY, ORANGE, WHITE},
+    color::{Color, C_NOTE_COLOR, ORANGE, WHITE},
     widgets::Rectangle,
 };
 
@@ -13,21 +13,13 @@ pub const PIANO_ROLL_MARGIN: f32 = 64.0;
 pub const SEMITONE_OFFSET_X: f32 = 8.0;
 pub const PIANO_ROLL_DEFAULT_Y: f32 = 1015.0;
 
-pub struct PianoNote {
-    pub pitch: u8,    // 0-127, maps to semitone+octave
-    pub start: u32,   // which step column it starts on
-    pub length: u32,  // how many step columns it spans
-    pub velocity: u8, // 0-127
-}
+// pub struct PianoNote {
+//     pub pitch: u8,    // 0-127, maps to semitone+octave
+//     pub start: u32,   // which step column it starts on
+//     pub length: u32,  // how many step columns it spans
+//     pub velocity: u8, // 0-127
+// }
 
-// return color for hover logic
-pub fn black_piano_step_hover_color(rect: &Rectangle, mx: f32, my: f32) -> Color {
-    if rect.is_hovered(mx, my) {
-        DARK_GRAY
-    } else {
-        BLACK
-    }
-}
 pub fn white_piano_step_hover_color(rect: &Rectangle, mx: f32, my: f32, index: u32) -> Color {
     if rect.is_hovered(mx, my) && index == 11 {
         ORANGE

@@ -44,6 +44,16 @@ pub struct MouseState {
     pub shift_pressed: bool,
 }
 
+pub struct ScrollOffset {
+    pub x: f32,
+    pub y: f32,
+}
+impl Default for ScrollOffset {
+    fn default() -> Self {
+        ScrollOffset { x: 0.0, y: 0.0 }
+    }
+}
+
 #[derive(Debug)]
 pub struct PianoRollState {
     pub pattern_id: usize,
@@ -65,7 +75,7 @@ pub enum UiCommand {
 
 // the app is in initializing state or its ready to draw
 enum State {
-    Ready(Graphics),
+    Ready(Box<Graphics>),
     Init(Option<EventLoopProxy<Graphics>>),
 }
 
@@ -335,7 +345,6 @@ impl App {
                         kind: ContextMenuKind::PatternContext(pattern_id),
                         x,
                         y,
-                        height: 128.0,
                         width: 128.0,
                     });
                 }
@@ -344,7 +353,6 @@ impl App {
                         kind: ContextMenuKind::TrackContext(pattern_id, track_id),
                         x,
                         y,
-                        height: 128.0,
                         width: 128.0,
                     });
                 }
@@ -401,7 +409,7 @@ impl App {
                         .ok();
                     gfx.events.push(AudioBlock {
                         id: gfx.events.len(),
-                        track: track,
+                        track,
                         start_step,
                         length: length as u32,
                         block_type,
@@ -516,11 +524,8 @@ impl App {
                     }
                 }
 
-                ClickResult::None => {
-                    if self.mouse_state.left_clicked {
-                        gfx.context_menu = None;
-                    }
-                }
+                ClickResult::None if self.mouse_state.left_clicked => gfx.context_menu = None,
+                _ => unreachable!(),
             }
 
             // consume the interactions
@@ -561,7 +566,7 @@ impl ApplicationHandler<Graphics> for App {
 
     fn user_event(&mut self, _event_loop: &ActiveEventLoop, graphics: Graphics) {
         graphics.request_redraw();
-        self.state = State::Ready(graphics);
+        self.state = State::Ready(Box::new(graphics));
     }
 
     fn window_event(&mut self, event_loop: &ActiveEventLoop, _window_id: WindowId, event: WindowEvent) {
@@ -573,7 +578,7 @@ impl ApplicationHandler<Graphics> for App {
                 }
             }
             WindowEvent::Resized(size) => self.resized(size),
-            WindowEvent::RedrawRequested => self.draw(&event_loop),
+            WindowEvent::RedrawRequested => self.draw(event_loop),
 
             // keyboard event
             WindowEvent::KeyboardInput { event, .. } => {
@@ -603,11 +608,10 @@ impl ApplicationHandler<Graphics> for App {
                         PhysicalKey::Code(KeyCode::ShiftLeft | KeyCode::ShiftRight) => {
                             self.mouse_state.shift_pressed = true;
                         }
-                        PhysicalKey::Code(KeyCode::KeyS) => {
-                            if self.ctrl_pressed {
-                                self.producer.try_push(AudioCommand::SaveProject).ok();
-                            }
+                        PhysicalKey::Code(KeyCode::KeyS) if self.ctrl_pressed => {
+                            self.producer.try_push(AudioCommand::SaveProject).ok();
                         }
+
                         _ => {}
                     }
                 }
@@ -636,15 +640,15 @@ impl ApplicationHandler<Graphics> for App {
 
                     if scroll_owner == Some(PLAYLIST_ID) {
                         if self.mouse_state.shift_pressed {
-                            gfx.playlist_scroll_x -= self.mouse_state.scroll_y * 35.0;
+                            gfx.playlist_scroll_offset.x -= self.mouse_state.scroll_y * 35.0;
                         } else {
-                            gfx.playlist_scroll_y = (gfx.playlist_scroll_y - self.mouse_state.scroll_y * 35.0).clamp(0.0, 1448.0);
+                            gfx.piano_roll_scroll_offset.y = (gfx.piano_roll_scroll_offset.y - self.mouse_state.scroll_y * 35.0).clamp(0.0, 1448.0);
                         }
                     } else if scroll_owner == Some(PIANO_ROLL_ID) {
                         if self.mouse_state.shift_pressed {
-                            gfx.piano_roll_scroll_x -= self.mouse_state.scroll_y * 35.0;
+                            gfx.piano_roll_scroll_offset.x -= self.mouse_state.scroll_y * 35.0;
                         } else {
-                            gfx.piano_roll_scroll_y = (gfx.piano_roll_scroll_y - self.mouse_state.scroll_y * 35.0).clamp(0.0, 1448.0);
+                            gfx.piano_roll_scroll_offset.y = (gfx.piano_roll_scroll_offset.y - self.mouse_state.scroll_y * 35.0).clamp(0.0, 1448.0);
                         }
                     }
                 }
@@ -665,7 +669,7 @@ impl ApplicationHandler<Graphics> for App {
                     self.mouse_state.left_clicked = true;
 
                     // redraw
-                    self.draw(&event_loop);
+                    self.draw(event_loop);
                 }
                 // left click is RELEASED
                 else {
@@ -683,7 +687,7 @@ impl ApplicationHandler<Graphics> for App {
                     self.mouse_state.right_clicked = true;
                     self.right_click_held = true;
                     // redraw
-                    self.draw(&event_loop);
+                    self.draw(event_loop);
                 } else {
                     // change state
                     self.right_click_held = false;

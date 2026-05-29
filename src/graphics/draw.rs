@@ -5,19 +5,18 @@ impl Graphics {
     fn push_text_draws<'a>(
         texts: &[TextItem],
         font_cache: &HashMap<String, fontdue::Font>,
-        glyph_cache: &'a HashMap<String, HashMap<(char, u32), (wgpu::Texture, wgpu::BindGroup, fontdue::Metrics)>>,
+        glyph_cache: &'a GlyphCache,
         device: &wgpu::Device,
         screen_config: &ScreenConfig,
         char_draws: &mut Vec<(wgpu::Buffer, &'a wgpu::BindGroup)>,
     ) {
         for text_item in texts {
             let Some(font) = font_cache.get(text_item.font) else { continue };
-            let Some(gcache) = glyph_cache.get(text_item.font) else { continue };
             let mut layout = Layout::new(CoordinateSystem::PositiveYDown);
             let Color { r, g, b } = text_item.color;
             layout.append(&[font], &TextStyle::new(&text_item.text, text_item.size, 0));
             for glyph in layout.glyphs() {
-                if let Some((_, bind_group, _)) = gcache.get(&(glyph.parent, text_item.size as u32)) {
+                if let Some(entry) = glyph_cache.get(text_item.font, glyph.parent, text_item.size as u32) {
                     let gverts = font::draw_glyph(
                         text_item.x + glyph.x,
                         text_item.y + glyph.y,
@@ -31,7 +30,7 @@ impl Graphics {
                         contents: bytemuck::cast_slice(&gverts),
                         usage: wgpu::BufferUsages::VERTEX,
                     });
-                    char_draws.push((buf, bind_group));
+                    char_draws.push((buf, entry.bind_group()));
                 }
             }
         }
@@ -55,9 +54,9 @@ impl Graphics {
 
     // draw a list of characters, each with their own texture and bind group, so they can be different colors and fonts
     fn draw_chars(r_pass: &mut wgpu::RenderPass, char_draws: &[(wgpu::Buffer, &wgpu::BindGroup)], start: usize, end: usize) {
-        for i in start..end {
-            r_pass.set_bind_group(0, char_draws[i].1, &[]);
-            r_pass.set_vertex_buffer(0, char_draws[i].0.slice(..));
+        for char in char_draws.iter().skip(start).take(end) {
+            r_pass.set_bind_group(0, char.1, &[]);
+            r_pass.set_vertex_buffer(0, char.0.slice(..));
             r_pass.draw(0..6, 0..1);
         }
     }
@@ -145,31 +144,20 @@ impl Graphics {
                     }
 
                     for icon in icons {
-                        push_icon_draw(
-                            &self.icon_cache,
-                            &self.device,
-                            &screen_config,
-                            icon.name,
-                            icon.x,
-                            icon.y,
-                            icon.width,
-                            icon.height,
-                            &mut icon_draws,
-                        )
+                        push_icon_draw(&self.icon_cache, &self.device, &screen_config, &icon, &mut icon_draws)
                     }
 
                     click_result = click_result.or(result);
                 }
                 PLAYLIST_ID if self.mini_windows[PLAYLIST_ID].is_open => {
                     let window = &self.mini_windows[PLAYLIST_ID];
-                    let (static_verts, static_texts, timeline_verts, timeline_texts, header_verts, header_texts, result, cursor) = playlist::draw(
+                    let (static_draw_region, timeline_draw_region, header_draw_region, result, cursor) = playlist::draw(
                         window,
                         &self.events,
                         &self.patterns,
                         &masked_mouse,
                         self.active_pattern_id,
-                        self.playlist_scroll_x,
-                        self.playlist_scroll_y,
+                        &self.playlist_scroll_offset,
                         self.active_step,
                         self.resizing_event,
                         &screen_config,
@@ -177,9 +165,9 @@ impl Graphics {
 
                     let static_vert_start = vertices.len() as u32;
                     let static_char_start = char_draws.len();
-                    vertices.extend(static_verts);
+                    vertices.extend(static_draw_region.vertices);
                     Graphics::push_text_draws(
-                        &static_texts,
+                        &static_draw_region.text_items,
                         &self.font_cache,
                         &self.glyph_cache,
                         &self.device,
@@ -195,9 +183,9 @@ impl Graphics {
 
                     let header_vert_start = vertices.len() as u32;
                     let header_char_start = char_draws.len();
-                    vertices.extend(header_verts);
+                    vertices.extend(header_draw_region.vertices);
                     Graphics::push_text_draws(
-                        &header_texts,
+                        &header_draw_region.text_items,
                         &self.font_cache,
                         &self.glyph_cache,
                         &self.device,
@@ -213,9 +201,9 @@ impl Graphics {
 
                     let timeline_vert_start = vertices.len() as u32;
                     let timeline_char_start = char_draws.len();
-                    vertices.extend(timeline_verts);
+                    vertices.extend(timeline_draw_region.vertices);
                     Graphics::push_text_draws(
-                        &timeline_texts,
+                        &timeline_draw_region.text_items,
                         &self.font_cache,
                         &self.glyph_cache,
                         &self.device,
@@ -241,18 +229,17 @@ impl Graphics {
                 }
                 MIXER_ID if self.mini_windows[MIXER_ID].is_open => {
                     let window = &self.mini_windows[MIXER_ID];
-                    let (verts, texts, result, cursor) = mixer::draw(window, &self.tracks, self.master_volume, &screen_config, &masked_mouse);
+                    let (verts, texts, result, _cursor) = mixer::draw(window, &self.tracks, self.master_volume, &screen_config, &masked_mouse);
                     vertices.extend(verts);
                     Graphics::push_text_draws(&texts, &self.font_cache, &self.glyph_cache, &self.device, &screen_config, &mut char_draws);
                     click_result = click_result.or(result);
                 }
                 PIANO_ROLL_ID if self.mini_windows[PIANO_ROLL_ID].is_open => {
                     let window = &self.mini_windows[PIANO_ROLL_ID];
-                    let (verts, texts, piano_key_verts, piano_key_texts, grid_verts, grid_texts, result, cursor) = piano_roll::window::draw(
+                    let (static_draw_region, piano_key_draw_region, grid_draw_region, result, cursor) = piano_roll::window::draw(
                         window,
                         &masked_mouse,
-                        self.piano_roll_scroll_x,
-                        self.piano_roll_scroll_y,
+                        &self.piano_roll_scroll_offset,
                         &screen_config,
                         &self.patterns,
                         &self.tracks,
@@ -261,15 +248,22 @@ impl Graphics {
                     );
 
                     // static (titlebar + background) — no scroll
-                    vertices.extend(verts);
-                    Graphics::push_text_draws(&texts, &self.font_cache, &self.glyph_cache, &self.device, &screen_config, &mut char_draws);
+                    vertices.extend(static_draw_region.vertices);
+                    Graphics::push_text_draws(
+                        &static_draw_region.text_items,
+                        &self.font_cache,
+                        &self.glyph_cache,
+                        &self.device,
+                        &screen_config,
+                        &mut char_draws,
+                    );
 
                     // scrollable content
                     let piano_content_vert_start = vertices.len() as u32;
                     let piano_content_char_start = char_draws.len();
-                    vertices.extend(piano_key_verts);
+                    vertices.extend(piano_key_draw_region.vertices);
                     Graphics::push_text_draws(
-                        &piano_key_texts,
+                        &piano_key_draw_region.text_items,
                         &self.font_cache,
                         &self.glyph_cache,
                         &self.device,
@@ -280,9 +274,9 @@ impl Graphics {
                     // grid content
                     let grid_vert_start = vertices.len() as u32;
                     let grid_char_start = char_draws.len();
-                    vertices.extend(grid_verts);
+                    vertices.extend(grid_draw_region.vertices);
                     Graphics::push_text_draws(
-                        &grid_texts,
+                        &grid_draw_region.text_items,
                         &self.font_cache,
                         &self.glyph_cache,
                         &self.device,
@@ -328,17 +322,7 @@ impl Graphics {
                                 cursor_icon = cursor;
                             }
                             for icon in icons {
-                                push_icon_draw(
-                                    &self.icon_cache,
-                                    &self.device,
-                                    &screen_config,
-                                    icon.name,
-                                    icon.x,
-                                    icon.y,
-                                    icon.width,
-                                    icon.height,
-                                    &mut icon_draws,
-                                )
+                                push_icon_draw(&self.icon_cache, &self.device, &screen_config, &icon, &mut icon_draws)
                             }
                             Graphics::push_text_draws(&texts, &self.font_cache, &self.glyph_cache, &self.device, &screen_config, &mut char_draws);
                             self.tooltip = tooltip;
@@ -374,17 +358,7 @@ impl Graphics {
             }
             click_result = click_result.or(result);
             Graphics::push_text_draws(&texts, &self.font_cache, &self.glyph_cache, &self.device, &screen_config, &mut char_draws);
-            push_icon_draw(
-                &self.icon_cache,
-                &self.device,
-                &screen_config,
-                icon.name,
-                icon.x,
-                icon.y,
-                icon.width,
-                icon.height,
-                &mut icon_draws,
-            );
+            push_icon_draw(&self.icon_cache, &self.device, &screen_config, &icon, &mut icon_draws);
             self.tooltip = tooltip
         }
 
@@ -409,17 +383,7 @@ impl Graphics {
         }
 
         for icon in icons {
-            push_icon_draw(
-                &self.icon_cache,
-                &self.device,
-                &screen_config,
-                icon.name,
-                icon.x,
-                icon.y,
-                icon.width,
-                icon.height,
-                &mut icon_draws,
-            )
+            push_icon_draw(&self.icon_cache, &self.device, &screen_config, &icon, &mut icon_draws)
         }
 
         self.tooltip = tooltip;
@@ -526,7 +490,7 @@ impl Graphics {
             });
 
             r_pass.set_pipeline(&self.render_pipeline);
-            let any_bg = self.glyph_cache.values().next().unwrap().values().next().unwrap();
+            let any_bg = self.glyph_cache.any_bind_group().unwrap();
 
             // windows
             for (idx, range) in window_ranges.iter().enumerate() {
@@ -559,7 +523,7 @@ impl Graphics {
                         Graphics::draw_geom(
                             &mut r_pass,
                             &self.vertex_buffer,
-                            &any_bg.1,
+                            any_bg,
                             pr.static_range.vert_start,
                             pr.static_range.vert_end,
                         );
@@ -570,7 +534,7 @@ impl Graphics {
                         Graphics::draw_geom(
                             &mut r_pass,
                             &self.vertex_buffer,
-                            &any_bg.1,
+                            any_bg,
                             pr.piano_range.vert_start,
                             pr.piano_range.vert_end,
                         );
@@ -578,13 +542,7 @@ impl Graphics {
 
                         let (sx, sy, sw2, sh2) = Self::safe_scissor(grid_x, content_y, grid_w, content_h, sw, sh);
                         r_pass.set_scissor_rect(sx, sy, sw2, sh2);
-                        Graphics::draw_geom(
-                            &mut r_pass,
-                            &self.vertex_buffer,
-                            &any_bg.1,
-                            pr.grid_range.vert_start,
-                            pr.grid_range.vert_end,
-                        );
+                        Graphics::draw_geom(&mut r_pass, &self.vertex_buffer, any_bg, pr.grid_range.vert_start, pr.grid_range.vert_end);
                         Graphics::draw_chars(&mut r_pass, &char_draws, pr.grid_range.char_start, pr.grid_range.char_end);
                     }
                     r_pass.set_scissor_rect(0, 0, self.surface_config.width, self.surface_config.height);
@@ -615,7 +573,7 @@ impl Graphics {
                         Graphics::draw_geom(
                             &mut r_pass,
                             &self.vertex_buffer,
-                            &any_bg.1,
+                            any_bg,
                             pl.static_range.vert_start,
                             pl.static_range.vert_end,
                         );
@@ -626,7 +584,7 @@ impl Graphics {
                         Graphics::draw_geom(
                             &mut r_pass,
                             &self.vertex_buffer,
-                            &any_bg.1,
+                            any_bg,
                             pl.header_range.vert_start,
                             pl.header_range.vert_end,
                         );
@@ -637,7 +595,7 @@ impl Graphics {
                         Graphics::draw_geom(
                             &mut r_pass,
                             &self.vertex_buffer,
-                            &any_bg.1,
+                            any_bg,
                             pl.timeline_range.vert_start,
                             pl.timeline_range.vert_end,
                         );
@@ -647,43 +605,37 @@ impl Graphics {
                     continue;
                 }
                 if range.vert_start < range.vert_end {
-                    r_pass.set_bind_group(0, &any_bg.1, &[]);
+                    r_pass.set_bind_group(0, any_bg, &[]);
                     r_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
                     r_pass.draw(range.vert_start..range.vert_end, 0..1);
                 }
-                for i in range.char_start..range.char_end {
-                    r_pass.set_bind_group(0, char_draws[i].1, &[]);
-                    r_pass.set_vertex_buffer(0, char_draws[i].0.slice(..));
+                for char in char_draws.iter().skip(range.char_start).take(range.char_end) {
+                    r_pass.set_bind_group(0, char.1, &[]);
+                    r_pass.set_vertex_buffer(0, char.0.slice(..));
                     r_pass.draw(0..6, 0..1);
                 }
             }
 
             // toolbar
 
-            Graphics::draw_geom(&mut r_pass, &self.vertex_buffer, &any_bg.1, toolbar_vert_start, toolbar_vert_end);
+            Graphics::draw_geom(&mut r_pass, &self.vertex_buffer, any_bg, toolbar_vert_start, toolbar_vert_end);
             Graphics::draw_chars(&mut r_pass, &char_draws, toolbar_char_start, toolbar_char_end);
 
-            for i in 0..icon_draws.len() {
-                r_pass.set_bind_group(0, icon_draws[i].1, &[]);
-                r_pass.set_vertex_buffer(0, icon_draws[i].0.slice(..));
+            for icon in &icon_draws {
+                r_pass.set_bind_group(0, icon.1, &[]);
+                r_pass.set_vertex_buffer(0, icon.0.slice(..));
                 r_pass.draw(0..6, 0..1);
             }
             // tooltip
-            Graphics::draw_geom(&mut r_pass, &self.vertex_buffer, &any_bg.1, tooltip_vert_start, tooltip_vert_end);
+            Graphics::draw_geom(&mut r_pass, &self.vertex_buffer, any_bg, tooltip_vert_start, tooltip_vert_end);
             Graphics::draw_chars(&mut r_pass, &char_draws, tooltip_char_start, tooltip_char_end);
 
             // context menu
-            Graphics::draw_geom(
-                &mut r_pass,
-                &self.vertex_buffer,
-                &any_bg.1,
-                context_menu_vert_start,
-                context_menu_vert_end,
-            );
+            Graphics::draw_geom(&mut r_pass, &self.vertex_buffer, any_bg, context_menu_vert_start, context_menu_vert_end);
             Graphics::draw_chars(&mut r_pass, &char_draws, context_menu_char_start, context_menu_char_end);
 
             // footer
-            Graphics::draw_geom(&mut r_pass, &self.vertex_buffer, &any_bg.1, footer_vert_start, footer_vert_end);
+            Graphics::draw_geom(&mut r_pass, &self.vertex_buffer, any_bg, footer_vert_start, footer_vert_end);
             Graphics::draw_chars(&mut r_pass, &char_draws, footer_char_start, footer_char_end);
         }
 

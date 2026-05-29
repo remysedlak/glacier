@@ -1,4 +1,4 @@
-use crate::app::MouseState;
+use crate::app::{MouseState, ScrollOffset};
 use crate::graphics::{
     color::*,
     font::TextItem,
@@ -23,21 +23,11 @@ pub fn draw(
     patterns: &[PatternData],
     mouse_state: &MouseState,
     active_pattern_id: usize,
-    scroll_x: f32,
-    scroll_y: f32,
+    scroll_offset: &ScrollOffset,
     current_step: usize,
     resizing_event: Option<usize>,
     screen_config: &ScreenConfig,
-) -> (
-    Vec<Vertex>,
-    Vec<TextItem>,
-    Vec<Vertex>,
-    Vec<TextItem>,
-    Vec<Vertex>,
-    Vec<TextItem>,
-    ClickResult,
-    CursorIcon,
-) {
+) -> (DrawRegion, DrawRegion, DrawRegion, ClickResult, CursorIcon) {
     // setup
     let mut track_header_vertices: Vec<Vertex> = Vec::new();
     let mut track_header_text_items: Vec<TextItem> = Vec::new();
@@ -51,10 +41,10 @@ pub fn draw(
     let steps = 64;
     let tracks = 32;
 
-    let playlist_background = window_background(&window);
-    static_vertices.extend(playlist_background.draw(&screen_config, MINI_WINDOW_BACKGROUND, BOTTOM_RADIUS_16));
+    let playlist_background = window_background(window);
+    static_vertices.extend(playlist_background.draw(screen_config, MINI_WINDOW_BACKGROUND, BOTTOM_RADIUS_16));
 
-    let (titlebar_verts, titlebar_texts, result, cursor) = window_title_bar(&window, "Playlist", screen_config, mouse_state);
+    let (titlebar_verts, titlebar_texts, result, cursor) = window_title_bar(window, "Playlist", screen_config, mouse_state);
     if !matches!(cursor, CursorIcon::Default) {
         cursor_icon = cursor;
     }
@@ -66,19 +56,19 @@ pub fn draw(
         // track header
         let background = Rectangle {
             x: window.x + PAD_16,
-            y: window.y + (track as f32 * PLAYLIST_TRACK_GAP) + PAD_64 - scroll_y,
+            y: window.y + (track as f32 * PLAYLIST_TRACK_GAP) + PAD_64 - scroll_offset.y,
             width: TIMELINE_X_ORIGIN - PAD_4,
             height: PLAYLIST_STEP_HEIGHT,
         };
         if background.y + background.height < window.y || background.y > window.y + window.height {
             continue;
         }
-        track_header_vertices.extend(background.draw(&screen_config, PEBBLE, NO_RADIUS));
+        track_header_vertices.extend(background.draw(screen_config, PEBBLE, NO_RADIUS));
         track_header_text_items.push(TextItem {
             text: format!("Track {}", track).to_string(),
             x: window.x + PAD_16 + PAD_8,
             font: "roboto",
-            y: window.y + (track as f32 * PLAYLIST_TRACK_GAP) + PAD_64 + PAD_4 - scroll_y,
+            y: window.y + (track as f32 * PLAYLIST_TRACK_GAP) + PAD_64 + PAD_4 - scroll_offset.y,
             size: 18.0,
             color: WHITE,
         });
@@ -86,8 +76,8 @@ pub fn draw(
         for step in 0..steps {
             let group = step / 4;
             let pl_step = Rectangle {
-                x: window.x + (step as f32 * PLAYLIST_STEP_GAP) + PAD_16 + TIMELINE_X_ORIGIN - scroll_x,
-                y: window.y + (track as f32 * PLAYLIST_TRACK_GAP) + PAD_64 - scroll_y,
+                x: window.x + (step as f32 * PLAYLIST_STEP_GAP) + PAD_16 + TIMELINE_X_ORIGIN - scroll_offset.x,
+                y: window.y + (track as f32 * PLAYLIST_TRACK_GAP) + PAD_64 - scroll_offset.y,
                 width: PLAYLIST_STEP_WIDTH,
                 height: PLAYLIST_STEP_HEIGHT,
             };
@@ -124,12 +114,12 @@ pub fn draw(
                 click_result = ClickResult::AddPlaylistPattern(track, step, length, AudioBlockType::Pattern(active_pattern_id));
             }
 
-            timeline_vertices.extend(pl_step.draw(&screen_config, color, NO_RADIUS));
+            timeline_vertices.extend(pl_step.draw(screen_config, color, NO_RADIUS));
 
             if step % 16 == 0 && track == 0 {
                 timeline_text_items.push(TextItem {
                     text: format!("{group}"),
-                    x: window.x + (step as f32 * PLAYLIST_STEP_GAP) + PAD_16 + TIMELINE_X_ORIGIN - scroll_x,
+                    x: window.x + (step as f32 * PLAYLIST_STEP_GAP) + PAD_16 + TIMELINE_X_ORIGIN - scroll_offset.x,
                     y: window.y + PAD_8,
                     size: 18.0,
                     font: "roboto",
@@ -143,8 +133,8 @@ pub fn draw(
     for event in events {
         if let AudioBlockType::Pattern(id) = event.block_type {
             let pl_pattern = Rectangle {
-                x: window.x + (event.start_step as f32 * PLAYLIST_STEP_GAP) + PAD_16 + TIMELINE_X_ORIGIN - scroll_x,
-                y: window.y + (event.track as f32 * PLAYLIST_TRACK_GAP) + PAD_64 - scroll_y,
+                x: window.x + (event.start_step as f32 * PLAYLIST_STEP_GAP) + PAD_16 + TIMELINE_X_ORIGIN - scroll_offset.x,
+                y: window.y + (event.track as f32 * PLAYLIST_TRACK_GAP) + PAD_64 - scroll_offset.y,
                 width: PLAYLIST_STEP_GAP * event.length as f32 - 2.0,
                 height: PLAYLIST_STEP_HEIGHT,
             };
@@ -173,13 +163,13 @@ pub fn draw(
             } else {
                 LIGHT_GRAY
             };
-            timeline_vertices.extend(pl_pattern.draw(&screen_config, pl_pattern_color, RADIUS_8));
+            timeline_vertices.extend(pl_pattern.draw(screen_config, pl_pattern_color, RADIUS_8));
 
             let label = patterns.iter().find(|p| p.id == id).map(|p| p.name.as_str()).unwrap_or("?");
             timeline_text_items.push(TextItem {
                 text: label.to_string(),
-                x: window.x + (event.start_step as f32 * PLAYLIST_STEP_GAP) + PAD_16 + TIMELINE_X_ORIGIN + PAD_8 - scroll_x,
-                y: window.y + (event.track as f32 * PLAYLIST_TRACK_GAP) + PAD_64 + PAD_4 - scroll_y,
+                x: window.x + (event.start_step as f32 * PLAYLIST_STEP_GAP) + PAD_16 + TIMELINE_X_ORIGIN + PAD_8 - scroll_offset.x,
+                y: window.y + (event.track as f32 * PLAYLIST_TRACK_GAP) + PAD_64 + PAD_4 - scroll_offset.y,
                 size: 18.0,
                 font: "roboto",
                 color: BLACK,
@@ -188,20 +178,26 @@ pub fn draw(
     }
 
     let playhead = Rectangle {
-        x: window.x + (current_step as f32 * PLAYLIST_STEP_GAP) + PAD_16 + TIMELINE_X_ORIGIN - scroll_x,
+        x: window.x + (current_step as f32 * PLAYLIST_STEP_GAP) + PAD_16 + TIMELINE_X_ORIGIN - scroll_offset.x,
         y: window.y + PAD_64,
         width: PLAYHEAD_WIDTH,
         height: window.height,
     };
-    timeline_vertices.extend(playhead.draw(&screen_config, ORANGE, NO_RADIUS));
+    timeline_vertices.extend(playhead.draw(screen_config, ORANGE, NO_RADIUS));
 
     (
-        static_vertices,
-        static_text_items,
-        timeline_vertices,
-        timeline_text_items,
-        track_header_vertices,
-        track_header_text_items,
+        DrawRegion {
+            vertices: static_vertices,
+            text_items: static_text_items,
+        },
+        DrawRegion {
+            vertices: timeline_vertices,
+            text_items: timeline_text_items,
+        },
+        DrawRegion {
+            vertices: track_header_vertices,
+            text_items: track_header_text_items,
+        },
         click_result,
         cursor_icon,
     )

@@ -61,7 +61,7 @@ pub fn init(mut consumer: HeapCons<AudioCommand>, mut producer: HeapProd<UiComma
     let sample_rate_f: f32 = config.sample_rate as f32;
 
     // load project from file path
-    let project = project_file.as_deref().and_then(get_project).unwrap_or_else(|| Project::default());
+    let project = project_file.as_deref().and_then(get_project).unwrap_or_default();
 
     let project_path = project_file.unwrap_or_else(|| "assets/projects/new_project.toml".to_string());
 

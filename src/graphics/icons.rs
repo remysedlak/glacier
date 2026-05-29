@@ -57,15 +57,11 @@ pub fn push_icon_draw<'a>(
     icon_cache: &'a HashMap<String, (wgpu::Texture, wgpu::BindGroup)>,
     device: &wgpu::Device,
     screen_config: &ScreenConfig,
-    name: &str,
-    x: f32,
-    y: f32,
-    w: f32,
-    h: f32,
+    icon: &IconDraw,
     icon_draws: &mut Vec<(wgpu::Buffer, &'a wgpu::BindGroup)>,
 ) {
-    if let Some((_, bind_group)) = icon_cache.get(name) {
-        let verts = icons::draw_icon(x, y, w, h, screen_config);
+    if let Some((_, bind_group)) = icon_cache.get(icon.name) {
+        let verts = icons::draw_icon(icon.x, icon.y, icon.width, icon.height, screen_config);
         let buf = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: None,
             contents: bytemuck::cast_slice(&verts),
@@ -101,7 +97,7 @@ pub fn rasterize_icon(
     });
     queue.write_texture(
         texture.as_image_copy(),
-        &rgba_bytes,
+        rgba_bytes,
         wgpu::TexelCopyBufferLayout {
             offset: 0,
             bytes_per_row: Some(icon.width as u32 * 4),

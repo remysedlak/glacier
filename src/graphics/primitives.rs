@@ -1,8 +1,7 @@
-use crate::graphics::color::*;
+use crate::graphics::{color::*, font::TextItem};
 
 pub const PAD_64: f32 = 64.0;
 pub const PAD_32: f32 = 32.0;
-pub const PAD_24: f32 = 24.0;
 pub const PAD_16: f32 = 16.0;
 pub const PAD_8: f32 = 8.0;
 pub const PAD_4: f32 = 4.0;
@@ -13,7 +12,6 @@ pub const TOP_RADIUS_16: [f32; 4] = [16.0, 0.0, 16.0, 0.0];
 pub const BOTTOM_RADIUS_16: [f32; 4] = [0.0, 16.0, 0.0, 16.0];
 pub const RADIUS_8: [f32; 4] = [8.0; 4];
 pub const RADIUS_4: [f32; 4] = [4.0; 4];
-pub const RADIUS_2: [f32; 4] = [2.0; 4];
 pub const BUTTON_GAP: f32 = 24.0;
 
 pub const ONE_MEGABYTE: u64 = 1024 * 1024;
@@ -21,6 +19,11 @@ pub const ONE_MEGABYTE: u64 = 1024 * 1024;
 pub struct ScreenConfig {
     pub width: u32,
     pub height: u32,
+}
+
+pub struct DrawRegion {
+    pub vertices: Vec<Vertex>,
+    pub text_items: Vec<TextItem>,
 }
 
 #[repr(C)]
@@ -167,10 +170,9 @@ pub fn draw_knob(cx: f32, cy: f32, vol: f32, screen_config: &ScreenConfig) -> Ve
     let angle = to_rad(210.0 - vol * 270.0);
     let ex = cx + (radius - 2.0) * angle.cos();
     let ey = cy - (radius - 2.0) * angle.sin();
-    let perp = angle + std::f32::consts::FRAC_PI_2;
     let thickness = 1.5;
 
-    let mut v = |x: f32, y: f32| Vertex {
+    let v = |x: f32, y: f32| Vertex {
         position: [ncx(x), ncy(y), 0.0],
         color: [1.0, 1.0, 1.0],
         uv: [-1.0, -1.0],

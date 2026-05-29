@@ -37,7 +37,7 @@ pub const DARK_BLUE: Color = Color { r: 0.06, g: 0.09, b: 0.45 }; // darker but 
 pub const DARK_BLUE_HOVER: Color = Color { r: 0.10, g: 0.13, b: 0.58 };
 
 // high contrast
-pub const PURPLE: Color = Color { r: 0.20, g: 0.20, b: 0.99 };
+// pub const PURPLE: Color = Color { r: 0.20, g: 0.20, b: 0.99 };
 pub const ORANGE: Color = Color { r: 0.99, g: 0.1, b: 0.0 };
 pub const ORANGE_HOVER: Color = Color { r: 0.79, g: 0.2, b: 0.0 };
 pub const GREEN: Color = Color { r: 0.1, g: 0.99, b: 0.1 };
