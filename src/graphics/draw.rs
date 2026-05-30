@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use super::*;
 
 impl Graphics {
@@ -372,6 +374,12 @@ impl Graphics {
             vertices.extend(verts);
         }
 
+        if self.show_save_modal {
+            let (verts, texts) = modal::draw(&screen_config);
+            vertices.extend(verts);
+            Graphics::push_text_draws(&texts, &self.font_cache, &self.glyph_cache, &self.device, &screen_config, &mut char_draws);
+        }
+
         // top toolbar
         let (verts, texts, icons, result, cursor, tooltip) =
             components::toolbar::draw_toolbar(mouse_state, &screen_config, self.bpm, self.is_playing, self.active_step);
@@ -389,31 +397,34 @@ impl Graphics {
         let tooltip_vert_start = vertices.len() as u32;
         let tooltip_char_start = char_draws.len();
         // tool tip
+
         if let Some(tt) = &self.tooltip {
-            let tooltip_rectangle = Rectangle {
-                x: tt.x,
-                y: tt.y,
-                width: 128.0,
-                height: 24.0,
-            };
-            vertices.extend(tooltip_rectangle.draw(&screen_config, DARK_GRAY, NO_RADIUS));
-            if let Some(text) = tt.text {
-                let tooltip_text = [TextItem {
-                    text: text.to_string(),
-                    x: tt.x + PAD_4,
-                    y: tt.y + PAD_2,
-                    size: 14.0,
-                    font: MONOSPACED,
-                    color: WHITE,
-                }];
-                Graphics::push_text_draws(
-                    &tooltip_text,
-                    &self.font_cache,
-                    &self.glyph_cache,
-                    &self.device,
-                    &screen_config,
-                    &mut char_draws,
-                );
+            if mouse_state.hover_state.map_or(false, |t| t.elapsed() > Duration::from_millis(400)) {
+                let tooltip_rectangle = Rectangle {
+                    x: tt.x,
+                    y: tt.y,
+                    width: 128.0,
+                    height: 24.0,
+                };
+                vertices.extend(tooltip_rectangle.draw(&screen_config, DARK_GRAY, RADIUS_8));
+                if let Some(text) = tt.text {
+                    let tooltip_text = [TextItem {
+                        text: text.to_string(),
+                        x: tt.x + PAD_4,
+                        y: tt.y + PAD_2,
+                        size: 14.0,
+                        font: MONOSPACED,
+                        color: WHITE,
+                    }];
+                    Graphics::push_text_draws(
+                        &tooltip_text,
+                        &self.font_cache,
+                        &self.glyph_cache,
+                        &self.device,
+                        &screen_config,
+                        &mut char_draws,
+                    );
+                }
             }
         }
 

@@ -31,7 +31,7 @@ pub struct IconSvg {
     pub path: String,
 }
 
-#[derive(Clone)]
+#[derive(Clone, PartialEq)]
 pub struct Tooltip {
     pub text: Option<&'static str>,
     pub x: f32,

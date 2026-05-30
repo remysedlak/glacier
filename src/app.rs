@@ -2,11 +2,12 @@
 
 use crate::audio::{init, AudioCommand};
 use crate::config::{self, UserSettings};
-use crate::graphics::mini_window::piano_roll::PIANO_ROLL_DEFAULT_Y;
 use crate::graphics::{
     context_menu::{ContextMenu, ContextMenuKind},
     drag::DragResult,
-    mini_window::{sequencer::TRACK_GAP, MiniWindow, WindowKind, MIXER_ID, PIANO_ROLL_ID, PLAYLIST_ID, SEQUENCER_ID},
+    mini_window::{
+        piano_roll::PIANO_ROLL_DEFAULT_Y, sequencer::TRACK_GAP, MiniWindow, WindowKind, MIXER_ID, PIANO_ROLL_ID, PLAYLIST_ID, SEQUENCER_ID,
+    },
     {bring_to_front, create_graphics, ClickResult, Graphics, Rc},
 };
 use crate::project::{AudioBlock, PatternData, Track, TrackData};
@@ -28,6 +29,7 @@ use winit::{
 use std::path::PathBuf;
 use std::sync::mpsc::{Receiver, TryRecvError};
 use std::thread;
+use std::time::Instant;
 
 #[derive(Debug)]
 pub struct MouseState {
@@ -43,6 +45,7 @@ pub struct MouseState {
     pub scroll_x: f32,
     pub scroll_y: f32,
     pub shift_pressed: bool,
+    pub hover_state: Option<Instant>,
 }
 
 #[derive(Clone, Copy)]
@@ -145,6 +148,7 @@ impl App {
                 scroll_y: 0.0,
                 shift_pressed: false,
                 left_click_held: false,
+                hover_state: None,
             },
         }
     }
@@ -261,8 +265,18 @@ impl App {
             // single draw call — returns click result
             let start = std::time::Instant::now();
             let (result, icon) = gfx.draw(&self.mouse_state, self.project_is_dirty);
-            gfx.frame_ms = start.elapsed().as_secs_f32() * 1000.0;
             gfx.window.set_cursor(icon);
+
+            gfx.frame_ms = start.elapsed().as_secs_f32() * 1000.0;
+
+            // start hover timer when tooltip is present, reset when it's not
+            if gfx.tooltip.is_some() {
+                if self.mouse_state.hover_state.is_none() {
+                    self.mouse_state.hover_state = Some(Instant::now());
+                }
+            } else {
+                self.mouse_state.hover_state = None;
+            }
 
             if let Some(rx) = &self.track_load_rx {
                 match rx.try_recv() {
