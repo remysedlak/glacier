@@ -13,6 +13,7 @@ pub const ICONS: &[(&str, u32, u32)] = &[
     ("pause", 128, 128),
     ("mixer", 128, 128),
     ("sequencer", 128, 128),
+    ("settings", 128, 128),
     ("playlist", 128, 128),
     ("track", 128, 128),
     ("project", 128, 128),
