@@ -76,6 +76,7 @@ pub enum UiCommand {
     SaveComplete,
     LoadPattern(PatternData),
     LoadEvent(AudioBlock),
+    PlayheadPosition(f32),
 }
 
 // the app is in initializing state or its ready to draw
@@ -236,6 +237,9 @@ impl App {
             // consume audio -> ui commands
             while let Some(cmd) = self.consumer.try_pop() {
                 match cmd {
+                    UiCommand::PlayheadPosition(beat) => {
+                        gfx.playhead_beat = beat;
+                    }
                     UiCommand::LoadProjectPath(path) => {
                         gfx.project_path = path;
                     }

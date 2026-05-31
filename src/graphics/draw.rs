@@ -381,8 +381,14 @@ impl Graphics {
         }
 
         // top toolbar
+        // 00:00:00
+        let total_seconds = ((self.playhead_beat / self.bpm) * 60.0) as u32;
+        let hours = total_seconds / 3600;
+        let minutes = (total_seconds % 3600) / 60;
+        let seconds = total_seconds % 60;
+        let time_string = format!("{:02}:{:02}:{:02}", hours, minutes, seconds);
         let (verts, texts, icons, result, cursor, tooltip) =
-            components::toolbar::draw_toolbar(mouse_state, &screen_config, self.bpm, self.is_playing, self.active_step);
+            components::toolbar::draw_toolbar(mouse_state, &screen_config, self.bpm, self.is_playing, self.active_step, time_string);
         vertices.extend(verts);
         click_result = click_result.or(result);
         if cursor != CursorIcon::Default {

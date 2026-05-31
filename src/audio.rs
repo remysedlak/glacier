@@ -285,6 +285,10 @@ pub fn init(mut consumer: HeapCons<AudioCommand>, mut producer: HeapProd<UiComma
             // get amount of samples per step
             let samples_per_step = dsp::samples_per_step(sample_rate_f, bpm);
 
+            // update UI time
+            let beat = current_step as f32 + (sample_counter / samples_per_step);
+            producer.try_push(UiCommand::PlayheadPosition(beat)).ok();
+
             // increment the step if enough samples have passed
             if sample_counter >= samples_per_step {
                 sample_counter = 0.0;

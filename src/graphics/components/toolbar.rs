@@ -11,7 +11,7 @@ use winit::window::CursorIcon;
 
 pub const TOOLTIP_MARGIN: f32 = 36.0;
 pub const TOOLTIP_RIGHT_MARGIN: f32 = 96.0;
-const WINDOW_ICONS_OFFSET: f32 = 256.0;
+const WINDOW_ICONS_OFFSET: f32 = 320.0;
 const ICON_GAP: f32 = 48.0;
 
 pub fn icon_color(rect: &Square, mx: f32, my: f32, held: bool) -> Color {
@@ -28,6 +28,7 @@ pub fn draw_toolbar(
     bpm: f32,
     is_playing: bool,
     active_step: usize,
+    seconds: String,
 ) -> (Vec<Vertex>, Vec<TextItem>, Vec<IconDraw>, ClickResult, CursorIcon, Option<Tooltip>) {
     // setup
     let mut vertices: Vec<Vertex> = Vec::new();
@@ -142,10 +143,34 @@ pub fn draw_toolbar(
     let time_background = Rectangle {
         x: PLAY_X_ORIGIN + ICON_GAP + ICON_GAP,
         y: PLAY_Y_ORIGIN,
-        width: ICON_SIZE * 4.0,
+        width: ICON_SIZE * 5.0,
         height: ICON_SIZE,
     };
     vertices.extend(time_background.draw(screen_config, BLACK, RADIUS_4));
+
+    let step_label = if active_step < 10 {
+        format!("0{}", active_step)
+    } else {
+        active_step.to_string()
+    };
+
+    // debug current step
+    text_items.push(TextItem {
+        text: step_label,
+        x: time_background.x + time_background.width - PAD_16 - PAD_8 - PAD_4 - PAD_2,
+        y: TOOLBAR_MARGIN + PAD_2,
+        size: TITLE,
+        color: ORANGE,
+        font: MONOSPACED,
+    });
+    text_items.push(TextItem {
+        text: seconds,
+        x: time_background.x + time_background.width - PAD_32 * 5.0 + PAD_4,
+        y: TOOLBAR_MARGIN + PAD_2,
+        size: TITLE,
+        color: ORANGE,
+        font: MONOSPACED,
+    });
 
     /* MINI WINDOW TOGGLING
      *
@@ -443,21 +468,6 @@ pub fn draw_toolbar(
         }
     }
 
-    let step_label = if active_step < 10 {
-        format!("0{}", active_step)
-    } else {
-        active_step.to_string()
-    };
-
-    // debug current step
-    text_items.push(TextItem {
-        text: step_label,
-        x: time_background.x + time_background.width - PAD_16 - PAD_8 - PAD_4 - PAD_2,
-        y: TOOLBAR_MARGIN + PAD_2,
-        size: TITLE,
-        color: ORANGE,
-        font: MONOSPACED,
-    });
     let step_divider_line = Rectangle {
         x: time_background.x + time_background.width - PAD_16 - PAD_8 - PAD_16,
         y: PAD_4,

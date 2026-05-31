@@ -6,6 +6,7 @@ pub mod draw;
 pub mod font;
 pub mod icons;
 pub mod mini_window;
+// pub mod modal;
 pub mod primitives;
 pub mod widgets;
 
@@ -200,6 +201,7 @@ pub async fn create_graphics(window: Rc<Window>, proxy: EventLoopProxy<Graphics>
         device,
         queue,
         render_pipeline,
+        show_save_modal: false,
 
         // shapes
         vertex_buffer,
@@ -215,6 +217,7 @@ pub async fn create_graphics(window: Rc<Window>, proxy: EventLoopProxy<Graphics>
         bpm: DEFAULT_BPM,
         is_playing: false,
         master_volume: 0.5,
+        playhead_beat: 0.0,
 
         // fonts
         glyph_cache,
@@ -307,12 +310,14 @@ pub struct Graphics {
     pub frame_ms: f32,
     pub show_track_tray: bool,
     pub show_pattern_tray: bool,
+    pub show_save_modal: bool,
     // song
     pub project_path: String,
     pub tracks: Vec<Track>,
     pub patterns: Vec<PatternData>,
     pub events: Vec<AudioBlock>,
     pub active_step: usize,
+    pub playhead_beat: f32,
     pub bpm: f32,
     pub is_playing: bool,
     pub master_volume: f32,
