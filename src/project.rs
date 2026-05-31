@@ -29,6 +29,9 @@ impl Project {
         let text = toml::to_string(self).unwrap();
         std::fs::write(file_path, text).unwrap();
     }
+    pub fn default_project_file() -> String {
+        "assets/projects/new_project.toml".to_string()
+    }
 }
 
 impl Default for Project {

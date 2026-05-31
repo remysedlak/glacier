@@ -36,6 +36,7 @@ pub enum AudioCommand {
     // project state
     ShutDown,
     SaveProject,
+    SetProjectPath(String),
 
     // patterns
     DuplicatePattern(usize),
@@ -63,7 +64,7 @@ pub fn init(mut consumer: HeapCons<AudioCommand>, mut producer: HeapProd<UiComma
     // load project from file path
     let project = project_file.as_deref().and_then(get_project).unwrap_or_default();
 
-    let project_path = project_file.unwrap_or_else(|| "assets/projects/new_project.toml".to_string());
+    let mut project_path = project_file.unwrap_or_else(|| Project::default_project_file());
 
     // Tracks state
     let mut tracks: Vec<Track> = get_tracks(&project);
@@ -106,6 +107,7 @@ pub fn init(mut consumer: HeapCons<AudioCommand>, mut producer: HeapProd<UiComma
         // parse incoming UI commands before fulfilling data callback
         while let Some(cmd) = consumer.try_pop() {
             match cmd {
+                AudioCommand::SetProjectPath(new_path) => project_path = new_path,
                 AudioCommand::ResizeAudioBlock(event_id, new_length) => {
                     if let Some(event) = events.iter_mut().find(|event| event.id == event_id) {
                         event.length = new_length;
@@ -224,11 +226,8 @@ pub fn init(mut consumer: HeapCons<AudioCommand>, mut producer: HeapProd<UiComma
                 AudioCommand::ToggleTrackMute(track_id) => tracks[track_id].mute(),
                 AudioCommand::TogglePlay => is_playing = !is_playing,
                 AudioCommand::SaveProject => {
-                    // everything from current state
                     let project = Project::new(name.clone(), bpm, master_volume, &tracks, patterns.clone(), events.clone());
                     project.save_to_toml(&project_path);
-
-                    // tell ui that we saved the audio finished up
                     producer.try_push(UiCommand::SaveComplete).ok();
                     println!("saved to {}", &project_path);
                 }

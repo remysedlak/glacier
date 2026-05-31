@@ -44,7 +44,7 @@ pub struct MouseState {
     // scrolling
     pub scroll_x: f32,
     pub scroll_y: f32,
-    pub shift_pressed: bool,
+    // hovering
     pub hover_state: Option<Instant>,
 }
 
@@ -86,18 +86,22 @@ enum State {
 
 // gui app state
 pub struct App {
-    // app state/logic
+    // ringbuffer
     producer: HeapProd<AudioCommand>,
     consumer: HeapCons<UiCommand>,
+
+    // app state
     state: State,
-    project_is_dirty: bool,
     config: UserSettings,
 
+    // audio state
     stream: Stream,
     pending_project: Option<String>,
+    project_is_dirty: bool,
 
     // keyboard state
     ctrl_pressed: bool,
+    pub shift_pressed: bool,
 
     // mouse state
     mouse_state: MouseState,
@@ -106,9 +110,11 @@ pub struct App {
     right_click_held: bool,
     last_click_time: Option<std::time::Instant>,
 
+    // file dialog
     track_file_dialog_rx: Option<Receiver<Option<PathBuf>>>,
     project_file_dialog_rx: Option<Receiver<Option<PathBuf>>>,
     track_load_rx: Option<Receiver<(TrackData, Vec<f32>)>>,
+    project_save_dialog_rx: Option<Receiver<Option<PathBuf>>>,
 }
 
 // app created for the main event loop
@@ -126,12 +132,13 @@ impl App {
             state: State::Init(Some(event_loop.create_proxy())),
             stream,
             pending_project: None,
+            project_is_dirty: false,
             ctrl_pressed: false,
+            shift_pressed: false,
             track_file_dialog_rx: None,
             project_file_dialog_rx: None,
+            project_save_dialog_rx: None,
             track_load_rx: None,
-            project_is_dirty: false,
-            // mouse state
             prev_mouse_x: 0.0,
             prev_mouse_y: 0.0,
             last_click_time: None,
@@ -146,7 +153,6 @@ impl App {
                 right_clicked: false,
                 scroll_x: 0.0,
                 scroll_y: 0.0,
-                shift_pressed: false,
                 left_click_held: false,
                 hover_state: None,
             },
@@ -206,6 +212,23 @@ impl App {
                     Err(TryRecvError::Empty) => {}
                     Err(TryRecvError::Disconnected) => {
                         self.project_file_dialog_rx = None;
+                    }
+                }
+            }
+
+            if let Some(rx) = &self.project_save_dialog_rx {
+                match rx.try_recv() {
+                    Ok(Some(path)) => {
+                        gfx.project_path = path.to_str().unwrap().to_string();
+                        self.producer.try_push(AudioCommand::SaveProject).ok();
+                        self.project_save_dialog_rx = None;
+                    }
+                    Ok(None) => {
+                        self.project_save_dialog_rx = None;
+                    }
+                    Err(TryRecvError::Empty) => {}
+                    Err(TryRecvError::Disconnected) => {
+                        self.project_save_dialog_rx = None;
                     }
                 }
             }
@@ -611,7 +634,7 @@ impl ApplicationHandler<Graphics> for App {
                             self.ctrl_pressed = false;
                         }
                         PhysicalKey::Code(KeyCode::ShiftLeft | KeyCode::ShiftRight) => {
-                            self.mouse_state.shift_pressed = false;
+                            self.shift_pressed = false;
                         }
                         _ => {}
                     }
@@ -629,10 +652,24 @@ impl ApplicationHandler<Graphics> for App {
                             self.ctrl_pressed = true;
                         }
                         PhysicalKey::Code(KeyCode::ShiftLeft | KeyCode::ShiftRight) => {
-                            self.mouse_state.shift_pressed = true;
+                            self.shift_pressed = true;
                         }
                         PhysicalKey::Code(KeyCode::KeyS) if self.ctrl_pressed => {
-                            self.producer.try_push(AudioCommand::SaveProject).ok();
+                            if let State::Ready(gfx) = &mut self.state {
+                                if gfx.project_path == crate::project::Project::default_project_file() {
+                                    // show save-as dialog instead
+                                    if self.project_save_dialog_rx.is_none() {
+                                        let (tx, rx) = std::sync::mpsc::channel::<Option<PathBuf>>();
+                                        self.project_save_dialog_rx = Some(rx);
+                                        thread::spawn(move || {
+                                            let file = FileDialog::new().add_filter("toml", &["toml"]).set_file_name("project.toml").save_file();
+                                            tx.send(file).ok();
+                                        });
+                                    }
+                                } else {
+                                    self.producer.try_push(AudioCommand::SaveProject).ok();
+                                }
+                            }
                         }
 
                         _ => {}
@@ -662,14 +699,14 @@ impl ApplicationHandler<Graphics> for App {
                         .copied();
 
                     if scroll_owner == Some(PLAYLIST_ID) {
-                        if self.mouse_state.shift_pressed {
+                        if self.shift_pressed {
                             gfx.playlist_scroll_offset.x -= self.mouse_state.scroll_y * 35.0;
                         } else {
                             gfx.playlist_scroll_offset.y = (gfx.playlist_scroll_offset.y - self.mouse_state.scroll_y * 35.0).clamp(0.0, 1448.0);
                         }
                     } else if scroll_owner == Some(PIANO_ROLL_ID) {
                         if let Some(state) = gfx.piano_roll_state.as_mut() {
-                            if self.mouse_state.shift_pressed {
+                            if self.shift_pressed {
                                 state.scroll_offset.x -= self.mouse_state.scroll_y * 35.0;
                             } else {
                                 state.scroll_offset.y = (state.scroll_offset.y - self.mouse_state.scroll_y * 35.0).clamp(0.0, 1448.0);

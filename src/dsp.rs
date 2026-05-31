@@ -3,8 +3,19 @@
  * mathematical functions to compute signals and samples
  */
 
-/// calculate how many samples are in one step of audio
 pub fn samples_per_step(sample_rate: f32, bpm: f32) -> f32 {
+    /*
+     * Calculating samples_per_step:
+     *
+     * sample_rate: samples per second (HZ)
+     * bpm: beats per minute
+     *
+     * There are 60 seconds in one minute -> beats_per_second = bpm / 60.0
+     * There are 4 steps in one beat -> steps_per_second = bps * 4.0
+     *
+     * samples_per_second / steps_per_second is equivalent to samples / steps
+     */
+
     sample_rate / (bpm / 60.0 * 4.0)
 }
 
