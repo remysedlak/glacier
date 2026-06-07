@@ -1,6 +1,4 @@
 // audio.rs -  audio engine for sequencing compositions and applying DSP
-
-use crate::dsp;
 use crate::project::*;
 use crate::UiCommand;
 use cpal::{
@@ -269,9 +267,11 @@ pub fn init(mut consumer: HeapCons<AudioCommand>, mut producer: HeapProd<UiComma
                             track.is_playing = false;
                         } else {
                             // volume ramping
-                            track.current_volume = dsp::smooth_toward(track.current_volume, track.data.target_volume, 0.01);
-                            sample[0] += track.samples[pos] * track.current_volume * track.data.track_volume * shutdown_volume * master_volume;
-                            sample[1] += track.samples[pos + 1] * track.current_volume * track.data.track_volume * shutdown_volume * master_volume;
+                            track.current_volume = glacier_dsp::smooth_toward(track.current_volume, track.data.target_volume, 0.01);
+                            sample[0] +=
+                                track.samples[pos] * track.current_volume * track.data.track_volume * shutdown_volume * master_volume;
+                            sample[1] +=
+                                track.samples[pos + 1] * track.current_volume * track.data.track_volume * shutdown_volume * master_volume;
                             track.position += 2.0 * track.playback_rate; // ramping
                         }
                     }
@@ -283,7 +283,7 @@ pub fn init(mut consumer: HeapCons<AudioCommand>, mut producer: HeapProd<UiComma
             sample_counter += data.len() as f32 / 2.0; // increment sample counter by number of samples requested : keep track of sample position
 
             // get amount of samples per step
-            let samples_per_step = dsp::samples_per_step(sample_rate_f, bpm);
+            let samples_per_step = glacier_dsp::samples_per_step(sample_rate_f, bpm);
 
             // update UI time
             let beat = current_step as f32 + (sample_counter / samples_per_step);
@@ -326,7 +326,7 @@ pub fn init(mut consumer: HeapCons<AudioCommand>, mut producer: HeapProd<UiComma
                         track.position = 0.0;
                         track.is_playing = true; // step function
                         track.data.target_volume = velocity / 127.0;
-                        track.playback_rate = dsp::semitones_to_rate(pitch, track.data.root_note)
+                        track.playback_rate = glacier_dsp::semitones_to_rate(pitch, track.data.root_note)
                     }
                 }
             }
