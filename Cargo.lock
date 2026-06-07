@@ -801,6 +801,7 @@ dependencies = [
  "dirs",
  "env_logger",
  "fontdue",
+ "glacier-dsp",
  "hound",
  "log",
  "pollster",
