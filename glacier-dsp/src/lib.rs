@@ -1,4 +1,6 @@
-/// library contains implementations of ZCR, RMSE/Peaks,
+use std::f32::consts::TAU;
+
+/// library contains implementations of ZCR, RMSE/Peaks, Envelope Follower
 
 /// Helper. returns a peak (maximum) amplitude for one window
 ///
@@ -34,18 +36,52 @@ pub fn zcr_window(samples: &[f32]) -> usize {
     let mut crosses = 0; // accumalte the square of each sample's ampltiude
     for sample in samples.windows(2) {
         // amplitude crosses zero (+ <-> -)
-        if (sample[0] > 0.0 && sample[1] < 0.0 || sample[0] < 0.0 && sample[1] > 0.0) && (sample[0] - sample[1]).abs() > 0.0 {
+        if (sample[0] > 0.0 && sample[1] < 0.0 || sample[0] < 0.0 && sample[1] > 0.0)
+            && (sample[0] - sample[1]).abs() > 0.0
+        {
             crosses += 1;
         }
     }
     crosses
 }
 
+/// compute one discrete fourier transform
+pub fn dft_window(samples: &[f32]) -> f32 {
+    // X[k] = Σ x[n] * e^(-j2πkn/N)
+    let mut sum = 0.0;
+    for sample in samples {
+        sum += sample * f32::exp(3.0).powf(-TAU * sample / samples.len() as f32)
+    }
+    sum
+}
+
+/// Hann window samples. used for smoothing non-periodic captured signals
+/// * narrows the frequency spectrum from an FFT
+pub fn hann_window(samples: usize) -> Vec<f32> {
+    let mut freq: Vec<f32> = vec![];
+    let n = samples as f32;
+    for sample in 0..samples {
+        // 0.5 * (1 - cos(2πn/N))
+        let windowed_sample = 0.5 * (1.0 - f32::cos(TAU * sample as f32 / n));
+        freq.push(windowed_sample)
+    }
+    freq
+}
+
+pub fn freq_resolution_per_bin(sample_rate: f32, window_size: usize) -> u32 {
+    sample_rate as u32 / window_size as u32
+}
+
+// Short-time Fourier transform
+pub fn stft() {}
+
 /// Root-Mean Square Energy: used for volume tracking over time (db meter)
 pub fn rms(samples: &[f32], window_size: usize, hop_size: usize) -> Vec<f32> {
     let mut rms_vector: Vec<f32> = vec![];
     for hop in 0..(samples.len() / hop_size) - 1 {
-        rms_vector.push(rms_window(&samples[(hop * hop_size)..(hop * hop_size + window_size)]));
+        rms_vector.push(rms_window(
+            &samples[(hop * hop_size)..(hop * hop_size + window_size)],
+        ));
     }
     rms_vector
 }
@@ -54,7 +90,9 @@ pub fn rms(samples: &[f32], window_size: usize, hop_size: usize) -> Vec<f32> {
 pub fn peak(samples: &[f32], window_size: usize, hop_size: usize) -> Vec<f32> {
     let mut peak_vector: Vec<f32> = vec![];
     for hop in 0..(samples.len() / hop_size) - 1 {
-        peak_vector.push(peak_window(&samples[(hop * hop_size)..(hop * hop_size + window_size)]));
+        peak_vector.push(peak_window(
+            &samples[(hop * hop_size)..(hop * hop_size + window_size)],
+        ));
     }
     peak_vector
 }
@@ -63,15 +101,29 @@ pub fn peak(samples: &[f32], window_size: usize, hop_size: usize) -> Vec<f32> {
 pub fn zcr(samples: &[f32], window_size: usize, hop_size: usize) -> Vec<usize> {
     let mut zcr_vector: Vec<usize> = vec![];
     for hop in 0..(samples.len() / hop_size) - 1 {
-        zcr_vector.push(zcr_window(&samples[(hop * hop_size)..(hop * hop_size + window_size)]));
+        zcr_vector.push(zcr_window(
+            &samples[(hop * hop_size)..(hop * hop_size + window_size)],
+        ));
     }
     zcr_vector
 }
 
-/* dsp.rs
- *
- * mathematical functions to compute signals and samples
- */
+/// Envelope Follower. smooths RMSE values over time
+pub fn envelope_follower(rms: &[f32], attack: f32, release: f32) -> Vec<f32> {
+    let mut smooth_vector: Vec<f32> = vec![];
+    let mut previous = 0.0;
+    for rms_value in rms.iter() {
+        let coefficient = if *rms_value > previous {
+            attack
+        } else {
+            release
+        };
+        let smoothed_rms = smooth_toward(previous, *rms_value, coefficient);
+        smooth_vector.push(smoothed_rms);
+        previous = smoothed_rms;
+    }
+    smooth_vector
+}
 
 pub fn samples_per_step(sample_rate: f32, bpm: f32) -> f32 {
     /*
@@ -133,6 +185,14 @@ mod tests {
         let result: Vec<f32> = rms(&zero_samples, 1024, 512);
         let answer = [0.0_f32; 15];
         assert_eq!(result, answer);
+    }
+    #[test]
+    fn zero_envelope_follower() {
+        let zero_samples: Vec<f32> = [0.0_f32; 8192].to_vec();
+        let result: Vec<f32> = rms(&zero_samples, 1024, 512);
+        let envelope = envelope_follower(&result, 1.0, 0.01);
+        let answer = [0.0_f32; 15];
+        assert_eq!(envelope, answer);
     }
     pub fn sine_samples() -> Vec<f32> {
         let mut samples: Vec<f32> = vec![];

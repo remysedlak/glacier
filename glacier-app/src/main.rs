@@ -37,12 +37,22 @@ fn main() {
     let (ui_prod, ui_cons) = HeapRb::<UiCommand>::new(64).split();
 
     // start the audio stream with empty ringbuffers and no project
-    let default_project = if dev_mode { Some("assets/projects/dev.toml".to_string()) } else { None };
+    let default_project = if dev_mode {
+        Some("assets/projects/dev.toml".to_string())
+    } else {
+        None
+    };
     let audio_stream = audio::init(audio_cons, ui_prod, default_project);
 
     let user_settings: UserSettings = config::load();
 
     // combine audio and ui buffers to create app logic owning the audio stream
-    let app = App::new(audio_prod, ui_cons, &event_loop, audio_stream, user_settings);
+    let app = App::new(
+        audio_prod,
+        ui_cons,
+        &event_loop,
+        audio_stream,
+        user_settings,
+    );
     run_app(event_loop, app);
 }

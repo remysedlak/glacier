@@ -6,7 +6,8 @@ use crate::graphics::{
     context_menu::{ContextMenu, ContextMenuKind},
     drag::DragResult,
     mini_window::{
-        piano_roll::PIANO_ROLL_DEFAULT_Y, sequencer::TRACK_GAP, MiniWindow, WindowKind, MIXER_ID, PIANO_ROLL_ID, PLAYLIST_ID, SEQUENCER_ID,
+        piano_roll::PIANO_ROLL_DEFAULT_Y, sequencer::TRACK_GAP, MiniWindow, WindowKind, MIXER_ID,
+        PIANO_ROLL_ID, PLAYLIST_ID, SEQUENCER_ID,
     },
     {bring_to_front, create_graphics, ClickResult, Graphics, Rc},
 };
@@ -174,7 +175,12 @@ impl App {
                         self.track_load_rx = Some(load_rx);
                         std::thread::spawn(move || {
                             let samples = crate::project::path_to_vector(&path_str);
-                            let name = std::path::Path::new(&path_str).file_name().unwrap().to_str().unwrap().to_string();
+                            let name = std::path::Path::new(&path_str)
+                                .file_name()
+                                .unwrap()
+                                .to_str()
+                                .unwrap()
+                                .to_string();
                             let data = crate::project::TrackData {
                                 id: 0,
                                 path: path_str,
@@ -220,7 +226,11 @@ impl App {
             if let Some(rx) = &self.project_save_dialog_rx {
                 match rx.try_recv() {
                     Ok(Some(path)) => {
-                        gfx.project_path = path.to_str().unwrap().to_string();
+                        let path_str = path.to_str().unwrap().to_string();
+                        gfx.project_path = path_str.clone();
+                        self.producer
+                            .try_push(AudioCommand::SetProjectPath(path_str))
+                            .ok();
                         self.producer.try_push(AudioCommand::SaveProject).ok();
                         self.project_save_dialog_rx = None;
                     }
@@ -308,7 +318,9 @@ impl App {
             if let Some(rx) = &self.track_load_rx {
                 match rx.try_recv() {
                     Ok((data, samples)) => {
-                        self.producer.try_push(AudioCommand::LoadTrack(data, samples)).ok();
+                        self.producer
+                            .try_push(AudioCommand::LoadTrack(data, samples))
+                            .ok();
                         self.track_load_rx = None;
                     }
                     Err(TryRecvError::Empty) => {}
@@ -333,24 +345,40 @@ impl App {
                     gfx.resizing_event = Some(id);
                 }
                 ClickResult::DuplicatePattern(pattern_id) => {
-                    self.producer.try_push(AudioCommand::DuplicatePattern(pattern_id)).ok();
+                    self.producer
+                        .try_push(AudioCommand::DuplicatePattern(pattern_id))
+                        .ok();
                     self.project_is_dirty = true;
                     gfx.patterns.push(PatternData {
                         id: gfx.patterns.len(),
                         name: format!("Pattern {}", gfx.patterns.len()),
-                        sequences: gfx.patterns.iter().find(|p| p.id == pattern_id).unwrap().sequences.clone(),
+                        sequences: gfx
+                            .patterns
+                            .iter()
+                            .find(|p| p.id == pattern_id)
+                            .unwrap()
+                            .sequences
+                            .clone(),
                     });
                 }
                 ClickResult::LoadPianoRoll(piano_state) => {
                     gfx.context_menu = None;
                     gfx.piano_roll_state = Some(piano_state);
-                    if let Some(win) = gfx.mini_windows.iter_mut().find(|w| matches!(w.window_kind, WindowKind::PianoRoll)) {
+                    if let Some(win) = gfx
+                        .mini_windows
+                        .iter_mut()
+                        .find(|w| matches!(w.window_kind, WindowKind::PianoRoll))
+                    {
                         bring_to_front(&mut gfx.z_order, PIANO_ROLL_ID);
                         win.is_open = true;
                     }
                 }
                 ClickResult::TogglePianoRollWindow => {
-                    if let Some(win) = gfx.mini_windows.iter_mut().find(|w| matches!(w.window_kind, WindowKind::PianoRoll)) {
+                    if let Some(win) = gfx
+                        .mini_windows
+                        .iter_mut()
+                        .find(|w| matches!(w.window_kind, WindowKind::PianoRoll))
+                    {
                         if !win.is_open {
                             bring_to_front(&mut gfx.z_order, PIANO_ROLL_ID);
                         }
@@ -360,22 +388,36 @@ impl App {
                 }
                 ClickResult::ToggleNote(pattern_id, track_id, step_idx, pitch) => {
                     self.producer
-                        .try_push(AudioCommand::ToggleNote(pattern_id, track_id, step_idx, pitch))
+                        .try_push(AudioCommand::ToggleNote(
+                            pattern_id, track_id, step_idx, pitch,
+                        ))
                         .ok();
 
                     // also update UI state
                     if let Some(pattern) = gfx.patterns.iter_mut().find(|p| p.id == pattern_id) {
-                        if let Some(seq) = pattern.sequences.iter_mut().find(|s| s.track_id == track_id) {
+                        if let Some(seq) = pattern
+                            .sequences
+                            .iter_mut()
+                            .find(|s| s.track_id == track_id)
+                        {
                             let note = &mut seq.steps[step_idx];
                             if note.velocity > 0.0 && note.pitch == pitch {
                                 *note = crate::project::Note::default();
                             } else {
-                                *note = crate::project::Note { velocity: 95.0, pitch };
+                                *note = crate::project::Note {
+                                    velocity: 95.0,
+                                    pitch,
+                                };
                             }
                         } else {
                             let mut steps = vec![crate::project::Note::default(); 32];
-                            steps[step_idx] = crate::project::Note { velocity: 95.0, pitch };
-                            pattern.sequences.push(crate::project::Sequence { track_id, steps });
+                            steps[step_idx] = crate::project::Note {
+                                velocity: 95.0,
+                                pitch,
+                            };
+                            pattern
+                                .sequences
+                                .push(crate::project::Sequence { track_id, steps });
                         }
                     }
                     self.project_is_dirty = true;
@@ -401,12 +443,16 @@ impl App {
                 }
                 ClickResult::ChangeBpmDown => {
                     gfx.bpm -= 1.0;
-                    self.producer.try_push(AudioCommand::ChangeBpm(gfx.bpm)).ok();
+                    self.producer
+                        .try_push(AudioCommand::ChangeBpm(gfx.bpm))
+                        .ok();
                     self.project_is_dirty = true;
                 }
                 ClickResult::ChangeBpmUp => {
                     gfx.bpm += 1.0;
-                    self.producer.try_push(AudioCommand::ChangeBpm(gfx.bpm)).ok();
+                    self.producer
+                        .try_push(AudioCommand::ChangeBpm(gfx.bpm))
+                        .ok();
                     self.project_is_dirty = true;
                 }
                 ClickResult::SelectPattern(pattern_id) => {
@@ -423,7 +469,11 @@ impl App {
                         },
                     });
 
-                    if let Some(pos) = gfx.mini_windows.iter().position(|w| w.window_kind == WindowKind::TrackDetail(track)) {
+                    if let Some(pos) = gfx
+                        .mini_windows
+                        .iter()
+                        .position(|w| w.window_kind == WindowKind::TrackDetail(track))
+                    {
                         gfx.mini_windows[pos].is_open = !gfx.mini_windows[pos].is_open;
                     } else {
                         gfx.mini_windows.push(MiniWindow {
@@ -447,12 +497,19 @@ impl App {
                     // ui
                     gfx.events.retain(|e| e.id != id);
                     // audio
-                    self.producer.try_push(AudioCommand::DeleteAudioBlock(id)).ok();
+                    self.producer
+                        .try_push(AudioCommand::DeleteAudioBlock(id))
+                        .ok();
                     self.project_is_dirty = true;
                 }
                 ClickResult::AddPlaylistPattern(track, start_step, length, block_type) => {
                     self.producer
-                        .try_push(AudioCommand::CreateAudioBlock(track, start_step, length, block_type.clone()))
+                        .try_push(AudioCommand::CreateAudioBlock(
+                            track,
+                            start_step,
+                            length,
+                            block_type.clone(),
+                        ))
                         .ok();
                     gfx.events.push(AudioBlock {
                         id: gfx.events.len(),
@@ -465,7 +522,9 @@ impl App {
                 }
                 ClickResult::DeletePattern(pattern_id) => {
                     // delete from audio state
-                    self.producer.try_push(AudioCommand::DeletePattern(pattern_id)).ok();
+                    self.producer
+                        .try_push(AudioCommand::DeletePattern(pattern_id))
+                        .ok();
 
                     // delete from ui state
                     gfx.patterns.retain(|p| p.id != pattern_id);
@@ -485,7 +544,11 @@ impl App {
                     self.project_is_dirty = true;
                 }
                 ClickResult::ToggleSequencerWindow => {
-                    if let Some(win) = gfx.mini_windows.iter_mut().find(|w| matches!(w.window_kind, WindowKind::Sequencer)) {
+                    if let Some(win) = gfx
+                        .mini_windows
+                        .iter_mut()
+                        .find(|w| matches!(w.window_kind, WindowKind::Sequencer))
+                    {
                         if !win.is_open {
                             bring_to_front(&mut gfx.z_order, SEQUENCER_ID);
                         }
@@ -493,7 +556,11 @@ impl App {
                     }
                 }
                 ClickResult::ToggleMixerWindow => {
-                    if let Some(win) = gfx.mini_windows.iter_mut().find(|w| matches!(w.window_kind, WindowKind::Mixer)) {
+                    if let Some(win) = gfx
+                        .mini_windows
+                        .iter_mut()
+                        .find(|w| matches!(w.window_kind, WindowKind::Mixer))
+                    {
                         if !win.is_open {
                             bring_to_front(&mut gfx.z_order, MIXER_ID);
                         }
@@ -502,7 +569,11 @@ impl App {
                     }
                 }
                 ClickResult::TogglePlaylistWindow => {
-                    if let Some(win) = gfx.mini_windows.iter_mut().find(|w| matches!(w.window_kind, WindowKind::Playlist)) {
+                    if let Some(win) = gfx
+                        .mini_windows
+                        .iter_mut()
+                        .find(|w| matches!(w.window_kind, WindowKind::Playlist))
+                    {
                         if !win.is_open {
                             bring_to_front(&mut gfx.z_order, PLAYLIST_ID);
                         }
@@ -510,7 +581,9 @@ impl App {
                     }
                 }
                 ClickResult::ToggleStep(pattern_id, track_id, step) => {
-                    self.producer.try_push(AudioCommand::ToggleStep(pattern_id, track_id, step)).ok();
+                    self.producer
+                        .try_push(AudioCommand::ToggleStep(pattern_id, track_id, step))
+                        .ok();
                     self.project_is_dirty = true;
                 }
                 ClickResult::Stop => {
@@ -524,11 +597,15 @@ impl App {
                     self.producer.try_push(AudioCommand::Stop).ok();
                 }
                 ClickResult::ToggleTrackMute(track_id) => {
-                    self.producer.try_push(AudioCommand::ToggleTrackMute(track_id)).ok();
+                    self.producer
+                        .try_push(AudioCommand::ToggleTrackMute(track_id))
+                        .ok();
                     self.project_is_dirty = true;
                 }
                 ClickResult::ChangeBpm(new_bpm) => {
-                    self.producer.try_push(AudioCommand::ChangeBpm(new_bpm)).ok();
+                    self.producer
+                        .try_push(AudioCommand::ChangeBpm(new_bpm))
+                        .ok();
                     self.project_is_dirty = true;
                 }
                 ClickResult::TogglePlay => {
@@ -537,9 +614,12 @@ impl App {
                     self.producer.try_push(AudioCommand::TogglePlay).ok();
                 }
                 ClickResult::DeleteTrack(track_id) => {
-                    self.producer.try_push(AudioCommand::DeleteTrack(track_id)).ok();
+                    self.producer
+                        .try_push(AudioCommand::DeleteTrack(track_id))
+                        .ok();
                     gfx.tracks.remove(track_id);
-                    gfx.mini_windows[SEQUENCER_ID].height = 100.0 + TRACK_GAP * gfx.tracks.len() as f32;
+                    gfx.mini_windows[SEQUENCER_ID].height =
+                        100.0 + TRACK_GAP * gfx.tracks.len() as f32;
 
                     gfx.context_menu = None;
                     self.project_is_dirty = true;
@@ -549,7 +629,10 @@ impl App {
                         let (tx, rx) = std::sync::mpsc::channel::<Option<PathBuf>>();
                         self.project_file_dialog_rx = Some(rx);
                         thread::spawn(move || {
-                            let file = FileDialog::new().add_filter("toml", &["toml"]).set_directory("/").pick_file();
+                            let file = FileDialog::new()
+                                .add_filter("toml", &["toml"])
+                                .set_directory("/")
+                                .pick_file();
                             tx.send(file).ok()
                         });
                     }
@@ -607,8 +690,14 @@ impl ApplicationHandler<Graphics> for App {
             if let Some(proxy) = proxy.take() {
                 let mut win_attr = Window::default_attributes();
 
-                win_attr = win_attr.with_inner_size(winit::dpi::LogicalSize::new(1800, 1200)).with_title("Glacier");
-                let window = Rc::new(event_loop.create_window(win_attr).expect("create window err."));
+                win_attr = win_attr
+                    .with_inner_size(winit::dpi::LogicalSize::new(1800, 1200))
+                    .with_title("Glacier");
+                let window = Rc::new(
+                    event_loop
+                        .create_window(win_attr)
+                        .expect("create window err."),
+                );
                 pollster::block_on(create_graphics(window, proxy));
             }
         }
@@ -619,7 +708,12 @@ impl ApplicationHandler<Graphics> for App {
         self.state = State::Ready(Box::new(graphics));
     }
 
-    fn window_event(&mut self, event_loop: &ActiveEventLoop, _window_id: WindowId, event: WindowEvent) {
+    fn window_event(
+        &mut self,
+        event_loop: &ActiveEventLoop,
+        _window_id: WindowId,
+        event: WindowEvent,
+    ) {
         match event {
             WindowEvent::CloseRequested => {
                 self.producer.try_push(AudioCommand::ShutDown).ok();
@@ -660,13 +754,19 @@ impl ApplicationHandler<Graphics> for App {
                         }
                         PhysicalKey::Code(KeyCode::KeyS) if self.ctrl_pressed => {
                             if let State::Ready(gfx) = &mut self.state {
-                                if gfx.project_path == crate::project::Project::default_project_file() {
+                                if gfx.project_path
+                                    == crate::project::Project::default_project_file()
+                                {
                                     // show save-as dialog instead
                                     if self.project_save_dialog_rx.is_none() {
-                                        let (tx, rx) = std::sync::mpsc::channel::<Option<PathBuf>>();
+                                        let (tx, rx) =
+                                            std::sync::mpsc::channel::<Option<PathBuf>>();
                                         self.project_save_dialog_rx = Some(rx);
                                         thread::spawn(move || {
-                                            let file = FileDialog::new().add_filter("toml", &["toml"]).set_file_name("project.toml").save_file();
+                                            let file = FileDialog::new()
+                                                .add_filter("toml", &["toml"])
+                                                .set_file_name("project.toml")
+                                                .save_file();
                                             tx.send(file).ok();
                                         });
                                     }
@@ -699,21 +799,29 @@ impl ApplicationHandler<Graphics> for App {
                         .z_order
                         .iter()
                         .rev()
-                        .find(|&&id| gfx.mini_windows[id].is_open && gfx.mini_windows[id].is_hovered(self.mouse_state.x, self.mouse_state.y))
+                        .find(|&&id| {
+                            gfx.mini_windows[id].is_open
+                                && gfx.mini_windows[id]
+                                    .is_hovered(self.mouse_state.x, self.mouse_state.y)
+                        })
                         .copied();
 
                     if scroll_owner == Some(PLAYLIST_ID) {
                         if self.shift_pressed {
                             gfx.playlist_scroll_offset.x -= self.mouse_state.scroll_y * 35.0;
                         } else {
-                            gfx.playlist_scroll_offset.y = (gfx.playlist_scroll_offset.y - self.mouse_state.scroll_y * 35.0).clamp(0.0, 1448.0);
+                            gfx.playlist_scroll_offset.y = (gfx.playlist_scroll_offset.y
+                                - self.mouse_state.scroll_y * 35.0)
+                                .clamp(0.0, 1448.0);
                         }
                     } else if scroll_owner == Some(PIANO_ROLL_ID) {
                         if let Some(state) = gfx.piano_roll_state.as_mut() {
                             if self.shift_pressed {
                                 state.scroll_offset.x -= self.mouse_state.scroll_y * 35.0;
                             } else {
-                                state.scroll_offset.y = (state.scroll_offset.y - self.mouse_state.scroll_y * 35.0).clamp(0.0, 1448.0);
+                                state.scroll_offset.y = (state.scroll_offset.y
+                                    - self.mouse_state.scroll_y * 35.0)
+                                    .clamp(0.0, 1448.0);
                             }
                         }
                     }
@@ -725,7 +833,10 @@ impl ApplicationHandler<Graphics> for App {
                 // left click is PRESSED
                 if state.is_pressed() && button == MouseButton::Left {
                     let now = std::time::Instant::now();
-                    let is_double_click = self.last_click_time.map(|t| now.duration_since(t).as_millis() < 300).unwrap_or(false);
+                    let is_double_click = self
+                        .last_click_time
+                        .map(|t| now.duration_since(t).as_millis() < 300)
+                        .unwrap_or(false);
                     self.last_click_time = Some(now);
 
                     if is_double_click {
@@ -772,22 +883,35 @@ impl ApplicationHandler<Graphics> for App {
 
                 if let State::Ready(gfx) = &mut self.state {
                     if self.mouse_state.left_click_held {
-                        match gfx.handle_drag(position.x as f32, position.y as f32, delta_y, delta_x) {
+                        match gfx.handle_drag(
+                            position.x as f32,
+                            position.y as f32,
+                            delta_y,
+                            delta_x,
+                        ) {
                             DragResult::None => {}
                             DragResult::DragMasterVolumeSlider(new_volume) => {
-                                self.producer.try_push(AudioCommand::ChangeMasterVolume(new_volume)).ok();
+                                self.producer
+                                    .try_push(AudioCommand::ChangeMasterVolume(new_volume))
+                                    .ok();
                                 gfx.request_redraw();
                             }
                             DragResult::DragTrackVolumeKnob(track_id, new_volume) => {
-                                self.producer.try_push(AudioCommand::ChangeTrackVolume(track_id, new_volume)).ok();
+                                self.producer
+                                    .try_push(AudioCommand::ChangeTrackVolume(track_id, new_volume))
+                                    .ok();
                                 gfx.request_redraw();
                             }
                             DragResult::DragTrackVolumeSlider(track_id, new_volume) => {
-                                self.producer.try_push(AudioCommand::ChangeTrackVolume(track_id, new_volume)).ok();
+                                self.producer
+                                    .try_push(AudioCommand::ChangeTrackVolume(track_id, new_volume))
+                                    .ok();
                                 gfx.request_redraw();
                             }
                             DragResult::ResizeAudioBlock(event_id, amount) => {
-                                self.producer.try_push(AudioCommand::ResizeAudioBlock(event_id, amount)).ok();
+                                self.producer
+                                    .try_push(AudioCommand::ResizeAudioBlock(event_id, amount))
+                                    .ok();
                             }
                         }
                     } else {

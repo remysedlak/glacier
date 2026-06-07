@@ -13,7 +13,14 @@ pub struct Project {
 }
 
 impl Project {
-    pub fn new(name: String, bpm: f32, master_volume: f32, tracks: &[Track], patterns: Vec<PatternData>, events: Vec<AudioBlock>) -> Project {
+    pub fn new(
+        name: String,
+        bpm: f32,
+        master_volume: f32,
+        tracks: &[Track],
+        patterns: Vec<PatternData>,
+        events: Vec<AudioBlock>,
+    ) -> Project {
         Project {
             name: name.clone(),
             bpm,
@@ -25,9 +32,15 @@ impl Project {
     }
     /// Save the project details to a location on disk
     pub fn save_to_toml(&self, file_path: &str) {
-        // convert project data to TOML and write to disk
+        let path = std::path::Path::new(file_path);
+        if let Some(parent) = path.parent() {
+            std::fs::create_dir_all(parent).ok();
+        }
+
         let text = toml::to_string(self).unwrap();
-        std::fs::write(file_path, text).unwrap();
+        if let Err(e) = std::fs::write(file_path, &text) {
+            eprintln!("Failed to save project: {}", e);
+        }
     }
     pub fn default_project_file() -> String {
         "assets/projects/new_project.toml".to_string()
@@ -153,7 +166,10 @@ pub struct Note {
 impl Default for Note {
     // default to off note at middle C
     fn default() -> Self {
-        Note { velocity: 0.0, pitch: 60 }
+        Note {
+            velocity: 0.0,
+            pitch: 60,
+        }
     }
 }
 
