@@ -6,7 +6,7 @@ pub mod draw;
 pub mod font;
 pub mod icons;
 pub mod mini_window;
-// pub mod modal;
+pub mod modal;
 pub mod primitives;
 pub mod widgets;
 
@@ -22,7 +22,8 @@ use crate::graphics::{
     mini_window::{
         mixer, piano_roll, playlist, sequencer,
         sequencer::{ACTIONS_Y_OFFSET, KNOB_OFFSET, KNOB_RADIUS, TRACK_GAP},
-        track, MiniWindow, PianoRollDrawRanges, PlaylistDrawRanges, WindowDrawRange, WindowKind, MIXER_ID, PIANO_ROLL_ID, PLAYLIST_ID, SEQUENCER_ID,
+        track, MiniWindow, PianoRollDrawRanges, PlaylistDrawRanges, WindowDrawRange, WindowKind, MIXER_ID, PIANO_ROLL_ID, PLAYLIST_ID,
+        SEQUENCER_ID,
     },
     primitives::*,
     widgets::*,
@@ -33,9 +34,10 @@ use fontdue::layout::{CoordinateSystem, Layout, TextStyle};
 use std::{borrow::Cow, collections::HashMap};
 
 use wgpu::{
-    util::DeviceExt, CommandEncoderDescriptor, DeviceDescriptor, Features, FragmentState, Instance, Limits, LoadOp, MemoryHints, Operations,
-    PowerPreference, RenderPassColorAttachment, RenderPassDescriptor, RenderPipeline, RenderPipelineDescriptor, RequestAdapterOptions,
-    ShaderModuleDescriptor, ShaderSource, StoreOp, SurfaceConfiguration, TextureFormat, TextureViewDescriptor, VertexState,
+    util::DeviceExt, CommandEncoderDescriptor, DeviceDescriptor, Features, FragmentState, Instance, Limits, LoadOp, MemoryHints,
+    Operations, PowerPreference, RenderPassColorAttachment, RenderPassDescriptor, RenderPipeline, RenderPipelineDescriptor,
+    RequestAdapterOptions, ShaderModuleDescriptor, ShaderSource, StoreOp, SurfaceConfiguration, TextureFormat, TextureViewDescriptor,
+    VertexState,
 };
 
 use winit::{
@@ -164,14 +166,18 @@ pub async fn create_graphics(window: Rc<Window>, proxy: EventLoopProxy<Graphics>
     ];
 
     // fonts
-    let roboto = (ROBOTO, include_bytes!("../../assets/fonts/Roboto-VariableFont_wdth,wght.ttf") as &[u8]);
-    let mono = (MONOSPACED, include_bytes!("../../assets/fonts/IBMPlexMono-Regular.ttf") as &[u8]);
+    let roboto = (
+        ROBOTO,
+        include_bytes!("../../../assets/fonts/Roboto-VariableFont_wdth,wght.ttf") as &[u8],
+    );
+    let mono = (MONOSPACED, include_bytes!("../../../assets/fonts/IBMPlexMono-Regular.ttf") as &[u8]);
     let mut font_cache: HashMap<String, fontdue::Font> = HashMap::new();
     let mut glyph_cache = GlyphCache::new();
     let bind_group_layout = create_bind_group_layout(&device);
     for (name, bytes) in [roboto, mono] {
         let font = fontdue::Font::from_bytes(bytes, fontdue::FontSettings::default()).unwrap();
-        let cache: HashMap<(char, u32), GlyphEntry> = build_glyph_cache(&device, &queue, &font, &[8.0, 10.0, 12.0, 14.0, 16.0, 18.0, 24.0, 32.0]);
+        let cache: HashMap<(char, u32), GlyphEntry> =
+            build_glyph_cache(&device, &queue, &font, &[8.0, 10.0, 12.0, 14.0, 16.0, 18.0, 24.0, 32.0]);
         font_cache.insert(name.to_string(), font);
         glyph_cache.insert(name.to_string(), cache);
     }
