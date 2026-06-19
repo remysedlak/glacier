@@ -6,7 +6,7 @@ use crate::graphics::{
     mini_window::MiniWindow,
     primitives::*,
     widgets::window_title_bar,
-    {ClickResult, Rectangle, TextItem},
+    {ClickResult, Rectangle, ScrollOffset, TextItem},
 };
 use crate::project::{Note, PatternData, Sequence, Track};
 use winit::window::CursorIcon;
@@ -24,7 +24,7 @@ pub const MUTE_SQUARE_LENGTH: f32 = 16.0;
 pub fn draw(
     window: &MiniWindow,
     patterns: &mut [PatternData],
-
+    scroll_offset: &ScrollOffset,
     tracks: &mut [Track],
     active_pattern_id: usize,
     active_step: usize,
@@ -48,7 +48,8 @@ pub fn draw(
     vertices.extend(window_background.draw(screen_config, MINI_WINDOW_BACKGROUND, BOTTOM_RADIUS_16));
 
     // titlebar
-    let (titlebar_verts, titlebar_texts, result, cursor) = window_title_bar(window, &window.title, screen_config, mouse_state);
+    let (titlebar_verts, titlebar_texts, result, cursor) =
+        window_title_bar(window, &window.title, screen_config, mouse_state);
     if !matches!(cursor, CursorIcon::Default) {
         cursor_icon = cursor;
     }
@@ -77,7 +78,15 @@ pub fn draw(
             // for each step
             for (j, step) in steps_slice.iter().enumerate() {
                 // velocity bar
-                let step_x = SEQUENCER_X_ORIGIN + window.x + (j as f32 * BUTTON_GAP) + ((j / 4) as f32 * BAR_GAP) + PAD_16;
+                let step_x =
+                    SEQUENCER_X_ORIGIN + window.x + (j as f32 * BUTTON_GAP) + ((j / 4) as f32 * BAR_GAP) + PAD_16
+                        - scroll_offset.x;
+                if step_x + SEQUENCER_STEP_WIDTH < window.x + SEQUENCER_X_ORIGIN {
+                    continue;
+                }
+                if step_x > window.x + window.width {
+                    break;
+                }
                 let filled_height = SEQUENCER_STEP_HEIGHT * (step.velocity / 128.0);
 
                 // background
@@ -101,7 +110,8 @@ pub fn draw(
         else {
             for (j, step) in steps_slice.iter().enumerate() {
                 // add the button for a step
-                let step_x = SEQUENCER_X_ORIGIN + window.x + (j as f32 * BUTTON_GAP) + ((j / 4) as f32 * BAR_GAP) + PAD_16;
+                let step_x =
+                    SEQUENCER_X_ORIGIN + window.x + (j as f32 * BUTTON_GAP) + ((j / 4) as f32 * BAR_GAP) + PAD_16;
                 let step_button = Rectangle {
                     x: step_x,
                     y,
@@ -127,7 +137,11 @@ pub fn draw(
                 // check if the step was clicked
                 if step_button.is_hovered(mouse_state.x, mouse_state.y) && mouse_state.left_clicked {
                     // if the click is on an existing sequence
-                    if let Some(seq) = patterns[active_pattern_id].sequences.iter_mut().find(|s| s.track_id == track.data.id) {
+                    if let Some(seq) = patterns[active_pattern_id]
+                        .sequences
+                        .iter_mut()
+                        .find(|s| s.track_id == track.data.id)
+                    {
                         seq.steps[j] = if seq.steps[j].velocity > 0.0 {
                             Note::default()
                         } else {
@@ -165,11 +179,12 @@ pub fn draw(
             width: 172.0,
             height: 24.0,
         };
-        let track_button_color = if track_button.is_hovered(mouse_state.x, mouse_state.y) && !mouse_state.left_click_held {
-            DARK_GRAY_HOVER
-        } else {
-            DARK_GRAY
-        };
+        let track_button_color =
+            if track_button.is_hovered(mouse_state.x, mouse_state.y) && !mouse_state.left_click_held {
+                DARK_GRAY_HOVER
+            } else {
+                DARK_GRAY
+            };
         vertices.extend(track_button.draw(screen_config, track_button_color, RADIUS_4));
         if track_button.is_hovered(mouse_state.x, mouse_state.y) {
             cursor_icon = CursorIcon::Pointer;

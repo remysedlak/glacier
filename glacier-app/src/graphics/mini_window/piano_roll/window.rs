@@ -1,10 +1,9 @@
 use crate::app::{MouseState, PianoRollState, ScrollOffset};
-use crate::graphics::primitives::DrawRegion;
 use crate::graphics::{
     color::*,
     font::{TextItem, MONOSPACED},
     mini_window::{piano_roll::*, MiniWindow},
-    primitives::{ScreenConfig, Vertex, BOTTOM_RADIUS_16, NO_RADIUS, PAD_16, PAD_2, PAD_32, PAD_4, PAD_8},
+    primitives::{DrawRegion, ScreenConfig, Vertex, BOTTOM_RADIUS_16, NO_RADIUS, PAD_16, PAD_2, PAD_32, PAD_4, PAD_8},
     widgets::{window_background, window_title_bar, Rectangle, ICON_SIZE, TITLEBAR_HEIGHT},
     ClickResult,
 };
@@ -87,7 +86,9 @@ pub fn draw(
             .and_then(|p| p.sequences.iter().find(|s| s.track_id == state.track_id))
     });
 
-    let scroll = piano_roll_state.map(|s| &s.scroll_offset).unwrap_or(&ScrollOffset { x: (0.0), y: (0.0) });
+    let scroll = piano_roll_state
+        .map(|s| &s.scroll_offset)
+        .unwrap_or(&ScrollOffset { x: (0.0), y: (0.0) });
 
     // piano roll keys and grid
     for octave in 0..9 {
@@ -97,20 +98,30 @@ pub fn draw(
                 let black_key_width = PIANO_ROLL_WIDTH - white_key_width;
                 let black_piano_key = Rectangle {
                     x: window.x + SEMITONE_OFFSET_X,
-                    y: window.y + (semitone as f32 * SEMITONE_GAP) + (octave as f32 * OCTAVE_GAP) + PIANO_ROLL_MARGIN + PAD_8 - scroll.y,
+                    y: window.y
+                        + (semitone as f32 * SEMITONE_GAP)
+                        + (octave as f32 * OCTAVE_GAP)
+                        + PIANO_ROLL_MARGIN
+                        + PAD_8
+                        - scroll.y,
                     height: SEMITONE_HEIGHT,
                     width: black_key_width,
                 };
                 let white_piano_key = Rectangle {
                     x: window.x + black_key_width + SEMITONE_OFFSET_X,
-                    y: window.y + (semitone as f32 * SEMITONE_GAP) + (octave as f32 * OCTAVE_GAP) + PIANO_ROLL_MARGIN + PAD_8 - scroll.y,
+                    y: window.y
+                        + (semitone as f32 * SEMITONE_GAP)
+                        + (octave as f32 * OCTAVE_GAP)
+                        + PIANO_ROLL_MARGIN
+                        + PAD_8
+                        - scroll.y,
                     height: SEMITONE_HEIGHT,
                     width: white_key_width,
                 };
 
                 // is either or both of the black or white piano key being hovered
-                let piano_hover =
-                    black_piano_key.is_hovered(mouse_state.x, mouse_state.y) || white_piano_key.is_hovered(mouse_state.x, mouse_state.y);
+                let piano_hover = black_piano_key.is_hovered(mouse_state.x, mouse_state.y)
+                    || white_piano_key.is_hovered(mouse_state.x, mouse_state.y);
                 let white_hover_color = if piano_hover { ORANGE } else { WHITE };
                 let black_hover_color = if piano_hover { DARK_GRAY } else { BLACK };
 
@@ -120,7 +131,12 @@ pub fn draw(
             } else {
                 let piano_key = Rectangle {
                     x: window.x + SEMITONE_OFFSET_X,
-                    y: window.y + (semitone as f32 * SEMITONE_GAP) + (octave as f32 * OCTAVE_GAP) + PIANO_ROLL_MARGIN + PAD_8 - scroll.y,
+                    y: window.y
+                        + (semitone as f32 * SEMITONE_GAP)
+                        + (octave as f32 * OCTAVE_GAP)
+                        + PIANO_ROLL_MARGIN
+                        + PAD_8
+                        - scroll.y,
                     height: SEMITONE_HEIGHT,
                     width: PIANO_ROLL_WIDTH,
                 };
@@ -135,12 +151,18 @@ pub fn draw(
             for step_index in 0..127 {
                 let piano_roll_step = Rectangle {
                     x: window.x + (step_index as f32 * PAD_32) + PIANO_ROLL_MARGIN + SEMITONE_OFFSET_X - scroll.x,
-                    y: window.y + (semitone as f32 * SEMITONE_GAP) + (octave as f32 * OCTAVE_GAP) + PIANO_ROLL_MARGIN + PAD_8 - scroll.y,
+                    y: window.y
+                        + (semitone as f32 * SEMITONE_GAP)
+                        + (octave as f32 * OCTAVE_GAP)
+                        + PIANO_ROLL_MARGIN
+                        + PAD_8
+                        - scroll.y,
                     height: SEMITONE_HEIGHT,
                     width: 30.0,
                 };
 
-                if piano_roll_step.y + piano_roll_step.height < window.y || piano_roll_step.y > window.y + window.height {
+                if piano_roll_step.y + piano_roll_step.height < window.y || piano_roll_step.y > window.y + window.height
+                {
                     break;
                 }
                 if piano_roll_step.x + piano_roll_step.width < window.x {

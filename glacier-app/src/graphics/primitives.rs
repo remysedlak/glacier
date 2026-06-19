@@ -64,7 +64,15 @@ pub fn to_ndc_y(y: f32, screen_config: &ScreenConfig) -> f32 {
     1.0 - (y / screen_config.height as f32) * 2.0
 }
 
-pub fn draw_rectangle(x: f32, y: f32, width: f32, height: f32, screen_config: &ScreenConfig, color: Color, corner_radius: [f32; 4]) -> Vec<Vertex> {
+pub fn draw_rectangle(
+    x: f32,
+    y: f32,
+    width: f32,
+    height: f32,
+    screen_config: &ScreenConfig,
+    color: Color,
+    corner_radius: [f32; 4],
+) -> Vec<Vertex> {
     let ndc_x = to_ndc_x(x, screen_config);
     let ndc_y = to_ndc_y(y, screen_config);
     let ndc_r = |r: f32| (r / screen_config.width as f32) * 2.0;
@@ -131,7 +139,14 @@ pub fn draw_rectangle(x: f32, y: f32, width: f32, height: f32, screen_config: &S
     ]
 }
 
-pub fn draw_circle(cx: f32, cy: f32, radius: f32, segments: u32, screen_config: &ScreenConfig, color: Color) -> Vec<Vertex> {
+pub fn draw_circle(
+    cx: f32,
+    cy: f32,
+    radius: f32,
+    segments: u32,
+    screen_config: &ScreenConfig,
+    color: Color,
+) -> Vec<Vertex> {
     let mut vec: Vec<Vertex> = Vec::new();
     let to_ndc = |x: f32, y: f32| -> [f32; 3] {
         [

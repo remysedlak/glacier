@@ -39,7 +39,15 @@ impl Square {
 
     // draw vertices with rectangle details
     pub fn draw(&self, screen_config: &ScreenConfig, color: Color, corner_radius: [f32; 4]) -> Vec<Vertex> {
-        draw_rectangle(self.x, self.y, self.size, self.size, screen_config, color, corner_radius)
+        draw_rectangle(
+            self.x,
+            self.y,
+            self.size,
+            self.size,
+            screen_config,
+            color,
+            corner_radius,
+        )
     }
 }
 
@@ -69,11 +77,21 @@ impl Rectangle {
     // if the left edge of a rectangle has the mouse hovered
     pub fn is_hovered_right_edge(&self, mouse_x: f32, mouse_y: f32) -> bool {
         // on r edge within y range
-        (mouse_x > self.x + self.width - PAD_8 && mouse_x < self.x + self.width + PAD_8) && mouse_y > self.y && mouse_y < self.y + self.height
+        (mouse_x > self.x + self.width - PAD_8 && mouse_x < self.x + self.width + PAD_8)
+            && mouse_y > self.y
+            && mouse_y < self.y + self.height
     }
     // draw vertices with rectangle details
     pub fn draw(&self, screen_config: &ScreenConfig, color: Color, corner_radius: [f32; 4]) -> Vec<Vertex> {
-        draw_rectangle(self.x, self.y, self.width, self.height, screen_config, color, corner_radius)
+        draw_rectangle(
+            self.x,
+            self.y,
+            self.width,
+            self.height,
+            screen_config,
+            color,
+            corner_radius,
+        )
     }
 }
 

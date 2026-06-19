@@ -78,7 +78,12 @@ pub fn create_bind_group_layout(device: &wgpu::Device) -> wgpu::BindGroupLayout 
 }
 
 /// returns the glyph cache (a hashmap of characters to bitmaps for one size)
-pub fn build_glyph_cache(device: &wgpu::Device, queue: &wgpu::Queue, font: &fontdue::Font, sizes: &[f32]) -> HashMap<(char, u32), GlyphEntry> {
+pub fn build_glyph_cache(
+    device: &wgpu::Device,
+    queue: &wgpu::Queue,
+    font: &fontdue::Font,
+    sizes: &[f32],
+) -> HashMap<(char, u32), GlyphEntry> {
     let mut cache = HashMap::new();
     for &size in sizes {
         for c in ' '..='~' {
