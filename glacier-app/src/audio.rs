@@ -47,20 +47,31 @@ pub enum AudioCommand {
 }
 
 /// initialize the CPAL engine with project file data and return the audio stream
-pub fn init(mut consumer: HeapCons<AudioCommand>, mut producer: HeapProd<UiCommand>, project_file: Option<String>) -> Stream {
+pub fn init(
+    mut consumer: HeapCons<AudioCommand>,
+    mut producer: HeapProd<UiCommand>,
+    project_file: Option<String>,
+) -> Stream {
     // error callback
     let err_fn = |err| eprintln!("an error occurred on the output audio stream: {}", err);
 
     // cpal setup -> host, device, config
     let host = cpal::default_host();
-    let device = host.default_output_device().expect("no output device available");
-    let supported_config = device.default_output_config().expect("error getting default config");
+    let device = host
+        .default_output_device()
+        .expect("no output device available");
+    let supported_config = device
+        .default_output_config()
+        .expect("error getting default config");
     let config = supported_config.config();
     let sample_format = supported_config.sample_format();
     let sample_rate_f: f32 = config.sample_rate as f32;
 
     // load project from file path
-    let project = project_file.as_deref().and_then(get_project).unwrap_or_default();
+    let project = project_file
+        .as_deref()
+        .and_then(get_project)
+        .unwrap_or_default();
 
     let mut project_path = project_file.unwrap_or_else(|| Project::default_project_file());
 
@@ -73,7 +84,9 @@ pub fn init(mut consumer: HeapCons<AudioCommand>, mut producer: HeapProd<UiComma
     // patterns state
     let mut patterns = project.patterns;
     for pattern in &patterns {
-        producer.try_push(UiCommand::LoadPattern(pattern.clone())).ok();
+        producer
+            .try_push(UiCommand::LoadPattern(pattern.clone()))
+            .ok();
     }
 
     // events state
@@ -82,7 +95,9 @@ pub fn init(mut consumer: HeapCons<AudioCommand>, mut producer: HeapProd<UiComma
         producer.try_push(UiCommand::LoadEvent(event.clone())).ok();
     }
 
-    producer.try_push(UiCommand::LoadProjectPath(project_path.clone())).ok();
+    producer
+        .try_push(UiCommand::LoadProjectPath(project_path.clone()))
+        .ok();
 
     // saved bpm
     let mut bpm: f32 = project.bpm;
@@ -90,15 +105,28 @@ pub fn init(mut consumer: HeapCons<AudioCommand>, mut producer: HeapProd<UiComma
 
     // master volume
     let mut master_volume = project.master_volume;
-    producer.try_push(UiCommand::LoadMasterVolume(project.master_volume)).ok();
+    producer
+        .try_push(UiCommand::LoadMasterVolume(project.master_volume))
+        .ok();
 
     // initalize state
-    let mut current_step = events.iter().map(|e| e.start_step + e.length).max().unwrap_or(16) as usize - 1;
+    let mut current_step = events
+        .iter()
+        .map(|e| e.start_step + e.length)
+        .max()
+        .unwrap_or(16) as usize
+        - 1;
     let mut is_playing = false; // step function
     let mut is_shutting_down = false;
     let mut shutdown_volume: f32 = 1.00;
     let mut sample_counter: f32 = 0.0; // tracks how many samples passed, to track when a step passes
     let name = project.name.clone();
+
+    // call back RMS/peak graphics
+    let mut meter_counter: usize = 0;
+    let mut master_rms_l: f32 = 0.0;
+    let mut master_rms_r: f32 = 0.0;
+    let mut master_peak: f32 = 0.0;
 
     // audio callback to fill samples requested from CPAL
     let sequencer_callback = move |data: &mut [f32], _: &cpal::OutputCallbackInfo| {
@@ -120,19 +148,31 @@ pub fn init(mut consumer: HeapCons<AudioCommand>, mut producer: HeapProd<UiComma
                 }
 
                 AudioCommand::ToggleNote(pattern_id, track_id, step_idx, pitch) => {
-                    if let Some(seq) = patterns[pattern_id].sequences.iter_mut().find(|s| s.track_id == track_id) {
+                    if let Some(seq) = patterns[pattern_id]
+                        .sequences
+                        .iter_mut()
+                        .find(|s| s.track_id == track_id)
+                    {
                         let note = &mut seq.steps[step_idx];
                         if note.velocity > 0.0 && note.pitch == pitch {
                             *note = Note::default();
                         } else {
-                            *note = Note { velocity: 95.0, pitch };
+                            *note = Note {
+                                velocity: 95.0,
+                                pitch,
+                            };
                         }
                     }
                     // lazy allocation - allocate a new sequence only if needed
                     else {
                         let mut steps = vec![Note::default(); 32];
-                        steps[step_idx] = Note { velocity: 95.0, pitch };
-                        patterns[pattern_id].sequences.push(Sequence { track_id, steps });
+                        steps[step_idx] = Note {
+                            velocity: 95.0,
+                            pitch,
+                        };
+                        patterns[pattern_id]
+                            .sequences
+                            .push(Sequence { track_id, steps });
                     }
                 }
                 AudioCommand::AddPattern => {
@@ -190,14 +230,21 @@ pub fn init(mut consumer: HeapCons<AudioCommand>, mut producer: HeapProd<UiComma
                 }
                 AudioCommand::ToggleStep(pattern_id, track_idx, step_idx) => {
                     let track_id = tracks[track_idx].data.id;
-                    if let Some(seq) = patterns[pattern_id].sequences.iter_mut().find(|s| s.track_id == track_id) {
+                    if let Some(seq) = patterns[pattern_id]
+                        .sequences
+                        .iter_mut()
+                        .find(|s| s.track_id == track_id)
+                    {
                         if step_idx >= seq.steps.len() {
                             seq.steps.resize(step_idx + 1, Note::default());
                         }
                         seq.steps[step_idx] = if seq.steps[step_idx].velocity > 0.0 {
                             Note::default()
                         } else {
-                            Note { velocity: 95.0, pitch: 60 }
+                            Note {
+                                velocity: 95.0,
+                                pitch: 60,
+                            }
                         };
                         while seq.steps.last().map(|n| n.velocity == 0.0).unwrap_or(false) {
                             seq.steps.pop();
@@ -207,7 +254,10 @@ pub fn init(mut consumer: HeapCons<AudioCommand>, mut producer: HeapProd<UiComma
                             track_id: track_id,
                             steps: vec![Note::default(); step_idx + 1],
                         };
-                        seq.steps[step_idx] = Note { velocity: 95.0, pitch: 60 };
+                        seq.steps[step_idx] = Note {
+                            velocity: 95.0,
+                            pitch: 60,
+                        };
                         patterns[pattern_id].sequences.push(seq);
                     }
                 }
@@ -230,13 +280,27 @@ pub fn init(mut consumer: HeapCons<AudioCommand>, mut producer: HeapProd<UiComma
                 AudioCommand::ToggleTrackMute(track_id) => tracks[track_id].mute(),
                 AudioCommand::TogglePlay => is_playing = !is_playing,
                 AudioCommand::SaveProject => {
-                    let project = Project::new(name.clone(), bpm, master_volume, &tracks, patterns.clone(), events.clone());
+                    let project = Project::new(
+                        name.clone(),
+                        bpm,
+                        master_volume,
+                        &tracks,
+                        patterns.clone(),
+                        events.clone(),
+                    );
                     project.save_to_toml(&project_path);
                     producer.try_push(UiCommand::SaveComplete).ok();
                     println!("saved to {}", &project_path);
                 }
                 AudioCommand::ShutDown => {
-                    let project = Project::new(name.clone(), bpm, master_volume, &tracks, patterns.clone(), events.clone());
+                    let project = Project::new(
+                        name.clone(),
+                        bpm,
+                        master_volume,
+                        &tracks,
+                        patterns.clone(),
+                        events.clone(),
+                    );
                     project.save_to_toml(&project_path);
 
                     // save is complete
@@ -272,14 +336,59 @@ pub fn init(mut consumer: HeapCons<AudioCommand>, mut producer: HeapProd<UiComma
                         if pos + 1 >= track.samples.len() {
                             track.is_playing = false;
                         } else {
-                            // volume ramping
-                            track.current_volume = glacier_dsp::smooth_toward(track.current_volume, track.data.target_volume, 0.01);
-                            sample[0] += track.samples[pos] * track.current_volume * track.data.track_volume * shutdown_volume * master_volume;
-                            sample[1] += track.samples[pos + 1] * track.current_volume * track.data.track_volume * shutdown_volume * master_volume;
-                            track.position += 2.0 * track.playback_rate; // ramping
+                            track.current_volume = glacier_dsp::smooth_toward(
+                                track.current_volume,
+                                track.data.target_volume,
+                                0.01,
+                            );
+                            sample[0] += track.samples[pos]
+                                * track.current_volume
+                                * track.data.track_volume
+                                * shutdown_volume
+                                * master_volume;
+                            sample[1] += track.samples[pos + 1]
+                                * track.current_volume
+                                * track.data.track_volume
+                                * shutdown_volume
+                                * master_volume;
+                            track.position += 2.0 * track.playback_rate;
+
+                            let l = track.samples[pos];
+                            let r = track.samples[pos + 1];
+                            track.rms_l = glacier_dsp::smooth_toward(track.rms_l, l * l, 0.01);
+                            track.rms_r = glacier_dsp::smooth_toward(track.rms_r, r * r, 0.01);
+                            track.peak_hold = track.peak_hold.max(l.abs().max(r.abs()));
                         }
                     }
                 }
+            }
+            master_rms_l = glacier_dsp::smooth_toward(master_rms_l, sample[0] * sample[0], 0.01);
+            master_rms_r = glacier_dsp::smooth_toward(master_rms_r, sample[1] * sample[1], 0.01);
+            master_peak = master_peak.max(sample[0].abs().max(sample[1].abs()));
+        }
+
+        // updarte meter
+        meter_counter += data.len() / 2;
+        if meter_counter >= 1024 {
+            meter_counter = 0;
+            producer
+                .try_push(UiCommand::MasterLevel(
+                    master_rms_l.sqrt(),
+                    master_rms_r.sqrt(),
+                    master_peak,
+                ))
+                .ok();
+            master_peak = 0.0;
+            for track in &mut tracks {
+                producer
+                    .try_push(UiCommand::TrackLevel(
+                        track.data.id,
+                        track.rms_l.sqrt(),
+                        track.rms_r.sqrt(),
+                        track.peak_hold,
+                    ))
+                    .ok();
+                track.peak_hold = 0.0;
             }
         }
 
@@ -297,19 +406,30 @@ pub fn init(mut consumer: HeapCons<AudioCommand>, mut producer: HeapProd<UiComma
             if sample_counter >= samples_per_step {
                 sample_counter = 0.0;
 
-                let total_steps = events.iter().map(|e| e.start_step + e.length).max().unwrap_or(16) as usize;
+                let total_steps = events
+                    .iter()
+                    .map(|e| e.start_step + e.length)
+                    .max()
+                    .unwrap_or(16) as usize;
                 current_step = (current_step + 1) % total_steps;
 
-                producer.try_push(UiCommand::StepAdvanced(current_step)).ok();
+                producer
+                    .try_push(UiCommand::StepAdvanced(current_step))
+                    .ok();
 
                 // build out each note
                 let triggers: Vec<(usize, f32, u8)> = events
                     .iter()
                     .filter_map(|e| {
                         if let AudioBlockType::Pattern(pattern_id) = e.block_type {
-                            if current_step >= e.start_step as usize && current_step < (e.start_step + e.length) as usize {
+                            if current_step >= e.start_step as usize
+                                && current_step < (e.start_step + e.length) as usize
+                            {
                                 let local_step = current_step - e.start_step as usize;
-                                return patterns.iter().find(|p| p.id == pattern_id).map(|p| (p, local_step));
+                                return patterns
+                                    .iter()
+                                    .find(|p| p.id == pattern_id)
+                                    .map(|p| (p, local_step));
                             }
                         }
                         None
@@ -317,7 +437,9 @@ pub fn init(mut consumer: HeapCons<AudioCommand>, mut producer: HeapProd<UiComma
                     .flat_map(|(p, local_step)| {
                         p.sequences
                             .iter()
-                            .filter(move |s| local_step < s.steps.len() && s.steps[local_step].velocity > 0.0)
+                            .filter(move |s| {
+                                local_step < s.steps.len() && s.steps[local_step].velocity > 0.0
+                            })
                             .map(move |s| {
                                 let note = &s.steps[local_step];
                                 (s.track_id as usize, note.velocity, note.pitch)
@@ -326,11 +448,15 @@ pub fn init(mut consumer: HeapCons<AudioCommand>, mut producer: HeapProd<UiComma
                     .collect();
 
                 for (track_id, velocity, pitch) in triggers {
-                    if let Some(track) = tracks.iter_mut().find(|track| track.data.id as usize == track_id) {
+                    if let Some(track) = tracks
+                        .iter_mut()
+                        .find(|track| track.data.id as usize == track_id)
+                    {
                         track.position = 0.0;
                         track.is_playing = true; // step function
                         track.data.target_volume = velocity / 127.0;
-                        track.playback_rate = glacier_dsp::semitones_to_rate(pitch, track.data.root_note)
+                        track.playback_rate =
+                            glacier_dsp::semitones_to_rate(pitch, track.data.root_note)
                     }
                 }
             }

@@ -88,10 +88,15 @@ pub struct AudioBlock {
 pub struct Track {
     pub data: TrackData,
     pub samples: Vec<f32>, // loaded from hound
-    pub position: f32,
     pub is_playing: bool,
     pub current_volume: f32,
     pub show_velocity: bool,
+
+    // dsp runtime
+    pub rms_l: f32,
+    pub rms_r: f32,
+    pub peak_hold: f32,
+    pub position: f32,
     pub playback_rate: f32,
 }
 
@@ -100,12 +105,16 @@ impl Track {
     pub fn from_data(data: TrackData, samples: Vec<f32>) -> Track {
         Track {
             samples,
-            position: 0.0,
             data,
             is_playing: false,
             current_volume: 0.0,
             show_velocity: false,
+            // default dsp
+            position: 0.0,
             playback_rate: 1.0,
+            rms_l: 0.0,
+            rms_r: 0.0,
+            peak_hold: 0.0,
         }
     }
     pub fn mute(&mut self) {

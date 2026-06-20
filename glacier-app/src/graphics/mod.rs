@@ -17,24 +17,28 @@ use crate::project::{AudioBlock, AudioBlockType, PatternData, Track};
 use color::{Color, DARK_GRAY, WHITE};
 use components::{footer, side_panel};
 use context_menu::ContextMenu;
-use font::{build_glyph_cache, create_bind_group_layout, GlyphCache, GlyphEntry, TextItem, MONOSPACED, ROBOTO};
+use font::{
+    build_glyph_cache, create_bind_group_layout, GlyphCache, GlyphEntry, TextItem, MONOSPACED,
+    ROBOTO,
+};
 use fontdue::layout::{CoordinateSystem, Layout, TextStyle};
 use icons::{push_icon_draw, Tooltip};
 use mini_window::{
     mixer, piano_roll, playlist, sequencer,
     sequencer::{ACTIONS_Y_OFFSET, KNOB_OFFSET, KNOB_RADIUS, TRACK_GAP},
-    track, MiniWindow, PianoRollDrawRanges, PlaylistDrawRanges, WindowDrawRange, WindowKind, MIXER_ID, PIANO_ROLL_ID,
-    PLAYLIST_ID, SEQUENCER_ID,
+    track, MiniWindow, PianoRollDrawRanges, PlaylistDrawRanges, WindowDrawRange, WindowKind,
+    MIXER_ID, PIANO_ROLL_ID, PLAYLIST_ID, SEQUENCER_ID,
 };
 use primitives::*;
 use std::{borrow::Cow, collections::HashMap};
 use widgets::*;
 
 use wgpu::{
-    util::DeviceExt, CommandEncoderDescriptor, DeviceDescriptor, Features, FragmentState, Instance, Limits, LoadOp,
-    MemoryHints, Operations, PowerPreference, RenderPassColorAttachment, RenderPassDescriptor, RenderPipeline,
-    RenderPipelineDescriptor, RequestAdapterOptions, ShaderModuleDescriptor, ShaderSource, StoreOp,
-    SurfaceConfiguration, TextureFormat, TextureViewDescriptor, VertexState,
+    util::DeviceExt, CommandEncoderDescriptor, DeviceDescriptor, Features, FragmentState, Instance,
+    Limits, LoadOp, MemoryHints, Operations, PowerPreference, RenderPassColorAttachment,
+    RenderPassDescriptor, RenderPipeline, RenderPipelineDescriptor, RequestAdapterOptions,
+    ShaderModuleDescriptor, ShaderSource, StoreOp, SurfaceConfiguration, TextureFormat,
+    TextureViewDescriptor, VertexState,
 };
 
 use winit::{
@@ -47,7 +51,7 @@ pub type Rc<T> = std::sync::Arc<T>;
 
 pub enum ClickResult {
     // sequencer
-    ToggleStep(usize, usize, usize),   // pattern_id, track_id, step_idx
+    ToggleStep(usize, usize, usize), // pattern_id, track_id, step_idx
     ToggleNote(usize, u32, usize, u8), // pattern_id, track_id, step_idx, pitch
     ToggleTrackMute(usize),
     DeleteTrack(usize),
@@ -150,10 +154,42 @@ pub async fn create_graphics(window: Rc<Window>, proxy: EventLoopProxy<Graphics>
     });
 
     // init windows ; TODO: remove hardcoded coordinates, should be dynamic based on saved state
-    let playlist_window = MiniWindow::new(900.0, 600.0, 1500.0, 900.0, "Playlist", WindowKind::Playlist, true);
-    let mixer_window = MiniWindow::new(128.0, 500.0, 800.0, 400.0, "Mixer", WindowKind::Mixer, false);
-    let piano_window = MiniWindow::new(256.0, 700.0, 1092.0, 600.0, "Piano", WindowKind::PianoRoll, true);
-    let sequencer_window = MiniWindow::new(150.0, 90.0, 1092.0, 100.0, "Sequencer", WindowKind::Sequencer, false);
+    let playlist_window = MiniWindow::new(
+        900.0,
+        600.0,
+        1500.0,
+        900.0,
+        "Playlist",
+        WindowKind::Playlist,
+        true,
+    );
+    let mixer_window = MiniWindow::new(
+        128.0,
+        500.0,
+        800.0,
+        400.0,
+        "Mixer",
+        WindowKind::Mixer,
+        false,
+    );
+    let piano_window = MiniWindow::new(
+        256.0,
+        700.0,
+        1092.0,
+        600.0,
+        "Piano",
+        WindowKind::PianoRoll,
+        true,
+    );
+    let sequencer_window = MiniWindow::new(
+        150.0,
+        90.0,
+        1092.0,
+        100.0,
+        "Sequencer",
+        WindowKind::Sequencer,
+        false,
+    );
 
     let mini_windows: Vec<MiniWindow> = vec![
         sequencer_window, // 0
@@ -176,8 +212,12 @@ pub async fn create_graphics(window: Rc<Window>, proxy: EventLoopProxy<Graphics>
     let bind_group_layout = create_bind_group_layout(&device);
     for (name, bytes) in [roboto, mono] {
         let font = fontdue::Font::from_bytes(bytes, fontdue::FontSettings::default()).unwrap();
-        let cache: HashMap<(char, u32), GlyphEntry> =
-            build_glyph_cache(&device, &queue, &font, &[8.0, 10.0, 12.0, 14.0, 16.0, 18.0, 24.0, 32.0]);
+        let cache: HashMap<(char, u32), GlyphEntry> = build_glyph_cache(
+            &device,
+            &queue,
+            &font,
+            &[8.0, 10.0, 12.0, 14.0, 16.0, 18.0, 24.0, 32.0],
+        );
         font_cache.insert(name.to_string(), font);
         glyph_cache.insert(name.to_string(), cache);
     }
@@ -185,7 +225,9 @@ pub async fn create_graphics(window: Rc<Window>, proxy: EventLoopProxy<Graphics>
     // svg icons
     let mut icon_cache = HashMap::new();
     for icon in icons::ICONS {
-        let svg_str = std::fs::read_to_string(format!("assets/icons/{}x{}/{}.svg", icon.1, icon.2, icon.0)).unwrap();
+        let svg_str =
+            std::fs::read_to_string(format!("assets/icons/{}x{}/{}.svg", icon.1, icon.2, icon.0))
+                .unwrap();
         let svg = icons::IconSvg {
             width: icon.1 as f32,
             height: icon.2 as f32,
@@ -247,6 +289,9 @@ pub async fn create_graphics(window: Rc<Window>, proxy: EventLoopProxy<Graphics>
         resize_drag_accumulator: 0.0,
         show_track_tray: true,
         show_pattern_tray: true,
+        master_rms_l: 0.0,
+        master_rms_r: 0.0,
+        master_peak: 0.0,
     };
 
     let _ = proxy.send_event(gfx);
@@ -265,11 +310,13 @@ fn create_pipeline(
 
     device.create_render_pipeline(&RenderPipelineDescriptor {
         label: None,
-        layout: Some(&device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-            label: None,
-            bind_group_layouts: &[bind_group_layout],
-            push_constant_ranges: &[],
-        })),
+        layout: Some(
+            &device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+                label: None,
+                bind_group_layouts: &[bind_group_layout],
+                push_constant_ranges: &[],
+            }),
+        ),
         vertex: VertexState {
             module: &shader,
             entry_point: Some("vs_main"),
@@ -332,6 +379,9 @@ pub struct Graphics {
     pub bpm: f32,
     pub is_playing: bool,
     pub master_volume: f32,
+    pub master_rms_l: f32,
+    pub master_rms_r: f32,
+    pub master_peak: f32,
 
     // dragging
     pub dragging_knob: Option<usize>,   // volume knob

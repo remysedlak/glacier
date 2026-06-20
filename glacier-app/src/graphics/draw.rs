@@ -1,6 +1,5 @@
-use std::time::Duration;
-
 use super::*;
+use std::time::Duration;
 
 impl Graphics {
     /// pushing texts to draw
@@ -297,6 +296,9 @@ impl Graphics {
                         window,
                         &self.tracks,
                         self.master_volume,
+                        self.master_rms_l,
+                        self.master_rms_r,
+                        self.master_peak,
                         &screen_config,
                         &masked_mouse,
                     );
