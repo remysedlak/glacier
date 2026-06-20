@@ -111,7 +111,8 @@ pub fn draw(
             for (j, step) in steps_slice.iter().enumerate() {
                 // add the button for a step
                 let step_x =
-                    SEQUENCER_X_ORIGIN + window.x + (j as f32 * BUTTON_GAP) + ((j / 4) as f32 * BAR_GAP) + PAD_16;
+                    SEQUENCER_X_ORIGIN + window.x + (j as f32 * BUTTON_GAP) + ((j / 4) as f32 * BAR_GAP) + PAD_16
+                        - scroll_offset.x;
                 let step_button = Rectangle {
                     x: step_x,
                     y,
