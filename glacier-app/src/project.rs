@@ -158,7 +158,7 @@ pub struct Sequence {
     pub steps: Vec<Note>,
 }
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, Copy)]
 pub struct Note {
     pub velocity: f32, // 0.0 = off, >0.0 = on
     pub pitch: u8,     // midi note 0-127, 60 = middle C5

@@ -20,6 +20,7 @@ pub const SEQUENCER_X_ORIGIN: f32 = 200.0;
 pub const SEQUENCER_STEP_WIDTH: f32 = 18.0;
 pub const SEQUENCER_STEP_HEIGHT: f32 = 48.0;
 pub const MUTE_SQUARE_LENGTH: f32 = 16.0;
+pub const MAX_STEPS: u32 = 256;
 
 pub fn draw(
     window: &MiniWindow,
@@ -38,7 +39,7 @@ pub fn draw(
     let mut cursor_icon = CursorIcon::Default;
     let icons: Vec<IconDraw> = Vec::new();
 
-    //  size: 18.0, window background
+    // window background
     let window_background = Rectangle {
         x: window.x,
         y: window.y,
@@ -48,8 +49,7 @@ pub fn draw(
     vertices.extend(window_background.draw(screen_config, MINI_WINDOW_BACKGROUND, BOTTOM_RADIUS_16));
 
     // titlebar
-    let (titlebar_verts, titlebar_texts, result, cursor) =
-        window_title_bar(window, &window.title, screen_config, mouse_state);
+    let (titlebar_verts, titlebar_texts, result, cursor) = window_title_bar(window, &window.title, screen_config, mouse_state);
     if !matches!(cursor, CursorIcon::Default) {
         cursor_icon = cursor;
     }
@@ -78,9 +78,7 @@ pub fn draw(
             // for each step
             for (j, step) in steps_slice.iter().enumerate() {
                 // velocity bar
-                let step_x =
-                    SEQUENCER_X_ORIGIN + window.x + (j as f32 * BUTTON_GAP) + ((j / 4) as f32 * BAR_GAP) + PAD_16
-                        - scroll_offset.x;
+                let step_x = SEQUENCER_X_ORIGIN + window.x + (j as f32 * BUTTON_GAP) + ((j / 4) as f32 * BAR_GAP) + PAD_16 - scroll_offset.x;
                 if step_x + SEQUENCER_STEP_WIDTH < window.x + SEQUENCER_X_ORIGIN {
                     continue;
                 }
@@ -108,21 +106,40 @@ pub fn draw(
         }
         // steps view
         else {
-            for (j, step) in steps_slice.iter().enumerate() {
+            for j in 0..MAX_STEPS {
+                // get the note's song data
+                let note = steps_slice.get(j as usize).copied().unwrap_or_default();
+                let is_ghost = j as usize >= steps_slice.len();
+                let is_active = note.velocity > 0.0;
+
                 // add the button for a step
-                let step_x =
-                    SEQUENCER_X_ORIGIN + window.x + (j as f32 * BUTTON_GAP) + ((j / 4) as f32 * BAR_GAP) + PAD_16
-                        - scroll_offset.x;
+                let step_x = SEQUENCER_X_ORIGIN + window.x + (j as f32 * BUTTON_GAP) + ((j / 4) as f32 * BAR_GAP) + PAD_16 - scroll_offset.x;
+
+                // do not paint steps outside of the window boundaries
+                if step_x + SEQUENCER_STEP_WIDTH < window.x + SEQUENCER_X_ORIGIN {
+                    continue;
+                }
+                if step_x > window.x + window.width - PAD_16 {
+                    break;
+                }
+
+                /*
+                    draw the note button according to
+                    active song step,
+                    note velocity,
+                    hover state,
+                    and recorded track length
+                */
+
                 let step_button = Rectangle {
                     x: step_x,
                     y,
                     width: SEQUENCER_STEP_WIDTH,
                     height: SEQUENCER_STEP_HEIGHT,
                 };
-                let is_active = step.velocity > 0.0;
-                let step_color = if j == active_step && step_button.is_hovered(mouse_state.x, mouse_state.y) {
+                let mut step_color = if j == active_step as u32 && step_button.is_hovered(mouse_state.x, mouse_state.y) {
                     BLUE_HOVER
-                } else if j == active_step {
+                } else if j == active_step as u32 {
                     BLUE
                 } else if step_button.is_hovered(mouse_state.x, mouse_state.y) && is_active {
                     DARK_GRAY
@@ -133,16 +150,23 @@ pub fn draw(
                 } else {
                     WHITE
                 };
+                if is_ghost {
+                    step_color = if step_button.is_hovered(mouse_state.x, mouse_state.y) {
+                        LL_GRAY
+                    } else {
+                        GHOST
+                    };
+                }
                 vertices.extend(step_button.draw(screen_config, step_color, RADIUS_4));
 
                 // check if the step was clicked
                 if step_button.is_hovered(mouse_state.x, mouse_state.y) && mouse_state.left_clicked {
-                    // if the click is on an existing sequence
-                    if let Some(seq) = patterns[active_pattern_id]
-                        .sequences
-                        .iter_mut()
-                        .find(|s| s.track_id == track.data.id)
-                    {
+                    let j = j as usize;
+
+                    if let Some(seq) = patterns[active_pattern_id].sequences.iter_mut().find(|s| s.track_id == track.data.id) {
+                        if j >= seq.steps.len() {
+                            seq.steps.resize(j + 1, Note::default());
+                        }
                         seq.steps[j] = if seq.steps[j].velocity > 0.0 {
                             Note::default()
                         } else {
@@ -151,11 +175,11 @@ pub fn draw(
                                 ..Default::default()
                             }
                         };
-                    }
-                    // if the click is on a nonexisting sequence
-                    else {
-                        // add a new sequence to the active pattern with the track used
-                        let mut steps = vec![Note::default(); 32];
+                        while seq.steps.last().map(|n| n.velocity == 0.0).unwrap_or(false) {
+                            seq.steps.pop();
+                        }
+                    } else {
+                        let mut steps = vec![Note::default(); j + 1];
                         steps[j] = Note {
                             velocity: 95.0,
                             ..Default::default()
@@ -180,12 +204,11 @@ pub fn draw(
             width: 172.0,
             height: 24.0,
         };
-        let track_button_color =
-            if track_button.is_hovered(mouse_state.x, mouse_state.y) && !mouse_state.left_click_held {
-                DARK_GRAY_HOVER
-            } else {
-                DARK_GRAY
-            };
+        let track_button_color = if track_button.is_hovered(mouse_state.x, mouse_state.y) && !mouse_state.left_click_held {
+            DARK_GRAY_HOVER
+        } else {
+            DARK_GRAY
+        };
         vertices.extend(track_button.draw(screen_config, track_button_color, RADIUS_4));
         if track_button.is_hovered(mouse_state.x, mouse_state.y) {
             cursor_icon = CursorIcon::Pointer;

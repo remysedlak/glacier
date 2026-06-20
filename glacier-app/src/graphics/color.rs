@@ -13,6 +13,7 @@ impl From<(f32, f32, f32)> for Color {
 // monochromes
 pub const LIGHT_GRAY: Color = Color { r: 0.53, g: 0.53, b: 0.53 };
 pub const LIGHT_GRAY_HOVER: Color = Color { r: 0.40, g: 0.40, b: 0.40 };
+pub const GHOST: Color = Color { r: 0.33, g: 0.33, b: 0.33 };
 
 pub const DARK_GRAY: Color = Color { r: 0.03, g: 0.03, b: 0.03 };
 pub const DARK_GRAY_HOVER: Color = Color { r: 0.05, g: 0.05, b: 0.05 };

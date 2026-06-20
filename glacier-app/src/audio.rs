@@ -191,15 +191,21 @@ pub fn init(mut consumer: HeapCons<AudioCommand>, mut producer: HeapProd<UiComma
                 AudioCommand::ToggleStep(pattern_id, track_idx, step_idx) => {
                     let track_id = tracks[track_idx].data.id;
                     if let Some(seq) = patterns[pattern_id].sequences.iter_mut().find(|s| s.track_id == track_id) {
+                        if step_idx >= seq.steps.len() {
+                            seq.steps.resize(step_idx + 1, Note::default());
+                        }
                         seq.steps[step_idx] = if seq.steps[step_idx].velocity > 0.0 {
                             Note::default()
                         } else {
                             Note { velocity: 95.0, pitch: 60 }
                         };
+                        while seq.steps.last().map(|n| n.velocity == 0.0).unwrap_or(false) {
+                            seq.steps.pop();
+                        }
                     } else {
                         let mut seq = Sequence {
-                            track_id: track_idx as u32,
-                            steps: vec![Note::default(); 32],
+                            track_id: track_id,
+                            steps: vec![Note::default(); step_idx + 1],
                         };
                         seq.steps[step_idx] = Note { velocity: 95.0, pitch: 60 };
                         patterns[pattern_id].sequences.push(seq);
@@ -268,10 +274,8 @@ pub fn init(mut consumer: HeapCons<AudioCommand>, mut producer: HeapProd<UiComma
                         } else {
                             // volume ramping
                             track.current_volume = glacier_dsp::smooth_toward(track.current_volume, track.data.target_volume, 0.01);
-                            sample[0] +=
-                                track.samples[pos] * track.current_volume * track.data.track_volume * shutdown_volume * master_volume;
-                            sample[1] +=
-                                track.samples[pos + 1] * track.current_volume * track.data.track_volume * shutdown_volume * master_volume;
+                            sample[0] += track.samples[pos] * track.current_volume * track.data.track_volume * shutdown_volume * master_volume;
+                            sample[1] += track.samples[pos + 1] * track.current_volume * track.data.track_volume * shutdown_volume * master_volume;
                             track.position += 2.0 * track.playback_rate; // ramping
                         }
                     }
