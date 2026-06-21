@@ -1,7 +1,7 @@
 use crate::graphics::{
     color::DARK_GRAY,
     font::TextItem,
-    primitives::{ScreenConfig, Vertex, PAD_64, RADIUS_8},
+    primitives::{ScreenConfig, Vertex, RADIUS_8},
     widgets::Rectangle,
 };
 
@@ -10,7 +10,7 @@ const MODAL_WIDTH: f32 = 512.0;
 
 pub fn draw(screen_config: &ScreenConfig) -> (Vec<Vertex>, Vec<TextItem>) {
     let mut vertices: Vec<Vertex> = Vec::new();
-    let mut text_items: Vec<TextItem> = Vec::new();
+    let text_items: Vec<TextItem> = Vec::new();
 
     let modal_background = Rectangle {
         x: (screen_config.width as f32 / 2.0) - MODAL_WIDTH / 2.0,

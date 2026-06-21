@@ -10,8 +10,6 @@ use ringbuf::{
     HeapCons, HeapProd,
 };
 
-pub const DEFAULT_BPM: f32 = 120.0;
-
 // commands retrieved from the user interface
 pub enum AudioCommand {
     // composition details
@@ -65,9 +63,8 @@ pub fn init(
         .expect("error getting default config");
     let config = supported_config.config();
     let sample_format = supported_config.sample_format();
-    let sample_rate_f: f32 = config.sample_rate as f32;
 
-    // load project from file path
+    // load project file to memory
     let project = project_file
         .as_deref()
         .and_then(get_project)
@@ -75,13 +72,13 @@ pub fn init(
 
     let mut project_path = project_file.unwrap_or_else(|| Project::default_project_file());
 
-    // Tracks state
+    // setup Tracks
     let mut tracks: Vec<Track> = get_tracks(&project);
     for track in tracks.iter() {
         producer.try_push(UiCommand::LoadTrack(track.clone())).ok();
     }
 
-    // patterns state
+    // setup Patterns
     let mut patterns = project.patterns;
     for pattern in &patterns {
         producer
@@ -89,7 +86,7 @@ pub fn init(
             .ok();
     }
 
-    // events state
+    // setup Events
     let mut events = project.events;
     for event in &events {
         producer.try_push(UiCommand::LoadEvent(event.clone())).ok();
@@ -99,17 +96,16 @@ pub fn init(
         .try_push(UiCommand::LoadProjectPath(project_path.clone()))
         .ok();
 
-    // saved bpm
+    // setup bpm and volume
     let mut bpm: f32 = project.bpm;
     producer.try_push(UiCommand::LoadBpm(bpm)).ok();
 
-    // master volume
     let mut master_volume = project.master_volume;
     producer
         .try_push(UiCommand::LoadMasterVolume(project.master_volume))
         .ok();
 
-    // initalize state
+    // setup song state
     let mut current_step = events
         .iter()
         .map(|e| e.start_step + e.length)
@@ -122,13 +118,14 @@ pub fn init(
     let mut sample_counter: f32 = 0.0; // tracks how many samples passed, to track when a step passes
     let name = project.name.clone();
 
-    // call back RMS/peak graphics
+    // sample RMS/peak callback state
     let mut meter_counter: usize = 0;
     let mut master_rms_l: f32 = 0.0;
     let mut master_rms_r: f32 = 0.0;
     let mut master_peak: f32 = 0.0;
 
-    // audio callback to fill samples requested from CPAL
+    // audio callback
+    // fills samples requested from CPAL audio driver
     let sequencer_callback = move |data: &mut [f32], _: &cpal::OutputCallbackInfo| {
         // parse incoming UI commands before fulfilling data callback
         while let Some(cmd) = consumer.try_pop() {
@@ -153,6 +150,9 @@ pub fn init(
                         .iter_mut()
                         .find(|s| s.track_id == track_id)
                     {
+                        if step_idx >= seq.steps.len() {
+                            seq.steps.resize(step_idx + 1, Note::default());
+                        }
                         let note = &mut seq.steps[step_idx];
                         if note.velocity > 0.0 && note.pitch == pitch {
                             *note = Note::default();
@@ -162,10 +162,11 @@ pub fn init(
                                 pitch,
                             };
                         }
-                    }
-                    // lazy allocation - allocate a new sequence only if needed
-                    else {
-                        let mut steps = vec![Note::default(); 32];
+                        while seq.steps.last().map(|n| n.velocity == 0.0).unwrap_or(false) {
+                            seq.steps.pop();
+                        }
+                    } else {
+                        let mut steps = vec![Note::default(); step_idx + 1];
                         steps[step_idx] = Note {
                             velocity: 95.0,
                             pitch,
@@ -315,10 +316,7 @@ pub fn init(
 
         // for each sample requested, mix in the appropriate track samples
         for sample in data.chunks_mut(2) {
-            sample[0] = 0.0; // left channel
-            sample[1] = 0.0; // right channel
-
-            // negated linear ramp
+            // fade audio off during app shutdown
             if is_shutting_down {
                 shutdown_volume -= 0.0001;
                 if shutdown_volume <= 0.0 {
@@ -326,14 +324,19 @@ pub fn init(
                 }
             }
 
-            // return audio data only when the song is actively playing
+            // Zero out the sample. Fill it if the song currently is_playing.
+            sample[0] = 0.0; // left channel
+            sample[1] = 0.0; // right channel
+
             if is_playing {
+                // for each non-muted track currently playing in the song...
                 for track in &mut tracks {
-                    // ignore muted tracks
                     if !track.data.is_muted && track.is_playing {
-                        // if the sample  has fully played, mark it as not playing anymore
-                        let pos = track.position as usize;
-                        if pos + 1 >= track.samples.len() {
+                        // if the sample has fully played, mark it as not playing anymore
+                        let pos = (track.position as usize) & !1; // align to stereo pair (even index)
+                        let frac = track.position - track.position.floor();
+
+                        if pos + 3 >= track.samples.len() {
                             track.is_playing = false;
                         } else {
                             track.current_volume = glacier_dsp::smooth_toward(
@@ -341,20 +344,22 @@ pub fn init(
                                 track.data.target_volume,
                                 0.01,
                             );
-                            sample[0] += track.samples[pos]
-                                * track.current_volume
+
+                            // interpolate between current and next stereo pair
+                            let l = track.samples[pos]
+                                + frac * (track.samples[pos + 2] - track.samples[pos]);
+                            let r = track.samples[pos + 1]
+                                + frac * (track.samples[pos + 3] - track.samples[pos + 1]);
+
+                            let gain = track.current_volume
                                 * track.data.track_volume
                                 * shutdown_volume
                                 * master_volume;
-                            sample[1] += track.samples[pos + 1]
-                                * track.current_volume
-                                * track.data.track_volume
-                                * shutdown_volume
-                                * master_volume;
+                            sample[0] += l * gain;
+                            sample[1] += r * gain;
+
                             track.position += 2.0 * track.playback_rate;
 
-                            let l = track.samples[pos];
-                            let r = track.samples[pos + 1];
                             track.rms_l = glacier_dsp::smooth_toward(track.rms_l, l * l, 0.01);
                             track.rms_r = glacier_dsp::smooth_toward(track.rms_r, r * r, 0.01);
                             track.peak_hold = track.peak_hold.max(l.abs().max(r.abs()));
@@ -362,12 +367,13 @@ pub fn init(
                     }
                 }
             }
+            // update master meter info
             master_rms_l = glacier_dsp::smooth_toward(master_rms_l, sample[0] * sample[0], 0.01);
             master_rms_r = glacier_dsp::smooth_toward(master_rms_r, sample[1] * sample[1], 0.01);
             master_peak = master_peak.max(sample[0].abs().max(sample[1].abs()));
         }
 
-        // updarte meter
+        // update the meter data
         meter_counter += data.len() / 2;
         if meter_counter >= 1024 {
             meter_counter = 0;
@@ -396,7 +402,7 @@ pub fn init(
             sample_counter += data.len() as f32 / 2.0; // increment sample counter by number of samples requested : keep track of sample position
 
             // get amount of samples per step
-            let samples_per_step = glacier_dsp::samples_per_step(sample_rate_f, bpm);
+            let samples_per_step = glacier_dsp::samples_per_step(config.sample_rate as f32, bpm);
 
             // update UI time
             let beat = current_step as f32 + (sample_counter / samples_per_step);

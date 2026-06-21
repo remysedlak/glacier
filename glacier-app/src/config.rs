@@ -2,6 +2,9 @@
 
 use serde::{Deserialize, Serialize};
 
+// todo: save as config variable
+pub const DEFAULT_BPM: f32 = 120.0;
+
 #[derive(Serialize, Deserialize, Default)]
 pub struct UserSettings {
     pub instrument_search_paths: Vec<String>,

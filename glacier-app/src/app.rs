@@ -2,7 +2,6 @@
 
 use crate::audio::{init, AudioCommand};
 use crate::config::{self, UserSettings};
-use crate::graphics::mini_window::track;
 use crate::graphics::{
     context_menu::{ContextMenu, ContextMenuKind},
     drag::DragResult,
@@ -410,14 +409,16 @@ impl App {
                             pattern_id, track_id, step_idx, pitch,
                         ))
                         .ok();
-
-                    // also update UI state
                     if let Some(pattern) = gfx.patterns.iter_mut().find(|p| p.id == pattern_id) {
                         if let Some(seq) = pattern
                             .sequences
                             .iter_mut()
                             .find(|s| s.track_id == track_id)
                         {
+                            if step_idx >= seq.steps.len() {
+                                seq.steps
+                                    .resize(step_idx + 1, crate::project::Note::default());
+                            }
                             let note = &mut seq.steps[step_idx];
                             if note.velocity > 0.0 && note.pitch == pitch {
                                 *note = crate::project::Note::default();
@@ -427,8 +428,11 @@ impl App {
                                     pitch,
                                 };
                             }
+                            while seq.steps.last().map(|n| n.velocity == 0.0).unwrap_or(false) {
+                                seq.steps.pop();
+                            }
                         } else {
-                            let mut steps = vec![crate::project::Note::default(); 32];
+                            let mut steps = vec![crate::project::Note::default(); step_idx + 1];
                             steps[step_idx] = crate::project::Note {
                                 velocity: 95.0,
                                 pitch,

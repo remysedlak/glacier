@@ -11,7 +11,7 @@ pub mod primitives;
 pub mod widgets;
 
 use crate::app::{MouseState, PianoRollState, ScrollOffset};
-use crate::audio::DEFAULT_BPM;
+use crate::config::DEFAULT_BPM;
 use crate::project::{AudioBlock, AudioBlockType, PatternData, Track};
 
 use color::{Color, DARK_GRAY, WHITE};
