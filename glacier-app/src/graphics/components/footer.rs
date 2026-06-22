@@ -8,9 +8,13 @@ use crate::graphics::{
 pub const FOOTER_Y_HEIGHT: f32 = 32.0;
 pub const FPS_COUNTER_X_OFFSET: f32 = 80.0;
 
-pub fn draw(screen_config: &ScreenConfig, path: &String, frame_rate: f32) -> (Vec<Vertex>, Vec<TextItem>) {
+pub fn draw(
+    screen_config: &ScreenConfig,
+    path: &String,
+    frame_rate: f32,
+    out: &mut Vec<Vertex>,
+) -> Vec<TextItem> {
     // setup
-    let mut vertices: Vec<Vertex> = Vec::new();
     let mut text_items: Vec<TextItem> = Vec::new();
 
     // coordinates
@@ -22,7 +26,7 @@ pub fn draw(screen_config: &ScreenConfig, path: &String, frame_rate: f32) -> (Ve
         width: screen_config.width as f32,
         height: FOOTER_Y_HEIGHT,
     };
-    vertices.extend(footer.draw(screen_config, BLACK, NO_RADIUS));
+    footer.draw(screen_config, BLACK, NO_RADIUS, out);
 
     text_items.push(TextItem {
         text: path.to_string(),
@@ -42,5 +46,5 @@ pub fn draw(screen_config: &ScreenConfig, path: &String, frame_rate: f32) -> (Ve
         color: ORANGE,
         font: MONOSPACED,
     });
-    (vertices, text_items)
+    text_items
 }

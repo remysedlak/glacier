@@ -18,7 +18,7 @@ pub fn draw(screen_config: &ScreenConfig) -> (Vec<Vertex>, Vec<TextItem>) {
         height: MODAL_HEIGHT,
         width: MODAL_WIDTH,
     };
-    vertices.extend(modal_background.draw(screen_config, DARK_GRAY, RADIUS_8));
+    modal_background.draw(screen_config, DARK_GRAY, RADIUS_8, &mut vertices);
     // text_items.push(draw_title(title, ())));
     (vertices, text_items)
 }

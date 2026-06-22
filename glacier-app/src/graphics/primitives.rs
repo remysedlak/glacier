@@ -1,4 +1,12 @@
+use crate::graphics::MouseState;
 use crate::graphics::{color::*, font::TextItem};
+
+pub struct DrawCtx<'a> {
+    pub vertices: &'a mut Vec<Vertex>,
+    pub text_items: &'a mut Vec<TextItem>,
+    pub screen_config: &'a ScreenConfig,
+    pub mouse_state: &'a MouseState,
+}
 
 pub const PAD_64: f32 = 64.0;
 pub const PAD_32: f32 = 32.0;
@@ -72,7 +80,8 @@ pub fn draw_rectangle(
     screen_config: &ScreenConfig,
     color: Color,
     corner_radius: [f32; 4],
-) -> Vec<Vertex> {
+    vertex_buffer: &mut Vec<Vertex>,
+) {
     let ndc_x = to_ndc_x(x, screen_config);
     let ndc_y = to_ndc_y(y, screen_config);
     let ndc_r = |r: f32| (r / screen_config.width as f32) * 2.0;
@@ -87,56 +96,54 @@ pub fn draw_rectangle(
     let hw = ndc_width / 2.0;
     let hh = ndc_height / 2.0;
 
-    vec![
-        Vertex {
-            position: [ndc_x, ndc_y, 0.0],
-            color: [color.r, color.g, color.b],
-            uv: [-1.0, -1.0],
-            radius,
-            half_size: [hw, hh],
-            local_pos: [-hw, hh],
-        },
-        Vertex {
-            position: [ndc_x, ndc_y - ndc_height, 0.0],
-            color: [color.r, color.g, color.b],
-            uv: [-1.0, -1.0],
-            radius,
-            half_size: [hw, hh],
-            local_pos: [-hw, -hh],
-        },
-        Vertex {
-            position: [ndc_x + ndc_width, ndc_y, 0.0],
-            color: [color.r, color.g, color.b],
-            uv: [-1.0, -1.0],
-            radius,
-            half_size: [hw, hh],
-            local_pos: [hw, hh],
-        },
-        Vertex {
-            position: [ndc_x + ndc_width, ndc_y, 0.0],
-            color: [color.r, color.g, color.b],
-            uv: [-1.0, -1.0],
-            radius,
-            half_size: [hw, hh],
-            local_pos: [hw, hh],
-        },
-        Vertex {
-            position: [ndc_x, ndc_y - ndc_height, 0.0],
-            color: [color.r, color.g, color.b],
-            uv: [-1.0, -1.0],
-            radius,
-            half_size: [hw, hh],
-            local_pos: [-hw, -hh],
-        },
-        Vertex {
-            position: [ndc_x + ndc_width, ndc_y - ndc_height, 0.0],
-            color: [color.r, color.g, color.b],
-            uv: [-1.0, -1.0],
-            radius,
-            half_size: [hw, hh],
-            local_pos: [hw, -hh],
-        },
-    ]
+    vertex_buffer.push(Vertex {
+        position: [ndc_x, ndc_y, 0.0],
+        color: [color.r, color.g, color.b],
+        uv: [-1.0, -1.0],
+        radius,
+        half_size: [hw, hh],
+        local_pos: [-hw, hh],
+    });
+    vertex_buffer.push(Vertex {
+        position: [ndc_x, ndc_y - ndc_height, 0.0],
+        color: [color.r, color.g, color.b],
+        uv: [-1.0, -1.0],
+        radius,
+        half_size: [hw, hh],
+        local_pos: [-hw, -hh],
+    });
+    vertex_buffer.push(Vertex {
+        position: [ndc_x + ndc_width, ndc_y, 0.0],
+        color: [color.r, color.g, color.b],
+        uv: [-1.0, -1.0],
+        radius,
+        half_size: [hw, hh],
+        local_pos: [hw, hh],
+    });
+    vertex_buffer.push(Vertex {
+        position: [ndc_x + ndc_width, ndc_y, 0.0],
+        color: [color.r, color.g, color.b],
+        uv: [-1.0, -1.0],
+        radius,
+        half_size: [hw, hh],
+        local_pos: [hw, hh],
+    });
+    vertex_buffer.push(Vertex {
+        position: [ndc_x, ndc_y - ndc_height, 0.0],
+        color: [color.r, color.g, color.b],
+        uv: [-1.0, -1.0],
+        radius,
+        half_size: [hw, hh],
+        local_pos: [-hw, -hh],
+    });
+    vertex_buffer.push(Vertex {
+        position: [ndc_x + ndc_width, ndc_y - ndc_height, 0.0],
+        color: [color.r, color.g, color.b],
+        uv: [-1.0, -1.0],
+        radius,
+        half_size: [hw, hh],
+        local_pos: [hw, -hh],
+    });
 }
 
 pub fn draw_circle(
@@ -146,8 +153,8 @@ pub fn draw_circle(
     segments: u32,
     screen_config: &ScreenConfig,
     color: Color,
-) -> Vec<Vertex> {
-    let mut vec: Vec<Vertex> = Vec::new();
+    vertex_buffer: &mut Vec<Vertex>,
+) {
     let to_ndc = |x: f32, y: f32| -> [f32; 3] {
         [
             2.0 * (x / screen_config.width as f32) - 1.0,
@@ -168,15 +175,20 @@ pub fn draw_circle(
     for k in 0..segments {
         let a0 = k as f32 * (2.0 * std::f32::consts::PI / segments as f32);
         let a1 = (k + 1) as f32 * (2.0 * std::f32::consts::PI / segments as f32);
-        vec.push(inert_v(cx, cy));
-        vec.push(inert_v(cx + radius * a0.cos(), cy + radius * a0.sin()));
-        vec.push(inert_v(cx + radius * a1.cos(), cy + radius * a1.sin()));
+        vertex_buffer.push(inert_v(cx, cy));
+        vertex_buffer.push(inert_v(cx + radius * a0.cos(), cy + radius * a0.sin()));
+        vertex_buffer.push(inert_v(cx + radius * a1.cos(), cy + radius * a1.sin()));
     }
-    vec
 }
-pub fn draw_knob(cx: f32, cy: f32, vol: f32, screen_config: &ScreenConfig) -> Vec<Vertex> {
+pub fn draw_knob(
+    cx: f32,
+    cy: f32,
+    vol: f32,
+    screen_config: &ScreenConfig,
+    vertex_buffer: &mut Vec<Vertex>,
+) {
     let radius = 10.0_f32;
-    let mut vec = draw_circle(cx, cy, radius, 32, screen_config, LL_GRAY);
+    draw_circle(cx, cy, radius, 32, screen_config, LL_GRAY, vertex_buffer);
 
     let ncx = |x: f32| 2.0 * (x / screen_config.width as f32) - 1.0;
     let ncy = |y: f32| 1.0 - (y / screen_config.height as f32) * 2.0;
@@ -205,18 +217,21 @@ pub fn draw_knob(cx: f32, cy: f32, vol: f32, screen_config: &ScreenConfig) -> Ve
     let p3 = (ex - thickness * perp_x, ey - thickness * perp_y);
 
     // always wind counter-clockwise
-    vec.push(v(p0.0, p0.1));
-    vec.push(v(p2.0, p2.1));
-    vec.push(v(p1.0, p1.1));
-    vec.push(v(p1.0, p1.1));
-    vec.push(v(p2.0, p2.1));
-    vec.push(v(p3.0, p3.1));
-
-    vec
+    vertex_buffer.push(v(p0.0, p0.1));
+    vertex_buffer.push(v(p2.0, p2.1));
+    vertex_buffer.push(v(p1.0, p1.1));
+    vertex_buffer.push(v(p1.0, p1.1));
+    vertex_buffer.push(v(p2.0, p2.1));
+    vertex_buffer.push(v(p3.0, p3.1));
 }
 
 // draw a line across the entire screen
-pub fn draw_h_line(y: f32, thickness: f32, screen_config: &ScreenConfig) -> Vec<Vertex> {
+pub fn draw_h_line(
+    y: f32,
+    thickness: f32,
+    screen_config: &ScreenConfig,
+    vertex_buffer: &mut Vec<Vertex>,
+) {
     // top edge of the line
     let ndc_y = 1.0 - (y / screen_config.height as f32) * 2.0;
     // thickness of the line
@@ -231,12 +246,12 @@ pub fn draw_h_line(y: f32, thickness: f32, screen_config: &ScreenConfig) -> Vec<
         local_pos: [0.0, 0.0],
     };
 
-    vec![
+    vertex_buffer.extend([
         v(-1.0, ndc_y),
         v(1.0, ndc_y),
         v(1.0, ndc_y - ndc_t),
         v(-1.0, ndc_y),
         v(1.0, ndc_y - ndc_t),
         v(-1.0, ndc_y - ndc_t),
-    ]
+    ]);
 }

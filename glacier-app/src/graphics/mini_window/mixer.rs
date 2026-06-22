@@ -27,26 +27,21 @@ pub fn draw(
     master_peak: f32,
     screen_config: &ScreenConfig,
     mouse_state: &MouseState,
-) -> (Vec<Vertex>, Vec<TextItem>, ClickResult, CursorIcon) {
-    let mut vertices: Vec<Vertex> = Vec::new();
+    out: &mut Vec<Vertex>,
+) -> (Vec<TextItem>, ClickResult, CursorIcon) {
     let mut text_items: Vec<TextItem> = Vec::new();
     let mut click_result = ClickResult::None;
     let mut cursor_icon = CursorIcon::Default;
 
     let window_background = window_background(window);
-    vertices.extend(window_background.draw(
-        screen_config,
-        MINI_WINDOW_BACKGROUND,
-        BOTTOM_RADIUS_16,
-    ));
+    window_background.draw(screen_config, MINI_WINDOW_BACKGROUND, BOTTOM_RADIUS_16, out);
 
-    let (titlebar_verts, titlebar_texts, result, cursor) =
-        window_title_bar(window, "Mixer", screen_config, mouse_state);
+    let (titlebar_texts, result, cursor) =
+        window_title_bar(window, "Mixer", screen_config, mouse_state, out);
     if !matches!(cursor, CursorIcon::Default) {
         cursor_icon = cursor;
     }
     click_result = click_result.or(result);
-    vertices.extend(titlebar_verts);
     text_items.push(titlebar_texts);
 
     let master_slider_x = window.x + SLIDER_BACKGROUND_OFFSET;
@@ -57,20 +52,20 @@ pub fn draw(
     let slider_area_height = col_height * 0.5;
 
     // helper closure to draw one channel strip
-    let draw_channel = |vertices: &mut Vec<Vertex>,
-                        text_items: &mut Vec<TextItem>,
-                        col_x: f32,
-                        volume: f32,
-                        rms_l: f32,
-                        rms_r: f32,
-                        peak: f32| {
+    let mut draw_channel = |vertices: &mut Vec<Vertex>,
+                            text_items: &mut Vec<TextItem>,
+                            col_x: f32,
+                            volume: f32,
+                            rms_l: f32,
+                            rms_r: f32,
+                            peak: f32| {
         let bg = Rectangle {
             x: col_x - PAD_8,
             y: master_slider_y - PAD_8,
             width: MIXER_ITEM_WIDTH,
             height: col_height,
         };
-        vertices.extend(bg.draw(screen_config, DARK_GRAY, NO_RADIUS));
+        bg.draw(screen_config, DARK_GRAY, NO_RADIUS, vertices);
 
         // meter top half
         let meter_bg = Rectangle {
@@ -79,7 +74,7 @@ pub fn draw(
             width: MIXER_ITEM_WIDTH - PAD_16,
             height: meter_area_height - PAD_32,
         };
-        vertices.extend(meter_bg.draw(screen_config, BLACK, NO_RADIUS));
+        meter_bg.draw(screen_config, BLACK, NO_RADIUS, vertices);
 
         let bar_width = (meter_bg.width - 2.0) * 0.5; // 2px gap between
 
@@ -91,7 +86,7 @@ pub fn draw(
             width: bar_width,
             height: fill_l,
         };
-        vertices.extend(bar_l.draw(screen_config, GREEN, NO_RADIUS));
+        bar_l.draw(screen_config, GREEN, NO_RADIUS, vertices);
 
         // right bar
         let fill_r = (meter_bg.height * rms_r.clamp(0.0, 1.0)).min(meter_bg.height);
@@ -101,7 +96,7 @@ pub fn draw(
             width: bar_width,
             height: fill_r,
         };
-        vertices.extend(bar_r.draw(screen_config, GREEN, NO_RADIUS));
+        bar_r.draw(screen_config, GREEN, NO_RADIUS, vertices);
 
         // peak line spans full width
         let peak_y = (meter_bg.y + meter_bg.height - (meter_bg.height * peak.clamp(0.0, 1.0)))
@@ -112,11 +107,11 @@ pub fn draw(
             width: meter_bg.width,
             height: 2.0,
         };
-        vertices.extend(peak_line.draw(screen_config, ORANGE, NO_RADIUS));
+        peak_line.draw(screen_config, ORANGE, NO_RADIUS, vertices);
 
         // slider bottom half
         let slider_y = bg.y + meter_area_height + slider_area_height - 172.0;
-        vertices.extend(draw_slider(volume, col_x, slider_y, screen_config));
+        draw_slider(volume, col_x, slider_y, screen_config, vertices);
 
         text_items.push(TextItem {
             text: format!("{:.2}", volume),
@@ -129,7 +124,7 @@ pub fn draw(
     };
 
     draw_channel(
-        &mut vertices,
+        out,
         &mut text_items,
         master_slider_x,
         master_volume,
@@ -142,7 +137,7 @@ pub fn draw(
         let col_x = (master_slider_x - PAD_8 + PAD_16)
             + ((MIXER_ITEM_WIDTH + PAD_4) * (track.data.id + 1) as f32);
         draw_channel(
-            &mut vertices,
+            out,
             &mut text_items,
             col_x,
             track.data.track_volume,
@@ -152,5 +147,5 @@ pub fn draw(
         );
     }
 
-    (vertices, text_items, click_result, cursor_icon)
+    (text_items, click_result, cursor_icon)
 }

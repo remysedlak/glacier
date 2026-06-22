@@ -43,14 +43,24 @@ pub fn draw(
     let tracks = 32;
 
     let playlist_background = window_background(window);
-    static_vertices.extend(playlist_background.draw(screen_config, MINI_WINDOW_BACKGROUND, BOTTOM_RADIUS_16));
+    playlist_background.draw(
+        screen_config,
+        MINI_WINDOW_BACKGROUND,
+        BOTTOM_RADIUS_16,
+        &mut static_vertices,
+    );
 
-    let (titlebar_verts, titlebar_texts, result, cursor) = window_title_bar(window, "Playlist", screen_config, mouse_state);
+    let (titlebar_texts, result, cursor) = window_title_bar(
+        window,
+        "Playlist",
+        screen_config,
+        mouse_state,
+        &mut static_vertices,
+    );
     if !matches!(cursor, CursorIcon::Default) {
         cursor_icon = cursor;
     }
     click_result = click_result.or(result);
-    static_vertices.extend(titlebar_verts);
     static_text_items.push(titlebar_texts);
 
     for track in 0..tracks {
@@ -64,7 +74,7 @@ pub fn draw(
         if background.y + background.height < window.y || background.y > window.y + window.height {
             continue;
         }
-        track_header_vertices.extend(background.draw(screen_config, PEBBLE, NO_RADIUS));
+        background.draw(screen_config, PEBBLE, NO_RADIUS, &mut track_header_vertices);
         track_header_text_items.push(TextItem {
             text: format!("Track {}", track).to_string(),
             x: window.x + PAD_16 + PAD_8,
@@ -77,7 +87,8 @@ pub fn draw(
         for step in 0..steps {
             let group = step / 4;
             let pl_step = Rectangle {
-                x: window.x + (step as f32 * PLAYLIST_STEP_GAP) + PAD_16 + TIMELINE_X_ORIGIN - scroll_offset.x,
+                x: window.x + (step as f32 * PLAYLIST_STEP_GAP) + PAD_16 + TIMELINE_X_ORIGIN
+                    - scroll_offset.x,
                 y: window.y + (track as f32 * PLAYLIST_TRACK_GAP) + PAD_64 - scroll_offset.y,
                 width: PLAYLIST_STEP_WIDTH,
                 height: PLAYLIST_STEP_HEIGHT,
@@ -89,7 +100,8 @@ pub fn draw(
                 continue;
             }
 
-            let hovered = pl_step.is_hovered(mouse_state.x, mouse_state.y) && !mouse_state.left_click_held;
+            let hovered =
+                pl_step.is_hovered(mouse_state.x, mouse_state.y) && !mouse_state.left_click_held;
             let color = if hovered {
                 if group % 2 != 0 {
                     BLUE_HOVER
@@ -112,15 +124,21 @@ pub fn draw(
                     .map(|s| s.steps.len())
                     .unwrap_or(16);
 
-                click_result = ClickResult::AddPlaylistPattern(track, step, length, AudioBlockType::Pattern(active_pattern_id));
+                click_result = ClickResult::AddPlaylistPattern(
+                    track,
+                    step,
+                    length,
+                    AudioBlockType::Pattern(active_pattern_id),
+                );
             }
 
-            timeline_vertices.extend(pl_step.draw(screen_config, color, NO_RADIUS));
+            pl_step.draw(screen_config, color, NO_RADIUS, &mut timeline_vertices);
 
             if step % 16 == 0 && track == 0 {
                 timeline_text_items.push(TextItem {
                     text: format!("{group}"),
-                    x: window.x + (step as f32 * PLAYLIST_STEP_GAP) + PAD_16 + TIMELINE_X_ORIGIN - scroll_offset.x,
+                    x: window.x + (step as f32 * PLAYLIST_STEP_GAP) + PAD_16 + TIMELINE_X_ORIGIN
+                        - scroll_offset.x,
                     y: window.y + PAD_8,
                     size: 18.0,
                     font: "roboto",
@@ -134,16 +152,23 @@ pub fn draw(
     for event in events {
         if let AudioBlockType::Pattern(id) = event.block_type {
             let pl_pattern = Rectangle {
-                x: window.x + (event.start_step as f32 * PLAYLIST_STEP_GAP) + PAD_16 + TIMELINE_X_ORIGIN - scroll_offset.x,
+                x: window.x
+                    + (event.start_step as f32 * PLAYLIST_STEP_GAP)
+                    + PAD_16
+                    + TIMELINE_X_ORIGIN
+                    - scroll_offset.x,
                 y: window.y + (event.track as f32 * PLAYLIST_TRACK_GAP) + PAD_64 - scroll_offset.y,
                 width: PLAYLIST_STEP_GAP * event.length as f32 - 2.0,
                 height: PLAYLIST_STEP_HEIGHT,
             };
 
-            if pl_pattern.x + pl_pattern.width < window.x || pl_pattern.x > window.x + window.width {
+            if pl_pattern.x + pl_pattern.width < window.x || pl_pattern.x > window.x + window.width
+            {
                 continue;
             }
-            if pl_pattern.y + pl_pattern.height < window.y || pl_pattern.y > window.y + window.height {
+            if pl_pattern.y + pl_pattern.height < window.y
+                || pl_pattern.y > window.y + window.height
+            {
                 continue;
             }
 
@@ -159,18 +184,35 @@ pub fn draw(
                     click_result = ClickResult::StartResizeEvent(event.id);
                 }
             }
-            let pl_pattern_color = if pl_pattern.is_hovered(mouse_state.x, mouse_state.y) && resizing_event.is_none() {
+            let pl_pattern_color = if pl_pattern.is_hovered(mouse_state.x, mouse_state.y)
+                && resizing_event.is_none()
+            {
                 LIGHT_GRAY_HOVER
             } else {
                 LIGHT_GRAY
             };
-            timeline_vertices.extend(pl_pattern.draw(screen_config, pl_pattern_color, RADIUS_8));
+            pl_pattern.draw(
+                screen_config,
+                pl_pattern_color,
+                RADIUS_8,
+                &mut timeline_vertices,
+            );
 
-            let label = patterns.iter().find(|p| p.id == id).map(|p| p.name.as_str()).unwrap_or("?");
+            let label = patterns
+                .iter()
+                .find(|p| p.id == id)
+                .map(|p| p.name.as_str())
+                .unwrap_or("?");
             timeline_text_items.push(TextItem {
                 text: label.to_string(),
-                x: window.x + (event.start_step as f32 * PLAYLIST_STEP_GAP) + PAD_16 + TIMELINE_X_ORIGIN + PAD_8 - scroll_offset.x,
-                y: window.y + (event.track as f32 * PLAYLIST_TRACK_GAP) + PAD_64 + PAD_4 - scroll_offset.y,
+                x: window.x
+                    + (event.start_step as f32 * PLAYLIST_STEP_GAP)
+                    + PAD_16
+                    + TIMELINE_X_ORIGIN
+                    + PAD_8
+                    - scroll_offset.x,
+                y: window.y + (event.track as f32 * PLAYLIST_TRACK_GAP) + PAD_64 + PAD_4
+                    - scroll_offset.y,
                 size: 18.0,
                 font: "roboto",
                 color: BLACK,
@@ -179,12 +221,13 @@ pub fn draw(
     }
 
     let playhead = Rectangle {
-        x: window.x + (current_step as f32 * PLAYLIST_STEP_GAP) + PAD_16 + TIMELINE_X_ORIGIN - scroll_offset.x,
+        x: window.x + (current_step as f32 * PLAYLIST_STEP_GAP) + PAD_16 + TIMELINE_X_ORIGIN
+            - scroll_offset.x,
         y: window.y + PAD_64,
         width: PLAYHEAD_WIDTH,
         height: window.height,
     };
-    timeline_vertices.extend(playhead.draw(screen_config, ORANGE, NO_RADIUS));
+    playhead.draw(screen_config, ORANGE, NO_RADIUS, &mut timeline_vertices);
 
     (
         DrawRegion {

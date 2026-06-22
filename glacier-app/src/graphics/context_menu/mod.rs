@@ -36,16 +36,27 @@ fn menu_item_color(rect: &Rectangle, mx: f32, my: f32, held: bool) -> Color {
 }
 
 impl ContextMenu {
-    pub fn draw(&self, screen_config: &ScreenConfig, mouse_state: &MouseState) -> (Vec<Vertex>, Vec<TextItem>, ClickResult, CursorIcon) {
+    pub fn draw(
+        &self,
+        screen_config: &ScreenConfig,
+        mouse_state: &MouseState,
+        out: &mut Vec<Vertex>,
+    ) -> (Vec<TextItem>, ClickResult, CursorIcon) {
         match &self.kind {
-            ContextMenuKind::PatternContext(id) => self.draw_pattern_context(screen_config, mouse_state, *id),
-            ContextMenuKind::TrackContext(pattern, track) => self.draw_track_context(screen_config, mouse_state, *pattern, *track),
+            ContextMenuKind::PatternContext(id) => {
+                self.draw_pattern_context(screen_config, mouse_state, *id, out)
+            }
+            ContextMenuKind::TrackContext(pattern, track) => {
+                self.draw_track_context(screen_config, mouse_state, *pattern, *track, out)
+            }
         }
     }
 
     pub fn draw_background(&self) -> Rectangle {
         Rectangle {
-            height: (CONTEXT_MENU_ITEM_HEIGHT + CONTEXT_MENU_PADDING) * PATTERN_MENU_ITEM_COUNT as f32 + CONTEXT_MENU_PADDING,
+            height: (CONTEXT_MENU_ITEM_HEIGHT + CONTEXT_MENU_PADDING)
+                * PATTERN_MENU_ITEM_COUNT as f32
+                + CONTEXT_MENU_PADDING,
             width: self.width + PAD_8,
             x: self.x - PAD_64 - CONTEXT_MENU_PADDING,
             y: self.y + (CONTEXT_MENU_ITEM_HEIGHT + PAD_8) - CONTEXT_MENU_PADDING,
@@ -106,15 +117,15 @@ impl ContextMenu {
         screen_config: &ScreenConfig,
         mouse_state: &MouseState,
         id: usize,
-    ) -> (Vec<Vertex>, Vec<TextItem>, ClickResult, CursorIcon) {
-        let mut vertices: Vec<Vertex> = Vec::new();
+        out: &mut Vec<Vertex>,
+    ) -> (Vec<TextItem>, ClickResult, CursorIcon) {
         let mut text_items: Vec<TextItem> = Vec::new();
         let mut cursor_icon = CursorIcon::Default;
         let mut click_result = ClickResult::None;
 
         // dark background
         let menu_background = self.draw_background();
-        vertices.extend(menu_background.draw(screen_config, DARK_GRAY, RADIUS_8));
+        menu_background.draw(screen_config, DARK_GRAY, RADIUS_8, out);
 
         // render each item - lighter background
         let item_x = self.x - PAD_64;
@@ -126,11 +137,17 @@ impl ContextMenu {
                 x: item_x,
                 y: (self.y + (CONTEXT_MENU_ITEM_HEIGHT + PAD_4) * item as f32) + PAD_32,
             };
-            vertices.extend(context_item_background.draw(
+            context_item_background.draw(
                 screen_config,
-                menu_item_color(&context_item_background, mouse_state.x, mouse_state.y, mouse_state.left_clicked),
+                menu_item_color(
+                    &context_item_background,
+                    mouse_state.x,
+                    mouse_state.y,
+                    mouse_state.left_clicked,
+                ),
                 RADIUS_4,
-            ));
+                out,
+            );
 
             text_items.push(self.draw_pattern_context_item_text(item as usize));
 
@@ -150,6 +167,7 @@ impl ContextMenu {
                             // duplicate
                             click_result = ClickResult::DuplicatePattern(id);
                         }
+
                         _ => {
                             click_result = ClickResult::CloseContextMenu;
                         }
@@ -158,7 +176,7 @@ impl ContextMenu {
             }
         }
 
-        (vertices, text_items, click_result, cursor_icon)
+        (text_items, click_result, cursor_icon)
     }
 
     fn draw_track_context(
@@ -167,15 +185,15 @@ impl ContextMenu {
         mouse_state: &MouseState,
         pattern_id: usize,
         track_id: usize,
-    ) -> (Vec<Vertex>, Vec<TextItem>, ClickResult, CursorIcon) {
-        let mut vertices: Vec<Vertex> = Vec::new();
+        out: &mut Vec<Vertex>,
+    ) -> (Vec<TextItem>, ClickResult, CursorIcon) {
         let mut text_items: Vec<TextItem> = Vec::new();
         let mut cursor_icon = CursorIcon::Default;
         let mut click_result = ClickResult::None;
 
         // dark background
         let menu_background = self.draw_background();
-        vertices.extend(menu_background.draw(screen_config, DARK_GRAY, RADIUS_8));
+        menu_background.draw(screen_config, DARK_GRAY, RADIUS_8, out);
 
         for item in 0..5 {
             let context_item_background = Rectangle {
@@ -186,11 +204,17 @@ impl ContextMenu {
             };
 
             // background for ContextMenu item
-            vertices.extend(context_item_background.draw(
+            context_item_background.draw(
                 screen_config,
-                menu_item_color(&context_item_background, mouse_state.x, mouse_state.y, mouse_state.left_clicked),
+                menu_item_color(
+                    &context_item_background,
+                    mouse_state.x,
+                    mouse_state.y,
+                    mouse_state.left_clicked,
+                ),
                 RADIUS_4,
-            ));
+                out,
+            );
 
             // label for ContextMenu item
             text_items.push(self.draw_track_context_item_text(item as usize));
@@ -233,6 +257,6 @@ impl ContextMenu {
             }
         }
 
-        (vertices, text_items, click_result, cursor_icon)
+        (text_items, click_result, cursor_icon)
     }
 }

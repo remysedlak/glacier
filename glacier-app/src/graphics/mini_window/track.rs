@@ -20,9 +20,15 @@ pub fn draw(
     mouse_state: &MouseState,
     screen_config: &ScreenConfig,
     track: &Track,
-) -> (Vec<Vertex>, Vec<TextItem>, Vec<IconDraw>, ClickResult, CursorIcon, Option<Tooltip>) {
+    out: &mut Vec<Vertex>,
+) -> (
+    Vec<TextItem>,
+    Vec<IconDraw>,
+    ClickResult,
+    CursorIcon,
+    Option<Tooltip>,
+) {
     // setup
-    let mut vertices: Vec<Vertex> = Vec::new();
     let mut text_items: Vec<TextItem> = Vec::new();
     let mut icons: Vec<IconDraw> = Vec::new();
     let mut click_result = ClickResult::None;
@@ -30,16 +36,25 @@ pub fn draw(
     let mut tooltip: Option<Tooltip> = None;
     // window background
     let window_background = window_background(window);
-    vertices.extend(window_background.draw(screen_config, MINI_WINDOW_BACKGROUND, [0.0, 16.0, 0.0, 16.0]));
+    window_background.draw(
+        screen_config,
+        MINI_WINDOW_BACKGROUND,
+        [0.0, 16.0, 0.0, 16.0],
+        out,
+    );
 
     // titlebar
-    let (titlebar_verts, titlebar_texts, result, cursor) =
-        window_title_bar(window, &format!("Track: {}", track.data.name), screen_config, mouse_state);
+    let (titlebar_texts, result, cursor) = window_title_bar(
+        window,
+        &format!("Track: {}", track.data.name),
+        screen_config,
+        mouse_state,
+        out,
+    );
     click_result = click_result.or(result);
     if !matches!(cursor, CursorIcon::Default) {
         cursor_icon = cursor;
     }
-    vertices.extend(titlebar_verts);
     text_items.push(titlebar_texts);
 
     // draw background of wave form for track
@@ -51,9 +66,13 @@ pub fn draw(
         width: TRACK_GRAPHICS_WIDTH,
         height: TRACK_GRAPHICS_HEIGHT,
     };
-    vertices.extend(track_wave_background.draw(screen_config, DARK_GRAY, NO_RADIUS));
+    track_wave_background.draw(screen_config, DARK_GRAY, NO_RADIUS, out);
 
-    let samples_averaged: Vec<f32> = track.samples.chunks(2).map(|pair| (pair[0] + pair[1]) / 2.0).collect::<Vec<f32>>();
+    let samples_averaged: Vec<f32> = track
+        .samples
+        .chunks(2)
+        .map(|pair| (pair[0] + pair[1]) / 2.0)
+        .collect::<Vec<f32>>();
     let sample_stride = samples_averaged.len() / TRACK_GRAPHICS_WIDTH as usize;
 
     // 200 pixel columns for 200 pixel graphics
@@ -62,15 +81,21 @@ pub fn draw(
         let start = pixel_column * sample_stride;
         let end = (start + sample_stride).min(samples_averaged.len());
         // using  the start and end range,  find the highest and lowest amplitude within that stride
-        let max = samples_averaged[start..end].iter().cloned().fold(f32::NEG_INFINITY, f32::max);
-        let min = samples_averaged[start..end].iter().cloned().fold(f32::INFINITY, f32::min);
+        let max = samples_averaged[start..end]
+            .iter()
+            .cloned()
+            .fold(f32::NEG_INFINITY, f32::max);
+        let min = samples_averaged[start..end]
+            .iter()
+            .cloned()
+            .fold(f32::INFINITY, f32::min);
         let pixel_line = Rectangle {
             x: track_wave_background.x + pixel_column as f32,
             y: center_y - (max * TRACK_GRAPHICS_HEIGHT_HALF),
             height: (max - min) * TRACK_GRAPHICS_HEIGHT_HALF,
             width: 1.0,
         };
-        vertices.extend(pixel_line.draw(screen_config, WHITE, NO_RADIUS));
+        pixel_line.draw(screen_config, WHITE, NO_RADIUS, out);
     }
 
     let open_file_button_x = (window.x + window.width) - PAD_16 - TRACK_GRAPHICS_WIDTH;
@@ -84,11 +109,17 @@ pub fn draw(
     if open_file_background.is_hovered(mouse_state.x, mouse_state.y) && mouse_state.left_clicked {
         click_result = ClickResult::OpenTrackFileLocation(track.data.path.clone())
     };
-    vertices.extend(open_file_background.draw(
+    open_file_background.draw(
         screen_config,
-        crate::graphics::components::toolbar::icon_color(&open_file_background, mouse_state.x, mouse_state.y, mouse_state.left_click_held),
+        crate::graphics::components::toolbar::icon_color(
+            &open_file_background,
+            mouse_state.x,
+            mouse_state.y,
+            mouse_state.left_click_held,
+        ),
         RADIUS_4,
-    ));
+        out,
+    );
     icons.push(IconDraw {
         name: "file",
         x: open_file_button_x - 2.0,
@@ -110,5 +141,5 @@ pub fn draw(
         }
     }
 
-    (vertices, text_items, icons, click_result, cursor_icon, tooltip)
+    (text_items, icons, click_result, cursor_icon, tooltip)
 }

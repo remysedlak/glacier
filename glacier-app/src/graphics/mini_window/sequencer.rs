@@ -8,7 +8,7 @@ use crate::graphics::{
     widgets::window_title_bar,
     {ClickResult, Rectangle, ScrollOffset, TextItem},
 };
-use crate::project::{Note, PatternData, Sequence, Track};
+use crate::project::{Note, PatternData, Track};
 use winit::window::CursorIcon;
 
 pub const BAR_GAP: f32 = 12.0;
@@ -24,16 +24,16 @@ pub const MAX_STEPS: u32 = 256;
 
 pub fn draw(
     window: &MiniWindow,
-    patterns: &mut [PatternData],
+    patterns: &[PatternData],
     scroll_offset: &ScrollOffset,
     tracks: &mut [Track],
     active_pattern_id: usize,
     active_step: usize,
     mouse_state: &MouseState,
     screen_config: &ScreenConfig,
-) -> (Vec<Vertex>, Vec<TextItem>, Vec<IconDraw>, ClickResult, CursorIcon) {
+    out: &mut Vec<Vertex>,
+) -> (Vec<TextItem>, Vec<IconDraw>, ClickResult, CursorIcon) {
     // setup
-    let mut vertices: Vec<Vertex> = Vec::new();
     let mut text_items: Vec<TextItem> = Vec::new();
     let mut click_result = ClickResult::None;
     let mut cursor_icon = CursorIcon::Default;
@@ -46,39 +46,51 @@ pub fn draw(
         width: window.width,
         height: window.height,
     };
-    vertices.extend(window_background.draw(screen_config, MINI_WINDOW_BACKGROUND, BOTTOM_RADIUS_16));
+    window_background.draw(screen_config, MINI_WINDOW_BACKGROUND, BOTTOM_RADIUS_16, out);
 
     // titlebar
-    let (titlebar_verts, titlebar_texts, result, cursor) = window_title_bar(window, &window.title, screen_config, mouse_state);
+    let (titlebar_texts, result, cursor) =
+        window_title_bar(window, &window.title, screen_config, mouse_state, out);
     if !matches!(cursor, CursorIcon::Default) {
         cursor_icon = cursor;
     }
     click_result = click_result.or(result);
-    vertices.extend(titlebar_verts);
+
     text_items.push(titlebar_texts);
 
     // collect steps values for each row
-    let steps_data: Vec<(u32, Vec<Note>)> = patterns
+    let steps_data: Vec<(u32, &[Note])> = patterns
         .get(active_pattern_id)
-        .map(|p| p.sequences.iter().map(|s| (s.track_id, s.steps.clone())).collect())
+        .map(|p| {
+            p.sequences
+                .iter()
+                .map(|s| (s.track_id, s.steps.as_slice()))
+                .collect()
+        })
         .unwrap_or_default();
 
+    static EMPTY_STEPS: [Note; 32] = [Note::DEFAULT; 32];
     // render ever track for every pattern
     for (i, track) in tracks.iter_mut().enumerate() {
         let y = PAD_16 + window.y + (i as f32 * TRACK_GAP);
-        let empty = vec![Note::default(); 32];
+
         let steps_slice: &[Note] = steps_data
             .iter()
             .find(|(id, _)| *id == track.data.id)
-            .map(|(_, s)| s.as_slice())
-            .unwrap_or(&empty);
+            .map(|(_, s)| *s)
+            .unwrap_or(&EMPTY_STEPS);
 
         // velocity view
         if track.show_velocity {
             // for each step
             for (j, step) in steps_slice.iter().enumerate() {
                 // velocity bar
-                let step_x = SEQUENCER_X_ORIGIN + window.x + (j as f32 * BUTTON_GAP) + ((j / 4) as f32 * BAR_GAP) + PAD_16 - scroll_offset.x;
+                let step_x = SEQUENCER_X_ORIGIN
+                    + window.x
+                    + (j as f32 * BUTTON_GAP)
+                    + ((j / 4) as f32 * BAR_GAP)
+                    + PAD_16
+                    - scroll_offset.x;
                 if step_x + SEQUENCER_STEP_WIDTH < window.x + SEQUENCER_X_ORIGIN {
                     continue;
                 }
@@ -94,14 +106,14 @@ pub fn draw(
                     width: SEQUENCER_STEP_WIDTH,
                     height: SEQUENCER_STEP_HEIGHT,
                 };
-                vertices.extend(background.draw(screen_config, DARK_GRAY, NO_RADIUS));
+                background.draw(screen_config, DARK_GRAY, NO_RADIUS, out);
                 let bar = Rectangle {
                     x: step_x,
                     y: y + SEQUENCER_STEP_HEIGHT - filled_height,
                     width: SEQUENCER_STEP_WIDTH,
                     height: filled_height,
                 };
-                vertices.extend(bar.draw(screen_config, BLUE, NO_RADIUS));
+                bar.draw(screen_config, BLUE, NO_RADIUS, out);
             }
         }
         // steps view
@@ -113,7 +125,12 @@ pub fn draw(
                 let is_active = note.velocity > 0.0;
 
                 // add the button for a step
-                let step_x = SEQUENCER_X_ORIGIN + window.x + (j as f32 * BUTTON_GAP) + ((j / 4) as f32 * BAR_GAP) + PAD_16 - scroll_offset.x;
+                let step_x = SEQUENCER_X_ORIGIN
+                    + window.x
+                    + (j as f32 * BUTTON_GAP)
+                    + ((j / 4) as f32 * BAR_GAP)
+                    + PAD_16
+                    - scroll_offset.x;
 
                 // do not paint steps outside of the window boundaries
                 if step_x + SEQUENCER_STEP_WIDTH < window.x + SEQUENCER_X_ORIGIN {
@@ -137,13 +154,14 @@ pub fn draw(
                     width: SEQUENCER_STEP_WIDTH,
                     height: SEQUENCER_STEP_HEIGHT,
                 };
-                let mut step_color = if j == active_step as u32 && step_button.is_hovered(mouse_state.x, mouse_state.y) {
+                let hovered = step_button.is_hovered(mouse_state.x, mouse_state.y); // cache it!
+                let mut step_color = if j == active_step as u32 && hovered {
                     BLUE_HOVER
                 } else if j == active_step as u32 {
                     BLUE
-                } else if step_button.is_hovered(mouse_state.x, mouse_state.y) && is_active {
+                } else if hovered && is_active {
                     DARK_GRAY
-                } else if step_button.is_hovered(mouse_state.x, mouse_state.y) {
+                } else if hovered {
                     LL_GRAY
                 } else if is_active {
                     BLACK
@@ -151,45 +169,17 @@ pub fn draw(
                     WHITE
                 };
                 if is_ghost {
-                    step_color = if step_button.is_hovered(mouse_state.x, mouse_state.y) {
-                        LL_GRAY
-                    } else {
-                        GHOST
-                    };
+                    step_color = if hovered { LL_GRAY } else { GHOST };
                 }
-                vertices.extend(step_button.draw(screen_config, step_color, RADIUS_4));
+                step_button.draw(screen_config, step_color, RADIUS_4, out);
 
                 // check if the step was clicked
-                if step_button.is_hovered(mouse_state.x, mouse_state.y) && mouse_state.left_clicked {
-                    let j = j as usize;
-
-                    if let Some(seq) = patterns[active_pattern_id].sequences.iter_mut().find(|s| s.track_id == track.data.id) {
-                        if j >= seq.steps.len() {
-                            seq.steps.resize(j + 1, Note::default());
-                        }
-                        seq.steps[j] = if seq.steps[j].velocity > 0.0 {
-                            Note::default()
-                        } else {
-                            Note {
-                                velocity: 95.0,
-                                ..Default::default()
-                            }
-                        };
-                        while seq.steps.last().map(|n| n.velocity == 0.0).unwrap_or(false) {
-                            seq.steps.pop();
-                        }
-                    } else {
-                        let mut steps = vec![Note::default(); j + 1];
-                        steps[j] = Note {
-                            velocity: 95.0,
-                            ..Default::default()
-                        };
-                        patterns[active_pattern_id].sequences.push(Sequence {
-                            track_id: track.data.id,
-                            steps,
-                        });
-                    }
-                    click_result = ClickResult::ToggleStep(active_pattern_id, track.data.id as usize, j);
+                if hovered && mouse_state.left_clicked {
+                    click_result = ClickResult::ToggleStep(
+                        active_pattern_id,
+                        track.data.id as usize,
+                        j as usize,
+                    );
                 }
             }
         }
@@ -204,19 +194,26 @@ pub fn draw(
             width: 172.0,
             height: 24.0,
         };
-        let track_button_color = if track_button.is_hovered(mouse_state.x, mouse_state.y) && !mouse_state.left_click_held {
+        let track_button_color = if track_button.is_hovered(mouse_state.x, mouse_state.y)
+            && !mouse_state.left_click_held
+        {
             DARK_GRAY_HOVER
         } else {
             DARK_GRAY
         };
-        vertices.extend(track_button.draw(screen_config, track_button_color, RADIUS_4));
+        track_button.draw(screen_config, track_button_color, RADIUS_4, out);
         if track_button.is_hovered(mouse_state.x, mouse_state.y) {
             cursor_icon = CursorIcon::Pointer;
             if mouse_state.left_clicked {
                 click_result = ClickResult::ToggleTrackWindow(i);
             }
             if mouse_state.right_clicked {
-                click_result = ClickResult::OpenTrackMenu(track_button_x, track_button_y, active_pattern_id, i);
+                click_result = ClickResult::OpenTrackMenu(
+                    track_button_x,
+                    track_button_y,
+                    active_pattern_id,
+                    i,
+                );
             }
         }
 
@@ -227,7 +224,8 @@ pub fn draw(
             width: MUTE_SQUARE_LENGTH * 2.0,
             height: MUTE_SQUARE_LENGTH,
         };
-        let hovered = mute_button.is_hovered(mouse_state.x, mouse_state.y) && !mouse_state.left_click_held;
+        let hovered =
+            mute_button.is_hovered(mouse_state.x, mouse_state.y) && !mouse_state.left_click_held;
         let mute_button_color = if hovered && track.data.is_muted {
             ORANGE_HOVER
         } else if hovered {
@@ -237,7 +235,7 @@ pub fn draw(
         } else {
             LIGHT_GRAY
         };
-        vertices.extend(mute_button.draw(screen_config, mute_button_color, RADIUS_4));
+        mute_button.draw(screen_config, mute_button_color, RADIUS_4, out);
 
         text_items.push(TextItem {
             text: "mut".to_string(),
@@ -261,7 +259,8 @@ pub fn draw(
             height: MUTE_SQUARE_LENGTH,
         };
 
-        let hovered = velocity_button.is_hovered(mouse_state.x, mouse_state.y) && !mouse_state.left_click_held;
+        let hovered = velocity_button.is_hovered(mouse_state.x, mouse_state.y)
+            && !mouse_state.left_click_held;
         let velocity_button_color = if hovered && track.show_velocity {
             ORANGE_HOVER
         } else if hovered {
@@ -271,7 +270,7 @@ pub fn draw(
         } else {
             LIGHT_GRAY
         };
-        vertices.extend(velocity_button.draw(screen_config, velocity_button_color, RADIUS_4));
+        velocity_button.draw(screen_config, velocity_button_color, RADIUS_4, out);
 
         text_items.push(TextItem {
             text: "vel".to_string(),
@@ -286,14 +285,13 @@ pub fn draw(
         };
 
         // track volume knob
-        for vert in draw_knob(
+        draw_knob(
             window.x + KNOB_OFFSET,
             window.y + (i as f32 * TRACK_GAP) + ACTIONS_Y_OFFSET + PAD_8,
             track.data.track_volume,
             screen_config,
-        ) {
-            vertices.push(vert);
-        }
+            out,
+        );
 
         // track name
 
@@ -307,5 +305,5 @@ pub fn draw(
         });
     }
 
-    (vertices, text_items, icons, click_result, cursor_icon)
+    (text_items, icons, click_result, cursor_icon)
 }

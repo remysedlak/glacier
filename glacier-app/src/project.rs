@@ -181,6 +181,12 @@ impl Default for Note {
         }
     }
 }
+impl Note {
+    pub const DEFAULT: Self = Self {
+        velocity: 0.0,
+        pitch: 60,
+    };
+}
 
 /// Load project details into memory from file path
 pub fn get_project(file_path: &str) -> Option<Project> {

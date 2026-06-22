@@ -34,11 +34,20 @@ pub struct Square {
 }
 impl Square {
     pub fn is_hovered(&self, mouse_x: f32, mouse_y: f32) -> bool {
-        mouse_x > self.x && mouse_x < self.x + self.size && mouse_y > self.y && mouse_y < self.y + self.size
+        mouse_x > self.x
+            && mouse_x < self.x + self.size
+            && mouse_y > self.y
+            && mouse_y < self.y + self.size
     }
 
     // draw vertices with rectangle details
-    pub fn draw(&self, screen_config: &ScreenConfig, color: Color, corner_radius: [f32; 4]) -> Vec<Vertex> {
+    pub fn draw(
+        &self,
+        screen_config: &ScreenConfig,
+        color: Color,
+        corner_radius: [f32; 4],
+        out: &mut Vec<Vertex>,
+    ) {
         draw_rectangle(
             self.x,
             self.y,
@@ -47,7 +56,8 @@ impl Square {
             screen_config,
             color,
             corner_radius,
-        )
+            out,
+        );
     }
 }
 
@@ -61,7 +71,10 @@ pub struct Rectangle {
 impl Rectangle {
     // if a rectangle has the mouse hovered
     pub fn is_hovered(&self, mouse_x: f32, mouse_y: f32) -> bool {
-        mouse_x > self.x && mouse_x < self.x + self.width && mouse_y > self.y && mouse_y < self.y + self.height
+        mouse_x > self.x
+            && mouse_x < self.x + self.width
+            && mouse_y > self.y
+            && mouse_y < self.y + self.height
     }
     // if either edge of a rectangle has the mouse hovered
     // pub fn is_hovered_edge(&self, mouse_x: f32, mouse_y: f32) -> bool {
@@ -72,7 +85,9 @@ impl Rectangle {
     // if the left edge of a rectangle has the mouse hovered
     pub fn is_hovered_left_edge(&self, mouse_x: f32, mouse_y: f32) -> bool {
         // on left edge within y range
-        (mouse_x > self.x - PAD_4 && mouse_x < self.x + PAD_4) && mouse_y > self.y && mouse_y < self.y + self.height
+        (mouse_x > self.x - PAD_4 && mouse_x < self.x + PAD_4)
+            && mouse_y > self.y
+            && mouse_y < self.y + self.height
     }
     // if the left edge of a rectangle has the mouse hovered
     pub fn is_hovered_right_edge(&self, mouse_x: f32, mouse_y: f32) -> bool {
@@ -82,7 +97,13 @@ impl Rectangle {
             && mouse_y < self.y + self.height
     }
     // draw vertices with rectangle details
-    pub fn draw(&self, screen_config: &ScreenConfig, color: Color, corner_radius: [f32; 4]) -> Vec<Vertex> {
+    pub fn draw(
+        &self,
+        screen_config: &ScreenConfig,
+        color: Color,
+        corner_radius: [f32; 4],
+        out: &mut Vec<Vertex>,
+    ) {
         draw_rectangle(
             self.x,
             self.y,
@@ -91,7 +112,8 @@ impl Rectangle {
             screen_config,
             color,
             corner_radius,
-        )
+            out,
+        );
     }
 }
 
@@ -105,9 +127,13 @@ fn volume_to_slider_position(volume: f32) -> f32 {
 }
 
 /// draw one slider for master panel
-pub fn draw_slider(master_volume: f32, x: f32, y: f32, screen_config: &ScreenConfig) -> Vec<Vertex> {
-    let mut verts: Vec<Vertex> = Vec::new();
-
+pub fn draw_slider(
+    master_volume: f32,
+    x: f32,
+    y: f32,
+    screen_config: &ScreenConfig,
+    out: &mut Vec<Vertex>,
+) {
     // TRACK (static)
     let track = Rectangle {
         x: x + (MIXER_THUMB_WIDTH / 2.0), // the track is in the midle of the button
@@ -115,7 +141,7 @@ pub fn draw_slider(master_volume: f32, x: f32, y: f32, screen_config: &ScreenCon
         width: MIXER_TRACK_WIDTH,
         height: MIXER_TRACK_HEIGHT,
     };
-    verts.extend(track.draw(screen_config, BLACK, NO_RADIUS));
+    track.draw(screen_config, BLACK, NO_RADIUS, out);
 
     // THUMB (movable)
     let thumb = Rectangle {
@@ -124,8 +150,7 @@ pub fn draw_slider(master_volume: f32, x: f32, y: f32, screen_config: &ScreenCon
         width: MIXER_THUMB_WIDTH,
         height: THUMB_HEIGHT,
     };
-    verts.extend(thumb.draw(screen_config, LIGHT_GRAY, NO_RADIUS));
-    verts
+    thumb.draw(screen_config, LIGHT_GRAY, NO_RADIUS, out);
 }
 
 pub fn window_title_bar(
@@ -133,8 +158,8 @@ pub fn window_title_bar(
     title: &str,
     screen_config: &ScreenConfig,
     mouse_state: &MouseState,
-) -> (Vec<Vertex>, TextItem, ClickResult, CursorIcon) {
-    let mut verticies: Vec<Vertex> = Vec::new();
+    out: &mut Vec<Vertex>,
+) -> (TextItem, ClickResult, CursorIcon) {
     let mut result = ClickResult::None;
     let mut cursor_icon = CursorIcon::Default;
 
@@ -145,7 +170,7 @@ pub fn window_title_bar(
         width: window.width,
         height: TITLEBAR_HEIGHT,
     };
-    verticies.extend(title_bar_background.draw(screen_config, DARK_GRAY, TOP_RADIUS_16));
+    title_bar_background.draw(screen_config, DARK_GRAY, TOP_RADIUS_16, out);
 
     // add button for closing the window
     let close_window_button = Rectangle {
@@ -159,7 +184,7 @@ pub fn window_title_bar(
     } else {
         LIGHT_GRAY
     };
-    verticies.extend(close_window_button.draw(screen_config, close_window_color, NO_RADIUS));
+    close_window_button.draw(screen_config, close_window_color, NO_RADIUS, out);
     if close_window_button.is_hovered(mouse_state.x, mouse_state.y) {
         cursor_icon = CursorIcon::Pointer;
         if mouse_state.left_clicked {
@@ -181,7 +206,7 @@ pub fn window_title_bar(
         size: 18.0,
         font: ROBOTO,
     };
-    (verticies, window_title, result, cursor_icon)
+    (window_title, result, cursor_icon)
 }
 
 pub fn center_title_x(window: &MiniWindow, text: &str) -> f32 {

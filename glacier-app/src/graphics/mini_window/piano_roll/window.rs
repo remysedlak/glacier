@@ -3,7 +3,10 @@ use crate::graphics::{
     color::*,
     font::{TextItem, MONOSPACED},
     mini_window::{piano_roll::*, MiniWindow},
-    primitives::{DrawRegion, ScreenConfig, Vertex, BOTTOM_RADIUS_16, NO_RADIUS, PAD_16, PAD_2, PAD_32, PAD_4, PAD_8},
+    primitives::{
+        DrawRegion, ScreenConfig, Vertex, BOTTOM_RADIUS_16, NO_RADIUS, PAD_16, PAD_2, PAD_32,
+        PAD_4, PAD_8,
+    },
     widgets::{window_background, window_title_bar, Rectangle, ICON_SIZE, TITLEBAR_HEIGHT},
     ClickResult,
 };
@@ -39,7 +42,12 @@ pub fn draw(
     let mut click_result = ClickResult::None;
 
     let playlist_background = window_background(window);
-    static_vertices.extend(playlist_background.draw(screen_config, MINI_WINDOW_BACKGROUND, BOTTOM_RADIUS_16));
+    playlist_background.draw(
+        screen_config,
+        MINI_WINDOW_BACKGROUND,
+        BOTTOM_RADIUS_16,
+        &mut static_vertices,
+    );
 
     // titlebar
     let title = if let Some(state) = piano_roll_state {
@@ -51,12 +59,18 @@ pub fn draw(
     } else {
         "Piano Roll".to_string()
     };
-    let (titlebar_verts, titlebar_texts, result, cursor) = window_title_bar(window, &title, screen_config, mouse_state);
+    let (titlebar_texts, result, cursor) = window_title_bar(
+        window,
+        &title,
+        screen_config,
+        mouse_state,
+        &mut static_vertices,
+    );
     if !matches!(cursor, CursorIcon::Default) {
         cursor_icon = cursor;
     }
     click_result = click_result.or(result);
-    static_vertices.extend(titlebar_verts);
+
     static_text_items.push(titlebar_texts);
 
     // toolbar
@@ -66,7 +80,7 @@ pub fn draw(
         width: window.width - PAD_16 - PAD_8 - PIANO_ROLL_WIDTH,
         height: 24.0,
     };
-    static_vertices.extend(bottom_toolbar_background.draw(screen_config, LL_GRAY, NO_RADIUS));
+    bottom_toolbar_background.draw(screen_config, LL_GRAY, NO_RADIUS, &mut static_vertices);
     for icon in 0..8 {
         let icon_rect = Rectangle {
             x: window.x + SEMITONE_OFFSET_X + PIANO_ROLL_WIDTH + (icon as f32 * 36.0) + PAD_4,
@@ -75,7 +89,7 @@ pub fn draw(
             height: ICON_SIZE,
         };
         let _hovered = icon_rect.is_hovered(mouse_state.x, mouse_state.y);
-        static_vertices.extend(icon_rect.draw(screen_config, DARK_GRAY, NO_RADIUS));
+        icon_rect.draw(screen_config, DARK_GRAY, NO_RADIUS, &mut static_vertices);
     }
 
     // find the sequence for the current pattern and track, if it exists
@@ -126,8 +140,18 @@ pub fn draw(
                 let black_hover_color = if piano_hover { DARK_GRAY } else { BLACK };
 
                 // add both parts of the key
-                piano_key_vertices.extend(black_piano_key.draw(screen_config, black_hover_color, [2.0, 2.0, 2.0, 2.0]));
-                piano_key_vertices.extend(white_piano_key.draw(screen_config, white_hover_color, [2.0, 2.0, 2.0, 2.0]));
+                black_piano_key.draw(
+                    screen_config,
+                    black_hover_color,
+                    [2.0, 2.0, 2.0, 2.0],
+                    &mut piano_key_vertices,
+                );
+                white_piano_key.draw(
+                    screen_config,
+                    white_hover_color,
+                    [2.0, 2.0, 2.0, 2.0],
+                    &mut piano_key_vertices,
+                );
             } else {
                 let piano_key = Rectangle {
                     x: window.x + SEMITONE_OFFSET_X,
@@ -140,17 +164,27 @@ pub fn draw(
                     height: SEMITONE_HEIGHT,
                     width: PIANO_ROLL_WIDTH,
                 };
-                piano_key_vertices.extend(piano_key.draw(
+                piano_key.draw(
                     screen_config,
-                    white_piano_step_hover_color(&piano_key, mouse_state.x, mouse_state.y, semitone),
+                    white_piano_step_hover_color(
+                        &piano_key,
+                        mouse_state.x,
+                        mouse_state.y,
+                        semitone,
+                    ),
                     [2.0, 2.0, 2.0, 2.0],
-                ));
+                    &mut piano_key_vertices,
+                );
             }
 
             // draw steps
             for step_index in 0..127 {
                 let piano_roll_step = Rectangle {
-                    x: window.x + (step_index as f32 * PAD_32) + PIANO_ROLL_MARGIN + SEMITONE_OFFSET_X - scroll.x,
+                    x: window.x
+                        + (step_index as f32 * PAD_32)
+                        + PIANO_ROLL_MARGIN
+                        + SEMITONE_OFFSET_X
+                        - scroll.x,
                     y: window.y
                         + (semitone as f32 * SEMITONE_GAP)
                         + (octave as f32 * OCTAVE_GAP)
@@ -161,7 +195,8 @@ pub fn draw(
                     width: 30.0,
                 };
 
-                if piano_roll_step.y + piano_roll_step.height < window.y || piano_roll_step.y > window.y + window.height
+                if piano_roll_step.y + piano_roll_step.height < window.y
+                    || piano_roll_step.y > window.y + window.height
                 {
                     break;
                 }
@@ -178,11 +213,13 @@ pub fn draw(
                     .map(|n| n.velocity > 0.0 && n.pitch == midi_note)
                     .unwrap_or(false);
 
-                if piano_roll_step.is_hovered_right_edge(mouse_state.x, mouse_state.y) && is_active {
+                if piano_roll_step.is_hovered_right_edge(mouse_state.x, mouse_state.y) && is_active
+                {
                     cursor_icon = CursorIcon::ColResize;
                 }
 
-                let hovered = piano_roll_step.is_hovered(mouse_state.x, mouse_state.y) && !mouse_state.left_click_held;
+                let hovered = piano_roll_step.is_hovered(mouse_state.x, mouse_state.y)
+                    && !mouse_state.left_click_held;
 
                 let color = if is_active {
                     ORANGE
@@ -201,13 +238,20 @@ pub fn draw(
                 };
 
                 // trigger note on and off
-                if piano_roll_step.is_hovered(mouse_state.x, mouse_state.y) && mouse_state.left_clicked {
+                if piano_roll_step.is_hovered(mouse_state.x, mouse_state.y)
+                    && mouse_state.left_clicked
+                {
                     if let Some(state) = piano_roll_state {
-                        click_result = ClickResult::ToggleNote(state.pattern_id, state.track_id, step_index, midi_note);
+                        click_result = ClickResult::ToggleNote(
+                            state.pattern_id,
+                            state.track_id,
+                            step_index,
+                            midi_note,
+                        );
                     }
                 }
 
-                grid_vertices.extend(piano_roll_step.draw(screen_config, color, NO_RADIUS));
+                piano_roll_step.draw(screen_config, color, NO_RADIUS, &mut grid_vertices);
             }
         } // end semitone loop
 
@@ -216,7 +260,12 @@ pub fn draw(
         piano_key_text_items.push(TextItem {
             text: c_label.to_string(),
             x: window.x + PAD_32 + PAD_16 + PAD_2 + PAD_8,
-            y: window.y + (11.0 * SEMITONE_GAP) + (octave as f32 * OCTAVE_GAP) + PIANO_ROLL_MARGIN + PAD_8 - scroll.y,
+            y: window.y
+                + (11.0 * SEMITONE_GAP)
+                + (octave as f32 * OCTAVE_GAP)
+                + PIANO_ROLL_MARGIN
+                + PAD_8
+                - scroll.y,
             size: 10.0,
             font: MONOSPACED,
             color: BLACK,
@@ -225,12 +274,13 @@ pub fn draw(
 
     // active step line
     let active_step_line = Rectangle {
-        x: window.x + (active_step as f32 * PAD_32) + PIANO_ROLL_MARGIN + SEMITONE_OFFSET_X - scroll.x,
+        x: window.x + (active_step as f32 * PAD_32) + PIANO_ROLL_MARGIN + SEMITONE_OFFSET_X
+            - scroll.x,
         y: window.y + PIANO_ROLL_MARGIN + PAD_8 - scroll.y,
         width: 4.0,
         height: 9.0 * OCTAVE_GAP,
     };
-    grid_vertices.extend(active_step_line.draw(screen_config, GREEN, NO_RADIUS));
+    active_step_line.draw(screen_config, GREEN, NO_RADIUS, &mut grid_vertices);
     (
         DrawRegion {
             vertices: static_vertices,

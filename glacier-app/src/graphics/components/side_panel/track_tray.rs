@@ -14,9 +14,14 @@ use crate::{
     },
 };
 
-pub fn draw(mouse_state: &MouseState, screen_config: &ScreenConfig, tracks: &[Track]) -> (Vec<Vertex>, Vec<TextItem>, ClickResult, CursorIcon) {
+pub fn draw(
+    mouse_state: &MouseState,
+    screen_config: &ScreenConfig,
+    tracks: &[Track],
+    out: &mut Vec<Vertex>,
+) -> (Vec<TextItem>, ClickResult, CursorIcon) {
     // setup
-    let mut vertices: Vec<Vertex> = Vec::new();
+
     let mut text_items: Vec<TextItem> = Vec::new();
     let mut cursor_icon: CursorIcon = CursorIcon::Default;
     let mut click_result: ClickResult = ClickResult::None;
@@ -27,7 +32,7 @@ pub fn draw(mouse_state: &MouseState, screen_config: &ScreenConfig, tracks: &[Tr
         width: TRAY_WIDTH,
         height: screen_config.height as f32 - TOOLBAR_Y,
     };
-    vertices.extend(track_tray.draw(screen_config, PEBBLE, NO_RADIUS));
+    track_tray.draw(screen_config, PEBBLE, NO_RADIUS, out);
     text_items.push(TextItem {
         text: "Tracks".to_string(),
         x: track_tray.x + PAD_8,
@@ -54,7 +59,7 @@ pub fn draw(mouse_state: &MouseState, screen_config: &ScreenConfig, tracks: &[Tr
             LIGHT_GRAY
         };
 
-        vertices.extend(track_button.draw(screen_config, track_button_color, RADIUS_4));
+        track_button.draw(screen_config, track_button_color, RADIUS_4, out);
         if track_button.is_hovered(mouse_state.x, mouse_state.y) {
             cursor_icon = CursorIcon::Pointer;
             if mouse_state.left_double_clicked {
@@ -72,5 +77,5 @@ pub fn draw(mouse_state: &MouseState, screen_config: &ScreenConfig, tracks: &[Tr
         });
     }
 
-    (vertices, text_items, click_result, cursor_icon)
+    (text_items, click_result, cursor_icon)
 }

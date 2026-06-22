@@ -171,7 +171,7 @@ impl Graphics {
             match id {
                 SEQUENCER_ID if self.mini_windows[SEQUENCER_ID].is_open => {
                     let window = &self.mini_windows[SEQUENCER_ID];
-                    let (verts, texts, icons, result, cursor) = sequencer::draw(
+                    let (texts, icons, result, cursor) = sequencer::draw(
                         window,
                         &mut self.patterns,
                         &self.sequencer_scroll_offset,
@@ -180,8 +180,9 @@ impl Graphics {
                         self.active_step,
                         &masked_mouse,
                         &screen_config,
+                        &mut vertices,
                     );
-                    vertices.extend(verts);
+
                     Graphics::push_text_draws(
                         &texts,
                         &self.font_cache,
@@ -292,7 +293,7 @@ impl Graphics {
                 }
                 MIXER_ID if self.mini_windows[MIXER_ID].is_open => {
                     let window = &self.mini_windows[MIXER_ID];
-                    let (verts, texts, result, _cursor) = mixer::draw(
+                    let (texts, result, _cursor) = mixer::draw(
                         window,
                         &self.tracks,
                         self.master_volume,
@@ -301,8 +302,9 @@ impl Graphics {
                         self.master_peak,
                         &screen_config,
                         &masked_mouse,
+                        &mut vertices,
                     );
-                    vertices.extend(verts);
+
                     Graphics::push_text_draws(
                         &texts,
                         &self.font_cache,
@@ -398,13 +400,14 @@ impl Graphics {
                     let window = &self.mini_windows[track];
                     if window.is_open {
                         if let WindowKind::TrackDetail(track) = window.window_kind {
-                            let (verts, texts, icons, result, cursor, tooltip) = track::draw(
+                            let (texts, icons, result, cursor, tooltip) = track::draw(
                                 window,
                                 &masked_mouse,
                                 &screen_config,
                                 &self.tracks[track],
+                                &mut vertices,
                             );
-                            vertices.extend(verts);
+
                             click_result = click_result.or(result);
                             if !matches!(cursor, CursorIcon::Default) {
                                 cursor_icon = cursor;
@@ -451,14 +454,15 @@ impl Graphics {
 
         // tray of project patterns
         if self.show_pattern_tray {
-            let (verts, texts, result, cursor, icon, tooltip) = side_panel::pattern_tray::draw(
+            let (texts, result, cursor, icon, tooltip) = side_panel::pattern_tray::draw(
                 &screen_config,
                 &self.patterns,
                 self.active_pattern_id,
                 mouse_state,
                 sequencer_is_open,
+                &mut vertices,
             );
-            vertices.extend(verts);
+
             if cursor != CursorIcon::Default {
                 cursor_icon = cursor;
             }
@@ -483,8 +487,12 @@ impl Graphics {
 
         // tray of audio files / folders
         if self.show_track_tray {
-            let (verts, texts, result, cursor) =
-                side_panel::track_tray::draw(mouse_state, &screen_config, &self.tracks);
+            let (texts, result, cursor) = side_panel::track_tray::draw(
+                mouse_state,
+                &screen_config,
+                &self.tracks,
+                &mut vertices,
+            );
             if cursor != CursorIcon::Default {
                 cursor_icon = cursor;
             }
@@ -497,7 +505,6 @@ impl Graphics {
                 &screen_config,
                 &mut char_draws,
             );
-            vertices.extend(verts);
         }
 
         if self.show_save_modal {
@@ -520,15 +527,16 @@ impl Graphics {
         let minutes = (total_seconds % 3600) / 60;
         let seconds = total_seconds % 60;
         let time_string = format!("{:02}:{:02}:{:02}", hours, minutes, seconds);
-        let (verts, texts, icons, result, cursor, tooltip) = components::toolbar::draw_toolbar(
+        let (texts, icons, result, cursor, tooltip) = components::toolbar::draw_toolbar(
             mouse_state,
             &screen_config,
             self.bpm,
             self.is_playing,
             self.active_step,
             time_string,
+            &mut vertices,
         );
-        vertices.extend(verts);
+
         click_result = click_result.or(result);
         if cursor != CursorIcon::Default {
             cursor_icon = cursor;
@@ -560,7 +568,7 @@ impl Graphics {
                     width: 128.0,
                     height: 24.0,
                 };
-                vertices.extend(tooltip_rectangle.draw(&screen_config, DARK_GRAY, RADIUS_8));
+                tooltip_rectangle.draw(&screen_config, DARK_GRAY, RADIUS_8, &mut vertices);
                 if let Some(text) = tt.text {
                     let tooltip_text = [TextItem {
                         text: text.to_string(),
@@ -602,8 +610,8 @@ impl Graphics {
         let context_menu_char_start = char_draws.len();
 
         if let Some(menu) = &self.context_menu {
-            let (verts, texts, result, cursor) = menu.draw(&screen_config, mouse_state);
-            vertices.extend(verts);
+            let (texts, result, cursor) = menu.draw(&screen_config, mouse_state, &mut vertices);
+
             Graphics::push_text_draws(
                 &texts,
                 &self.font_cache,
@@ -631,8 +639,13 @@ impl Graphics {
         } else {
             self.project_path.clone()
         };
-        let (verts, texts) = footer::draw(&screen_config, &title, 1000.0 / self.frame_ms);
-        vertices.extend(verts);
+        let texts = footer::draw(
+            &screen_config,
+            &title,
+            1000.0 / self.frame_ms,
+            &mut vertices,
+        );
+
         Graphics::push_text_draws(
             &texts,
             &self.font_cache,
