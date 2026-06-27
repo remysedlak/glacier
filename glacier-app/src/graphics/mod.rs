@@ -96,6 +96,7 @@ pub enum ClickResult {
 
     // file system
     FsToggleDir(PathBuf),
+    FsPreviewSample(PathBuf),
 
     // no click result
     None,

@@ -184,6 +184,11 @@ fn draw_fs_tree(
                     if matches!(click_result, ClickResult::None) {
                         *click_result = ClickResult::FsToggleDir(path.clone());
                     }
+                } else {
+                    // play the sound!
+                    if matches!(click_result, ClickResult::None) {
+                        *click_result = ClickResult::FsPreviewSample(path.clone());
+                    }
                 }
             }
         }

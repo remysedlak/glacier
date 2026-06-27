@@ -220,3 +220,22 @@ pub fn path_to_vector(track_path: &str) -> Vec<f32> {
         .map(|s| s as f32 / divisor as f32)
         .collect()
 }
+
+pub fn path_to_preview(track_path: &str, seconds: usize) -> Vec<f32> {
+    let mut reader = match hound::WavReader::open(track_path) {
+        Ok(r) => r,
+        Err(e) => {
+            eprintln!("Failed to load {}: {}", track_path, e);
+            return Vec::new();
+        }
+    };
+    let spec = reader.spec();
+    let divisor = 1 << (spec.bits_per_sample - 1);
+    let max_samples = spec.sample_rate as usize * spec.channels as usize * seconds;
+    reader
+        .samples::<i32>()
+        .filter_map(|s| s.ok())
+        .take(max_samples)
+        .map(|s| s as f32 / divisor as f32)
+        .collect()
+}

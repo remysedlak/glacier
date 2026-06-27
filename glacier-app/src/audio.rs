@@ -28,6 +28,7 @@ pub enum AudioCommand {
     // control
     TogglePlay,
     Stop,
+    PreviewSample(Vec<f32>),
 
     // project state
     ShutDown,
@@ -124,12 +125,19 @@ pub fn init(
     let mut master_rms_r: f32 = 0.0;
     let mut master_peak: f32 = 0.0;
 
+    let mut preview_samples: Vec<f32> = Vec::new();
+    let mut preview_position: f32 = 0.0;
+
     // audio callback
     // fills samples requested from CPAL audio driver
     let sequencer_callback = move |data: &mut [f32], _: &cpal::OutputCallbackInfo| {
         // parse incoming UI commands before fulfilling data callback
         while let Some(cmd) = consumer.try_pop() {
             match cmd {
+                AudioCommand::PreviewSample(samples) => {
+                    preview_samples = samples;
+                    preview_position = 0.0;
+                }
                 AudioCommand::SetProjectPath(new_path) => project_path = new_path,
                 AudioCommand::ResizeAudioBlock(event_id, new_length) => {
                     if let Some(event) = events.iter_mut().find(|event| event.id == event_id) {
@@ -367,6 +375,19 @@ pub fn init(
                     }
                 }
             }
+            // preview playback
+            let pos = (preview_position as usize) & !1;
+            if pos + 3 < preview_samples.len() {
+                let frac = preview_position - preview_position.floor();
+                let l =
+                    preview_samples[pos] + frac * (preview_samples[pos + 2] - preview_samples[pos]);
+                let r = preview_samples[pos + 1]
+                    + frac * (preview_samples[pos + 3] - preview_samples[pos + 1]);
+                sample[0] += l * master_volume;
+                sample[1] += r * master_volume;
+                preview_position += 2.0;
+            }
+
             // update master meter info
             master_rms_l = glacier_dsp::smooth_toward(master_rms_l, sample[0] * sample[0], 0.01);
             master_rms_r = glacier_dsp::smooth_toward(master_rms_r, sample[1] * sample[1], 0.01);

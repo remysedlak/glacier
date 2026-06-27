@@ -366,6 +366,13 @@ impl App {
             }
             // dispatch audio commands based on what was clicked
             match result {
+                ClickResult::FsPreviewSample(track_path) => {
+                    let preview = crate::project::path_to_preview(track_path.to_str().unwrap(), 5);
+
+                    self.producer
+                        .try_push(AudioCommand::PreviewSample(preview))
+                        .ok();
+                }
                 // file system navigation
                 ClickResult::FsToggleDir(path) => {
                     if gfx.expanded_dirs.contains(&path) {
