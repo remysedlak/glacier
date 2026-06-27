@@ -1,3 +1,7 @@
+use crate::graphics::color::DARK_GRAY_HOVER;
+use crate::graphics::icons::IconDraw;
+use crate::graphics::Tooltip;
+use crate::graphics::ICON_SIZE;
 use crate::project::Track;
 use crate::{
     app::MouseState,
@@ -20,7 +24,7 @@ pub fn draw(
     user_fs_location: &std::path::Path,
     expanded_dirs: &std::collections::HashSet<std::path::PathBuf>,
     out: &mut Vec<Vertex>,
-) -> (Vec<TextItem>, ClickResult, CursorIcon) {
+) -> (Vec<TextItem>, Vec<IconDraw>, ClickResult, CursorIcon) {
     // setup
 
     let mut text_items: Vec<TextItem> = Vec::new();
@@ -84,7 +88,7 @@ pub fn draw(
     text_items.push(draw_title("fs", (divider.x, divider.y)));
 
     let mut row: f32 = 0.0;
-    draw_fs_tree(
+    let icons = draw_fs_tree(
         user_fs_location,
         0,
         &mut row,
@@ -98,7 +102,7 @@ pub fn draw(
         out,
     );
 
-    (text_items, click_result, cursor_icon)
+    (text_items, icons, click_result, cursor_icon)
 }
 
 fn draw_fs_tree(
@@ -113,9 +117,10 @@ fn draw_fs_tree(
     click_result: &mut ClickResult,
     cursor_icon: &mut CursorIcon,
     out: &mut Vec<Vertex>,
-) {
+) -> Vec<IconDraw> {
+    let mut icons: Vec<IconDraw> = Vec::new();
     let Ok(entries) = std::fs::read_dir(dir) else {
-        return;
+        return Vec::new();
     };
     let indent = depth as f32 * PAD_16;
 
@@ -131,14 +136,30 @@ fn draw_fs_tree(
             x: PAD_4 + indent,
             y,
         };
-        button.draw(screen_config, LIGHT_GRAY, RADIUS_4, out);
+        button.draw(screen_config, DARK_GRAY_HOVER, RADIUS_4, out);
+
+        // item text
         text_items.push(TextItem {
-            text: truncate_text(name, 17),
-            x: button.x + PAD_4,
-            y: button.y + PAD_2,
-            size: 12.0,
-            color: BLACK,
+            text: truncate_text(name, 25),
+            x: button.x + PAD_4 + 16.0,
+            y: button.y + PAD_4,
+            size: 10.0,
+            color: WHITE,
             font: ROBOTO,
+        });
+        // item icon
+        let icon_name = if is_dir { "music_dir" } else { "music_file" };
+        icons.push(IconDraw {
+            name: icon_name,
+            x: button.x + PAD_2,
+            y: button.y + PAD_2,
+            width: 16.0,
+            height: 16.0,
+            tooltip: Tooltip {
+                text: Some("Add Track"),
+                x: button.x,
+                y: button.y + 4.0,
+            },
         });
 
         if button.is_hovered(mouse_state.x, mouse_state.y) {
@@ -157,7 +178,7 @@ fn draw_fs_tree(
         *row += 1.0;
 
         if is_dir && expanded_dirs.contains(&path) {
-            draw_fs_tree(
+            let mut child_icons = draw_fs_tree(
                 &path,
                 depth + 1,
                 row,
@@ -170,6 +191,8 @@ fn draw_fs_tree(
                 cursor_icon,
                 out,
             );
+            icons.append(&mut child_icons);
         }
     }
+    icons
 }

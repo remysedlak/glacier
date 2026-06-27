@@ -220,7 +220,7 @@ pub async fn create_graphics(window: Rc<Window>, proxy: EventLoopProxy<Graphics>
             &device,
             &queue,
             &font,
-            &[8.0, 10.0, 12.0, 14.0, 16.0, 18.0, 24.0, 32.0],
+            &[6.0, 8.0, 10.0, 12.0, 14.0, 16.0, 18.0, 24.0, 32.0],
         );
         font_cache.insert(name.to_string(), font);
         glyph_cache.insert(name.to_string(), cache);

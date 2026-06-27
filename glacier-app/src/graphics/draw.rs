@@ -487,7 +487,7 @@ impl Graphics {
 
         // tray of audio files / folders
         if self.show_track_tray {
-            let (texts, result, cursor) = side_panel::track_tray::draw(
+            let (texts, icons, result, cursor) = side_panel::track_tray::draw(
                 mouse_state,
                 &screen_config,
                 &self.tracks,
@@ -495,6 +495,16 @@ impl Graphics {
                 &self.expanded_dirs,
                 &mut vertices,
             );
+            for icon in icons {
+                push_icon_draw(
+                    &self.icon_cache,
+                    &self.device,
+                    &screen_config,
+                    &icon,
+                    &mut icon_draws,
+                )
+            }
+
             if cursor != CursorIcon::Default {
                 cursor_icon = cursor;
             }

@@ -21,6 +21,8 @@ pub const ICONS: &[(&str, u32, u32)] = &[
     ("track_tray", 128, 128),
     ("pattern_tray", 128, 128),
     ("file", 32, 32),
+    ("music_dir", 32, 32),
+    ("music_file", 32, 32),
     ("add", 32, 32),
     ("bpm_up", 32, 12),
     ("bpm_down", 32, 12),
@@ -76,10 +78,20 @@ pub fn rasterize_icon(
     device: &wgpu::Device,
     queue: &wgpu::Queue,
     icon: IconSvg,
-) -> (wgpu::Texture, wgpu::BindGroup, wgpu::BindGroupLayout, u32, u32) {
+) -> (
+    wgpu::Texture,
+    wgpu::BindGroup,
+    wgpu::BindGroupLayout,
+    u32,
+    u32,
+) {
     let tree = resvg::usvg::Tree::from_str(&icon.path, &Default::default()).unwrap();
     let mut pixmap = resvg::tiny_skia::Pixmap::new(icon.width as u32, icon.height as u32).unwrap();
-    resvg::render(&tree, resvg::tiny_skia::Transform::default(), &mut pixmap.as_mut());
+    resvg::render(
+        &tree,
+        resvg::tiny_skia::Transform::default(),
+        &mut pixmap.as_mut(),
+    );
     let rgba_bytes = pixmap.data();
 
     let texture = device.create_texture(&wgpu::TextureDescriptor {
@@ -153,7 +165,13 @@ pub fn rasterize_icon(
         ],
     });
 
-    (texture, bind_group, bgl, icon.width as u32, icon.height as u32)
+    (
+        texture,
+        bind_group,
+        bgl,
+        icon.width as u32,
+        icon.height as u32,
+    )
 }
 
 // return vec of vertex building the font letter
