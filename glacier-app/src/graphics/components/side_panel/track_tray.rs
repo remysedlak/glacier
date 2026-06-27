@@ -1,4 +1,4 @@
-use crate::graphics::color::{DARK_GRAY, LL_GRAY};
+use crate::graphics::color::{DARK_GRAY, DARK_GRAY_HOVER, DARK_GRAY_HOVER_HOVER, LL_GRAY};
 use crate::graphics::icons::IconDraw;
 use crate::graphics::Tooltip;
 use crate::project::Track;
@@ -53,19 +53,19 @@ pub fn draw(
     text_items.push(draw_title("Tracks", (track_tray.x, track_tray.y)));
 
     for (i, track) in tracks.iter().enumerate() {
-        let button_x = track_tray.x + PAD_16;
+        let button_x = track_tray.x + PAD_2;
         let button_y = PATTERN_TRAY_HEADER_MARGIN + (PATTERN_TRAY_ITEM_GAP * i as f32) + PAD_32;
         let track_button = Rectangle {
             x: button_x,
             y: button_y,
-            width: track_tray.width - PAD_32,
+            width: track_tray.width - PAD_4,
             height: PATTERN_TRAY_ITEM_HEIGHT,
         };
 
         let track_button_color = if track_button.is_hovered(mouse_state.x, mouse_state.y) {
-            LIGHT_GRAY_HOVER
+            DARK_GRAY_HOVER_HOVER
         } else {
-            LIGHT_GRAY
+            DARK_GRAY_HOVER
         };
 
         track_button.draw(screen_config, track_button_color, RADIUS_4, out);
@@ -77,11 +77,11 @@ pub fn draw(
         }
 
         text_items.push(TextItem {
-            text: truncate_text(&track.data.name, 9),
+            text: truncate_text(&track.data.name, 18),
             x: track_button.x + PAD_4,
             y: PATTERN_TRAY_HEADER_MARGIN + (PATTERN_TRAY_ITEM_GAP * i as f32) + PAD_32 + PAD_2,
-            size: 16.0,
-            color: BLACK,
+            size: 10.0,
+            color: WHITE,
             font: ROBOTO,
         });
     }
@@ -146,7 +146,12 @@ fn draw_fs_tree(
             x: PAD_4 + indent,
             y,
         };
-        button.draw(screen_config, PEBBLE, RADIUS_4, out);
+        let color = if button.is_hovered(mouse_state.x, mouse_state.y) {
+            DARK_GRAY
+        } else {
+            PEBBLE
+        };
+        button.draw(screen_config, color, RADIUS_4, out);
 
         text_items.push(TextItem {
             text: truncate_text(name, 25),
@@ -212,7 +217,7 @@ fn draw_fs_tree(
                 width: 1.0,
                 height: line_bottom - line_top,
             }
-            .draw(screen_config, LIGHT_GRAY, NO_RADIUS, out);
+            .draw(screen_config, DARK_GRAY_HOVER, NO_RADIUS, out);
         }
     }
     icons
