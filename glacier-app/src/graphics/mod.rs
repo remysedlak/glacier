@@ -13,6 +13,7 @@ pub mod widgets;
 use crate::app::{MouseState, PianoRollState, ScrollOffset};
 use crate::config::DEFAULT_BPM;
 use crate::project::{AudioBlock, AudioBlockType, PatternData, Track};
+use std::path::PathBuf;
 
 use color::{Color, DARK_GRAY, WHITE};
 use components::{footer, side_panel};
@@ -92,6 +93,9 @@ pub enum ClickResult {
     ToggleTrackWindow(usize),
     TogglePatternTray,
     ToggleTrackTray,
+
+    // file system
+    FsToggleDir(PathBuf),
 
     // no click result
     None,
@@ -292,6 +296,8 @@ pub async fn create_graphics(window: Rc<Window>, proxy: EventLoopProxy<Graphics>
         master_rms_l: 0.0,
         master_rms_r: 0.0,
         master_peak: 0.0,
+        expanded_dirs: std::collections::HashSet::new(),
+        user_fs_location: dirs::audio_dir().unwrap(), // TODO: FIX UNWRAP...User OS may not have audio location
     };
 
     let _ = proxy.send_event(gfx);
@@ -357,6 +363,9 @@ pub struct Graphics {
     font_cache: HashMap<String, fontdue::Font>,
 
     //ui
+    pub expanded_dirs: std::collections::HashSet<PathBuf>,
+    pub user_fs_location: PathBuf,
+
     pub mini_windows: Vec<MiniWindow>,
     num_vertices: u32,
     pub active_pattern_id: usize,

@@ -1,23 +1,24 @@
-use winit::window::CursorIcon;
-
 use crate::project::Track;
 use crate::{
     app::MouseState,
     graphics::{
         color::{BLACK, LIGHT_GRAY, LIGHT_GRAY_HOVER, PEBBLE, WHITE},
         components::side_panel::{PATTERN_TRAY_HEADER_MARGIN, PATTERN_TRAY_ITEM_GAP, TRAY_WIDTH},
-        font::{truncate_text, TextItem, ROBOTO, TITLE},
+        font::{truncate_text, TextItem, ROBOTO},
         primitives::*,
         side_panel::{draw_title, PATTERN_TRAY_ITEM_HEIGHT},
         widgets::{Rectangle, TOOLBAR_Y},
         ClickResult,
     },
 };
+use winit::window::CursorIcon;
 
 pub fn draw(
     mouse_state: &MouseState,
     screen_config: &ScreenConfig,
     tracks: &[Track],
+    user_fs_location: &std::path::Path,
+    expanded_dirs: &std::collections::HashSet<std::path::PathBuf>,
     out: &mut Vec<Vertex>,
 ) -> (Vec<TextItem>, ClickResult, CursorIcon) {
     // setup
@@ -33,14 +34,7 @@ pub fn draw(
         height: screen_config.height as f32 - TOOLBAR_Y,
     };
     track_tray.draw(screen_config, PEBBLE, NO_RADIUS, out);
-    text_items.push(TextItem {
-        text: "Tracks".to_string(),
-        x: track_tray.x + PAD_8,
-        y: TOOLBAR_Y + PAD_8,
-        size: TITLE,
-        color: WHITE,
-        font: ROBOTO,
-    });
+
     text_items.push(draw_title("Tracks", (track_tray.x, track_tray.y)));
 
     for (i, track) in tracks.iter().enumerate() {
@@ -76,6 +70,106 @@ pub fn draw(
             font: ROBOTO,
         });
     }
+    // section for os files
+    //
+    //
+
+    let divider = Rectangle {
+        x: 0.0,
+        y: (screen_config.height / 2) as f32,
+        width: TRAY_WIDTH,
+        height: 1.0,
+    };
+    divider.draw(screen_config, WHITE, RADIUS_4, out);
+    text_items.push(draw_title("fs", (divider.x, divider.y)));
+
+    let mut row: f32 = 0.0;
+    draw_fs_tree(
+        user_fs_location,
+        0,
+        &mut row,
+        divider.y + PAD_32,
+        expanded_dirs,
+        mouse_state,
+        screen_config,
+        &mut text_items,
+        &mut click_result,
+        &mut cursor_icon,
+        out,
+    );
 
     (text_items, click_result, cursor_icon)
+}
+
+fn draw_fs_tree(
+    dir: &std::path::Path,
+    depth: usize,
+    row: &mut f32,
+    base_y: f32,
+    expanded_dirs: &std::collections::HashSet<std::path::PathBuf>,
+    mouse_state: &MouseState,
+    screen_config: &ScreenConfig,
+    text_items: &mut Vec<TextItem>,
+    click_result: &mut ClickResult,
+    cursor_icon: &mut CursorIcon,
+    out: &mut Vec<Vertex>,
+) {
+    let Ok(entries) = std::fs::read_dir(dir) else {
+        return;
+    };
+    let indent = depth as f32 * PAD_16;
+
+    for entry in entries.flatten() {
+        let path = entry.path();
+        let is_dir = entry.file_type().map(|t| t.is_dir()).unwrap_or(false);
+        let name = path.file_name().and_then(|n| n.to_str()).unwrap_or("?");
+
+        let y = base_y + *row * PAD_32;
+        let button = Rectangle {
+            height: 24.0,
+            width: TRAY_WIDTH - PAD_4 * 2.0 - indent,
+            x: PAD_4 + indent,
+            y,
+        };
+        button.draw(screen_config, LIGHT_GRAY, RADIUS_4, out);
+        text_items.push(TextItem {
+            text: truncate_text(name, 17),
+            x: button.x + PAD_4,
+            y: button.y + PAD_2,
+            size: 12.0,
+            color: BLACK,
+            font: ROBOTO,
+        });
+
+        if button.is_hovered(mouse_state.x, mouse_state.y) {
+            *cursor_icon = CursorIcon::Pointer;
+            if mouse_state.left_clicked {
+                if is_dir {
+                    if matches!(click_result, ClickResult::None) {
+                        *click_result = ClickResult::FsToggleDir(path.clone());
+                    }
+                } else {
+                    // eventually: load sample
+                }
+            }
+        }
+
+        *row += 1.0;
+
+        if is_dir && expanded_dirs.contains(&path) {
+            draw_fs_tree(
+                &path,
+                depth + 1,
+                row,
+                base_y,
+                expanded_dirs,
+                mouse_state,
+                screen_config,
+                text_items,
+                click_result,
+                cursor_icon,
+                out,
+            );
+        }
+    }
 }

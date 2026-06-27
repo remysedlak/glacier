@@ -52,13 +52,13 @@ pub fn draw(
     let slider_area_height = col_height * 0.5;
 
     // helper closure to draw one channel strip
-    let mut draw_channel = |vertices: &mut Vec<Vertex>,
-                            text_items: &mut Vec<TextItem>,
-                            col_x: f32,
-                            volume: f32,
-                            rms_l: f32,
-                            rms_r: f32,
-                            peak: f32| {
+    let draw_channel = |vertices: &mut Vec<Vertex>,
+                        text_items: &mut Vec<TextItem>,
+                        col_x: f32,
+                        volume: f32,
+                        rms_l: f32,
+                        rms_r: f32,
+                        peak: f32| {
         let bg = Rectangle {
             x: col_x - PAD_8,
             y: master_slider_y - PAD_8,

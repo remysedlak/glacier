@@ -2,7 +2,6 @@ use crate::graphics::{
     color::WHITE,
     font::{TextItem, ROBOTO, TITLE},
     primitives::PAD_8,
-    widgets::TOOLBAR_Y,
 };
 
 pub mod pattern_tray;
@@ -18,7 +17,7 @@ pub fn draw_title(title: &str, origin: (f32, f32)) -> TextItem {
     TextItem {
         text: title.to_string(),
         x: origin.0 + PAD_8,
-        y: TOOLBAR_Y + PAD_8,
+        y: origin.1 + PAD_8,
         size: TITLE,
         color: WHITE,
         font: ROBOTO,

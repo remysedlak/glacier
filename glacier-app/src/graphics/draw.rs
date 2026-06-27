@@ -491,6 +491,8 @@ impl Graphics {
                 mouse_state,
                 &screen_config,
                 &self.tracks,
+                &self.user_fs_location,
+                &self.expanded_dirs,
                 &mut vertices,
             );
             if cursor != CursorIcon::Default {

@@ -348,6 +348,16 @@ impl App {
             }
             // dispatch audio commands based on what was clicked
             match result {
+                // file system navigation
+                ClickResult::FsToggleDir(path) => {
+                    if gfx.expanded_dirs.contains(&path) {
+                        gfx.expanded_dirs.remove(&path);
+                    } else {
+                        gfx.expanded_dirs.insert(path);
+                    }
+                }
+
+                // toggling
                 ClickResult::TogglePatternTray => {
                     gfx.show_pattern_tray = !gfx.show_pattern_tray;
                 }
