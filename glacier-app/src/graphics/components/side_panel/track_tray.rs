@@ -21,6 +21,7 @@ use winit::window::CursorIcon;
 pub fn draw(
     mouse_state: &MouseState,
     screen_config: &ScreenConfig,
+    resizing: bool,
     tracks: &[Track],
     user_fs_location: &std::path::Path,
     expanded_dirs: &std::collections::HashSet<PathBuf>,
@@ -46,8 +47,8 @@ pub fn draw(
         height: track_tray.height,
     };
     w_divider.draw(screen_config, LL_GRAY, NO_RADIUS, out);
-    if track_tray.is_hovered_right_edge(mouse_state.x, mouse_state.y) {
-        cursor_icon = CursorIcon::ColResize
+    if track_tray.is_hovered_right_edge(mouse_state.x, mouse_state.y) || resizing {
+        cursor_icon = CursorIcon::ColResize;
     }
 
     text_items.push(draw_title("Tracks", (track_tray.x, track_tray.y)));

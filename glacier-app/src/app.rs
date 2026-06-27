@@ -32,7 +32,7 @@ use std::sync::mpsc::{Receiver, TryRecvError};
 use std::thread;
 use std::time::Instant;
 
-#[derive(Debug)]
+#[derive(Clone, Copy, Debug)]
 pub struct MouseState {
     // posiiton
     pub x: f32,
@@ -318,7 +318,25 @@ impl App {
 
             // single draw call — returns click result
             let start = std::time::Instant::now();
-            let (result, icon) = gfx.draw(&self.mouse_state, self.project_is_dirty);
+            let any_dragging = gfx.resizing_track_tray
+                || gfx.dragging
+                || gfx.dragging_window.is_some()
+                || gfx.dragging_knob.is_some()
+                || gfx.resizing_event.is_some();
+
+            let draw_mouse = if any_dragging {
+                MouseState {
+                    x: f32::NEG_INFINITY,
+                    y: f32::NEG_INFINITY,
+                    left_clicked: false,
+                    left_click_held: false,
+                    ..self.mouse_state
+                }
+            } else {
+                self.mouse_state
+            };
+
+            let (result, icon) = gfx.draw(&draw_mouse, self.project_is_dirty);
             gfx.window.set_cursor(icon);
 
             gfx.frame_ms = start.elapsed().as_secs_f32() * 1000.0;
@@ -910,10 +928,12 @@ impl ApplicationHandler<Graphics> for App {
                 else {
                     self.mouse_state.left_click_held = false;
                     self.mouse_state.left_clicked = false;
+
                     if let State::Ready(gfx) = &mut self.state {
                         gfx.dragging = false;
                         gfx.dragging_window = None;
                         gfx.dragging_knob = None;
+                        gfx.resizing_track_tray = false;
                         gfx.resizing_event = None;
                     }
                 }

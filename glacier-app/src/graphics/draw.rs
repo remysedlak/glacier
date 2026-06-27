@@ -491,6 +491,7 @@ impl Graphics {
             let (texts, icons, result, cursor) = side_panel::track_tray::draw(
                 mouse_state,
                 &screen_config,
+                self.resizing_track_tray,
                 &self.tracks,
                 &self.user_fs_location,
                 &self.expanded_dirs,
@@ -673,8 +674,11 @@ impl Graphics {
         let footer_vert_end = vertices.len() as u32;
         let footer_char_end = char_draws.len();
 
-        if mouse_state.left_click_held {
-            cursor_icon = CursorIcon::Default
+        // dragging mouse state override
+        if self.resizing_track_tray {
+            cursor_icon = CursorIcon::ColResize;
+        } else if self.dragging_window.is_some() || self.dragging || self.dragging_knob.is_some() {
+            cursor_icon = CursorIcon::Default;
         }
 
         self.queue

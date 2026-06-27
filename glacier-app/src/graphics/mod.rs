@@ -264,6 +264,8 @@ pub async fn create_graphics(window: Rc<Window>, proxy: EventLoopProxy<Graphics>
         track_tray_width: DEFAULT_TRAY_WIDTH,
         pattern_tray_width: DEFAULT_TRAY_WIDTH,
 
+        resizing_track_tray: false,
+
         fs_cache: {
             let mut cache = std::collections::HashMap::new();
             let root = dirs::audio_dir().unwrap();
@@ -426,6 +428,7 @@ pub struct Graphics {
     // dragging
     pub dragging_knob: Option<usize>,   // volume knob
     pub dragging_window: Option<usize>, // window titlebar
+    pub resizing_track_tray: bool,
     pub dragging: bool,
     pub resizing_event: Option<usize>, // pattern resizing in playlist
     pub resize_drag_accumulator: f32,

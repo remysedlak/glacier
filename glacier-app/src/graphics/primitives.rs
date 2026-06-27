@@ -3,7 +3,8 @@ use crate::graphics::{color::*, font::TextItem};
 
 pub struct DrawCtx<'a> {
     pub vertices: &'a mut Vec<Vertex>,
-    pub text_items: &'a mut Vec<TextItem>,
+    pub glyph_vertices: &'a mut Vec<Vertex>,
+    pub char_draws: &'a mut Vec<(u64, &'a wgpu::BindGroup)>,
     pub screen_config: &'a ScreenConfig,
     pub mouse_state: &'a MouseState,
 }
