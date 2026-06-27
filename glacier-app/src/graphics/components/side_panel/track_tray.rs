@@ -1,3 +1,4 @@
+use crate::graphics::color::DARK_GRAY;
 use crate::graphics::color::DARK_GRAY_HOVER;
 use crate::graphics::icons::IconDraw;
 use crate::graphics::Tooltip;
@@ -136,9 +137,8 @@ fn draw_fs_tree(
             x: PAD_4 + indent,
             y,
         };
-        button.draw(screen_config, DARK_GRAY_HOVER, RADIUS_4, out);
+        button.draw(screen_config, PEBBLE, RADIUS_4, out);
 
-        // item text
         text_items.push(TextItem {
             text: truncate_text(name, 25),
             x: button.x + PAD_4 + 16.0,
@@ -147,7 +147,7 @@ fn draw_fs_tree(
             color: WHITE,
             font: ROBOTO,
         });
-        // item icon
+
         let icon_name = if is_dir { "music_dir" } else { "music_file" };
         icons.push(IconDraw {
             name: icon_name,
@@ -169,8 +169,6 @@ fn draw_fs_tree(
                     if matches!(click_result, ClickResult::None) {
                         *click_result = ClickResult::FsToggleDir(path.clone());
                     }
-                } else {
-                    // eventually: load sample
                 }
             }
         }
@@ -178,6 +176,9 @@ fn draw_fs_tree(
         *row += 1.0;
 
         if is_dir && expanded_dirs.contains(&path) {
+            let line_x = button.x + 8.0;
+            let line_top = y + 24.0;
+
             let mut child_icons = draw_fs_tree(
                 &path,
                 depth + 1,
@@ -192,6 +193,15 @@ fn draw_fs_tree(
                 out,
             );
             icons.append(&mut child_icons);
+
+            let line_bottom = base_y + *row * PAD_32;
+            Rectangle {
+                x: line_x,
+                y: line_top,
+                width: 1.0,
+                height: line_bottom - line_top,
+            }
+            .draw(screen_config, LIGHT_GRAY, NO_RADIUS, out);
         }
     }
     icons
