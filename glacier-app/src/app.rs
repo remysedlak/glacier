@@ -1,7 +1,7 @@
 // app.rs - main state logic for audio and ui decoupling
-
 use crate::audio::{init, AudioCommand};
 use crate::config::{self, UserSettings};
+use crate::graphics::primitives::PAD_32;
 use crate::graphics::{
     context_menu::{ContextMenu, ContextMenuKind},
     drag::DragResult,
@@ -907,6 +907,22 @@ impl ApplicationHandler<Graphics> for App {
                                 - self.mouse_state.scroll_y * 35.0)
                                 .clamp(0.0, 1448.0);
                         }
+                    } else if self.mouse_state.x < gfx.track_tray_width
+                        && self.mouse_state.y > (gfx.surface_config.height as f32 / 2.0)
+                    {
+                        let divider_y = gfx.surface_config.height as f32 / 2.0;
+                        let visible_height = gfx.surface_config.height as f32 - divider_y;
+                        let total_rows = crate::project::count_fs_rows(
+                            &gfx.user_fs_location,
+                            &gfx.expanded_dirs,
+                            &gfx.fs_cache,
+                        );
+                        let content_height = total_rows as f32 * PAD_32;
+                        let max_scroll = (content_height - visible_height).max(0.0);
+                        gfx.fs_scroll_offset = (gfx.fs_scroll_offset
+                            - self.mouse_state.scroll_y * 20.0)
+                            .clamp(0.0, max_scroll);
+                        gfx.request_redraw();
                     }
                 }
             }

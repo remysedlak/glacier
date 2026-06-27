@@ -4,15 +4,16 @@ use serde::{Deserialize, Serialize};
 /// Project data stores song information
 #[derive(Serialize, Deserialize, Clone)]
 pub struct Project {
-    pub name: String,
-    pub bpm: f32,
+    pub name: String, // Name of the project
+    pub bpm: f32,     // beats per minute
     pub master_volume: f32,
-    pub events: Vec<AudioBlock>,
-    pub tracks: Vec<TrackData>,
-    pub patterns: Vec<PatternData>,
+    pub events: Vec<AudioBlock>,    // Instrument + time +  location
+    pub tracks: Vec<TrackData>,     // List of instruments
+    pub patterns: Vec<PatternData>, // List of patterns
 }
 
 impl Project {
+    /// Create a new project
     pub fn new(
         name: String,
         bpm: f32,
@@ -42,6 +43,7 @@ impl Project {
             eprintln!("Failed to save project: {}", e);
         }
     }
+    /// Use the default DAW file
     pub fn default_project_file() -> String {
         "assets/projects/new_project.toml".to_string()
     }
@@ -68,29 +70,28 @@ impl Default for Project {
 #[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(tag = "kind", content = "id")]
 pub enum AudioBlockType {
-    Sample(usize),
-    Pattern(usize),
-    Mixing, // later for automating audio
+    Sample(usize),  // Instrument
+    Pattern(usize), // Pattern
+    Mixing,         // Automation
 }
 
-/// AudioBlocks are how patterns are timed within a playlist
+/// AudioBlocks are how audio events are timed within a playlist
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct AudioBlock {
-    pub id: usize,
-    pub track: usize,
-    pub start_step: u32,
-    pub length: u32,
-    pub block_type: AudioBlockType,
+    pub id: usize,                  // uuid
+    pub track: usize,               // track id
+    pub start_step: u32,            // what step does this patterns start at?
+    pub length: u32,                // how long is this event? (cut/extended?)
+    pub block_type: AudioBlockType, // pattern/instrument/mixing
 }
 
-/// Track data used at runtime for sound
+/// Runtime Track object
 #[derive(Clone)]
 pub struct Track {
     pub data: TrackData,
-    pub samples: Vec<f32>, // loaded from hound
-    pub is_playing: bool,
-    pub current_volume: f32,
-    pub show_velocity: bool,
+    pub samples: Vec<f32>,   // raw float values
+    pub is_playing: bool,    //  based on position of song
+    pub show_velocity: bool, // sequencer.rs ui
 
     // dsp runtime
     pub rms_l: f32,
@@ -98,6 +99,7 @@ pub struct Track {
     pub peak_hold: f32,
     pub position: f32,
     pub playback_rate: f32,
+    pub current_volume: f32, // track loudness
 }
 
 impl Track {
@@ -238,4 +240,21 @@ pub fn path_to_preview(track_path: &str, seconds: usize) -> Vec<f32> {
         .take(max_samples)
         .map(|s| s as f32 / divisor as f32)
         .collect()
+}
+
+pub fn count_fs_rows(
+    dir: &std::path::Path,
+    expanded_dirs: &std::collections::HashSet<std::path::PathBuf>,
+    fs_cache: &std::collections::HashMap<std::path::PathBuf, Vec<(std::path::PathBuf, bool)>>,
+) -> usize {
+    let Some(entries) = fs_cache.get(dir) else {
+        return 0;
+    };
+    let mut count = entries.len();
+    for (path, is_dir) in entries {
+        if *is_dir && expanded_dirs.contains(path) {
+            count += count_fs_rows(path, expanded_dirs, fs_cache);
+        }
+    }
+    count
 }

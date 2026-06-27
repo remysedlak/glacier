@@ -1,0 +1,85 @@
+use crate::project::Track;
+use crate::{
+    app::MouseState,
+    graphics::{
+        color::*,
+        components::side_panel::{PATTERN_TRAY_HEADER_MARGIN, PATTERN_TRAY_ITEM_GAP},
+        font::{truncate_text, TextItem, ROBOTO},
+        primitives::*,
+        side_panel::{draw_title, PATTERN_TRAY_ITEM_HEIGHT},
+        widgets::{Rectangle, TOOLBAR_Y},
+        ClickResult,
+    },
+};
+use winit::window::CursorIcon;
+
+pub mod file_tree;
+
+pub fn draw(
+    mouse_state: &MouseState,
+    screen_config: &ScreenConfig,
+    resizing: bool,
+    tracks: &[Track],
+    tray_width: f32,
+    out: &mut Vec<Vertex>,
+) -> (Vec<TextItem>, ClickResult, CursorIcon) {
+    let mut text_items: Vec<TextItem> = Vec::new();
+    let mut cursor_icon: CursorIcon = CursorIcon::Default;
+    let mut click_result: ClickResult = ClickResult::None;
+
+    let track_tray = Rectangle {
+        x: 0.0,
+        y: TOOLBAR_Y,
+        width: tray_width,
+        height: screen_config.height as f32 - TOOLBAR_Y,
+    };
+    track_tray.draw(screen_config, PEBBLE, NO_RADIUS, out);
+    let w_divider = Rectangle {
+        x: track_tray.x + track_tray.width,
+        y: track_tray.y,
+        width: 1.0,
+        height: track_tray.height,
+    };
+    w_divider.draw(screen_config, LL_GRAY, NO_RADIUS, out);
+    if track_tray.is_hovered_right_edge(mouse_state.x, mouse_state.y) || resizing {
+        cursor_icon = CursorIcon::ColResize;
+    }
+
+    text_items.push(draw_title("Tracks", (track_tray.x, track_tray.y)));
+
+    for (i, track) in tracks.iter().enumerate() {
+        let button_x = track_tray.x + PAD_2;
+        let button_y = PATTERN_TRAY_HEADER_MARGIN + (PATTERN_TRAY_ITEM_GAP * i as f32) + PAD_32;
+        let track_button = Rectangle {
+            x: button_x,
+            y: button_y,
+            width: track_tray.width - PAD_4,
+            height: PATTERN_TRAY_ITEM_HEIGHT,
+        };
+
+        let track_button_color = if track_button.is_hovered(mouse_state.x, mouse_state.y) {
+            DARK_GRAY_HOVER_HOVER
+        } else {
+            DARK_GRAY_HOVER
+        };
+
+        track_button.draw(screen_config, track_button_color, RADIUS_4, out);
+        if track_button.is_hovered(mouse_state.x, mouse_state.y) {
+            cursor_icon = CursorIcon::Pointer;
+            if mouse_state.left_double_clicked {
+                click_result = ClickResult::ToggleTrackWindow(i);
+            }
+        }
+
+        text_items.push(TextItem {
+            text: truncate_text(&track.data.name, 18),
+            x: track_button.x + PAD_4,
+            y: PATTERN_TRAY_HEADER_MARGIN + (PATTERN_TRAY_ITEM_GAP * i as f32) + PAD_32 + PAD_2,
+            size: 10.0,
+            color: WHITE,
+            font: ROBOTO,
+        });
+    }
+
+    (text_items, click_result, cursor_icon)
+}

@@ -1,3 +1,5 @@
+use crate::graphics::color::LIGHT_GRAY;
+
 use super::*;
 use std::time::Duration;
 
@@ -38,7 +40,7 @@ impl Graphics {
         }
     }
 
-    /// Clamps a scissor rect, so that pain never goes outside of the screen bounds
+    /// Clamps a scissor rect, so that paint never goes outside of the screen bounds
     /// - clamps x and y, so they don't exceed the screen's edges
     /// - clamps w and h, so that the rectangle doesn't extend the right/bottom edge
     /// - also ensures that w and h are at least 1 so wgpu doesn't get a zero-size scissor (error)
@@ -73,7 +75,7 @@ impl Graphics {
         end: usize,
     ) {
         let stride = (6 * std::mem::size_of::<Vertex>()) as u64;
-        for (offset, bg) in char_draws.iter().skip(start).take(end) {
+        for (offset, bg) in char_draws.iter().skip(start).take(end - start) {
             r_pass.set_bind_group(0, *bg, &[]);
             r_pass.set_vertex_buffer(0, glyph_vertex_buffer.slice(*offset..*offset + stride));
             r_pass.draw(0..6, 0..1);
@@ -486,43 +488,6 @@ impl Graphics {
             self.tooltip = tooltip
         }
 
-        // tray of audio files / folders
-        if self.show_track_tray {
-            let (texts, icons, result, cursor) = side_panel::track_tray::draw(
-                mouse_state,
-                &screen_config,
-                self.resizing_track_tray,
-                &self.tracks,
-                &self.user_fs_location,
-                &self.expanded_dirs,
-                &self.fs_cache,
-                self.track_tray_width,
-                &mut vertices,
-            );
-            for icon in icons {
-                push_icon_draw(
-                    &self.icon_cache,
-                    &self.device,
-                    &screen_config,
-                    &icon,
-                    &mut icon_draws,
-                )
-            }
-
-            if cursor != CursorIcon::Default {
-                cursor_icon = cursor;
-            }
-            click_result = click_result.or(result);
-            Graphics::push_text_draws(
-                &texts,
-                &self.font_cache,
-                &self.glyph_cache,
-                &screen_config,
-                &mut glyph_vertices,
-                &mut char_draws,
-            );
-        }
-
         if self.show_save_modal {
             let (verts, texts) = modal::draw(&screen_config);
             vertices.extend(verts);
@@ -673,6 +638,107 @@ impl Graphics {
 
         let footer_vert_end = vertices.len() as u32;
         let footer_char_end = char_draws.len();
+
+        let mut track_tray_range: Option<WindowDrawRange> = None;
+        let mut file_tree_range: Option<WindowDrawRange> = None;
+        let mut tray_icon_start = 0;
+        let mut tray_icon_end = 0;
+
+        // tray of audio files / folders
+        if self.show_track_tray {
+            let tray_vert_start = vertices.len() as u32;
+            let tray_char_start = char_draws.len();
+
+            let (texts, result, cursor) = side_panel::track_tray::draw(
+                mouse_state,
+                &screen_config,
+                self.resizing_track_tray,
+                &self.tracks,
+                self.track_tray_width,
+                &mut vertices,
+            );
+            if cursor != CursorIcon::Default {
+                cursor_icon = cursor;
+            }
+            click_result = click_result.or(result);
+            Graphics::push_text_draws(
+                &texts,
+                &self.font_cache,
+                &self.glyph_cache,
+                &screen_config,
+                &mut glyph_vertices,
+                &mut char_draws,
+            );
+
+            let w_divider = Rectangle {
+                x: PAD_2,
+                y: (screen_config.height / 2) as f32,
+                width: self.track_tray_width - PAD_4,
+                height: 1.0,
+            };
+            w_divider.draw(&screen_config, LIGHT_GRAY, RADIUS_4, &mut vertices);
+            use crate::graphics::side_panel::draw_title;
+
+            Graphics::push_text_draws(
+                &[draw_title("File Tree", (w_divider.x - 2.0, w_divider.y))],
+                &self.font_cache,
+                &self.glyph_cache,
+                &screen_config,
+                &mut glyph_vertices,
+                &mut char_draws,
+            );
+
+            use crate::graphics::side_panel::track_tray::file_tree;
+            let file_tree_vert_start = vertices.len() as u32;
+            let file_tree_char_start = char_draws.len();
+            let (icons, text_items, ft_result, ft_cursor) = file_tree::draw(
+                mouse_state,
+                &screen_config,
+                &self.user_fs_location,
+                &self.expanded_dirs,
+                &self.fs_cache,
+                self.fs_scroll_offset,
+                self.track_tray_width,
+                &mut vertices,
+                w_divider,
+            );
+            click_result = click_result.or(ft_result);
+            if ft_cursor != CursorIcon::Default {
+                cursor_icon = ft_cursor;
+            }
+            Graphics::push_text_draws(
+                &text_items,
+                &self.font_cache,
+                &self.glyph_cache,
+                &screen_config,
+                &mut glyph_vertices,
+                &mut char_draws,
+            );
+            tray_icon_start = icon_draws.len();
+            for icon in icons {
+                push_icon_draw(
+                    &self.icon_cache,
+                    &self.device,
+                    &screen_config,
+                    &icon,
+                    &mut icon_draws,
+                );
+            }
+            tray_icon_end = icon_draws.len();
+
+            track_tray_range = Some(WindowDrawRange {
+                vert_start: tray_vert_start,
+                vert_end: file_tree_vert_start, // stop before file tree
+                char_start: tray_char_start,
+                char_end: file_tree_char_start, // stop before file tree
+            });
+            file_tree_range = Some(WindowDrawRange {
+                vert_start: file_tree_vert_start,
+                vert_end: vertices.len() as u32,
+                char_start: file_tree_char_start,
+                char_end: char_draws.len(),
+            });
+        }
 
         // dragging mouse state override
         if self.resizing_track_tray {
@@ -906,7 +972,6 @@ impl Graphics {
             }
 
             // toolbar
-
             Graphics::draw_geom(
                 &mut r_pass,
                 &self.vertex_buffer,
@@ -922,7 +987,11 @@ impl Graphics {
                 toolbar_char_end,
             );
 
-            for icon in &icon_draws {
+            // non-tray icons (no scissor)
+            for icon in icon_draws[..tray_icon_start]
+                .iter()
+                .chain(icon_draws[tray_icon_end..].iter())
+            {
                 r_pass.set_bind_group(0, icon.1, &[]);
                 r_pass.set_vertex_buffer(0, icon.0.slice(..));
                 r_pass.draw(0..6, 0..1);
@@ -974,6 +1043,66 @@ impl Graphics {
                 footer_char_start,
                 footer_char_end,
             );
+
+            // tracks section — no scissor, just clip to tray width
+            if let Some(ref tr) = track_tray_range {
+                let sw = self.surface_config.width;
+                let sh = self.surface_config.height;
+                let (sx, sy, sw2, sh2) =
+                    Self::safe_scissor(0, 0, self.track_tray_width as u32, sh, sw, sh);
+                r_pass.set_scissor_rect(sx, sy, sw2, sh2);
+                Graphics::draw_geom(
+                    &mut r_pass,
+                    &self.vertex_buffer,
+                    any_bg,
+                    tr.vert_start,
+                    tr.vert_end,
+                );
+                Graphics::draw_chars(
+                    &mut r_pass,
+                    &self.glyph_vertex_buffer,
+                    &char_draws,
+                    tr.char_start,
+                    tr.char_end,
+                );
+                r_pass.set_scissor_rect(0, 0, sw, sh);
+            }
+
+            // file tree — scissored to below divider
+            if let Some(ref ft) = file_tree_range {
+                let sw = self.surface_config.width;
+                let sh = self.surface_config.height;
+                let divider_y = sh / 2 + (PAD_32 + PAD_16) as u32;
+                let (sx, sy, sw2, sh2) = Self::safe_scissor(
+                    0,
+                    divider_y,
+                    self.track_tray_width as u32,
+                    sh - divider_y,
+                    sw,
+                    sh,
+                );
+                r_pass.set_scissor_rect(sx, sy, sw2, sh2);
+                Graphics::draw_geom(
+                    &mut r_pass,
+                    &self.vertex_buffer,
+                    any_bg,
+                    ft.vert_start,
+                    ft.vert_end,
+                );
+                Graphics::draw_chars(
+                    &mut r_pass,
+                    &self.glyph_vertex_buffer,
+                    &char_draws,
+                    ft.char_start,
+                    ft.char_end,
+                );
+                for icon in &icon_draws[tray_icon_start..tray_icon_end] {
+                    r_pass.set_bind_group(0, icon.1, &[]);
+                    r_pass.set_vertex_buffer(0, icon.0.slice(..));
+                    r_pass.draw(0..6, 0..1);
+                }
+                r_pass.set_scissor_rect(0, 0, sw, sh);
+            }
         }
 
         self.queue.submit(Some(encoder.finish()));

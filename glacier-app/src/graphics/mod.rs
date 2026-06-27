@@ -316,6 +316,7 @@ pub async fn create_graphics(window: Rc<Window>, proxy: EventLoopProxy<Graphics>
         dragging: false,
         playlist_scroll_offset: ScrollOffset::default(),
         sequencer_scroll_offset: ScrollOffset::default(),
+        fs_scroll_offset: 0.0,
         z_order: vec![SEQUENCER_ID, PLAYLIST_ID, MIXER_ID, PIANO_ROLL_ID],
         context_menu: None,
         resizing_event: None,
@@ -381,7 +382,7 @@ pub struct Graphics {
     //wgpu
     pub window: Rc<Window>,
     surface: wgpu::Surface<'static>,
-    surface_config: SurfaceConfiguration,
+    pub surface_config: SurfaceConfiguration,
     device: wgpu::Device,
     queue: wgpu::Queue,
     render_pipeline: RenderPipeline,
@@ -437,6 +438,7 @@ pub struct Graphics {
     // scrolling
     pub playlist_scroll_offset: ScrollOffset,
     pub sequencer_scroll_offset: ScrollOffset,
+    pub fs_scroll_offset: f32,
 }
 
 /// Bring a window to the front of the z-order
