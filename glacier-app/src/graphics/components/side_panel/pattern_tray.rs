@@ -1,4 +1,5 @@
 use crate::app::MouseState;
+use crate::graphics::color::LL_GRAY;
 use crate::graphics::{
     color::{BLACK, LIGHT_GRAY, LIGHT_GRAY_HOVER, PEBBLE},
     components::{side_panel::*, toolbar::icon_color},
@@ -20,6 +21,7 @@ pub fn draw(
     active_pattern_id: usize,
     mouse_state: &MouseState,
     sequencer_is_open: bool,
+    tray_width: f32,
     out: &mut Vec<Vertex>,
 ) -> (
     Vec<TextItem>,
@@ -39,10 +41,19 @@ pub fn draw(
     let pattern_tray = Rectangle {
         x: screen_config.width as f32 - 128.0,
         y: TOOLBAR_Y,
-        width: TRAY_WIDTH,
+        width: tray_width,
         height: screen_config.height as f32 - TOOLBAR_THICKNESS,
     };
     pattern_tray.draw(screen_config, PEBBLE, NO_RADIUS, out);
+
+    let w_divider = Rectangle {
+        x: pattern_tray.x,
+        y: pattern_tray.y,
+        width: 1.0,
+        height: pattern_tray.height,
+    };
+    w_divider.draw(screen_config, LL_GRAY, NO_RADIUS, out);
+
     if pattern_tray.is_hovered_left_edge(mouse_state.x, mouse_state.y) {
         cursor_icon = CursorIcon::ColResize
     }

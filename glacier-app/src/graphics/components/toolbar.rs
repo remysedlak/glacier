@@ -51,7 +51,15 @@ pub fn draw_toolbar(
         width: screen_config.width as f32,
         height: TOOLBAR_Y,
     };
-    toolbar_background.draw(screen_config, PEBBLE, RADIUS_4, out);
+    toolbar_background.draw(screen_config, PEBBLE, NO_RADIUS, out);
+
+    let toolbar_divider = Rectangle {
+        x: toolbar_background.x,
+        y: toolbar_background.y + toolbar_background.height,
+        height: 1.0,
+        width: toolbar_background.width,
+    };
+    toolbar_divider.draw(screen_config, LL_GRAY, NO_RADIUS, out);
 
     /* BPM Control
      * Up

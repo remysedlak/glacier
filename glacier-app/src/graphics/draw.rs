@@ -460,6 +460,7 @@ impl Graphics {
                 self.active_pattern_id,
                 mouse_state,
                 sequencer_is_open,
+                self.pattern_tray_width,
                 &mut vertices,
             );
 
@@ -493,6 +494,8 @@ impl Graphics {
                 &self.tracks,
                 &self.user_fs_location,
                 &self.expanded_dirs,
+                &self.fs_cache,
+                self.track_tray_width,
                 &mut vertices,
             );
             for icon in icons {

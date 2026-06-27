@@ -352,8 +352,19 @@ impl App {
                 ClickResult::FsToggleDir(path) => {
                     if gfx.expanded_dirs.contains(&path) {
                         gfx.expanded_dirs.remove(&path);
+                        gfx.fs_cache.remove(&path);
                     } else {
-                        gfx.expanded_dirs.insert(path);
+                        gfx.expanded_dirs.insert(path.clone());
+                        if let Ok(entries) = std::fs::read_dir(&path) {
+                            let listing = entries
+                                .flatten()
+                                .map(|e| {
+                                    let is_dir = e.file_type().map(|t| t.is_dir()).unwrap_or(false);
+                                    (e.path(), is_dir)
+                                })
+                                .collect();
+                            gfx.fs_cache.insert(path, listing);
+                        }
                     }
                 }
 
@@ -937,6 +948,9 @@ impl ApplicationHandler<Graphics> for App {
                             delta_x,
                         ) {
                             DragResult::None => {}
+                            DragResult::ResizeTrackTray(_) => {
+                                gfx.request_redraw();
+                            }
                             DragResult::DragMasterVolumeSlider(new_volume) => {
                                 self.producer
                                     .try_push(AudioCommand::ChangeMasterVolume(new_volume))

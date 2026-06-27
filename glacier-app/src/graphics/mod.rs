@@ -12,6 +12,7 @@ pub mod widgets;
 
 use crate::app::{MouseState, PianoRollState, ScrollOffset};
 use crate::config::DEFAULT_BPM;
+use crate::graphics::components::side_panel::DEFAULT_TRAY_WIDTH;
 use crate::project::{AudioBlock, AudioBlockType, PatternData, Track};
 use std::path::PathBuf;
 
@@ -254,6 +255,24 @@ pub async fn create_graphics(window: Rc<Window>, proxy: EventLoopProxy<Graphics>
         queue,
         render_pipeline,
         show_save_modal: false,
+        track_tray_width: DEFAULT_TRAY_WIDTH,
+        pattern_tray_width: DEFAULT_TRAY_WIDTH,
+
+        fs_cache: {
+            let mut cache = std::collections::HashMap::new();
+            let root = dirs::audio_dir().unwrap();
+            if let Ok(entries) = std::fs::read_dir(&root) {
+                let listing = entries
+                    .flatten()
+                    .map(|e| {
+                        let is_dir = e.file_type().map(|t| t.is_dir()).unwrap_or(false);
+                        (e.path(), is_dir)
+                    })
+                    .collect();
+                cache.insert(root, listing);
+            }
+            cache
+        },
 
         // shapes
         vertex_buffer,
@@ -358,6 +377,8 @@ pub struct Graphics {
     render_pipeline: RenderPipeline,
     vertex_buffer: wgpu::Buffer,
 
+    pub fs_cache: std::collections::HashMap<std::path::PathBuf, Vec<(std::path::PathBuf, bool)>>,
+
     // text
     glyph_cache: GlyphCache,
     font_cache: HashMap<String, fontdue::Font>,
@@ -365,6 +386,8 @@ pub struct Graphics {
     //ui
     pub expanded_dirs: std::collections::HashSet<PathBuf>,
     pub user_fs_location: PathBuf,
+    pub track_tray_width: f32,
+    pub pattern_tray_width: f32,
 
     pub mini_windows: Vec<MiniWindow>,
     num_vertices: u32,
