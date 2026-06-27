@@ -7,9 +7,9 @@ impl Graphics {
         texts: &[TextItem],
         font_cache: &HashMap<String, fontdue::Font>,
         glyph_cache: &'a GlyphCache,
-        device: &wgpu::Device,
         screen_config: &ScreenConfig,
-        char_draws: &mut Vec<(wgpu::Buffer, &'a wgpu::BindGroup)>,
+        glyph_vertices: &mut Vec<Vertex>,
+        char_draws: &mut Vec<(u64, &'a wgpu::BindGroup)>,
     ) {
         for text_item in texts {
             let Some(font) = font_cache.get(text_item.font) else {
@@ -30,12 +30,9 @@ impl Graphics {
                         screen_config,
                         (r, g, b),
                     );
-                    let buf = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                        label: None,
-                        contents: bytemuck::cast_slice(&gverts),
-                        usage: wgpu::BufferUsages::VERTEX,
-                    });
-                    char_draws.push((buf, entry.bind_group()));
+                    let offset = (glyph_vertices.len() * std::mem::size_of::<Vertex>()) as u64;
+                    glyph_vertices.extend_from_slice(&gverts);
+                    char_draws.push((offset, entry.bind_group()));
                 }
             }
         }
@@ -70,13 +67,15 @@ impl Graphics {
     // draw a list of characters, each with their own texture and bind group, so they can be different colors and fonts
     fn draw_chars(
         r_pass: &mut wgpu::RenderPass,
-        char_draws: &[(wgpu::Buffer, &wgpu::BindGroup)],
+        glyph_vertex_buffer: &wgpu::Buffer,
+        char_draws: &[(u64, &wgpu::BindGroup)],
         start: usize,
         end: usize,
     ) {
-        for char in char_draws.iter().skip(start).take(end) {
-            r_pass.set_bind_group(0, char.1, &[]);
-            r_pass.set_vertex_buffer(0, char.0.slice(..));
+        let stride = (6 * std::mem::size_of::<Vertex>()) as u64;
+        for (offset, bg) in char_draws.iter().skip(start).take(end) {
+            r_pass.set_bind_group(0, *bg, &[]);
+            r_pass.set_vertex_buffer(0, glyph_vertex_buffer.slice(*offset..*offset + stride));
             r_pass.draw(0..6, 0..1);
         }
     }
@@ -133,7 +132,8 @@ impl Graphics {
             None
         };
 
-        let mut char_draws: Vec<(wgpu::Buffer, &wgpu::BindGroup)> = Vec::new();
+        let mut glyph_vertices: Vec<Vertex> = Vec::new();
+        let mut char_draws: Vec<(u64, &wgpu::BindGroup)> = Vec::new();
         let mut icon_draws: Vec<(wgpu::Buffer, &wgpu::BindGroup)> = Vec::new();
         let mut window_ranges: Vec<WindowDrawRange> = Vec::new();
         let mut playlist_window_ranges: Option<PlaylistDrawRanges> = None;
@@ -187,8 +187,8 @@ impl Graphics {
                         &texts,
                         &self.font_cache,
                         &self.glyph_cache,
-                        &self.device,
                         &screen_config,
+                        &mut glyph_vertices,
                         &mut char_draws,
                     );
                     if cursor != CursorIcon::Default {
@@ -234,8 +234,8 @@ impl Graphics {
                         &static_draw_region.text_items,
                         &self.font_cache,
                         &self.glyph_cache,
-                        &self.device,
                         &screen_config,
+                        &mut glyph_vertices,
                         &mut char_draws,
                     );
                     let static_range = WindowDrawRange {
@@ -252,8 +252,8 @@ impl Graphics {
                         &header_draw_region.text_items,
                         &self.font_cache,
                         &self.glyph_cache,
-                        &self.device,
                         &screen_config,
+                        &mut glyph_vertices,
                         &mut char_draws,
                     );
                     let header_range = WindowDrawRange {
@@ -270,8 +270,8 @@ impl Graphics {
                         &timeline_draw_region.text_items,
                         &self.font_cache,
                         &self.glyph_cache,
-                        &self.device,
                         &screen_config,
+                        &mut glyph_vertices,
                         &mut char_draws,
                     );
                     let timeline_range = WindowDrawRange {
@@ -309,8 +309,8 @@ impl Graphics {
                         &texts,
                         &self.font_cache,
                         &self.glyph_cache,
-                        &self.device,
                         &screen_config,
+                        &mut glyph_vertices,
                         &mut char_draws,
                     );
                     click_result = click_result.or(result);
@@ -339,8 +339,8 @@ impl Graphics {
                         &static_draw_region.text_items,
                         &self.font_cache,
                         &self.glyph_cache,
-                        &self.device,
                         &screen_config,
+                        &mut glyph_vertices,
                         &mut char_draws,
                     );
 
@@ -352,8 +352,8 @@ impl Graphics {
                         &piano_key_draw_region.text_items,
                         &self.font_cache,
                         &self.glyph_cache,
-                        &self.device,
                         &screen_config,
+                        &mut glyph_vertices,
                         &mut char_draws,
                     );
 
@@ -365,8 +365,8 @@ impl Graphics {
                         &grid_draw_region.text_items,
                         &self.font_cache,
                         &self.glyph_cache,
-                        &self.device,
                         &screen_config,
+                        &mut glyph_vertices,
                         &mut char_draws,
                     );
                     //
@@ -425,8 +425,8 @@ impl Graphics {
                                 &texts,
                                 &self.font_cache,
                                 &self.glyph_cache,
-                                &self.device,
                                 &screen_config,
+                                &mut glyph_vertices,
                                 &mut char_draws,
                             );
                             self.tooltip = tooltip;
@@ -472,8 +472,8 @@ impl Graphics {
                 &texts,
                 &self.font_cache,
                 &self.glyph_cache,
-                &self.device,
                 &screen_config,
+                &mut glyph_vertices,
                 &mut char_draws,
             );
             push_icon_draw(
@@ -516,8 +516,8 @@ impl Graphics {
                 &texts,
                 &self.font_cache,
                 &self.glyph_cache,
-                &self.device,
                 &screen_config,
+                &mut glyph_vertices,
                 &mut char_draws,
             );
         }
@@ -529,8 +529,8 @@ impl Graphics {
                 &texts,
                 &self.font_cache,
                 &self.glyph_cache,
-                &self.device,
                 &screen_config,
+                &mut glyph_vertices,
                 &mut char_draws,
             );
         }
@@ -597,8 +597,8 @@ impl Graphics {
                         &tooltip_text,
                         &self.font_cache,
                         &self.glyph_cache,
-                        &self.device,
                         &screen_config,
+                        &mut glyph_vertices,
                         &mut char_draws,
                     );
                 }
@@ -612,8 +612,8 @@ impl Graphics {
             &texts,
             &self.font_cache,
             &self.glyph_cache,
-            &self.device,
             &screen_config,
+            &mut glyph_vertices,
             &mut char_draws,
         );
 
@@ -631,8 +631,8 @@ impl Graphics {
                 &texts,
                 &self.font_cache,
                 &self.glyph_cache,
-                &self.device,
                 &screen_config,
+                &mut glyph_vertices,
                 &mut char_draws,
             );
 
@@ -665,8 +665,8 @@ impl Graphics {
             &texts,
             &self.font_cache,
             &self.glyph_cache,
-            &self.device,
             &screen_config,
+            &mut glyph_vertices,
             &mut char_draws,
         );
 
@@ -679,6 +679,11 @@ impl Graphics {
 
         self.queue
             .write_buffer(&self.vertex_buffer, 0, bytemuck::cast_slice(&vertices));
+        self.queue.write_buffer(
+            &self.glyph_vertex_buffer,
+            0,
+            bytemuck::cast_slice(&glyph_vertices),
+        );
         self.num_vertices = vertices.len() as u32;
 
         let mut encoder = self
@@ -745,6 +750,7 @@ impl Graphics {
                         );
                         Graphics::draw_chars(
                             &mut r_pass,
+                            &self.glyph_vertex_buffer,
                             &char_draws,
                             pr.static_range.char_start,
                             pr.static_range.char_end,
@@ -762,6 +768,7 @@ impl Graphics {
                         );
                         Graphics::draw_chars(
                             &mut r_pass,
+                            &self.glyph_vertex_buffer,
                             &char_draws,
                             pr.piano_range.char_start,
                             pr.piano_range.char_end,
@@ -779,6 +786,7 @@ impl Graphics {
                         );
                         Graphics::draw_chars(
                             &mut r_pass,
+                            &self.glyph_vertex_buffer,
                             &char_draws,
                             pr.grid_range.char_start,
                             pr.grid_range.char_end,
@@ -823,6 +831,7 @@ impl Graphics {
                         );
                         Graphics::draw_chars(
                             &mut r_pass,
+                            &self.glyph_vertex_buffer,
                             &char_draws,
                             pl.static_range.char_start,
                             pl.static_range.char_end,
@@ -840,6 +849,7 @@ impl Graphics {
                         );
                         Graphics::draw_chars(
                             &mut r_pass,
+                            &self.glyph_vertex_buffer,
                             &char_draws,
                             pl.header_range.char_start,
                             pl.header_range.char_end,
@@ -857,6 +867,7 @@ impl Graphics {
                         );
                         Graphics::draw_chars(
                             &mut r_pass,
+                            &self.glyph_vertex_buffer,
                             &char_draws,
                             pl.timeline_range.char_start,
                             pl.timeline_range.char_end,
@@ -875,13 +886,17 @@ impl Graphics {
                     r_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
                     r_pass.draw(range.vert_start..range.vert_end, 0..1);
                 }
-                for char in char_draws
+                let stride = (6 * std::mem::size_of::<Vertex>()) as u64;
+                for (offset, bg) in char_draws
                     .iter()
                     .skip(range.char_start)
                     .take(range.char_end)
                 {
-                    r_pass.set_bind_group(0, char.1, &[]);
-                    r_pass.set_vertex_buffer(0, char.0.slice(..));
+                    r_pass.set_bind_group(0, *bg, &[]);
+                    r_pass.set_vertex_buffer(
+                        0,
+                        self.glyph_vertex_buffer.slice(*offset..*offset + stride),
+                    );
                     r_pass.draw(0..6, 0..1);
                 }
             }
@@ -897,6 +912,7 @@ impl Graphics {
             );
             Graphics::draw_chars(
                 &mut r_pass,
+                &self.glyph_vertex_buffer,
                 &char_draws,
                 toolbar_char_start,
                 toolbar_char_end,
@@ -917,6 +933,7 @@ impl Graphics {
             );
             Graphics::draw_chars(
                 &mut r_pass,
+                &self.glyph_vertex_buffer,
                 &char_draws,
                 tooltip_char_start,
                 tooltip_char_end,
@@ -932,6 +949,7 @@ impl Graphics {
             );
             Graphics::draw_chars(
                 &mut r_pass,
+                &self.glyph_vertex_buffer,
                 &char_draws,
                 context_menu_char_start,
                 context_menu_char_end,
@@ -945,7 +963,13 @@ impl Graphics {
                 footer_vert_start,
                 footer_vert_end,
             );
-            Graphics::draw_chars(&mut r_pass, &char_draws, footer_char_start, footer_char_end);
+            Graphics::draw_chars(
+                &mut r_pass,
+                &self.glyph_vertex_buffer,
+                &char_draws,
+                footer_char_start,
+                footer_char_end,
+            );
         }
 
         self.queue.submit(Some(encoder.finish()));

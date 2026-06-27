@@ -36,11 +36,10 @@ use std::{borrow::Cow, collections::HashMap};
 use widgets::*;
 
 use wgpu::{
-    util::DeviceExt, CommandEncoderDescriptor, DeviceDescriptor, Features, FragmentState, Instance,
-    Limits, LoadOp, MemoryHints, Operations, PowerPreference, RenderPassColorAttachment,
-    RenderPassDescriptor, RenderPipeline, RenderPipelineDescriptor, RequestAdapterOptions,
-    ShaderModuleDescriptor, ShaderSource, StoreOp, SurfaceConfiguration, TextureFormat,
-    TextureViewDescriptor, VertexState,
+    CommandEncoderDescriptor, DeviceDescriptor, Features, FragmentState, Instance, Limits, LoadOp,
+    MemoryHints, Operations, PowerPreference, RenderPassColorAttachment, RenderPassDescriptor,
+    RenderPipeline, RenderPipelineDescriptor, RequestAdapterOptions, ShaderModuleDescriptor,
+    ShaderSource, StoreOp, SurfaceConfiguration, TextureFormat, TextureViewDescriptor, VertexState,
 };
 
 use winit::{
@@ -242,6 +241,13 @@ pub async fn create_graphics(window: Rc<Window>, proxy: EventLoopProxy<Graphics>
         icon_cache.insert(icon.0.to_string(), (texture, bind_group));
     }
 
+    let glyph_vertex_buffer = device.create_buffer(&wgpu::BufferDescriptor {
+        label: Some("Glyph Vertex Buffer"),
+        size: ONE_MEGABYTE * 2,
+        usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
+        mapped_at_creation: false,
+    });
+
     // wgsl shader and render pipeline setup
     let render_pipeline = create_pipeline(&device, surface_config.format, &bind_group_layout);
 
@@ -276,8 +282,9 @@ pub async fn create_graphics(window: Rc<Window>, proxy: EventLoopProxy<Graphics>
 
         // shapes
         vertex_buffer,
-        num_vertices: 0,
+        glyph_vertex_buffer,
         frame_ms: 0.0,
+        num_vertices: 0,
 
         // song information
         tracks: Vec::new(),
@@ -376,6 +383,7 @@ pub struct Graphics {
     queue: wgpu::Queue,
     render_pipeline: RenderPipeline,
     vertex_buffer: wgpu::Buffer,
+    glyph_vertex_buffer: wgpu::Buffer,
 
     pub fs_cache: std::collections::HashMap<std::path::PathBuf, Vec<(std::path::PathBuf, bool)>>,
 

@@ -5,7 +5,7 @@ use crate::project::Track;
 use crate::{
     app::MouseState,
     graphics::{
-        color::{BLACK, LIGHT_GRAY, LIGHT_GRAY_HOVER, PEBBLE, WHITE},
+        color::{LIGHT_GRAY, PEBBLE, WHITE},
         components::side_panel::{PATTERN_TRAY_HEADER_MARGIN, PATTERN_TRAY_ITEM_GAP},
         font::{truncate_text, TextItem, ROBOTO},
         primitives::*,
