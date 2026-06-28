@@ -181,6 +181,7 @@ pub fn draw(
                     .unwrap_or_else(|| "?".to_string());
                 (rect, label)
             }
+
             AudioBlockType::Sample(id) => {
                 let rect = Rectangle {
                     x: window.x
@@ -193,7 +194,12 @@ pub fn draw(
                     width: PLAYLIST_STEP_GAP * event.length as f32 - 2.0,
                     height: PLAYLIST_STEP_HEIGHT,
                 };
-                (rect, tracks[id].data.name.to_string())
+                let label = tracks
+                    .iter()
+                    .find(|t| t.data.id as usize == id)
+                    .map(|t| t.data.name.clone())
+                    .unwrap_or_else(|| "?".to_string());
+                (rect, label)
             }
             _ => continue,
         };

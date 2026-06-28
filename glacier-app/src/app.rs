@@ -747,13 +747,20 @@ impl App {
                     self.producer.try_push(AudioCommand::TogglePlay).ok();
                 }
                 ClickResult::DeleteTrack(track_id) => {
+                    let data_id = gfx.tracks[track_id].data.id as usize;
                     self.producer
                         .try_push(AudioCommand::DeleteTrack(track_id))
                         .ok();
                     gfx.tracks.remove(track_id);
                     gfx.mini_windows[SEQUENCER_ID].height =
                         100.0 + TRACK_GAP * gfx.tracks.len() as f32;
-
+                    gfx.events.retain(|e| {
+                        if let AudioBlockType::Sample(id) = e.block_type {
+                            id != data_id
+                        } else {
+                            true
+                        }
+                    });
                     gfx.context_menu = None;
                     self.project_is_dirty = true;
                 }
