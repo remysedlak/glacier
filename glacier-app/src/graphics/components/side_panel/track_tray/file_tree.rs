@@ -1,3 +1,4 @@
+use crate::project::is_audio_file;
 use crate::{
     app::MouseState,
     graphics::{
@@ -126,7 +127,6 @@ fn draw_fs_tree(
         });
 
         if button.is_hovered(mouse_state.x, mouse_state.y) {
-
             // show pointer for directories and cursor for files
             *cursor_icon = if *is_dir {
                 CursorIcon::Pointer
@@ -134,12 +134,15 @@ fn draw_fs_tree(
                 CursorIcon::Default
             };
             if !*is_dir {
-                if mouse_state.left_clicked && matches!(click_result, ClickResult::None) {
-                    *click_result = ClickResult::FsPreviewSample(path.clone());
+                if is_audio_file(path) {
+                    if mouse_state.left_clicked && matches!(click_result, ClickResult::None) {
+                        *click_result = ClickResult::FsPreviewSample(path.clone());
+                    }
+                    if mouse_state.left_click_held && matches!(click_result, ClickResult::None) {
+                        *click_result = ClickResult::FsStartDragFile(path.clone());
+                    }
                 }
-                if mouse_state.left_click_held && matches!(click_result, ClickResult::None) {
-                    *click_result = ClickResult::FsStartDragFile(path.clone());
-                }
+                // non-audio files do nothing
             } else if mouse_state.left_clicked && matches!(click_result, ClickResult::None) {
                 *click_result = ClickResult::FsToggleDir(path.clone());
             }

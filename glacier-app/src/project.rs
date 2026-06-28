@@ -250,3 +250,11 @@ pub fn count_fs_rows(
     }
     count
 }
+
+/// Returns true if a file path is a playable music file
+pub fn is_audio_file(path: &std::path::Path) -> bool {
+    matches!(
+        path.extension().and_then(|e| e.to_str()),
+        Some("wav" | "mp3" | "flac" | "aiff" | "ogg")
+    )
+}
