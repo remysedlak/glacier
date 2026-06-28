@@ -2,7 +2,7 @@ use crate::{
     app::MouseState,
     graphics::{
         color::*,
-        font::{truncate_text, TextItem, ROBOTO},
+        font::{TextItem, ROBOTO},
         icons::IconDraw,
         primitives::*,
         widgets::{Rectangle, TOOLBAR_Y},
@@ -126,18 +126,22 @@ fn draw_fs_tree(
         });
 
         if button.is_hovered(mouse_state.x, mouse_state.y) {
-            *cursor_icon = CursorIcon::Pointer;
-            if mouse_state.left_clicked {
-                if *is_dir {
-                    if matches!(click_result, ClickResult::None) {
-                        *click_result = ClickResult::FsToggleDir(path.clone());
-                    }
-                } else {
-                    // play the sound!
-                    if matches!(click_result, ClickResult::None) {
-                        *click_result = ClickResult::FsPreviewSample(path.clone());
-                    }
+
+            // show pointer for directories and cursor for files
+            *cursor_icon = if *is_dir {
+                CursorIcon::Pointer
+            } else {
+                CursorIcon::Default
+            };
+            if !*is_dir {
+                if mouse_state.left_clicked && matches!(click_result, ClickResult::None) {
+                    *click_result = ClickResult::FsPreviewSample(path.clone());
                 }
+                if mouse_state.left_click_held && matches!(click_result, ClickResult::None) {
+                    *click_result = ClickResult::FsStartDragFile(path.clone());
+                }
+            } else if mouse_state.left_clicked && matches!(click_result, ClickResult::None) {
+                *click_result = ClickResult::FsToggleDir(path.clone());
             }
         }
 
@@ -171,7 +175,7 @@ fn draw_fs_tree(
                 x: line_x,
                 y: line_top,
                 width: 1.0,
-                height: line_bottom - line_top,
+                height: line_bottom - line_top - 2.0,
             }
             .draw(screen_config, DARK_GRAY_HOVER, NO_RADIUS, out);
         }

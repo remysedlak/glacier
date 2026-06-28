@@ -459,6 +459,7 @@ pub fn init(
                                     .map(|p| (p, local_step));
                             }
                         }
+
                         None
                     })
                     .flat_map(|(p, local_step)| {
@@ -473,6 +474,21 @@ pub fn init(
                             })
                     })
                     .collect();
+
+                for event in &events {
+                    if let AudioBlockType::Sample(track_id) = event.block_type {
+                        if current_step == event.start_step as usize {
+                            if let Some(track) =
+                                tracks.iter_mut().find(|t| t.data.id as usize == track_id)
+                            {
+                                track.position = 0.0;
+                                track.is_playing = true;
+                                track.data.target_volume = 1.0;
+                                track.playback_rate = 1.0;
+                            }
+                        }
+                    }
+                }
 
                 for (track_id, velocity, pitch) in triggers {
                     if let Some(track) = tracks

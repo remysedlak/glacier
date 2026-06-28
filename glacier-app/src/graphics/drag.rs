@@ -13,11 +13,17 @@ pub enum DragResult {
 
     // tray resizing
     ResizeTrackTray(f32),
+
+    //fs
+    DraggingFile(PathBuf),
     None,
 }
 impl Graphics {
     /// Track if/where the user's mouse is dragging a component
     pub fn handle_drag(&mut self, mouse_x: f32, mouse_y: f32, dy: f32, dx: f32) -> DragResult {
+        if self.dragging_file.is_some() {
+            return DragResult::DraggingFile(self.dragging_file.clone().unwrap());
+        }
         // sticky drags — once started, keep going until mouse release
         if self.resizing_track_tray {
             self.track_tray_width = (self.track_tray_width + dx).clamp(80.0, 400.0);

@@ -96,6 +96,8 @@ pub enum ClickResult {
     // file system
     FsToggleDir(PathBuf),
     FsPreviewSample(PathBuf),
+    FsStartDragFile(PathBuf),
+    FSEndDragFile(PathBuf, usize, usize), // track, step
 
     // no click result
     None,
@@ -263,9 +265,9 @@ pub async fn create_graphics(window: Rc<Window>, proxy: EventLoopProxy<Graphics>
         show_save_modal: false,
         track_tray_width: DEFAULT_TRAY_WIDTH,
         pattern_tray_width: DEFAULT_TRAY_WIDTH,
-
+        dragging_file: None,
         resizing_track_tray: false,
-
+        active_tray: AudioBlockType::Mixing, // Pattern(id) or Track(id)
         fs_cache: {
             let mut cache = std::collections::HashMap::new();
             let root = dirs::audio_dir().unwrap();
@@ -399,6 +401,9 @@ pub struct Graphics {
     pub user_fs_location: PathBuf,
     pub track_tray_width: f32,
     pub pattern_tray_width: f32,
+    pub active_tray: AudioBlockType, // Pattern(id) or Track(id)
+
+    pub dragging_file: Option<PathBuf>,
 
     pub mini_windows: Vec<MiniWindow>,
     num_vertices: u32,
@@ -412,6 +417,7 @@ pub struct Graphics {
     pub show_track_tray: bool,
     pub show_pattern_tray: bool,
     pub show_save_modal: bool,
+
     // song
     pub project_path: String,
     pub tracks: Vec<Track>,

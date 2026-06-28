@@ -241,11 +241,13 @@ impl Graphics {
                         window,
                         &self.events,
                         &self.patterns,
+                        &self.tracks,
                         &masked_mouse,
-                        self.active_pattern_id,
+                        &self.active_tray,
                         &self.playlist_scroll_offset,
                         self.active_step,
                         self.resizing_event,
+                        self.dragging_file.as_ref(),
                         &screen_config,
                     );
 
@@ -766,6 +768,42 @@ impl Graphics {
             cursor_icon = CursorIcon::Default;
         }
 
+        let drag_ghost_range = if let Some(ref path) = self.dragging_file {
+            let ghost_vert_start = vertices.len() as u32;
+            let ghost_char_start = char_draws.len();
+            let name = path.file_name().and_then(|n| n.to_str()).unwrap_or("?");
+            let ghost = Rectangle {
+                x: mouse_state.x,
+                y: mouse_state.y - 16.0,
+                width: 128.0,
+                height: 32.0,
+            };
+            ghost.draw(&screen_config, LIGHT_GRAY, RADIUS_4, &mut vertices);
+            Graphics::push_text_draws(
+                &[TextItem {
+                    text: name.to_string(),
+                    x: ghost.x + PAD_4,
+                    y: ghost.y + PAD_4,
+                    size: 10.0,
+                    font: ROBOTO,
+                    color: DARK_GRAY,
+                }],
+                &self.font_cache,
+                &self.glyph_cache,
+                &screen_config,
+                &mut glyph_vertices,
+                &mut char_draws,
+            );
+            Some(WindowDrawRange {
+                vert_start: ghost_vert_start,
+                vert_end: vertices.len() as u32,
+                char_start: ghost_char_start,
+                char_end: char_draws.len(),
+            })
+        } else {
+            None
+        };
+
         self.queue
             .write_buffer(&self.vertex_buffer, 0, bytemuck::cast_slice(&vertices));
         self.queue.write_buffer(
@@ -1036,6 +1074,16 @@ impl Graphics {
                     r_pass.draw(0..6, 0..1);
                 }
                 r_pass.set_scissor_rect(0, 0, sw, sh);
+            }
+            if let Some(ref gr) = drag_ghost_range {
+                Graphics::draw_range(
+                    &mut r_pass,
+                    &self.vertex_buffer,
+                    &self.glyph_vertex_buffer,
+                    any_bg,
+                    &char_draws,
+                    gr,
+                );
             }
         }
 

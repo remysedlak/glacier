@@ -1,7 +1,6 @@
 // app.rs - main state logic for audio and ui decoupling
 use crate::audio::{init, AudioCommand};
 use crate::config::{self, UserSettings};
-use crate::graphics::primitives::PAD_32;
 use crate::graphics::{
     context_menu::{ContextMenu, ContextMenuKind},
     drag::DragResult,
@@ -9,9 +8,10 @@ use crate::graphics::{
         piano_roll::PIANO_ROLL_DEFAULT_Y, sequencer::TRACK_GAP, MiniWindow, WindowKind, MIXER_ID,
         PIANO_ROLL_ID, PLAYLIST_ID, SEQUENCER_ID,
     },
+    primitives::PAD_32,
     {bring_to_front, create_graphics, ClickResult, Graphics, Rc},
 };
-use crate::project::{AudioBlock, PatternData, Track, TrackData};
+use crate::project::{AudioBlock, AudioBlockType, PatternData, Track, TrackData};
 use cpal::{traits::StreamTrait, Stream};
 use rfd::FileDialog;
 use ringbuf::{
@@ -42,6 +42,7 @@ pub struct MouseState {
     pub left_double_clicked: bool,
     pub left_click_held: bool,
     pub right_clicked: bool,
+    pub left_released: bool,
     // scrolling
     pub scroll_x: f32,
     pub scroll_y: f32,
@@ -114,11 +115,12 @@ pub struct App {
     right_click_held: bool,
     last_click_time: Option<std::time::Instant>,
 
-    // file dialog
+    // fs
     track_file_dialog_rx: Option<Receiver<Option<PathBuf>>>,
     project_file_dialog_rx: Option<Receiver<Option<PathBuf>>>,
     track_load_rx: Option<Receiver<(TrackData, Vec<f32>)>>,
     project_save_dialog_rx: Option<Receiver<Option<PathBuf>>>,
+    pending_drop: Option<(usize, u32)>,
 }
 
 // app created for the main event loop
@@ -146,6 +148,7 @@ impl App {
             prev_mouse_x: 0.0,
             prev_mouse_y: 0.0,
             last_click_time: None,
+            pending_drop: None,
             config,
 
             right_click_held: false,
@@ -158,6 +161,7 @@ impl App {
                 scroll_x: 0.0,
                 scroll_y: 0.0,
                 left_click_held: false,
+                left_released: false,
                 hover_state: None,
             },
         }
@@ -268,13 +272,33 @@ impl App {
                         gfx.master_peak = peak;
                     }
                     UiCommand::LoadTrack(track) => {
+                        let track_id = track.data.id as usize;
+                        gfx.active_tray = AudioBlockType::Sample(track_id);
                         gfx.load_track(track);
-
-                        //ui
                         let win = &mut gfx.mini_windows[SEQUENCER_ID];
                         win.height = 100.0 + TRACK_GAP * gfx.tracks.len() as f32;
-                        win.is_open = true;
-                        bring_to_front(&mut gfx.z_order, SEQUENCER_ID);
+
+                        if let Some((playlist_track, step)) = self.pending_drop.take() {
+                            self.producer
+                                .try_push(AudioCommand::CreateAudioBlock(
+                                    playlist_track,
+                                    step,
+                                    1,
+                                    AudioBlockType::Sample(track_id),
+                                ))
+                                .ok();
+                            gfx.events.push(AudioBlock {
+                                id: gfx.events.len(),
+                                track: playlist_track,
+                                start_step: step,
+                                length: 1,
+                                block_type: AudioBlockType::Sample(track_id),
+                            });
+                            self.project_is_dirty = true;
+                        } else {
+                            win.is_open = true;
+                            bring_to_front(&mut gfx.z_order, SEQUENCER_ID);
+                        }
                     }
                     UiCommand::LoadBpm(bpm) => {
                         gfx.bpm = bpm;
@@ -323,13 +347,26 @@ impl App {
                 || gfx.dragging_window.is_some()
                 || gfx.dragging_knob.is_some()
                 || gfx.resizing_event.is_some();
+            // deliberately NOT including dragging_file here
 
-            let draw_mouse = if any_dragging {
+            let draw_mouse = if any_dragging || gfx.dragging_file.is_some() {
                 MouseState {
-                    x: f32::NEG_INFINITY,
-                    y: f32::NEG_INFINITY,
+                    x: if any_dragging {
+                        f32::NEG_INFINITY
+                    } else {
+                        self.mouse_state.x
+                    },
+                    y: if any_dragging {
+                        f32::NEG_INFINITY
+                    } else {
+                        self.mouse_state.y
+                    },
                     left_clicked: false,
-                    left_click_held: false,
+                    left_click_held: if gfx.dragging_file.is_some() {
+                        false
+                    } else {
+                        self.mouse_state.left_click_held
+                    },
                     ..self.mouse_state
                 }
             } else {
@@ -366,9 +403,36 @@ impl App {
             }
             // dispatch audio commands based on what was clicked
             match result {
+                ClickResult::FsStartDragFile(path) => {
+                    gfx.dragging_file = Some(path);
+                }
+                ClickResult::FSEndDragFile(path, track, step) => {
+                    let path_str = path.to_str().unwrap().to_string();
+                    self.pending_drop = Some((track, step as u32));
+                    let (tx, load_rx) = std::sync::mpsc::channel();
+                    self.track_load_rx = Some(load_rx);
+                    std::thread::spawn(move || {
+                        let samples = crate::project::path_to_vector(&path_str);
+                        let name = std::path::Path::new(&path_str)
+                            .file_name()
+                            .unwrap()
+                            .to_str()
+                            .unwrap()
+                            .to_string();
+                        let data = crate::project::TrackData {
+                            id: 0,
+                            path: path_str,
+                            name,
+                            is_muted: false,
+                            target_volume: 1.0,
+                            track_volume: 1.0,
+                            root_note: 60,
+                        };
+                        tx.send((data, samples)).ok();
+                    });
+                }
                 ClickResult::FsPreviewSample(track_path) => {
                     let preview = crate::project::path_to_preview(track_path.to_str().unwrap(), 5);
-
                     self.producer
                         .try_push(AudioCommand::PreviewSample(preview))
                         .ok();
@@ -525,6 +589,7 @@ impl App {
                 }
                 ClickResult::SelectPattern(pattern_id) => {
                     gfx.active_pattern_id = pattern_id;
+                    gfx.active_tray = AudioBlockType::Pattern(pattern_id);
                 }
                 ClickResult::ToggleTrackWindow(track) => {
                     // update piano roll state to show this track
@@ -735,6 +800,7 @@ impl App {
             self.mouse_state.right_clicked = false;
             self.mouse_state.scroll_x = 0.0;
             self.mouse_state.scroll_y = 0.0;
+            self.mouse_state.left_released = false;
 
             gfx.request_redraw();
         }
@@ -949,8 +1015,11 @@ impl ApplicationHandler<Graphics> for App {
                 }
                 // left click is RELEASED
                 else {
+                    self.mouse_state.left_released = true;
                     self.mouse_state.left_click_held = false;
                     self.mouse_state.left_clicked = false;
+
+                    self.draw(event_loop); // draw first so playlist sees left_released + dragging_file
 
                     if let State::Ready(gfx) = &mut self.state {
                         gfx.dragging = false;
@@ -958,6 +1027,7 @@ impl ApplicationHandler<Graphics> for App {
                         gfx.dragging_knob = None;
                         gfx.resizing_track_tray = false;
                         gfx.resizing_event = None;
+                        gfx.dragging_file = None; // clear after draw
                     }
                 }
                 if state.is_pressed() && button == MouseButton::Right {
@@ -991,6 +1061,9 @@ impl ApplicationHandler<Graphics> for App {
                             delta_x,
                         ) {
                             DragResult::None => {}
+                            DragResult::DraggingFile(_) => {
+                                gfx.request_redraw();
+                            }
                             DragResult::ResizeTrackTray(_) => {
                                 gfx.request_redraw();
                             }
