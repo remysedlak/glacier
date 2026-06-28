@@ -217,16 +217,6 @@ pub fn init(
                     }
                 }
                 AudioCommand::DeleteAudioBlock(audio_block_id) => {
-                    if let Some(event) = events.iter().find(|e| e.id == audio_block_id) {
-                        if let AudioBlockType::Sample(track_id) = event.block_type {
-                            if let Some(track) =
-                                tracks.iter_mut().find(|t| t.data.id as usize == track_id)
-                            {
-                                track.is_playing = false;
-                                track.position = 0.0;
-                            }
-                        }
-                    }
                     events.retain(|e| e.id != audio_block_id);
                 }
                 AudioCommand::Stop => {
