@@ -120,7 +120,10 @@ pub fn draw(
         else {
             for j in 0..MAX_STEPS {
                 // get the note's song data
-                let note = steps_slice.get(j as usize).copied().unwrap_or_default();
+                let note = steps_slice
+                    .get(j as usize)
+                    .copied()
+                    .unwrap_or(Note::DEFAULT);
                 let is_ghost = j as usize >= steps_slice.len();
                 let is_active = note.velocity > 0.0;
 

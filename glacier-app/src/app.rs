@@ -34,20 +34,23 @@ use std::time::Instant;
 
 #[derive(Clone, Copy, Debug)]
 pub struct MouseState {
-    // posiiton
+    // coordinate position
     pub x: f32,
     pub y: f32,
-    // clicking
+
+    // left + right click state
     pub left_clicked: bool,
     pub left_double_clicked: bool,
     pub left_click_held: bool,
     pub right_clicked: bool,
     pub left_released: bool,
-    // scrolling
+
+    // scroll wheel state
     pub scroll_x: f32,
     pub scroll_y: f32,
-    // hovering
-    pub hover_state: Option<Instant>,
+
+    // hovering time
+    pub hover_duration: Option<Instant>,
 }
 
 #[derive(Clone, Copy)]
@@ -62,12 +65,12 @@ impl Default for ScrollOffset {
 }
 
 pub struct PianoRollState {
-    pub pattern_id: usize,
-    pub track_id: u32,
-    pub scroll_offset: ScrollOffset,
+    pub pattern_id: usize,           // current pattern opened
+    pub track_id: u32,               // current track opened
+    pub scroll_offset: ScrollOffset, // how far down the piano roll
 }
 
-// commands that the audio engine sends to the window
+// commands that the audio engine sends to the UI thread
 pub enum UiCommand {
     LoadProjectPath(String),
     StepAdvanced(usize),
@@ -83,13 +86,7 @@ pub enum UiCommand {
     PlayheadPosition(f32),
 }
 
-// the app is in initializing state or its ready to draw
-enum State {
-    Ready(Box<Graphics>),
-    Init(Option<EventLoopProxy<Graphics>>),
-}
-
-// gui app state
+// app state
 pub struct App {
     // ringbuffer
     producer: HeapProd<AudioCommand>,
@@ -120,7 +117,13 @@ pub struct App {
     project_file_dialog_rx: Option<Receiver<Option<PathBuf>>>,
     track_load_rx: Option<Receiver<(TrackData, Vec<f32>)>>,
     project_save_dialog_rx: Option<Receiver<Option<PathBuf>>>,
-    pending_drop: Option<(usize, u32)>,
+    pending_drop: Option<(usize, usize)>,
+}
+
+// the app is in initializing state or its ready to draw
+enum State {
+    Ready(Box<Graphics>),
+    Init(Option<EventLoopProxy<Graphics>>),
 }
 
 // app created for the main event loop
@@ -162,7 +165,7 @@ impl App {
                 scroll_y: 0.0,
                 left_click_held: false,
                 left_released: false,
-                hover_state: None,
+                hover_duration: None,
             },
         }
     }
@@ -282,7 +285,7 @@ impl App {
                             self.producer
                                 .try_push(AudioCommand::CreateAudioBlock(
                                     playlist_track,
-                                    step,
+                                    step as u32,
                                     1,
                                     AudioBlockType::Sample(track_id),
                                 ))
@@ -290,7 +293,7 @@ impl App {
                             gfx.events.push(AudioBlock {
                                 id: gfx.events.len(),
                                 track: playlist_track,
-                                start_step: step,
+                                start_step: step as u32,
                                 length: 1,
                                 block_type: AudioBlockType::Sample(track_id),
                             });
@@ -380,11 +383,11 @@ impl App {
 
             // start hover timer when tooltip is present, reset when it's not
             if gfx.tooltip.is_some() {
-                if self.mouse_state.hover_state.is_none() {
-                    self.mouse_state.hover_state = Some(Instant::now());
+                if self.mouse_state.hover_duration.is_none() {
+                    self.mouse_state.hover_duration = Some(Instant::now());
                 }
             } else {
-                self.mouse_state.hover_state = None;
+                self.mouse_state.hover_duration = None;
             }
 
             if let Some(rx) = &self.track_load_rx {
@@ -408,7 +411,7 @@ impl App {
                 }
                 ClickResult::FSEndDragFile(path, track, step) => {
                     let path_str = path.to_str().unwrap().to_string();
-                    self.pending_drop = Some((track, step as u32));
+                    self.pending_drop = Some((track, step));
                     let (tx, load_rx) = std::sync::mpsc::channel();
                     self.track_load_rx = Some(load_rx);
                     std::thread::spawn(move || {
@@ -527,11 +530,11 @@ impl App {
                         {
                             if step_idx >= seq.steps.len() {
                                 seq.steps
-                                    .resize(step_idx + 1, crate::project::Note::default());
+                                    .resize(step_idx + 1, crate::project::Note::DEFAULT);
                             }
                             let note = &mut seq.steps[step_idx];
                             if note.velocity > 0.0 && note.pitch == pitch {
-                                *note = crate::project::Note::default();
+                                *note = crate::project::Note::DEFAULT;
                             } else {
                                 *note = crate::project::Note {
                                     velocity: 95.0,
@@ -542,7 +545,7 @@ impl App {
                                 seq.steps.pop();
                             }
                         } else {
-                            let mut steps = vec![crate::project::Note::default(); step_idx + 1];
+                            let mut steps = vec![crate::project::Note::DEFAULT; step_idx + 1];
                             steps[step_idx] = crate::project::Note {
                                 velocity: 95.0,
                                 pitch,

@@ -126,7 +126,7 @@ impl Track {
     }
 }
 
-/// Track  metadata stored on disk
+/// Track metadata stored on disk
 #[derive(Serialize, Deserialize, Clone)]
 pub struct TrackData {
     pub id: u32,
@@ -174,15 +174,7 @@ pub struct Note {
     pub velocity: f32, // 0.0 = off, >0.0 = on
     pub pitch: u8,     // midi note 0-127, 60 = middle C5
 }
-impl Default for Note {
-    // default to off note at middle C
-    fn default() -> Self {
-        Note {
-            velocity: 0.0,
-            pitch: 60,
-        }
-    }
-}
+
 impl Note {
     pub const DEFAULT: Self = Self {
         velocity: 0.0,

@@ -546,12 +546,12 @@ impl Graphics {
         }
         self.tooltip = tooltip;
 
-        // --- tooltip ---
+        // tooltip
         let tooltip_vert_start = vertices.len() as u32;
         let tooltip_char_start = char_draws.len();
         if let Some(tt) = &self.tooltip {
             if mouse_state
-                .hover_state
+                .hover_duration
                 .map_or(false, |t| t.elapsed() > Duration::from_millis(400))
             {
                 let tooltip_rectangle = Rectangle {

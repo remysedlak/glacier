@@ -159,11 +159,11 @@ pub fn init(
                         .find(|s| s.track_id == track_id)
                     {
                         if step_idx >= seq.steps.len() {
-                            seq.steps.resize(step_idx + 1, Note::default());
+                            seq.steps.resize(step_idx + 1, Note::DEFAULT);
                         }
                         let note = &mut seq.steps[step_idx];
                         if note.velocity > 0.0 && note.pitch == pitch {
-                            *note = Note::default();
+                            *note = Note::DEFAULT;
                         } else {
                             *note = Note {
                                 velocity: 95.0,
@@ -174,7 +174,7 @@ pub fn init(
                             seq.steps.pop();
                         }
                     } else {
-                        let mut steps = vec![Note::default(); step_idx + 1];
+                        let mut steps = vec![Note::DEFAULT; step_idx + 1];
                         steps[step_idx] = Note {
                             velocity: 95.0,
                             pitch,
@@ -190,7 +190,7 @@ pub fn init(
                         .iter()
                         .map(|instr| Sequence {
                             track_id: instr.data.id,
-                            steps: vec![Note::default(); 16],
+                            steps: vec![Note::DEFAULT; 16],
                         })
                         .collect();
                     let p = PatternData {
@@ -217,6 +217,16 @@ pub fn init(
                     }
                 }
                 AudioCommand::DeleteAudioBlock(audio_block_id) => {
+                    if let Some(event) = events.iter().find(|e| e.id == audio_block_id) {
+                        if let AudioBlockType::Sample(track_id) = event.block_type {
+                            if let Some(track) =
+                                tracks.iter_mut().find(|t| t.data.id as usize == track_id)
+                            {
+                                track.is_playing = false;
+                                track.position = 0.0;
+                            }
+                        }
+                    }
                     events.retain(|e| e.id != audio_block_id);
                 }
                 AudioCommand::Stop => {
@@ -245,10 +255,10 @@ pub fn init(
                         .find(|s| s.track_id == track_id)
                     {
                         if step_idx >= seq.steps.len() {
-                            seq.steps.resize(step_idx + 1, Note::default());
+                            seq.steps.resize(step_idx + 1, Note::DEFAULT);
                         }
                         seq.steps[step_idx] = if seq.steps[step_idx].velocity > 0.0 {
-                            Note::default()
+                            Note::DEFAULT
                         } else {
                             Note {
                                 velocity: 95.0,
@@ -261,7 +271,7 @@ pub fn init(
                     } else {
                         let mut seq = Sequence {
                             track_id: track_id,
-                            steps: vec![Note::default(); step_idx + 1],
+                            steps: vec![Note::DEFAULT; step_idx + 1],
                         };
                         seq.steps[step_idx] = Note {
                             velocity: 95.0,
