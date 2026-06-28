@@ -1,9 +1,12 @@
 use super::*;
-use crate::graphics::color::LIGHT_GRAY;
-use crate::graphics::components::modal;
+use crate::graphics::{
+    color::{LIGHT_GRAY, PEBBLE},
+    components::modal,
+};
 use std::time::Duration;
 
 impl Graphics {
+    /// converts TextItem into vertices.
     fn push_text_draws<'a>(
         texts: &[TextItem],
         font_cache: &HashMap<String, fontdue::Font>,
@@ -13,16 +16,21 @@ impl Graphics {
         char_draws: &mut Vec<(u64, &'a wgpu::BindGroup)>,
     ) {
         for text_item in texts {
+            // Looks up the font by name
             let Some(font) = font_cache.get(text_item.font) else {
                 continue;
             };
+            // Use fontdue's Layout to compute where each character glyph should be positioned
             let mut layout = Layout::new(CoordinateSystem::PositiveYDown);
             let Color { r, g, b } = text_item.color;
             layout.append(&[font], &TextStyle::new(&text_item.text, text_item.size, 0));
+
+            // For each glyph, looks up the pre-rasterized texture in glyph_cache
             for glyph in layout.glyphs() {
                 if let Some(entry) =
                     glyph_cache.get(text_item.font, glyph.parent, text_item.size as u32)
                 {
+                    // generate 6 vertices (a quad) for that glyph at the correct screen position
                     let gverts = font::draw_glyph(
                         text_item.x + glyph.x,
                         text_item.y + glyph.y,
@@ -31,6 +39,11 @@ impl Graphics {
                         screen_config,
                         (r, g, b),
                     );
+
+                    // Pushes those vertices into glyph_vertices'
+                    //
+                    // Records the byte offset + bind group (the glyph texture) into char_draws
+                    // so the render pass knows which texture to use when drawing that glyph
                     let offset = (glyph_vertices.len() * std::mem::size_of::<Vertex>()) as u64;
                     glyph_vertices.extend_from_slice(&gverts);
                     char_draws.push((offset, entry.bind_group()));
@@ -109,6 +122,7 @@ impl Graphics {
         mouse_state: &MouseState,
         project_is_dirty: bool,
     ) -> (ClickResult, CursorIcon) {
+        // SETUP OBJECTS
         let frame = self
             .surface
             .get_current_texture()
@@ -118,7 +132,6 @@ impl Graphics {
         self.tooltip = None;
         let mut click_result = ClickResult::None;
         let mut cursor_icon = CursorIcon::Default;
-
         let screen_config = ScreenConfig {
             width: self.surface_config.width,
             height: self.surface_config.height,
@@ -130,6 +143,7 @@ impl Graphics {
             .map(|m| m.is_hovered(mouse_state.x, mouse_state.y))
             .unwrap_or(false);
 
+        // If a user clicks on a mini window out of view, bring it to the front of the z stack
         if mouse_state.left_clicked && !menu_is_hovered {
             let z_order = self.z_order.clone();
             for &id in z_order.iter().rev() {
@@ -162,8 +176,9 @@ impl Graphics {
         let mut playlist_window_ranges: Option<PlaylistDrawRanges> = None;
         let mut piano_roll_ranges: Option<PianoRollDrawRanges> = None;
 
-        // --- windows ---
+        // --- mini windows ---
         for &id in &self.z_order {
+            //
             let vert_start = vertices.len() as u32;
             let char_start = char_draws.len();
 
@@ -193,7 +208,9 @@ impl Graphics {
                 ..*mouse_state
             };
 
+            // match each z ID to a window ID
             match id {
+                // draw the sequencer window
                 SEQUENCER_ID if self.mini_windows[SEQUENCER_ID].is_open => {
                     let window = &self.mini_windows[SEQUENCER_ID];
                     let (texts, icons, result, cursor) = sequencer::draw(
@@ -229,6 +246,7 @@ impl Graphics {
                     }
                     click_result = click_result.or(result);
                 }
+                // draw the playlist window
                 PLAYLIST_ID if self.mini_windows[PLAYLIST_ID].is_open => {
                     let window = &self.mini_windows[PLAYLIST_ID];
                     let (
@@ -315,6 +333,7 @@ impl Graphics {
                     }
                     click_result = click_result.or(result);
                 }
+                // draw the mixer window
                 MIXER_ID if self.mini_windows[MIXER_ID].is_open => {
                     let window = &self.mini_windows[MIXER_ID];
                     let (texts, result, _cursor) = mixer::draw(
@@ -338,6 +357,7 @@ impl Graphics {
                     );
                     click_result = click_result.or(result);
                 }
+                // draw the piano roll window
                 PIANO_ROLL_ID if self.mini_windows[PIANO_ROLL_ID].is_open => {
                     let window = &self.mini_windows[PIANO_ROLL_ID];
                     let (
@@ -415,6 +435,7 @@ impl Graphics {
                         cursor_icon = cursor;
                     }
                 }
+                /// draw the track details window
                 track => {
                     let window = &self.mini_windows[track];
                     if window.is_open {
@@ -453,6 +474,7 @@ impl Graphics {
                 }
             }
 
+            // position of vertexes and texts in the buffers
             window_ranges.push(WindowDrawRange {
                 vert_start,
                 vert_end: vertices.len() as u32,
@@ -662,6 +684,7 @@ impl Graphics {
         // --- track tray + file tree ---
         let mut track_tray_range: Option<WindowDrawRange> = None;
         let mut file_tree_range: Option<WindowDrawRange> = None;
+        let mut divider_range: Option<WindowDrawRange> = None;
         let mut tray_icon_start = 0;
         let mut tray_icon_end = 0;
 
@@ -691,22 +714,43 @@ impl Graphics {
             );
 
             // divider + File Tree title (unscissored, must stay in track_tray_range)
-            let w_divider = Rectangle {
-                x: PAD_2,
-                y: (screen_config.height / 2) as f32,
-                width: self.track_tray_width - PAD_4,
-                height: 1.0,
+
+            divider_range = if self.show_track_tray {
+                let vert_start = vertices.len() as u32;
+                let char_start = char_draws.len();
+                Rectangle {
+                    x: 0.0,
+                    y: (screen_config.height / 2) as f32,
+                    width: self.track_tray_width,
+                    height: screen_config.height as f32 - (screen_config.height / 2) as f32,
+                }
+                .draw(&screen_config, PEBBLE, NO_RADIUS, &mut vertices);
+                let w_divider = Rectangle {
+                    x: PAD_2,
+                    y: (screen_config.height / 2) as f32,
+                    width: self.track_tray_width - PAD_4,
+                    height: 1.0,
+                };
+                w_divider.draw(&screen_config, LIGHT_GRAY, RADIUS_4, &mut vertices);
+
+                use crate::graphics::side_panel::draw_title;
+                Graphics::push_text_draws(
+                    &[draw_title("File Tree", (w_divider.x - 2.0, w_divider.y))],
+                    &self.font_cache,
+                    &self.glyph_cache,
+                    &screen_config,
+                    &mut glyph_vertices,
+                    &mut char_draws,
+                );
+                Some(WindowDrawRange {
+                    vert_start,
+                    vert_end: vertices.len() as u32,
+                    char_start,
+                    char_end: char_draws.len(),
+                })
+            } else {
+                None
             };
-            w_divider.draw(&screen_config, LIGHT_GRAY, RADIUS_4, &mut vertices);
-            use crate::graphics::side_panel::draw_title;
-            Graphics::push_text_draws(
-                &[draw_title("File Tree", (w_divider.x - 2.0, w_divider.y))],
-                &self.font_cache,
-                &self.glyph_cache,
-                &screen_config,
-                &mut glyph_vertices,
-                &mut char_draws,
-            );
 
             let file_tree_vert_start = vertices.len() as u32;
             let file_tree_char_start = char_draws.len();
@@ -721,7 +765,7 @@ impl Graphics {
                 self.fs_scroll_offset,
                 self.track_tray_width,
                 &mut vertices,
-                w_divider.y,
+                (screen_config.height / 2) as f32,
             );
             click_result = click_result.or(ft_result);
             if ft_cursor != CursorIcon::Default {
@@ -803,6 +847,38 @@ impl Graphics {
         } else {
             None
         };
+
+        // === RENDER PASS ===
+        // Draw order (back to front):
+        //
+        // 1. Mini windows (sequencer, playlist, mixer, piano roll, track detail)
+        //    - Each scissored to their own window bounds
+        //    - Playlist and piano roll have sub-regions (header, timeline, grid)
+        //
+        // 2. Toolbar (top bar + pattern tray)
+        //    - No scissor, full width
+        //
+        // 3. Non-tray icons (toolbar icons)
+        //    - No scissor
+        //
+        // 4. Tooltip
+        //    - No scissor, always on top of windows
+        //
+        // 5. Context menu
+        //    - No scissor, always on top
+        //
+        // 6. Footer
+        //    - No scissor
+        //
+        // 7. Track tray (loaded instruments list)
+        //    - Scissored to: x=0..tray_width, y=0..sh (full height, no bottom clip yet)
+        //    - PROBLEM: divider + "File Tree" title live here but bleed into file tree area
+        //
+        // 8. File tree (browser)
+        //    - Scissored to: x=0..tray_width, y=divider_y..sh
+        //
+        // 9. Drag ghost (dragged file block)
+        //    - No scissor, topmost
 
         self.queue
             .write_buffer(&self.vertex_buffer, 0, bytemuck::cast_slice(&vertices));
@@ -1032,8 +1108,9 @@ impl Graphics {
             if let Some(ref tr) = track_tray_range {
                 let sw = self.surface_config.width;
                 let sh = self.surface_config.height;
+                let tray_bottom = sh / 2 + 2;
                 let (sx, sy, sw2, sh2) =
-                    Self::safe_scissor(0, 0, self.track_tray_width as u32, sh, sw, sh);
+                    Self::safe_scissor(0, 0, self.track_tray_width as u32, tray_bottom, sw, sh);
                 r_pass.set_scissor_rect(sx, sy, sw2, sh2);
                 Graphics::draw_range(
                     &mut r_pass,
@@ -1044,6 +1121,18 @@ impl Graphics {
                     tr,
                 );
                 r_pass.set_scissor_rect(0, 0, sw, sh);
+            }
+
+            // divider + title — unscissored, drawn on top of both tray sections
+            if let Some(ref dr) = divider_range {
+                Graphics::draw_range(
+                    &mut r_pass,
+                    &self.vertex_buffer,
+                    &self.glyph_vertex_buffer,
+                    any_bg,
+                    &char_draws,
+                    dr,
+                );
             }
 
             // file tree — scissored to below divider
@@ -1075,6 +1164,7 @@ impl Graphics {
                 }
                 r_pass.set_scissor_rect(0, 0, sw, sh);
             }
+
             if let Some(ref gr) = drag_ghost_range {
                 Graphics::draw_range(
                     &mut r_pass,
