@@ -855,31 +855,24 @@ impl Graphics {
         //    - Each scissored to their own window bounds
         //    - Playlist and piano roll have sub-regions (header, timeline, grid)
         //
-        // 2. Toolbar (top bar + pattern tray)
-        //    - No scissor, full width
+        // 2. Track tray — scissored to x=0..tray_width, y=0..sh/2
         //
-        // 3. Non-tray icons (toolbar icons)
-        //    - No scissor
+        // 3. Divider + File Tree title + section background — unscissored chrome
         //
-        // 4. Tooltip
-        //    - No scissor, always on top of windows
+        // 4. File tree (scrollable list) — scissored to x=0..tray_width, y=sh/2+PAD_32+PAD_16..sh
         //
-        // 5. Context menu
-        //    - No scissor, always on top
+        // 5. Drag ghost — no scissor
         //
-        // 6. Footer
-        //    - No scissor
+        // 6. Toolbar (top bar + pattern tray) — no scissor, always on top
         //
-        // 7. Track tray (loaded instruments list)
-        //    - Scissored to: x=0..tray_width, y=0..sh (full height, no bottom clip yet)
-        //    - PROBLEM: divider + "File Tree" title live here but bleed into file tree area
+        // 7. Non-tray icons — no scissor
         //
-        // 8. File tree (browser)
-        //    - Scissored to: x=0..tray_width, y=divider_y..sh
+        // 8. Tooltip — no scissor, always on top
         //
-        // 9. Drag ghost (dragged file block)
-        //    - No scissor, topmost
-
+        // 9. Context menu — no scissor, always on top
+        //
+        // 10. Footer — no scissor, always on top
+        //
         self.queue
             .write_buffer(&self.vertex_buffer, 0, bytemuck::cast_slice(&vertices));
         self.queue.write_buffer(
@@ -1054,56 +1047,6 @@ impl Graphics {
                 );
             }
 
-            // toolbar
-            Graphics::draw_range(
-                &mut r_pass,
-                &self.vertex_buffer,
-                &self.glyph_vertex_buffer,
-                any_bg,
-                &char_draws,
-                &toolbar_range,
-            );
-
-            // non-tray icons
-            for icon in icon_draws[..tray_icon_start]
-                .iter()
-                .chain(icon_draws[tray_icon_end..].iter())
-            {
-                r_pass.set_bind_group(0, icon.1, &[]);
-                r_pass.set_vertex_buffer(0, icon.0.slice(..));
-                r_pass.draw(0..6, 0..1);
-            }
-
-            // tooltip
-            Graphics::draw_range(
-                &mut r_pass,
-                &self.vertex_buffer,
-                &self.glyph_vertex_buffer,
-                any_bg,
-                &char_draws,
-                &tooltip_range,
-            );
-
-            // context menu
-            Graphics::draw_range(
-                &mut r_pass,
-                &self.vertex_buffer,
-                &self.glyph_vertex_buffer,
-                any_bg,
-                &char_draws,
-                &context_menu_range,
-            );
-
-            // footer
-            Graphics::draw_range(
-                &mut r_pass,
-                &self.vertex_buffer,
-                &self.glyph_vertex_buffer,
-                any_bg,
-                &char_draws,
-                &footer_range,
-            );
-
             // track tray — clipped to tray width
             if let Some(ref tr) = track_tray_range {
                 let sw = self.surface_config.width;
@@ -1175,6 +1118,56 @@ impl Graphics {
                     gr,
                 );
             }
+
+            // toolbar
+            Graphics::draw_range(
+                &mut r_pass,
+                &self.vertex_buffer,
+                &self.glyph_vertex_buffer,
+                any_bg,
+                &char_draws,
+                &toolbar_range,
+            );
+
+            // non-tray icons
+            for icon in icon_draws[..tray_icon_start]
+                .iter()
+                .chain(icon_draws[tray_icon_end..].iter())
+            {
+                r_pass.set_bind_group(0, icon.1, &[]);
+                r_pass.set_vertex_buffer(0, icon.0.slice(..));
+                r_pass.draw(0..6, 0..1);
+            }
+
+            // tooltip
+            Graphics::draw_range(
+                &mut r_pass,
+                &self.vertex_buffer,
+                &self.glyph_vertex_buffer,
+                any_bg,
+                &char_draws,
+                &tooltip_range,
+            );
+
+            // context menu
+            Graphics::draw_range(
+                &mut r_pass,
+                &self.vertex_buffer,
+                &self.glyph_vertex_buffer,
+                any_bg,
+                &char_draws,
+                &context_menu_range,
+            );
+
+            // footer
+            Graphics::draw_range(
+                &mut r_pass,
+                &self.vertex_buffer,
+                &self.glyph_vertex_buffer,
+                any_bg,
+                &char_draws,
+                &footer_range,
+            );
         }
 
         self.queue.submit(Some(encoder.finish()));
