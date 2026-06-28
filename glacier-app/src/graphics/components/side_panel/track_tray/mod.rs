@@ -34,13 +34,7 @@ pub fn draw(
         height: screen_config.height as f32 - TOOLBAR_Y,
     };
     track_tray.draw(screen_config, PEBBLE, NO_RADIUS, out);
-    let w_divider = Rectangle {
-        x: track_tray.x + track_tray.width,
-        y: track_tray.y,
-        width: 1.0,
-        height: track_tray.height,
-    };
-    w_divider.draw(screen_config, LL_GRAY, NO_RADIUS, out);
+
     if track_tray.is_hovered_right_edge(mouse_state.x, mouse_state.y) || resizing {
         cursor_icon = CursorIcon::ColResize;
     }
@@ -48,12 +42,12 @@ pub fn draw(
     text_items.push(draw_title("Tracks", (track_tray.x, track_tray.y)));
 
     for (i, track) in tracks.iter().enumerate() {
-        let button_x = track_tray.x + PAD_2;
+        let button_x = track_tray.x + PAD_4;
         let button_y = PATTERN_TRAY_HEADER_MARGIN + (PATTERN_TRAY_ITEM_GAP * i as f32) + PAD_32;
         let track_button = Rectangle {
             x: button_x,
             y: button_y,
-            width: track_tray.width - PAD_4,
+            width: track_tray.width - PAD_8,
             height: PATTERN_TRAY_ITEM_HEIGHT,
         };
 

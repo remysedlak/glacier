@@ -59,7 +59,7 @@ pub fn draw_toolbar(
         height: 1.0,
         width: toolbar_background.width,
     };
-    toolbar_divider.draw(screen_config, LL_GRAY, NO_RADIUS, out);
+    toolbar_divider.draw(screen_config, DARK_GRAY_HOVER, NO_RADIUS, out);
 
     /* BPM Control
      * Up

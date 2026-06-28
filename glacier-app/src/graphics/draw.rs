@@ -1,6 +1,6 @@
 use super::*;
 use crate::graphics::{
-    color::{LIGHT_GRAY, PEBBLE},
+    color::{DARK_GRAY_HOVER, LIGHT_GRAY, LL_GRAY, PEBBLE},
     components::modal,
 };
 use std::time::Duration;
@@ -731,7 +731,15 @@ impl Graphics {
                     width: self.track_tray_width - PAD_4,
                     height: 1.0,
                 };
-                w_divider.draw(&screen_config, LIGHT_GRAY, RADIUS_4, &mut vertices);
+
+                w_divider.draw(&screen_config, DARK_GRAY_HOVER, RADIUS_4, &mut vertices);
+                let h_divider = Rectangle {
+                    x: self.track_tray_width - 1.0,
+                    y: TOOLBAR_MARGIN,
+                    width: 1.0,
+                    height: screen_config.height as f32 - TOOLBAR_MARGIN,
+                };
+                h_divider.draw(&screen_config, DARK_GRAY_HOVER, NO_RADIUS, &mut vertices);
 
                 use crate::graphics::side_panel::draw_title;
                 Graphics::push_text_draws(
