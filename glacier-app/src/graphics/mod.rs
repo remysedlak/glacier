@@ -6,7 +6,6 @@ pub mod draw;
 pub mod font;
 pub mod icons;
 pub mod mini_window;
-pub mod modal;
 pub mod primitives;
 pub mod widgets;
 

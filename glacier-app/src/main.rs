@@ -19,9 +19,6 @@ fn main() {
     // load developer mode if needed
     let dev_mode = std::env::args().any(|a| a == "--dev");
 
-    // <T> (T -> AppEvent) extends regular platform specific events (resize, mouse, etc.).
-    // This allows our app to inject custom events and handle them alongside regular ones.
-
     // ControlFlow::Poll continuously runs the event loop, even if the OS hasn't dispatched any events.
     let event_loop = EventLoop::<Graphics>::with_user_event().build().unwrap();
     event_loop.set_control_flow(ControlFlow::Poll);
@@ -39,6 +36,12 @@ fn main() {
     let audio_stream = audio::init(audio_cons, ui_prod, default_project);
 
     // combine audio and ui buffers to create app logic owning the audio stream
-    let mut app = App::new(audio_prod, ui_cons, &event_loop, audio_stream, config::load());
+    let mut app = App::new(
+        audio_prod,
+        ui_cons,
+        &event_loop,
+        audio_stream,
+        config::load(),
+    );
     let _ = event_loop.run_app(&mut app);
 }

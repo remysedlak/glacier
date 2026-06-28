@@ -22,7 +22,7 @@ pub fn draw(
     scroll_offset: f32,
     tray_width: f32,
     out: &mut Vec<Vertex>,
-    w_divider: Rectangle,
+    divider_y: f32,
 ) -> (Vec<IconDraw>, Vec<TextItem>, ClickResult, CursorIcon) {
     let mut text_items: Vec<TextItem> = Vec::new();
     let mut cursor: CursorIcon = CursorIcon::Default;
@@ -34,7 +34,7 @@ pub fn draw(
             user_fs_location,
             0,
             &mut row,
-            w_divider.y + PAD_32 + PAD_16,
+            divider_y + PAD_32 + PAD_16,
             expanded_dirs,
             mouse_state,
             screen_config,
@@ -103,7 +103,7 @@ fn draw_fs_tree(
         button.draw(screen_config, color, RADIUS_4, out);
 
         text_items.push(TextItem {
-            text: truncate_text(name, 25),
+            text: name.to_string(),
             x: button.x + PAD_4 + 16.0,
             y: button.y + PAD_4,
             size: 10.0,

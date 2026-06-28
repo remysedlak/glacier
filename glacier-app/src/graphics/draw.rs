@@ -1,10 +1,9 @@
-use crate::graphics::color::LIGHT_GRAY;
-
 use super::*;
+use crate::graphics::color::LIGHT_GRAY;
+use crate::graphics::components::modal;
 use std::time::Duration;
 
 impl Graphics {
-    /// pushing texts to draw
     fn push_text_draws<'a>(
         texts: &[TextItem],
         font_cache: &HashMap<String, fontdue::Font>,
@@ -40,10 +39,7 @@ impl Graphics {
         }
     }
 
-    /// Clamps a scissor rect, so that paint never goes outside of the screen bounds
-    /// - clamps x and y, so they don't exceed the screen's edges
-    /// - clamps w and h, so that the rectangle doesn't extend the right/bottom edge
-    /// - also ensures that w and h are at least 1 so wgpu doesn't get a zero-size scissor (error)
+    /// Clamps a scissor rect so paint never goes outside screen bounds
     fn safe_scissor(x: u32, y: u32, w: u32, h: u32, sw: u32, sh: u32) -> (u32, u32, u32, u32) {
         let x = x.min(sw.saturating_sub(1));
         let y = y.min(sh.saturating_sub(1));
@@ -51,7 +47,8 @@ impl Graphics {
         let h = h.min(sh.saturating_sub(y)).max(1);
         (x, y, w, h)
     }
-    //  helper function to draw a list of vertices with the same bind group (for shapes with the same color or texture)
+
+    /// Draw a range of colored/textured geometry quads
     fn draw_geom(
         r_pass: &mut wgpu::RenderPass,
         vertex_buffer: &wgpu::Buffer,
@@ -66,7 +63,7 @@ impl Graphics {
         }
     }
 
-    // draw a list of characters, each with their own texture and bind group, so they can be different colors and fonts
+    /// Draw a range of glyph quads, each with its own bind group
     fn draw_chars(
         r_pass: &mut wgpu::RenderPass,
         glyph_vertex_buffer: &wgpu::Buffer,
@@ -81,7 +78,32 @@ impl Graphics {
             r_pass.draw(0..6, 0..1);
         }
     }
-    /// main draw loop for the GUI - uses mouse state to return mouse input interactivity
+
+    /// Draw geometry + glyphs for a WindowDrawRange in one call
+    fn draw_range(
+        r_pass: &mut wgpu::RenderPass,
+        vertex_buffer: &wgpu::Buffer,
+        glyph_vertex_buffer: &wgpu::Buffer,
+        any_bg: &wgpu::BindGroup,
+        char_draws: &[(u64, &wgpu::BindGroup)],
+        range: &WindowDrawRange,
+    ) {
+        Self::draw_geom(
+            r_pass,
+            vertex_buffer,
+            any_bg,
+            range.vert_start,
+            range.vert_end,
+        );
+        Self::draw_chars(
+            r_pass,
+            glyph_vertex_buffer,
+            char_draws,
+            range.char_start,
+            range.char_end,
+        );
+    }
+
     pub fn draw(
         &mut self,
         mouse_state: &MouseState,
@@ -97,7 +119,6 @@ impl Graphics {
         let mut click_result = ClickResult::None;
         let mut cursor_icon = CursorIcon::Default;
 
-        // custom struct to hold screen size
         let screen_config = ScreenConfig {
             width: self.surface_config.width,
             height: self.surface_config.height,
@@ -140,11 +161,12 @@ impl Graphics {
         let mut window_ranges: Vec<WindowDrawRange> = Vec::new();
         let mut playlist_window_ranges: Option<PlaylistDrawRanges> = None;
         let mut piano_roll_ranges: Option<PianoRollDrawRanges> = None;
+
+        // --- windows ---
         for &id in &self.z_order {
             let vert_start = vertices.len() as u32;
             let char_start = char_draws.len();
 
-            // is there any open window above this one that also covers the mouse?
             let blocked = self.context_menu.is_some() && menu_is_hovered
                 || self
                     .z_order
@@ -170,6 +192,7 @@ impl Graphics {
                 },
                 ..*mouse_state
             };
+
             match id {
                 SEQUENCER_ID if self.mini_windows[SEQUENCER_ID].is_open => {
                     let window = &self.mini_windows[SEQUENCER_ID];
@@ -184,7 +207,6 @@ impl Graphics {
                         &screen_config,
                         &mut vertices,
                     );
-
                     Graphics::push_text_draws(
                         &texts,
                         &self.font_cache,
@@ -196,7 +218,6 @@ impl Graphics {
                     if cursor != CursorIcon::Default {
                         cursor_icon = cursor;
                     }
-
                     for icon in icons {
                         push_icon_draw(
                             &self.icon_cache,
@@ -206,7 +227,6 @@ impl Graphics {
                             &mut icon_draws,
                         )
                     }
-
                     click_result = click_result.or(result);
                 }
                 PLAYLIST_ID if self.mini_windows[PLAYLIST_ID].is_open => {
@@ -306,7 +326,6 @@ impl Graphics {
                         &masked_mouse,
                         &mut vertices,
                     );
-
                     Graphics::push_text_draws(
                         &texts,
                         &self.font_cache,
@@ -335,7 +354,6 @@ impl Graphics {
                         self.piano_roll_state.as_ref(),
                     );
 
-                    // static (titlebar + background) — no scroll
                     vertices.extend(static_draw_region.vertices);
                     Graphics::push_text_draws(
                         &static_draw_region.text_items,
@@ -346,7 +364,6 @@ impl Graphics {
                         &mut char_draws,
                     );
 
-                    // scrollable content
                     let piano_content_vert_start = vertices.len() as u32;
                     let piano_content_char_start = char_draws.len();
                     vertices.extend(piano_key_draw_region.vertices);
@@ -359,7 +376,6 @@ impl Graphics {
                         &mut char_draws,
                     );
 
-                    // grid content
                     let grid_vert_start = vertices.len() as u32;
                     let grid_char_start = char_draws.len();
                     vertices.extend(grid_draw_region.vertices);
@@ -371,7 +387,7 @@ impl Graphics {
                         &mut glyph_vertices,
                         &mut char_draws,
                     );
-                    //
+
                     piano_roll_ranges = Some(PianoRollDrawRanges {
                         static_range: WindowDrawRange {
                             vert_start,
@@ -381,9 +397,9 @@ impl Graphics {
                         },
                         piano_range: WindowDrawRange {
                             vert_start: piano_content_vert_start,
-                            vert_end: grid_vert_start, // stop here
+                            vert_end: grid_vert_start,
                             char_start: piano_content_char_start,
-                            char_end: grid_char_start, // stop here
+                            char_end: grid_char_start,
                         },
                         grid_range: WindowDrawRange {
                             vert_start: grid_vert_start,
@@ -392,7 +408,6 @@ impl Graphics {
                             char_end: char_draws.len(),
                         },
                     });
-
                     click_result = click_result.or(result);
                     if cursor != CursorIcon::Default {
                         cursor_icon = cursor;
@@ -409,7 +424,6 @@ impl Graphics {
                                 &self.tracks[track],
                                 &mut vertices,
                             );
-
                             click_result = click_result.or(result);
                             if !matches!(cursor, CursorIcon::Default) {
                                 cursor_icon = cursor;
@@ -445,7 +459,7 @@ impl Graphics {
             });
         }
 
-        // --- toolbar (pattern tray + toolbar bar) ---
+        // --- toolbar (pattern tray + top bar) ---
         let toolbar_vert_start = vertices.len() as u32;
         let toolbar_char_start = char_draws.len();
 
@@ -454,7 +468,6 @@ impl Graphics {
             .iter()
             .any(|w| matches!(w.window_kind, WindowKind::Sequencer) && w.is_open);
 
-        // tray of project patterns
         if self.show_pattern_tray {
             let (texts, result, cursor, icon, tooltip) = side_panel::pattern_tray::draw(
                 &screen_config,
@@ -465,7 +478,6 @@ impl Graphics {
                 self.pattern_tray_width,
                 &mut vertices,
             );
-
             if cursor != CursorIcon::Default {
                 cursor_icon = cursor;
             }
@@ -485,7 +497,7 @@ impl Graphics {
                 &icon,
                 &mut icon_draws,
             );
-            self.tooltip = tooltip
+            self.tooltip = tooltip;
         }
 
         if self.show_save_modal {
@@ -501,13 +513,13 @@ impl Graphics {
             );
         }
 
-        // top toolbar
-        // 00:00:00
         let total_seconds = ((self.playhead_beat / self.bpm) * 60.0) as u32;
-        let hours = total_seconds / 3600;
-        let minutes = (total_seconds % 3600) / 60;
-        let seconds = total_seconds % 60;
-        let time_string = format!("{:02}:{:02}:{:02}", hours, minutes, seconds);
+        let time_string = format!(
+            "{:02}:{:02}:{:02}",
+            total_seconds / 3600,
+            (total_seconds % 3600) / 60,
+            total_seconds % 60
+        );
         let (texts, icons, result, cursor, tooltip) = components::toolbar::draw_toolbar(
             mouse_state,
             &screen_config,
@@ -517,12 +529,10 @@ impl Graphics {
             time_string,
             &mut vertices,
         );
-
         click_result = click_result.or(result);
         if cursor != CursorIcon::Default {
             cursor_icon = cursor;
         }
-
         for icon in icons {
             push_icon_draw(
                 &self.icon_cache,
@@ -532,12 +542,11 @@ impl Graphics {
                 &mut icon_draws,
             )
         }
-
         self.tooltip = tooltip;
+
+        // --- tooltip ---
         let tooltip_vert_start = vertices.len() as u32;
         let tooltip_char_start = char_draws.len();
-        // tool tip
-
         if let Some(tt) = &self.tooltip {
             if mouse_state
                 .hover_state
@@ -570,7 +579,6 @@ impl Graphics {
                 }
             }
         }
-
         let tooltip_vert_end = vertices.len() as u32;
         let tooltip_char_end = char_draws.len();
 
@@ -582,17 +590,24 @@ impl Graphics {
             &mut glyph_vertices,
             &mut char_draws,
         );
+        let toolbar_range = WindowDrawRange {
+            vert_start: toolbar_vert_start,
+            vert_end: vertices.len() as u32,
+            char_start: toolbar_char_start,
+            char_end: char_draws.len(),
+        };
+        let tooltip_range = WindowDrawRange {
+            vert_start: tooltip_vert_start,
+            vert_end: tooltip_vert_end,
+            char_start: tooltip_char_start,
+            char_end: tooltip_char_end,
+        };
 
-        let toolbar_vert_end = vertices.len() as u32;
-        let toolbar_char_end = char_draws.len();
-
-        // --- context menu (above toolbar) ---
+        // --- context menu ---
         let context_menu_vert_start = vertices.len() as u32;
         let context_menu_char_start = char_draws.len();
-
         if let Some(menu) = &self.context_menu {
             let (texts, result, cursor) = menu.draw(&screen_config, mouse_state, &mut vertices);
-
             Graphics::push_text_draws(
                 &texts,
                 &self.font_cache,
@@ -601,20 +616,21 @@ impl Graphics {
                 &mut glyph_vertices,
                 &mut char_draws,
             );
-
             if cursor != CursorIcon::Default {
                 cursor_icon = cursor;
             }
             click_result = click_result.or(result);
         }
-
-        let context_menu_vert_end = vertices.len() as u32;
-        let context_menu_char_end = char_draws.len();
+        let context_menu_range = WindowDrawRange {
+            vert_start: context_menu_vert_start,
+            vert_end: vertices.len() as u32,
+            char_start: context_menu_char_start,
+            char_end: char_draws.len(),
+        };
 
         // --- footer ---
         let footer_vert_start = vertices.len() as u32;
         let footer_char_start = char_draws.len();
-
         let title = if project_is_dirty {
             format!("{}*", self.project_path)
         } else {
@@ -626,7 +642,6 @@ impl Graphics {
             1000.0 / self.frame_ms,
             &mut vertices,
         );
-
         Graphics::push_text_draws(
             &texts,
             &self.font_cache,
@@ -635,16 +650,19 @@ impl Graphics {
             &mut glyph_vertices,
             &mut char_draws,
         );
+        let footer_range = WindowDrawRange {
+            vert_start: footer_vert_start,
+            vert_end: vertices.len() as u32,
+            char_start: footer_char_start,
+            char_end: char_draws.len(),
+        };
 
-        let footer_vert_end = vertices.len() as u32;
-        let footer_char_end = char_draws.len();
-
+        // --- track tray + file tree ---
         let mut track_tray_range: Option<WindowDrawRange> = None;
         let mut file_tree_range: Option<WindowDrawRange> = None;
         let mut tray_icon_start = 0;
         let mut tray_icon_end = 0;
 
-        // tray of audio files / folders
         if self.show_track_tray {
             let tray_vert_start = vertices.len() as u32;
             let tray_char_start = char_draws.len();
@@ -670,6 +688,7 @@ impl Graphics {
                 &mut char_draws,
             );
 
+            // divider + File Tree title (unscissored, must stay in track_tray_range)
             let w_divider = Rectangle {
                 x: PAD_2,
                 y: (screen_config.height / 2) as f32,
@@ -678,7 +697,6 @@ impl Graphics {
             };
             w_divider.draw(&screen_config, LIGHT_GRAY, RADIUS_4, &mut vertices);
             use crate::graphics::side_panel::draw_title;
-
             Graphics::push_text_draws(
                 &[draw_title("File Tree", (w_divider.x - 2.0, w_divider.y))],
                 &self.font_cache,
@@ -688,9 +706,10 @@ impl Graphics {
                 &mut char_draws,
             );
 
-            use crate::graphics::side_panel::track_tray::file_tree;
             let file_tree_vert_start = vertices.len() as u32;
             let file_tree_char_start = char_draws.len();
+
+            use crate::graphics::side_panel::track_tray::file_tree;
             let (icons, text_items, ft_result, ft_cursor) = file_tree::draw(
                 mouse_state,
                 &screen_config,
@@ -700,7 +719,7 @@ impl Graphics {
                 self.fs_scroll_offset,
                 self.track_tray_width,
                 &mut vertices,
-                w_divider,
+                w_divider.y,
             );
             click_result = click_result.or(ft_result);
             if ft_cursor != CursorIcon::Default {
@@ -728,9 +747,9 @@ impl Graphics {
 
             track_tray_range = Some(WindowDrawRange {
                 vert_start: tray_vert_start,
-                vert_end: file_tree_vert_start, // stop before file tree
+                vert_end: file_tree_vert_start,
                 char_start: tray_char_start,
-                char_end: file_tree_char_start, // stop before file tree
+                char_end: file_tree_char_start,
             });
             file_tree_range = Some(WindowDrawRange {
                 vert_start: file_tree_vert_start,
@@ -740,7 +759,7 @@ impl Graphics {
             });
         }
 
-        // dragging mouse state override
+        // dragging cursor override
         if self.resizing_track_tray {
             cursor_icon = CursorIcon::ColResize;
         } else if self.dragging_window.is_some() || self.dragging || self.dragging_knob.is_some() {
@@ -793,17 +812,14 @@ impl Graphics {
                         let win = &self.mini_windows[PIANO_ROLL_ID];
                         let sw = self.surface_config.width;
                         let sh = self.surface_config.height;
-
                         let wx = (win.x.max(0.0) as u32).min(sw);
                         let wy = ((win.y - TITLEBAR_HEIGHT).max(0.0) as u32).min(sh);
                         let win_right = ((win.x + win.width) as u32).min(sw);
                         let win_bottom = ((win.y + win.height) as u32).min(sh);
                         let ww = win_right.saturating_sub(wx);
                         let wh = win_bottom.saturating_sub(wy);
-
                         let content_y = (win.y as u32 + 72).min(sh);
                         let content_h = win_bottom.saturating_sub(content_y).saturating_sub(32);
-
                         let key_col_right = (win.x + 72.0).max(0.0) as u32;
                         let grid_x = key_col_right.min(sw);
                         let key_w = grid_x.saturating_sub(wx);
@@ -811,55 +827,37 @@ impl Graphics {
 
                         let (sx, sy, sw2, sh2) = Self::safe_scissor(wx, wy, ww, wh, sw, sh);
                         r_pass.set_scissor_rect(sx, sy, sw2, sh2);
-                        Graphics::draw_geom(
+                        Graphics::draw_range(
                             &mut r_pass,
                             &self.vertex_buffer,
-                            any_bg,
-                            pr.static_range.vert_start,
-                            pr.static_range.vert_end,
-                        );
-                        Graphics::draw_chars(
-                            &mut r_pass,
                             &self.glyph_vertex_buffer,
+                            any_bg,
                             &char_draws,
-                            pr.static_range.char_start,
-                            pr.static_range.char_end,
+                            &pr.static_range,
                         );
 
                         let (sx, sy, sw2, sh2) =
                             Self::safe_scissor(wx, content_y, key_w, content_h, sw, sh);
                         r_pass.set_scissor_rect(sx, sy, sw2, sh2);
-                        Graphics::draw_geom(
+                        Graphics::draw_range(
                             &mut r_pass,
                             &self.vertex_buffer,
-                            any_bg,
-                            pr.piano_range.vert_start,
-                            pr.piano_range.vert_end,
-                        );
-                        Graphics::draw_chars(
-                            &mut r_pass,
                             &self.glyph_vertex_buffer,
+                            any_bg,
                             &char_draws,
-                            pr.piano_range.char_start,
-                            pr.piano_range.char_end,
+                            &pr.piano_range,
                         );
 
                         let (sx, sy, sw2, sh2) =
                             Self::safe_scissor(grid_x, content_y, grid_w, content_h, sw, sh);
                         r_pass.set_scissor_rect(sx, sy, sw2, sh2);
-                        Graphics::draw_geom(
+                        Graphics::draw_range(
                             &mut r_pass,
                             &self.vertex_buffer,
-                            any_bg,
-                            pr.grid_range.vert_start,
-                            pr.grid_range.vert_end,
-                        );
-                        Graphics::draw_chars(
-                            &mut r_pass,
                             &self.glyph_vertex_buffer,
+                            any_bg,
                             &char_draws,
-                            pr.grid_range.char_start,
-                            pr.grid_range.char_end,
+                            &pr.grid_range,
                         );
                     }
                     r_pass.set_scissor_rect(
@@ -876,14 +874,12 @@ impl Graphics {
                         let win = &self.mini_windows[PLAYLIST_ID];
                         let sw = self.surface_config.width;
                         let sh = self.surface_config.height;
-
                         let wx = (win.x.max(0.0) as u32).min(sw);
                         let wy = ((win.y - TITLEBAR_HEIGHT).max(0.0) as u32).min(sh);
                         let win_right = ((win.x + win.width) as u32).min(sw);
                         let win_bottom = ((win.y + win.height) as u32).min(sh);
                         let ww = win_right.saturating_sub(wx);
                         let wh = win_bottom.saturating_sub(wy);
-
                         let content_y = (win.y as u32 + 64).min(sh);
                         let content_h = win_bottom.saturating_sub(content_y);
                         let header_x = ((win.x + 144.0).max(0.0) as u32).min(sw);
@@ -892,55 +888,37 @@ impl Graphics {
 
                         let (sx, sy, sw2, sh2) = Self::safe_scissor(wx, wy, ww, wh, sw, sh);
                         r_pass.set_scissor_rect(sx, sy, sw2, sh2);
-                        Graphics::draw_geom(
+                        Graphics::draw_range(
                             &mut r_pass,
                             &self.vertex_buffer,
-                            any_bg,
-                            pl.static_range.vert_start,
-                            pl.static_range.vert_end,
-                        );
-                        Graphics::draw_chars(
-                            &mut r_pass,
                             &self.glyph_vertex_buffer,
+                            any_bg,
                             &char_draws,
-                            pl.static_range.char_start,
-                            pl.static_range.char_end,
+                            &pl.static_range,
                         );
 
                         let (sx, sy, sw2, sh2) =
                             Self::safe_scissor(wx, content_y, header_w, content_h, sw, sh);
                         r_pass.set_scissor_rect(sx, sy, sw2, sh2);
-                        Graphics::draw_geom(
+                        Graphics::draw_range(
                             &mut r_pass,
                             &self.vertex_buffer,
-                            any_bg,
-                            pl.header_range.vert_start,
-                            pl.header_range.vert_end,
-                        );
-                        Graphics::draw_chars(
-                            &mut r_pass,
                             &self.glyph_vertex_buffer,
+                            any_bg,
                             &char_draws,
-                            pl.header_range.char_start,
-                            pl.header_range.char_end,
+                            &pl.header_range,
                         );
 
                         let (sx, sy, sw2, sh2) =
                             Self::safe_scissor(header_x, content_y, timeline_w, content_h, sw, sh);
                         r_pass.set_scissor_rect(sx, sy, sw2, sh2);
-                        Graphics::draw_geom(
+                        Graphics::draw_range(
                             &mut r_pass,
                             &self.vertex_buffer,
-                            any_bg,
-                            pl.timeline_range.vert_start,
-                            pl.timeline_range.vert_end,
-                        );
-                        Graphics::draw_chars(
-                            &mut r_pass,
                             &self.glyph_vertex_buffer,
+                            any_bg,
                             &char_draws,
-                            pl.timeline_range.char_start,
-                            pl.timeline_range.char_end,
+                            &pl.timeline_range,
                         );
                     }
                     r_pass.set_scissor_rect(
@@ -951,43 +929,28 @@ impl Graphics {
                     );
                     continue;
                 }
-                if range.vert_start < range.vert_end {
-                    r_pass.set_bind_group(0, any_bg, &[]);
-                    r_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
-                    r_pass.draw(range.vert_start..range.vert_end, 0..1);
-                }
-                let stride = (6 * std::mem::size_of::<Vertex>()) as u64;
-                for (offset, bg) in char_draws
-                    .iter()
-                    .skip(range.char_start)
-                    .take(range.char_end)
-                {
-                    r_pass.set_bind_group(0, *bg, &[]);
-                    r_pass.set_vertex_buffer(
-                        0,
-                        self.glyph_vertex_buffer.slice(*offset..*offset + stride),
-                    );
-                    r_pass.draw(0..6, 0..1);
-                }
+
+                Graphics::draw_range(
+                    &mut r_pass,
+                    &self.vertex_buffer,
+                    &self.glyph_vertex_buffer,
+                    any_bg,
+                    &char_draws,
+                    range,
+                );
             }
 
             // toolbar
-            Graphics::draw_geom(
+            Graphics::draw_range(
                 &mut r_pass,
                 &self.vertex_buffer,
-                any_bg,
-                toolbar_vert_start,
-                toolbar_vert_end,
-            );
-            Graphics::draw_chars(
-                &mut r_pass,
                 &self.glyph_vertex_buffer,
+                any_bg,
                 &char_draws,
-                toolbar_char_start,
-                toolbar_char_end,
+                &toolbar_range,
             );
 
-            // non-tray icons (no scissor)
+            // non-tray icons
             for icon in icon_draws[..tray_icon_start]
                 .iter()
                 .chain(icon_draws[tray_icon_end..].iter())
@@ -996,74 +959,51 @@ impl Graphics {
                 r_pass.set_vertex_buffer(0, icon.0.slice(..));
                 r_pass.draw(0..6, 0..1);
             }
+
             // tooltip
-            Graphics::draw_geom(
+            Graphics::draw_range(
                 &mut r_pass,
                 &self.vertex_buffer,
-                any_bg,
-                tooltip_vert_start,
-                tooltip_vert_end,
-            );
-            Graphics::draw_chars(
-                &mut r_pass,
                 &self.glyph_vertex_buffer,
+                any_bg,
                 &char_draws,
-                tooltip_char_start,
-                tooltip_char_end,
+                &tooltip_range,
             );
 
             // context menu
-            Graphics::draw_geom(
+            Graphics::draw_range(
                 &mut r_pass,
                 &self.vertex_buffer,
-                any_bg,
-                context_menu_vert_start,
-                context_menu_vert_end,
-            );
-            Graphics::draw_chars(
-                &mut r_pass,
                 &self.glyph_vertex_buffer,
+                any_bg,
                 &char_draws,
-                context_menu_char_start,
-                context_menu_char_end,
+                &context_menu_range,
             );
 
             // footer
-            Graphics::draw_geom(
+            Graphics::draw_range(
                 &mut r_pass,
                 &self.vertex_buffer,
-                any_bg,
-                footer_vert_start,
-                footer_vert_end,
-            );
-            Graphics::draw_chars(
-                &mut r_pass,
                 &self.glyph_vertex_buffer,
+                any_bg,
                 &char_draws,
-                footer_char_start,
-                footer_char_end,
+                &footer_range,
             );
 
-            // tracks section — no scissor, just clip to tray width
+            // track tray — clipped to tray width
             if let Some(ref tr) = track_tray_range {
                 let sw = self.surface_config.width;
                 let sh = self.surface_config.height;
                 let (sx, sy, sw2, sh2) =
                     Self::safe_scissor(0, 0, self.track_tray_width as u32, sh, sw, sh);
                 r_pass.set_scissor_rect(sx, sy, sw2, sh2);
-                Graphics::draw_geom(
+                Graphics::draw_range(
                     &mut r_pass,
                     &self.vertex_buffer,
-                    any_bg,
-                    tr.vert_start,
-                    tr.vert_end,
-                );
-                Graphics::draw_chars(
-                    &mut r_pass,
                     &self.glyph_vertex_buffer,
+                    any_bg,
                     &char_draws,
-                    tr.char_start,
-                    tr.char_end,
+                    tr,
                 );
                 r_pass.set_scissor_rect(0, 0, sw, sh);
             }
@@ -1082,19 +1022,13 @@ impl Graphics {
                     sh,
                 );
                 r_pass.set_scissor_rect(sx, sy, sw2, sh2);
-                Graphics::draw_geom(
+                Graphics::draw_range(
                     &mut r_pass,
                     &self.vertex_buffer,
-                    any_bg,
-                    ft.vert_start,
-                    ft.vert_end,
-                );
-                Graphics::draw_chars(
-                    &mut r_pass,
                     &self.glyph_vertex_buffer,
+                    any_bg,
                     &char_draws,
-                    ft.char_start,
-                    ft.char_end,
+                    ft,
                 );
                 for icon in &icon_draws[tray_icon_start..tray_icon_end] {
                     r_pass.set_bind_group(0, icon.1, &[]);
