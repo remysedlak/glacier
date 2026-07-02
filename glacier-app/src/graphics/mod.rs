@@ -233,7 +233,7 @@ pub async fn create_graphics(window: Rc<Window>, proxy: EventLoopProxy<Graphics>
     for icon in icons::ICONS {
         let svg_str =
             std::fs::read_to_string(format!("assets/icons/{}x{}/{}.svg", icon.1, icon.2, icon.0))
-                .unwrap();
+                .unwrap_or_else(|e| panic!("failed to load icon {}: {e}", icon.0));
         let svg = icons::IconSvg {
             width: icon.1 as f32,
             height: icon.2 as f32,
@@ -253,6 +253,8 @@ pub async fn create_graphics(window: Rc<Window>, proxy: EventLoopProxy<Graphics>
     // wgsl shader and render pipeline setup
     let render_pipeline = create_pipeline(&device, surface_config.format, &bind_group_layout);
 
+    let audio_root = dirs::audio_dir().unwrap_or_else(|| PathBuf::from(".")); // TODO: FIX UNWRAP...User OS may not have audio location
+
     let gfx = Graphics {
         // graphics
         window: window.clone(),
@@ -270,7 +272,7 @@ pub async fn create_graphics(window: Rc<Window>, proxy: EventLoopProxy<Graphics>
         active_tray: AudioBlockType::Mixing, // Pattern(id) or Track(id)
         fs_cache: {
             let mut cache = std::collections::HashMap::new();
-            let root = dirs::audio_dir().unwrap();
+            let root = audio_root.clone();
             if let Ok(entries) = std::fs::read_dir(&root) {
                 let listing = entries
                     .flatten()
@@ -328,7 +330,7 @@ pub async fn create_graphics(window: Rc<Window>, proxy: EventLoopProxy<Graphics>
         master_rms_r: 0.0,
         master_peak: 0.0,
         expanded_dirs: std::collections::HashSet::new(),
-        user_fs_location: dirs::audio_dir().unwrap(), // TODO: FIX UNWRAP...User OS may not have audio location
+        user_fs_location: audio_root,
     };
 
     let _ = proxy.send_event(gfx);

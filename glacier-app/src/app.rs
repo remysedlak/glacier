@@ -179,28 +179,8 @@ impl App {
             if let Some(rx) = &self.track_file_dialog_rx {
                 match rx.try_recv() {
                     Ok(Some(path)) => {
-                        let path_str = path.to_str().unwrap().to_string();
-                        let (tx, load_rx) = std::sync::mpsc::channel();
-                        self.track_load_rx = Some(load_rx);
-                        std::thread::spawn(move || {
-                            let samples = crate::project::path_to_vector(&path_str);
-                            let name = std::path::Path::new(&path_str)
-                                .file_name()
-                                .unwrap()
-                                .to_str()
-                                .unwrap()
-                                .to_string();
-                            let data = crate::project::TrackData {
-                                id: 0,
-                                path: path_str,
-                                name,
-                                is_muted: false,
-                                target_volume: 1.0,
-                                track_volume: 1.0,
-                                root_note: 60,
-                            };
-                            tx.send((data, samples)).ok();
-                        });
+                        let path_str = path.to_string_lossy().to_string();
+                        self.track_load_rx = Some(spawn_track_load(path_str));
                         self.project_is_dirty = true;
                         self.track_file_dialog_rx = None;
                     }
@@ -218,7 +198,7 @@ impl App {
                 match rx.try_recv() {
                     Ok(Some(path)) => {
                         gfx.is_playing = false;
-                        self.pending_project = Some(path.to_str().unwrap().to_string());
+                        self.pending_project = Some(path.to_string_lossy().to_string());
                         self.producer.try_push(AudioCommand::SaveProject).ok();
                         self.project_file_dialog_rx = None;
                     }
@@ -235,7 +215,7 @@ impl App {
             if let Some(rx) = &self.project_save_dialog_rx {
                 match rx.try_recv() {
                     Ok(Some(path)) => {
-                        let path_str = path.to_str().unwrap().to_string();
+                        let path_str = path.to_string_lossy().to_string();
                         gfx.project_path = path_str.clone();
                         self.producer
                             .try_push(AudioCommand::SetProjectPath(path_str))
@@ -410,32 +390,12 @@ impl App {
                     gfx.dragging_file = Some(path);
                 }
                 ClickResult::FSEndDragFile(path, track, step) => {
-                    let path_str = path.to_str().unwrap().to_string();
+                    let path_str = path.to_string_lossy().to_string();
                     self.pending_drop = Some((track, step));
-                    let (tx, load_rx) = std::sync::mpsc::channel();
-                    self.track_load_rx = Some(load_rx);
-                    std::thread::spawn(move || {
-                        let samples = crate::project::path_to_vector(&path_str);
-                        let name = std::path::Path::new(&path_str)
-                            .file_name()
-                            .unwrap()
-                            .to_str()
-                            .unwrap()
-                            .to_string();
-                        let data = crate::project::TrackData {
-                            id: 0,
-                            path: path_str,
-                            name,
-                            is_muted: false,
-                            target_volume: 1.0,
-                            track_volume: 1.0,
-                            root_note: 60,
-                        };
-                        tx.send((data, samples)).ok();
-                    });
+                    self.track_load_rx = Some(spawn_track_load(path_str));
                 }
                 ClickResult::FsPreviewSample(track_path) => {
-                    let preview = crate::project::path_to_preview(track_path.to_str().unwrap(), 5);
+                    let preview = crate::project::path_to_preview(&track_path.to_string_lossy(), 5);
                     self.producer
                         .try_push(AudioCommand::PreviewSample(preview))
                         .ok();
@@ -1109,4 +1069,26 @@ impl ApplicationHandler<Graphics> for App {
             _ => {}
         }
     }
+}
+
+fn spawn_track_load(path_str: String) -> Receiver<(TrackData, Vec<f32>)> {
+    let (tx, rx) = std::sync::mpsc::channel();
+    std::thread::spawn(move || {
+        let samples = crate::project::path_to_vector(&path_str);
+        let name = std::path::Path::new(&path_str)
+            .file_name()
+            .map(|n| n.to_string_lossy().to_string())
+            .unwrap_or_else(|| "unknown".to_string());
+        let data = crate::project::TrackData {
+            id: 0,
+            path: path_str,
+            name,
+            is_muted: false,
+            target_volume: 1.0,
+            track_volume: 1.0,
+            root_note: 60,
+        };
+        tx.send((data, samples)).ok();
+    });
+    rx
 }
