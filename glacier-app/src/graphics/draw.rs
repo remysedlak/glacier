@@ -1,11 +1,11 @@
 //! Main draw method for painting all shapes and handling vertex buffers.
 use super::*;
-use crate::graphics::side_panel::track_tray::file_tree;
 use crate::graphics::{
     color::{DARK_GRAY_HOVER, LIGHT_GRAY, PEBBLE},
     components::modal,
     mini_window::playlist::TIMELINE_X_ORIGIN,
     regions::*,
+    side_panel::track_tray::file_tree,
 };
 use std::time::Duration;
 
@@ -564,44 +564,6 @@ impl Graphics {
         }
         self.tooltip = tooltip;
 
-        // tooltip
-        let tooltip_vert_start = vertices.len() as u32;
-        let tooltip_char_start = char_draws.len();
-        if let Some(tt) = &self.tooltip {
-            if mouse_state
-                .hover_duration
-                .map_or(false, |t| t.elapsed() > Duration::from_millis(400))
-            {
-                let tooltip_rectangle = Rectangle {
-                    x: tt.x,
-                    y: tt.y,
-                    width: 128.0,
-                    height: 24.0,
-                };
-                tooltip_rectangle.draw(&screen_config, DARK_GRAY, RADIUS_8, &mut vertices);
-                if let Some(text) = tt.text {
-                    let tooltip_text = [TextItem {
-                        text: text.to_string(),
-                        x: tt.x + PAD_4,
-                        y: tt.y + PAD_2,
-                        size: 14.0,
-                        font: MONOSPACED,
-                        color: WHITE,
-                    }];
-                    Graphics::push_text_draws(
-                        &tooltip_text,
-                        &self.font_cache,
-                        &self.glyph_cache,
-                        &screen_config,
-                        &mut glyph_vertices,
-                        &mut char_draws,
-                    );
-                }
-            }
-        }
-        let tooltip_vert_end = vertices.len() as u32;
-        let tooltip_char_end = char_draws.len();
-
         Graphics::push_text_draws(
             &texts,
             &self.font_cache,
@@ -610,18 +572,15 @@ impl Graphics {
             &mut glyph_vertices,
             &mut char_draws,
         );
-        let toolbar_range = WindowDrawRange {
-            vert_start: toolbar_vert_start,
-            vert_end: vertices.len() as u32,
-            char_start: toolbar_char_start,
-            char_end: char_draws.len(),
-        };
-        let tooltip_range = WindowDrawRange {
-            vert_start: tooltip_vert_start,
-            vert_end: tooltip_vert_end,
-            char_start: tooltip_char_start,
-            char_end: tooltip_char_end,
-        };
+        regions.push(RecordedRegion {
+            range: WindowDrawRange {
+                vert_start: toolbar_vert_start,
+                vert_end: vertices.len() as u32,
+                char_start: toolbar_char_start,
+                char_end: char_draws.len(),
+            },
+            scissor: None,
+        });
 
         // --- context menu ---
         let context_menu_vert_start = vertices.len() as u32;
@@ -838,7 +797,7 @@ impl Graphics {
             cursor_icon = CursorIcon::Default;
         }
 
-        let drag_ghost_range = if let Some(ref path) = self.dragging_file {
+        if let Some(ref path) = self.dragging_file {
             let ghost_vert_start = vertices.len() as u32;
             let ghost_char_start = char_draws.len();
             let name = path.file_name().and_then(|n| n.to_str()).unwrap_or("?");
@@ -864,41 +823,65 @@ impl Graphics {
                 &mut glyph_vertices,
                 &mut char_draws,
             );
-            Some(WindowDrawRange {
-                vert_start: ghost_vert_start,
-                vert_end: vertices.len() as u32,
-                char_start: ghost_char_start,
-                char_end: char_draws.len(),
-            })
-        } else {
-            None
+            regions.push(RecordedRegion {
+                range: WindowDrawRange {
+                    vert_start: ghost_vert_start,
+                    vert_end: vertices.len() as u32,
+                    char_start: ghost_char_start,
+                    char_end: char_draws.len(),
+                },
+                scissor: None,
+            });
         };
 
-        // === RENDER PASS ===
-        // Draw order (back to front):
-        //
-        // 1. Mini windows (sequencer, playlist, mixer, piano roll, track detail)
-        //    - Each scissored to their own window bounds
-        //    - Playlist and piano roll have sub-regions (header, timeline, grid)
-        //
-        // 2. Track tray — scissored to x=0..tray_width, y=0..sh/2
-        //
-        // 3. Divider + File Tree title + section background — unscissored chrome
-        //
-        // 4. File tree (scrollable list) — scissored to x=0..tray_width, y=sh/2+PAD_32+PAD_16..sh
-        //
-        // 5. Drag ghost — no scissor
-        //
-        // 6. Toolbar (top bar + pattern tray) — no scissor, always on top
-        //
-        // 7. Non-tray icons — no scissor
-        //
-        // 8. Tooltip — no scissor, always on top
-        //
-        // 9. Context menu — no scissor, always on top
-        //
-        // 10. Footer — no scissor, always on top
-        //
+        // tooltip
+        let tooltip_vert_start = vertices.len() as u32;
+        let tooltip_char_start = char_draws.len();
+        if let Some(tt) = &self.tooltip {
+            if mouse_state
+                .hover_duration
+                .map_or(false, |t| t.elapsed() > Duration::from_millis(400))
+            {
+                let tooltip_rectangle = Rectangle {
+                    x: tt.x,
+                    y: tt.y,
+                    width: 128.0,
+                    height: 24.0,
+                };
+                tooltip_rectangle.draw(&screen_config, DARK_GRAY, RADIUS_8, &mut vertices);
+                if let Some(text) = tt.text {
+                    let tooltip_text = [TextItem {
+                        text: text.to_string(),
+                        x: tt.x + PAD_4,
+                        y: tt.y + PAD_2,
+                        size: 14.0,
+                        font: MONOSPACED,
+                        color: WHITE,
+                    }];
+                    Graphics::push_text_draws(
+                        &tooltip_text,
+                        &self.font_cache,
+                        &self.glyph_cache,
+                        &screen_config,
+                        &mut glyph_vertices,
+                        &mut char_draws,
+                    );
+                }
+            }
+        }
+        let tooltip_vert_end = vertices.len() as u32;
+        let tooltip_char_end = char_draws.len();
+
+        regions.push(RecordedRegion {
+            range: WindowDrawRange {
+                vert_start: tooltip_vert_start,
+                vert_end: tooltip_vert_end,
+                char_start: tooltip_char_start,
+                char_end: tooltip_char_end,
+            },
+            scissor: None,
+        });
+
         self.queue
             .write_buffer(&self.vertex_buffer, 0, bytemuck::cast_slice(&vertices));
         self.queue.write_buffer(
@@ -958,27 +941,6 @@ impl Graphics {
             // nothing downstream inherits a stale clip rect from the last window drawn
             r_pass.set_scissor_rect(0, 0, self.surface_config.width, self.surface_config.height);
 
-            if let Some(ref gr) = drag_ghost_range {
-                draw_range(
-                    &mut r_pass,
-                    &self.vertex_buffer,
-                    &self.glyph_vertex_buffer,
-                    any_bg,
-                    &char_draws,
-                    gr,
-                );
-            }
-
-            // toolbar
-            draw_range(
-                &mut r_pass,
-                &self.vertex_buffer,
-                &self.glyph_vertex_buffer,
-                any_bg,
-                &char_draws,
-                &toolbar_range,
-            );
-
             // non-tray icons
             for icon in icon_draws[..tray_icon_start]
                 .iter()
@@ -988,16 +950,6 @@ impl Graphics {
                 r_pass.set_vertex_buffer(0, icon.0.slice(..));
                 r_pass.draw(0..6, 0..1);
             }
-
-            // tooltip
-            draw_range(
-                &mut r_pass,
-                &self.vertex_buffer,
-                &self.glyph_vertex_buffer,
-                any_bg,
-                &char_draws,
-                &tooltip_range,
-            );
 
             // context menu
             draw_range(
