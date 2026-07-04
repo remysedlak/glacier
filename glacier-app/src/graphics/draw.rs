@@ -1,6 +1,6 @@
 //! Main draw method for painting all shapes and handling vertex buffers.
-
 use super::*;
+use crate::graphics::side_panel::track_tray::file_tree;
 use crate::graphics::{
     color::{DARK_GRAY_HOVER, LIGHT_GRAY, PEBBLE},
     components::modal,
@@ -678,16 +678,18 @@ impl Graphics {
         };
 
         // --- track tray + file tree ---
-        let mut track_tray_range: Option<WindowDrawRange> = None;
-        let mut file_tree_range: Option<WindowDrawRange> = None;
-        let mut divider_range: Option<WindowDrawRange> = None;
+
         let mut tray_icon_start = 0;
         let mut tray_icon_end = 0;
 
         if self.show_track_tray {
+            let sw = self.surface_config.width;
+            let sh = self.surface_config.height;
+
             let tray_vert_start = vertices.len() as u32;
             let tray_char_start = char_draws.len();
 
+            // FIRST: TRACK TRAY
             let (texts, result, cursor) = side_panel::track_tray::draw(
                 mouse_state,
                 &screen_config,
@@ -709,57 +711,71 @@ impl Graphics {
                 &mut char_draws,
             );
 
-            // divider + File Tree title (unscissored, must stay in track_tray_range)
-
-            divider_range = if self.show_track_tray {
-                let vert_start = vertices.len() as u32;
-                let char_start = char_draws.len();
-                Rectangle {
-                    x: 0.0,
-                    y: (screen_config.height / 2) as f32,
-                    width: self.track_tray_width,
-                    height: screen_config.height as f32 - (screen_config.height / 2) as f32,
-                }
-                .draw(&screen_config, PEBBLE, NO_RADIUS, &mut vertices);
-                let w_divider = Rectangle {
-                    x: PAD_2,
-                    y: (screen_config.height / 2) as f32,
-                    width: self.track_tray_width - PAD_4,
-                    height: 1.0,
-                };
-
-                w_divider.draw(&screen_config, DARK_GRAY_HOVER, RADIUS_4, &mut vertices);
-                let h_divider = Rectangle {
-                    x: self.track_tray_width - 1.0,
-                    y: TOOLBAR_MARGIN,
-                    width: 1.0,
-                    height: screen_config.height as f32 - TOOLBAR_MARGIN,
-                };
-                h_divider.draw(&screen_config, DARK_GRAY_HOVER, NO_RADIUS, &mut vertices);
-
-                use crate::graphics::side_panel::draw_title;
-                Graphics::push_text_draws(
-                    &[draw_title("File Tree", (w_divider.x - 2.0, w_divider.y))],
-                    &self.font_cache,
-                    &self.glyph_cache,
-                    &screen_config,
-                    &mut glyph_vertices,
-                    &mut char_draws,
-                );
-                Some(WindowDrawRange {
-                    vert_start,
+            let tray_bottom = sh / 2 + 2;
+            regions.push(RecordedRegion {
+                range: WindowDrawRange {
+                    vert_start: tray_vert_start,
                     vert_end: vertices.len() as u32,
-                    char_start,
+                    char_start: tray_char_start,
                     char_end: char_draws.len(),
-                })
-            } else {
-                None
-            };
+                },
+                scissor: Some(safe_scissor(
+                    0,
+                    0,
+                    self.track_tray_width as u32,
+                    tray_bottom,
+                    sw,
+                    sh,
+                )),
+            });
 
+            // SECOND: DIVIDER (unscissored)
+            let divider_vert_start = vertices.len() as u32;
+            let divider_char_start = char_draws.len();
+            Rectangle {
+                x: 0.0,
+                y: (screen_config.height / 2) as f32,
+                width: self.track_tray_width,
+                height: screen_config.height as f32 - (screen_config.height / 2) as f32,
+            }
+            .draw(&screen_config, PEBBLE, NO_RADIUS, &mut vertices);
+            let w_divider = Rectangle {
+                x: PAD_2,
+                y: (screen_config.height / 2) as f32,
+                width: self.track_tray_width - PAD_4,
+                height: 1.0,
+            };
+            w_divider.draw(&screen_config, DARK_GRAY_HOVER, RADIUS_4, &mut vertices);
+            let h_divider = Rectangle {
+                x: self.track_tray_width - 1.0,
+                y: TOOLBAR_MARGIN,
+                width: 1.0,
+                height: screen_config.height as f32 - TOOLBAR_MARGIN,
+            };
+            h_divider.draw(&screen_config, DARK_GRAY_HOVER, NO_RADIUS, &mut vertices);
+            use crate::graphics::side_panel::draw_title;
+            Graphics::push_text_draws(
+                &[draw_title("File Tree", (w_divider.x - 2.0, w_divider.y))],
+                &self.font_cache,
+                &self.glyph_cache,
+                &screen_config,
+                &mut glyph_vertices,
+                &mut char_draws,
+            );
+
+            regions.push(RecordedRegion {
+                range: WindowDrawRange {
+                    vert_start: divider_vert_start,
+                    vert_end: vertices.len() as u32,
+                    char_start: divider_char_start,
+                    char_end: char_draws.len(),
+                },
+                scissor: None,
+            });
+
+            // THIRD: FILE TREE
             let file_tree_vert_start = vertices.len() as u32;
             let file_tree_char_start = char_draws.len();
-
-            use crate::graphics::side_panel::track_tray::file_tree;
             let (icons, text_items, ft_result, ft_cursor) = file_tree::draw(
                 mouse_state,
                 &screen_config,
@@ -783,6 +799,7 @@ impl Graphics {
                 &mut glyph_vertices,
                 &mut char_draws,
             );
+
             tray_icon_start = icon_draws.len();
             for icon in icons {
                 push_icon_draw(
@@ -795,17 +812,22 @@ impl Graphics {
             }
             tray_icon_end = icon_draws.len();
 
-            track_tray_range = Some(WindowDrawRange {
-                vert_start: tray_vert_start,
-                vert_end: file_tree_vert_start,
-                char_start: tray_char_start,
-                char_end: file_tree_char_start,
-            });
-            file_tree_range = Some(WindowDrawRange {
-                vert_start: file_tree_vert_start,
-                vert_end: vertices.len() as u32,
-                char_start: file_tree_char_start,
-                char_end: char_draws.len(),
+            let divider_y = sh / 2 + (PAD_32 + PAD_16) as u32;
+            regions.push(RecordedRegion {
+                range: WindowDrawRange {
+                    vert_start: file_tree_vert_start,
+                    vert_end: vertices.len() as u32,
+                    char_start: file_tree_char_start,
+                    char_end: char_draws.len(),
+                },
+                scissor: Some(safe_scissor(
+                    0,
+                    divider_y,
+                    self.track_tray_width as u32,
+                    sh.saturating_sub(divider_y),
+                    sw,
+                    sh,
+                )),
             });
         }
 
@@ -935,67 +957,6 @@ impl Graphics {
             // reset scissor after the windows loop — mirrors the old per-branch reset that guaranteed
             // nothing downstream inherits a stale clip rect from the last window drawn
             r_pass.set_scissor_rect(0, 0, self.surface_config.width, self.surface_config.height);
-
-            // track tray — clipped to tray width
-            if let Some(ref tr) = track_tray_range {
-                let sw = self.surface_config.width;
-                let sh = self.surface_config.height;
-                let tray_bottom = sh / 2 + 2;
-                let (sx, sy, sw2, sh2) =
-                    safe_scissor(0, 0, self.track_tray_width as u32, tray_bottom, sw, sh);
-                r_pass.set_scissor_rect(sx, sy, sw2, sh2);
-                draw_range(
-                    &mut r_pass,
-                    &self.vertex_buffer,
-                    &self.glyph_vertex_buffer,
-                    any_bg,
-                    &char_draws,
-                    tr,
-                );
-                r_pass.set_scissor_rect(0, 0, sw, sh);
-            }
-
-            // divider + title — unscissored, drawn on top of both tray sections
-            if let Some(ref dr) = divider_range {
-                draw_range(
-                    &mut r_pass,
-                    &self.vertex_buffer,
-                    &self.glyph_vertex_buffer,
-                    any_bg,
-                    &char_draws,
-                    dr,
-                );
-            }
-
-            // file tree — scissored to below divider
-            if let Some(ref ft) = file_tree_range {
-                let sw = self.surface_config.width;
-                let sh = self.surface_config.height;
-                let divider_y = sh / 2 + (PAD_32 + PAD_16) as u32;
-                let (sx, sy, sw2, sh2) = safe_scissor(
-                    0,
-                    divider_y,
-                    self.track_tray_width as u32,
-                    sh - divider_y,
-                    sw,
-                    sh,
-                );
-                r_pass.set_scissor_rect(sx, sy, sw2, sh2);
-                draw_range(
-                    &mut r_pass,
-                    &self.vertex_buffer,
-                    &self.glyph_vertex_buffer,
-                    any_bg,
-                    &char_draws,
-                    ft,
-                );
-                for icon in &icon_draws[tray_icon_start..tray_icon_end] {
-                    r_pass.set_bind_group(0, icon.1, &[]);
-                    r_pass.set_vertex_buffer(0, icon.0.slice(..));
-                    r_pass.draw(0..6, 0..1);
-                }
-                r_pass.set_scissor_rect(0, 0, sw, sh);
-            }
 
             if let Some(ref gr) = drag_ghost_range {
                 draw_range(
