@@ -15,20 +15,6 @@ pub struct WindowDrawRange {
     pub char_end: usize,
 }
 
-/// the playlist has three DrawRange's: non moving static shapes, the header of the playlist, and the timeline itself
-pub struct PlaylistDrawRanges {
-    pub static_range: WindowDrawRange,
-    pub header_range: WindowDrawRange,
-    pub timeline_range: WindowDrawRange,
-}
-
-/// the piano roll has three DrawRanges: non moving static shapes, the actual piano, and the piano grid.
-pub struct PianoRollDrawRanges {
-    pub static_range: WindowDrawRange, // background + titlebar
-    pub piano_range: WindowDrawRange,  // fixed piano keys, no scroll
-    pub grid_range: WindowDrawRange,   // scrollable note grid
-}
-
 /// Clamps a scissor rect so paint never goes outside screen bounds
 pub fn safe_scissor(x: u32, y: u32, w: u32, h: u32, sw: u32, sh: u32) -> (u32, u32, u32, u32) {
     let x = x.min(sw.saturating_sub(1));

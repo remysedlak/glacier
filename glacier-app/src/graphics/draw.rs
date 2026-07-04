@@ -111,9 +111,7 @@ impl Graphics {
         let mut glyph_vertices: Vec<Vertex> = Vec::new();
         let mut char_draws: Vec<(u64, &wgpu::BindGroup)> = Vec::new();
         let mut icon_draws: Vec<(wgpu::Buffer, &wgpu::BindGroup)> = Vec::new();
-        let mut window_ranges: Vec<WindowDrawRange> = Vec::new();
-        let mut playlist_window_ranges: Option<PlaylistDrawRanges> = None;
-        let mut piano_roll_ranges: Option<PianoRollDrawRanges> = None;
+        let mut regions: Vec<RecordedRegion> = Vec::new();
 
         // --- mini windows ---
         for &id in &self.z_order {
@@ -208,6 +206,20 @@ impl Graphics {
                         &screen_config,
                     );
 
+                    // shared scissor geometry — compute once, up front
+                    let sw = self.surface_config.width;
+                    let sh = self.surface_config.height;
+                    let wx = (window.x.max(0.0) as u32).min(sw);
+                    let wy = ((window.y - TITLEBAR_HEIGHT).max(0.0) as u32).min(sh);
+                    let win_right = ((window.x + window.width) as u32).min(sw);
+                    let win_bottom = ((window.y + window.height) as u32).min(sh);
+                    let content_y = (window.y as u32 + PAD_64 as u32).min(sh);
+                    let content_h = win_bottom.saturating_sub(content_y);
+                    let header_x =
+                        ((window.x + PAD_16 + TIMELINE_X_ORIGIN).max(0.0) as u32).min(sw);
+                    let header_w = header_x.saturating_sub(wx);
+                    let timeline_w = win_right.saturating_sub(header_x);
+
                     let static_vert_start = vertices.len() as u32;
                     let static_char_start = char_draws.len();
                     vertices.extend(static_draw_region.vertices);
@@ -219,12 +231,22 @@ impl Graphics {
                         &mut glyph_vertices,
                         &mut char_draws,
                     );
-                    let static_range = WindowDrawRange {
-                        vert_start: static_vert_start,
-                        vert_end: vertices.len() as u32,
-                        char_start: static_char_start,
-                        char_end: char_draws.len(),
-                    };
+                    regions.push(RecordedRegion {
+                        range: WindowDrawRange {
+                            vert_start: static_vert_start,
+                            vert_end: vertices.len() as u32,
+                            char_start: static_char_start,
+                            char_end: char_draws.len(),
+                        },
+                        scissor: Some(safe_scissor(
+                            wx,
+                            wy,
+                            win_right.saturating_sub(wx),
+                            win_bottom.saturating_sub(wy),
+                            sw,
+                            sh,
+                        )),
+                    });
 
                     let header_vert_start = vertices.len() as u32;
                     let header_char_start = char_draws.len();
@@ -237,12 +259,15 @@ impl Graphics {
                         &mut glyph_vertices,
                         &mut char_draws,
                     );
-                    let header_range = WindowDrawRange {
-                        vert_start: header_vert_start,
-                        vert_end: vertices.len() as u32,
-                        char_start: header_char_start,
-                        char_end: char_draws.len(),
-                    };
+                    regions.push(RecordedRegion {
+                        range: WindowDrawRange {
+                            vert_start: header_vert_start,
+                            vert_end: vertices.len() as u32,
+                            char_start: header_char_start,
+                            char_end: char_draws.len(),
+                        },
+                        scissor: Some(safe_scissor(wx, content_y, header_w, content_h, sw, sh)),
+                    });
 
                     let timeline_vert_start = vertices.len() as u32;
                     let timeline_char_start = char_draws.len();
@@ -255,22 +280,23 @@ impl Graphics {
                         &mut glyph_vertices,
                         &mut char_draws,
                     );
-                    let timeline_range = WindowDrawRange {
-                        vert_start: timeline_vert_start,
-                        vert_end: vertices.len() as u32,
-                        char_start: timeline_char_start,
-                        char_end: char_draws.len(),
-                    };
-
-                    playlist_window_ranges = Some(PlaylistDrawRanges {
-                        static_range,
-                        header_range,
-                        timeline_range,
+                    regions.push(RecordedRegion {
+                        range: WindowDrawRange {
+                            vert_start: timeline_vert_start,
+                            vert_end: vertices.len() as u32,
+                            char_start: timeline_char_start,
+                            char_end: char_draws.len(),
+                        },
+                        scissor: Some(safe_scissor(
+                            header_x, content_y, timeline_w, content_h, sw, sh,
+                        )),
                     });
+
                     if cursor != CursorIcon::Default {
                         cursor_icon = cursor;
                     }
                     click_result = click_result.or(result);
+                    continue;
                 }
                 // draw the mixer window
                 MIXER_ID if self.mini_windows[MIXER_ID].is_open => {
@@ -349,30 +375,58 @@ impl Graphics {
                         &mut char_draws,
                     );
 
-                    piano_roll_ranges = Some(PianoRollDrawRanges {
-                        static_range: WindowDrawRange {
+                    let sw = self.surface_config.width;
+                    let sh = self.surface_config.height;
+                    let wx = (window.x.max(0.0) as u32).min(sw);
+                    let wy = ((window.y - TITLEBAR_HEIGHT).max(0.0) as u32).min(sh);
+                    let win_right = ((window.x + window.width) as u32).min(sw);
+                    let win_bottom = ((window.y + window.height) as u32).min(sh);
+                    let content_y = (window.y as u32 + 72).min(sh);
+                    let content_h = win_bottom.saturating_sub(content_y).saturating_sub(32);
+                    let key_col_right = (window.x + 72.0).max(0.0) as u32;
+                    let grid_x = key_col_right.min(sw);
+                    let key_w = grid_x.saturating_sub(wx);
+                    let grid_w = win_right.saturating_sub(grid_x).saturating_sub(16);
+
+                    regions.push(RecordedRegion {
+                        range: WindowDrawRange {
                             vert_start,
                             vert_end: piano_content_vert_start,
                             char_start,
                             char_end: piano_content_char_start,
                         },
-                        piano_range: WindowDrawRange {
+                        scissor: Some(safe_scissor(
+                            wx,
+                            wy,
+                            win_right.saturating_sub(wx),
+                            win_bottom.saturating_sub(wy),
+                            sw,
+                            sh,
+                        )),
+                    });
+                    regions.push(RecordedRegion {
+                        range: WindowDrawRange {
                             vert_start: piano_content_vert_start,
                             vert_end: grid_vert_start,
                             char_start: piano_content_char_start,
                             char_end: grid_char_start,
                         },
-                        grid_range: WindowDrawRange {
+                        scissor: Some(safe_scissor(wx, content_y, key_w, content_h, sw, sh)),
+                    });
+                    regions.push(RecordedRegion {
+                        range: WindowDrawRange {
                             vert_start: grid_vert_start,
                             vert_end: vertices.len() as u32,
                             char_start: grid_char_start,
                             char_end: char_draws.len(),
                         },
+                        scissor: Some(safe_scissor(grid_x, content_y, grid_w, content_h, sw, sh)),
                     });
                     click_result = click_result.or(result);
                     if cursor != CursorIcon::Default {
                         cursor_icon = cursor;
                     }
+                    continue;
                 }
                 // draw the track details window
                 track => {
@@ -414,11 +468,14 @@ impl Graphics {
             }
 
             // position of vertexes and texts in the buffers
-            window_ranges.push(WindowDrawRange {
-                vert_start,
-                vert_end: vertices.len() as u32,
-                char_start,
-                char_end: char_draws.len(),
+            regions.push(RecordedRegion {
+                range: WindowDrawRange {
+                    vert_start,
+                    vert_end: vertices.len() as u32,
+                    char_start,
+                    char_end: char_draws.len(),
+                },
+                scissor: None,
             });
         }
 
@@ -856,144 +913,28 @@ impl Graphics {
             r_pass.set_pipeline(&self.render_pipeline);
             let any_bg = self.glyph_cache.any_bind_group().unwrap();
 
-            // windows
-            for (idx, range) in window_ranges.iter().enumerate() {
-                let is_playlist = self.z_order[idx] == PLAYLIST_ID;
-                let is_piano = self.z_order[idx] == PIANO_ROLL_ID;
-
-                if is_piano {
-                    if let Some(ref pr) = piano_roll_ranges {
-                        let win = &self.mini_windows[PIANO_ROLL_ID];
-                        let sw = self.surface_config.width;
-                        let sh = self.surface_config.height;
-                        let wx = (win.x.max(0.0) as u32).min(sw);
-                        let wy = ((win.y - TITLEBAR_HEIGHT).max(0.0) as u32).min(sh);
-                        let win_right = ((win.x + win.width) as u32).min(sw);
-                        let win_bottom = ((win.y + win.height) as u32).min(sh);
-                        let ww = win_right.saturating_sub(wx);
-                        let wh = win_bottom.saturating_sub(wy);
-                        let content_y = (win.y as u32 + 72).min(sh);
-                        let content_h = win_bottom.saturating_sub(content_y).saturating_sub(32);
-                        let key_col_right = (win.x + 72.0).max(0.0) as u32;
-                        let grid_x = key_col_right.min(sw);
-                        let key_w = grid_x.saturating_sub(wx);
-                        let grid_w = win_right.saturating_sub(grid_x).saturating_sub(16);
-
-                        let (sx, sy, sw2, sh2) = safe_scissor(wx, wy, ww, wh, sw, sh);
-                        r_pass.set_scissor_rect(sx, sy, sw2, sh2);
-                        draw_range(
-                            &mut r_pass,
-                            &self.vertex_buffer,
-                            &self.glyph_vertex_buffer,
-                            any_bg,
-                            &char_draws,
-                            &pr.static_range,
-                        );
-
-                        let (sx, sy, sw2, sh2) =
-                            safe_scissor(wx, content_y, key_w, content_h, sw, sh);
-                        r_pass.set_scissor_rect(sx, sy, sw2, sh2);
-                        draw_range(
-                            &mut r_pass,
-                            &self.vertex_buffer,
-                            &self.glyph_vertex_buffer,
-                            any_bg,
-                            &char_draws,
-                            &pr.piano_range,
-                        );
-
-                        let (sx, sy, sw2, sh2) =
-                            safe_scissor(grid_x, content_y, grid_w, content_h, sw, sh);
-                        r_pass.set_scissor_rect(sx, sy, sw2, sh2);
-                        draw_range(
-                            &mut r_pass,
-                            &self.vertex_buffer,
-                            &self.glyph_vertex_buffer,
-                            any_bg,
-                            &char_draws,
-                            &pr.grid_range,
-                        );
-                    }
-                    r_pass.set_scissor_rect(
+            for region in &regions {
+                match region.scissor {
+                    Some((x, y, w, h)) => r_pass.set_scissor_rect(x, y, w, h),
+                    None => r_pass.set_scissor_rect(
                         0,
                         0,
                         self.surface_config.width,
                         self.surface_config.height,
-                    );
-                    continue;
+                    ),
                 }
-
-                if is_playlist {
-                    if let Some(ref pl) = playlist_window_ranges {
-                        let win = &self.mini_windows[PLAYLIST_ID];
-                        let sw = self.surface_config.width;
-                        let sh = self.surface_config.height;
-                        let wx = (win.x.max(0.0) as u32).min(sw);
-                        let wy = ((win.y - TITLEBAR_HEIGHT).max(0.0) as u32).min(sh);
-                        let win_right = ((win.x + win.width) as u32).min(sw);
-                        let win_bottom = ((win.y + win.height) as u32).min(sh);
-                        let ww = win_right.saturating_sub(wx);
-                        let wh = win_bottom.saturating_sub(wy);
-                        let content_y = (win.y as u32 + PAD_64 as u32).min(sh);
-                        let content_h = win_bottom.saturating_sub(content_y);
-                        let header_x =
-                            ((win.x + PAD_16 + TIMELINE_X_ORIGIN).max(0.0) as u32).min(sw);
-                        let header_w = header_x.saturating_sub(wx);
-                        let timeline_w = win_right.saturating_sub(header_x);
-
-                        let (sx, sy, sw2, sh2) = safe_scissor(wx, wy, ww, wh, sw, sh);
-                        r_pass.set_scissor_rect(sx, sy, sw2, sh2);
-                        draw_range(
-                            &mut r_pass,
-                            &self.vertex_buffer,
-                            &self.glyph_vertex_buffer,
-                            any_bg,
-                            &char_draws,
-                            &pl.static_range,
-                        );
-
-                        let (sx, sy, sw2, sh2) =
-                            safe_scissor(wx, content_y, header_w, content_h, sw, sh);
-                        r_pass.set_scissor_rect(sx, sy, sw2, sh2);
-                        draw_range(
-                            &mut r_pass,
-                            &self.vertex_buffer,
-                            &self.glyph_vertex_buffer,
-                            any_bg,
-                            &char_draws,
-                            &pl.header_range,
-                        );
-
-                        let (sx, sy, sw2, sh2) =
-                            safe_scissor(header_x, content_y, timeline_w, content_h, sw, sh);
-                        r_pass.set_scissor_rect(sx, sy, sw2, sh2);
-                        draw_range(
-                            &mut r_pass,
-                            &self.vertex_buffer,
-                            &self.glyph_vertex_buffer,
-                            any_bg,
-                            &char_draws,
-                            &pl.timeline_range,
-                        );
-                    }
-                    r_pass.set_scissor_rect(
-                        0,
-                        0,
-                        self.surface_config.width,
-                        self.surface_config.height,
-                    );
-                    continue;
-                }
-
                 draw_range(
                     &mut r_pass,
                     &self.vertex_buffer,
                     &self.glyph_vertex_buffer,
                     any_bg,
                     &char_draws,
-                    range,
+                    &region.range,
                 );
             }
+            // reset scissor after the windows loop — mirrors the old per-branch reset that guaranteed
+            // nothing downstream inherits a stale clip rect from the last window drawn
+            r_pass.set_scissor_rect(0, 0, self.surface_config.width, self.surface_config.height);
 
             // track tray — clipped to tray width
             if let Some(ref tr) = track_tray_range {
