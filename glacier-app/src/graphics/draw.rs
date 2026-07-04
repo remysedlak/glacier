@@ -533,109 +533,6 @@ impl Graphics {
             );
         }
 
-        let total_seconds = ((self.playhead_beat / self.bpm) * 60.0) as u32;
-        let time_string = format!(
-            "{:02}:{:02}:{:02}",
-            total_seconds / 3600,
-            (total_seconds % 3600) / 60,
-            total_seconds % 60
-        );
-        let (texts, icons, result, cursor, tooltip) = components::toolbar::draw_toolbar(
-            mouse_state,
-            &screen_config,
-            self.bpm,
-            self.is_playing,
-            self.active_step,
-            time_string,
-            &mut vertices,
-        );
-        click_result = click_result.or(result);
-        if cursor != CursorIcon::Default {
-            cursor_icon = cursor;
-        }
-        for icon in icons {
-            push_icon_draw(
-                &self.icon_cache,
-                &self.device,
-                &screen_config,
-                &icon,
-                &mut icon_draws,
-            )
-        }
-        self.tooltip = tooltip;
-
-        Graphics::push_text_draws(
-            &texts,
-            &self.font_cache,
-            &self.glyph_cache,
-            &screen_config,
-            &mut glyph_vertices,
-            &mut char_draws,
-        );
-        regions.push(RecordedRegion {
-            range: WindowDrawRange {
-                vert_start: toolbar_vert_start,
-                vert_end: vertices.len() as u32,
-                char_start: toolbar_char_start,
-                char_end: char_draws.len(),
-            },
-            scissor: None,
-        });
-
-        // --- context menu ---
-        let context_menu_vert_start = vertices.len() as u32;
-        let context_menu_char_start = char_draws.len();
-        if let Some(menu) = &self.context_menu {
-            let (texts, result, cursor) = menu.draw(&screen_config, mouse_state, &mut vertices);
-            Graphics::push_text_draws(
-                &texts,
-                &self.font_cache,
-                &self.glyph_cache,
-                &screen_config,
-                &mut glyph_vertices,
-                &mut char_draws,
-            );
-            if cursor != CursorIcon::Default {
-                cursor_icon = cursor;
-            }
-            click_result = click_result.or(result);
-        }
-        let context_menu_range = WindowDrawRange {
-            vert_start: context_menu_vert_start,
-            vert_end: vertices.len() as u32,
-            char_start: context_menu_char_start,
-            char_end: char_draws.len(),
-        };
-
-        // --- footer ---
-        let footer_vert_start = vertices.len() as u32;
-        let footer_char_start = char_draws.len();
-        let title = if project_is_dirty {
-            format!("{}*", self.project_path)
-        } else {
-            self.project_path.clone()
-        };
-        let texts = footer::draw(
-            &screen_config,
-            &title,
-            1000.0 / self.frame_ms,
-            &mut vertices,
-        );
-        Graphics::push_text_draws(
-            &texts,
-            &self.font_cache,
-            &self.glyph_cache,
-            &screen_config,
-            &mut glyph_vertices,
-            &mut char_draws,
-        );
-        let footer_range = WindowDrawRange {
-            vert_start: footer_vert_start,
-            vert_end: vertices.len() as u32,
-            char_start: footer_char_start,
-            char_end: char_draws.len(),
-        };
-
         // --- track tray + file tree ---
 
         let mut tray_icon_start = 0;
@@ -790,6 +687,87 @@ impl Graphics {
             });
         }
 
+        let total_seconds = ((self.playhead_beat / self.bpm) * 60.0) as u32;
+        let time_string = format!(
+            "{:02}:{:02}:{:02}",
+            total_seconds / 3600,
+            (total_seconds % 3600) / 60,
+            total_seconds % 60
+        );
+        let (texts, icons, result, cursor, tooltip) = components::toolbar::draw_toolbar(
+            mouse_state,
+            &screen_config,
+            self.bpm,
+            self.is_playing,
+            self.active_step,
+            time_string,
+            &mut vertices,
+        );
+        click_result = click_result.or(result);
+        if cursor != CursorIcon::Default {
+            cursor_icon = cursor;
+        }
+        for icon in icons {
+            push_icon_draw(
+                &self.icon_cache,
+                &self.device,
+                &screen_config,
+                &icon,
+                &mut icon_draws,
+            )
+        }
+        self.tooltip = tooltip;
+
+        Graphics::push_text_draws(
+            &texts,
+            &self.font_cache,
+            &self.glyph_cache,
+            &screen_config,
+            &mut glyph_vertices,
+            &mut char_draws,
+        );
+        regions.push(RecordedRegion {
+            range: WindowDrawRange {
+                vert_start: toolbar_vert_start,
+                vert_end: vertices.len() as u32,
+                char_start: toolbar_char_start,
+                char_end: char_draws.len(),
+            },
+            scissor: None,
+        });
+
+        // --- footer ---
+        let footer_vert_start = vertices.len() as u32;
+        let footer_char_start = char_draws.len();
+        let title = if project_is_dirty {
+            format!("{}*", self.project_path)
+        } else {
+            self.project_path.clone()
+        };
+        let texts = footer::draw(
+            &screen_config,
+            &title,
+            1000.0 / self.frame_ms,
+            &mut vertices,
+        );
+        Graphics::push_text_draws(
+            &texts,
+            &self.font_cache,
+            &self.glyph_cache,
+            &screen_config,
+            &mut glyph_vertices,
+            &mut char_draws,
+        );
+        regions.push(RecordedRegion {
+            range: WindowDrawRange {
+                vert_start: footer_vert_start,
+                vert_end: vertices.len() as u32,
+                char_start: footer_char_start,
+                char_end: char_draws.len(),
+            },
+            scissor: None,
+        });
+
         // dragging cursor override
         if self.resizing_track_tray {
             cursor_icon = CursorIcon::ColResize;
@@ -833,6 +811,34 @@ impl Graphics {
                 scissor: None,
             });
         };
+
+        // --- context menu ---
+        let context_menu_vert_start = vertices.len() as u32;
+        let context_menu_char_start = char_draws.len();
+        if let Some(menu) = &self.context_menu {
+            let (texts, result, cursor) = menu.draw(&screen_config, mouse_state, &mut vertices);
+            Graphics::push_text_draws(
+                &texts,
+                &self.font_cache,
+                &self.glyph_cache,
+                &screen_config,
+                &mut glyph_vertices,
+                &mut char_draws,
+            );
+            if cursor != CursorIcon::Default {
+                cursor_icon = cursor;
+            }
+            click_result = click_result.or(result);
+        }
+        regions.push(RecordedRegion {
+            range: WindowDrawRange {
+                vert_start: context_menu_vert_start,
+                vert_end: vertices.len() as u32,
+                char_start: context_menu_char_start,
+                char_end: char_draws.len(),
+            },
+            scissor: None,
+        });
 
         // tooltip
         let tooltip_vert_start = vertices.len() as u32;
@@ -950,26 +956,6 @@ impl Graphics {
                 r_pass.set_vertex_buffer(0, icon.0.slice(..));
                 r_pass.draw(0..6, 0..1);
             }
-
-            // context menu
-            draw_range(
-                &mut r_pass,
-                &self.vertex_buffer,
-                &self.glyph_vertex_buffer,
-                any_bg,
-                &char_draws,
-                &context_menu_range,
-            );
-
-            // footer
-            draw_range(
-                &mut r_pass,
-                &self.vertex_buffer,
-                &self.glyph_vertex_buffer,
-                any_bg,
-                &char_draws,
-                &footer_range,
-            );
         }
 
         self.queue.submit(Some(encoder.finish()));
