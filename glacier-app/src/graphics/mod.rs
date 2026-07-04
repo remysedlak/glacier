@@ -79,7 +79,6 @@ pub enum ClickResult {
     DuplicatePattern(usize),
     CreatePattern,
     AddPlaylistPattern(usize, u32, usize, AudioBlockType),
-    SelectPattern(usize),
     OpenPatternMenu(f32, f32, usize),
     StartResizeEvent(usize),
 
@@ -93,6 +92,8 @@ pub enum ClickResult {
     ToggleTrackWindow(usize),
     TogglePatternTray,
     ToggleTrackTray,
+    SelectPattern(usize),
+    SelectTrackTray(u32),
 
     // file system
     FsToggleDir(PathBuf),

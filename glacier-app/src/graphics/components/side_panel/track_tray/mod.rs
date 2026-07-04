@@ -22,6 +22,7 @@ pub fn draw(
     tracks: &[Track],
     tray_width: f32,
     out: &mut Vec<Vertex>,
+    selected_track_id: Option<u32>,
 ) -> (Vec<TextItem>, ClickResult, CursorIcon) {
     let mut text_items: Vec<TextItem> = Vec::new();
     let mut cursor_icon: CursorIcon = CursorIcon::Default;
@@ -62,7 +63,19 @@ pub fn draw(
             cursor_icon = CursorIcon::Pointer;
             if mouse_state.left_double_clicked {
                 click_result = ClickResult::ToggleTrackWindow(i);
+            } else if mouse_state.left_clicked {
+                click_result = ClickResult::SelectTrackTray(track.data.id);
             }
+        }
+        let is_selected = selected_track_id == Some(track.data.id);
+        if is_selected {
+            let signal = Rectangle {
+                x: button_x,
+                y: button_y,
+                width: PAD_8,
+                height: PATTERN_TRAY_ITEM_HEIGHT,
+            };
+            signal.draw(screen_config, WHITE, RADIUS_4, out);
         }
 
         text_items.push(TextItem {

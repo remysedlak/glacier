@@ -494,6 +494,11 @@ impl Graphics {
             let tray_vert_start = vertices.len() as u32;
             let tray_char_start = char_draws.len();
 
+            let selected_track_id: Option<u32> = match self.active_tray {
+                AudioBlockType::Sample(id) => Some(id as u32),
+                _ => None,
+            };
+
             // FIRST: TRACK TRAY
             let (texts, result, cursor) = side_panel::track_tray::draw(
                 mouse_state,
@@ -502,6 +507,7 @@ impl Graphics {
                 &self.tracks,
                 self.track_tray_width,
                 &mut vertices,
+                selected_track_id,
             );
             if cursor != CursorIcon::Default {
                 cursor_icon = cursor;
@@ -579,6 +585,7 @@ impl Graphics {
             // THIRD: FILE TREE
             let file_tree_vert_start = vertices.len() as u32;
             let file_tree_char_start = char_draws.len();
+
             let (icons, text_items, ft_result, ft_cursor) = file_tree::draw(
                 mouse_state,
                 &screen_config,
@@ -646,10 +653,14 @@ impl Graphics {
             .any(|w| matches!(w.window_kind, WindowKind::Sequencer) && w.is_open);
 
         if self.show_pattern_tray {
+            let selected_pattern_id: Option<u32> = match self.active_tray {
+                AudioBlockType::Pattern(id) => Some(id as u32),
+                _ => None,
+            };
             let (texts, result, cursor, icon, tooltip) = side_panel::pattern_tray::draw(
                 &screen_config,
                 &self.patterns,
-                self.active_pattern_id,
+                selected_pattern_id,
                 mouse_state,
                 sequencer_is_open,
                 self.pattern_tray_width,

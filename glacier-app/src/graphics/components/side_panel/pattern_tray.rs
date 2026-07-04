@@ -18,7 +18,7 @@ const ICON_SIZE: f32 = 20.0;
 pub fn draw(
     screen_config: &ScreenConfig,
     patterns: &[PatternData],
-    active_pattern_id: usize,
+    selected_pattern_id: Option<u32>,
     mouse_state: &MouseState,
     sequencer_is_open: bool,
     tray_width: f32,
@@ -108,7 +108,7 @@ pub fn draw(
             width: pattern_tray.width - PAD_32,
             height: PATTERN_TRAY_ITEM_HEIGHT,
         };
-        if i == active_pattern_id {
+        if Some(pattern.id as u32) == selected_pattern_id {
             let indicator = Rectangle {
                 x: pattern_tray.x + PAD_8,
                 y: PATTERN_TRAY_HEADER_MARGIN + (PATTERN_TRAY_ITEM_GAP * i as f32) + PAD_32,

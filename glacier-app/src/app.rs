@@ -390,6 +390,9 @@ impl App {
                 ClickResult::FsStartDragFile(path) => {
                     gfx.dragging_file = Some(path);
                 }
+                ClickResult::SelectTrackTray(id) => {
+                    gfx.active_tray = AudioBlockType::Sample(id as usize);
+                }
                 ClickResult::FSEndDragFile(path, track, step) => {
                     let path_str = path.to_string_lossy().to_string();
                     self.pending_drop = Some((track, step));
