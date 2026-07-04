@@ -79,3 +79,21 @@ pub fn draw_range(
         range.char_end,
     );
 }
+
+pub fn record(
+    vertices: &Vec<Vertex>,
+    char_draws: &Vec<(u64, &wgpu::BindGroup)>,
+    vert_start: u32,
+    char_start: usize,
+    scissor: Option<(u32, u32, u32, u32)>,
+) -> RecordedRegion {
+    RecordedRegion {
+        range: WindowDrawRange {
+            vert_start,
+            vert_end: vertices.len() as u32,
+            char_start,
+            char_end: char_draws.len(),
+        },
+        scissor,
+    }
+}

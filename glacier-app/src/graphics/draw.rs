@@ -619,15 +619,13 @@ impl Graphics {
                 &mut char_draws,
             );
 
-            regions.push(RecordedRegion {
-                range: WindowDrawRange {
-                    vert_start: divider_vert_start,
-                    vert_end: vertices.len() as u32,
-                    char_start: divider_char_start,
-                    char_end: char_draws.len(),
-                },
-                scissor: None,
-            });
+            regions.push(record(
+                &vertices,
+                &char_draws,
+                divider_vert_start,
+                divider_char_start,
+                None,
+            ));
 
             // THIRD: FILE TREE
             let file_tree_vert_start = vertices.len() as u32;
@@ -726,15 +724,13 @@ impl Graphics {
             &mut glyph_vertices,
             &mut char_draws,
         );
-        regions.push(RecordedRegion {
-            range: WindowDrawRange {
-                vert_start: toolbar_vert_start,
-                vert_end: vertices.len() as u32,
-                char_start: toolbar_char_start,
-                char_end: char_draws.len(),
-            },
-            scissor: None,
-        });
+        regions.push(record(
+            &vertices,
+            &char_draws,
+            toolbar_vert_start,
+            toolbar_char_start,
+            None,
+        ));
 
         // --- footer ---
         let footer_vert_start = vertices.len() as u32;
@@ -758,15 +754,13 @@ impl Graphics {
             &mut glyph_vertices,
             &mut char_draws,
         );
-        regions.push(RecordedRegion {
-            range: WindowDrawRange {
-                vert_start: footer_vert_start,
-                vert_end: vertices.len() as u32,
-                char_start: footer_char_start,
-                char_end: char_draws.len(),
-            },
-            scissor: None,
-        });
+        regions.push(record(
+            &vertices,
+            &char_draws,
+            footer_vert_start,
+            footer_char_start,
+            None,
+        ));
 
         // dragging cursor override
         if self.resizing_track_tray {
@@ -801,15 +795,13 @@ impl Graphics {
                 &mut glyph_vertices,
                 &mut char_draws,
             );
-            regions.push(RecordedRegion {
-                range: WindowDrawRange {
-                    vert_start: ghost_vert_start,
-                    vert_end: vertices.len() as u32,
-                    char_start: ghost_char_start,
-                    char_end: char_draws.len(),
-                },
-                scissor: None,
-            });
+            regions.push(record(
+                &vertices,
+                &char_draws,
+                ghost_vert_start,
+                ghost_char_start,
+                None,
+            ));
         };
 
         // --- context menu ---
@@ -830,15 +822,13 @@ impl Graphics {
             }
             click_result = click_result.or(result);
         }
-        regions.push(RecordedRegion {
-            range: WindowDrawRange {
-                vert_start: context_menu_vert_start,
-                vert_end: vertices.len() as u32,
-                char_start: context_menu_char_start,
-                char_end: char_draws.len(),
-            },
-            scissor: None,
-        });
+        regions.push(record(
+            &vertices,
+            &char_draws,
+            context_menu_vert_start,
+            context_menu_char_start,
+            None,
+        ));
 
         // tooltip
         let tooltip_vert_start = vertices.len() as u32;
@@ -875,18 +865,14 @@ impl Graphics {
                 }
             }
         }
-        let tooltip_vert_end = vertices.len() as u32;
-        let tooltip_char_end = char_draws.len();
 
-        regions.push(RecordedRegion {
-            range: WindowDrawRange {
-                vert_start: tooltip_vert_start,
-                vert_end: tooltip_vert_end,
-                char_start: tooltip_char_start,
-                char_end: tooltip_char_end,
-            },
-            scissor: None,
-        });
+        regions.push(record(
+            &vertices,
+            &char_draws,
+            tooltip_vert_start,
+            tooltip_char_start,
+            None,
+        ));
 
         self.queue
             .write_buffer(&self.vertex_buffer, 0, bytemuck::cast_slice(&vertices));
