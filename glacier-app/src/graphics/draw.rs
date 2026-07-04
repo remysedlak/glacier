@@ -933,6 +933,13 @@ impl Graphics {
             // nothing downstream inherits a stale clip rect from the last window drawn
             r_pass.set_scissor_rect(0, 0, self.surface_config.width, self.surface_config.height);
 
+            // tray icons (file tree)
+            for icon in &icon_draws[tray_icon_start..tray_icon_end] {
+                r_pass.set_bind_group(0, icon.1, &[]);
+                r_pass.set_vertex_buffer(0, icon.0.slice(..));
+                r_pass.draw(0..6, 0..1);
+            }
+
             // non-tray icons
             for icon in icon_draws[..tray_icon_start]
                 .iter()
