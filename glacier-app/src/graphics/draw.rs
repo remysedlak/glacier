@@ -479,62 +479,11 @@ impl Graphics {
             });
         }
 
-        // --- toolbar (pattern tray + top bar) ---
-        let toolbar_vert_start = vertices.len() as u32;
-        let toolbar_char_start = char_draws.len();
-
-        let sequencer_is_open = self
-            .mini_windows
-            .iter()
-            .any(|w| matches!(w.window_kind, WindowKind::Sequencer) && w.is_open);
-
-        if self.show_pattern_tray {
-            let (texts, result, cursor, icon, tooltip) = side_panel::pattern_tray::draw(
-                &screen_config,
-                &self.patterns,
-                self.active_pattern_id,
-                mouse_state,
-                sequencer_is_open,
-                self.pattern_tray_width,
-                &mut vertices,
-            );
-            if cursor != CursorIcon::Default {
-                cursor_icon = cursor;
-            }
-            click_result = click_result.or(result);
-            Graphics::push_text_draws(
-                &texts,
-                &self.font_cache,
-                &self.glyph_cache,
-                &screen_config,
-                &mut glyph_vertices,
-                &mut char_draws,
-            );
-            push_icon_draw(
-                &self.icon_cache,
-                &self.device,
-                &screen_config,
-                &icon,
-                &mut icon_draws,
-            );
-            self.tooltip = tooltip;
-        }
-
-        if self.show_save_modal {
-            let (verts, texts) = modal::draw(&screen_config);
-            vertices.extend(verts);
-            Graphics::push_text_draws(
-                &texts,
-                &self.font_cache,
-                &self.glyph_cache,
-                &screen_config,
-                &mut glyph_vertices,
-                &mut char_draws,
-            );
-        }
-
         // --- track tray + file tree ---
-
+        // NOTE: this block MUST run before any other region's `vert_start`/`char_start`
+        // is captured (e.g. toolbar's), otherwise this geometry gets silently absorbed
+        // into that later region's range since `record()`/`RecordedRegion` measure
+        // "end" as "wherever the buffer currently is" at push time.
         let mut tray_icon_start = 0;
         let mut tray_icon_end = 0;
 
@@ -685,6 +634,62 @@ impl Graphics {
             });
         }
 
+        // --- toolbar (pattern tray + top bar) ---
+        // NOTE: everything that should NOT be part of the toolbar's recorded region
+        // must run BEFORE this point (see note above the track-tray block).
+        let toolbar_vert_start = vertices.len() as u32;
+        let toolbar_char_start = char_draws.len();
+
+        let sequencer_is_open = self
+            .mini_windows
+            .iter()
+            .any(|w| matches!(w.window_kind, WindowKind::Sequencer) && w.is_open);
+
+        if self.show_pattern_tray {
+            let (texts, result, cursor, icon, tooltip) = side_panel::pattern_tray::draw(
+                &screen_config,
+                &self.patterns,
+                self.active_pattern_id,
+                mouse_state,
+                sequencer_is_open,
+                self.pattern_tray_width,
+                &mut vertices,
+            );
+            if cursor != CursorIcon::Default {
+                cursor_icon = cursor;
+            }
+            click_result = click_result.or(result);
+            Graphics::push_text_draws(
+                &texts,
+                &self.font_cache,
+                &self.glyph_cache,
+                &screen_config,
+                &mut glyph_vertices,
+                &mut char_draws,
+            );
+            push_icon_draw(
+                &self.icon_cache,
+                &self.device,
+                &screen_config,
+                &icon,
+                &mut icon_draws,
+            );
+            self.tooltip = tooltip;
+        }
+
+        if self.show_save_modal {
+            let (verts, texts) = modal::draw(&screen_config);
+            vertices.extend(verts);
+            Graphics::push_text_draws(
+                &texts,
+                &self.font_cache,
+                &self.glyph_cache,
+                &screen_config,
+                &mut glyph_vertices,
+                &mut char_draws,
+            );
+        }
+
         let total_seconds = ((self.playhead_beat / self.bpm) * 60.0) as u32;
         let time_string = format!(
             "{:02}:{:02}:{:02}",
@@ -733,6 +738,8 @@ impl Graphics {
         ));
 
         // --- footer ---
+        // NOTE: footer's region is captured immediately, with nothing unrelated running
+        // between start-capture and push — same rule as above, already correct here.
         let footer_vert_start = vertices.len() as u32;
         let footer_char_start = char_draws.len();
         let title = if project_is_dirty {

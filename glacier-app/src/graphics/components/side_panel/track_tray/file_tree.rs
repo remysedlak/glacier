@@ -75,83 +75,104 @@ fn draw_fs_tree(
     };
     let indent = depth as f32 * PAD_16;
 
+    // base_y is already the exact y-coordinate of the file tree's real scissor top
+    // (see draw.rs: divider_y = sh/2 + PAD_32 + PAD_16, and this function receives
+    // base_y = divider_y_param + PAD_32 + PAD_16, which reconstructs that same value).
+    // Do NOT subtract PAD_32/PAD_16 back out here — that was the bug: it produced a
+    // cutoff line sitting PAD_32+PAD_16 px above the real scissor boundary.
+    let visible_top = base_y;
+
     for (path, is_dir) in entries {
         let name = path.file_name().and_then(|n| n.to_str()).unwrap_or("?");
 
         let y = base_y + *row * PAD_32 - scroll_offset;
 
-        // culling
+        // culling — "below the screen" means every remaining row is also below,
+        // so it's safe to stop entirely. "above the visible top" only means THIS
+        // row shouldn't draw its own rectangle/text/icon — its children may still
+        // be visible further down, so we must NOT skip the recursive call for them.
         //
-        if y + 24.0 < TOOLBAR_Y {
-            *row += 1.0;
-            continue;
-        }
+        // Two different thresholds are needed here:
+        // - rect/text can rely on the real GPU scissor rect to correctly clip a row
+        //   that's only PARTIALLY above the line (top cut, bottom visible) — so for
+        //   them, "entirely above the line" is the right cull test.
+        // - icons have NO scissor clipping at all (drawn in a separate unscissored
+        //   pass), so a partially-overlapping icon would render in full and poke
+        //   above the divider. Icons must be cut whenever ANY part of them could be
+        //   above the line — i.e. the row's TOP, not its bottom, decides icon visibility.
+        let above_visible = y + 24.0 < visible_top; // whole row above the line — skip rect/text
+        let icon_visible = y >= visible_top; // row's top itself below the line — safe for icon
         if y > screen_config.height as f32 {
             return icons;
         }
-        //
-        let button = Rectangle {
-            height: 24.0,
-            width: tray_width - PAD_4 * 2.0 - indent,
-            x: PAD_4 + indent,
-            y,
-        };
-        let color = if button.is_hovered(mouse_state.x, mouse_state.y) {
-            DARK_GRAY
-        } else {
-            PEBBLE
-        };
-        button.draw(screen_config, color, RADIUS_4, out);
 
-        text_items.push(TextItem {
-            text: name.to_string(),
-            x: button.x + PAD_4 + 16.0,
-            y: button.y + PAD_4,
-            size: 10.0,
-            color: WHITE,
-            font: ROBOTO,
-        });
-
-        let icon_name = if *is_dir { "music_dir" } else { "music_file" };
-        icons.push(IconDraw {
-            name: icon_name,
-            x: button.x + PAD_2,
-            y: button.y + PAD_2,
-            width: 16.0,
-            height: 16.0,
-            tooltip: Tooltip {
-                text: Some("Add Track"),
-                x: button.x,
-                y: button.y + 4.0,
-            },
-        });
-
-        if button.is_hovered(mouse_state.x, mouse_state.y) {
-            // show pointer for directories and cursor for files
-            *cursor_icon = if *is_dir {
-                CursorIcon::Pointer
-            } else {
-                CursorIcon::Default
+        if !above_visible {
+            let button = Rectangle {
+                height: 24.0,
+                width: tray_width - PAD_4 * 2.0 - indent,
+                x: PAD_4 + indent,
+                y,
             };
-            if !*is_dir {
-                if is_audio_file(path) {
-                    if mouse_state.left_clicked && matches!(click_result, ClickResult::None) {
-                        *click_result = ClickResult::FsPreviewSample(path.clone());
+            let color = if button.is_hovered(mouse_state.x, mouse_state.y) {
+                DARK_GRAY
+            } else {
+                PEBBLE
+            };
+            button.draw(screen_config, color, RADIUS_4, out);
+
+            text_items.push(TextItem {
+                text: name.to_string(),
+                x: button.x + PAD_4 + 16.0,
+                y: button.y + PAD_4,
+                size: 10.0,
+                color: WHITE,
+                font: ROBOTO,
+            });
+
+            let icon_name = if *is_dir { "music_dir" } else { "music_file" };
+            if icon_visible {
+                icons.push(IconDraw {
+                    name: icon_name,
+                    x: button.x + PAD_2,
+                    y: button.y + PAD_2,
+                    width: 16.0,
+                    height: 16.0,
+                    tooltip: Tooltip {
+                        text: Some("Add Track"),
+                        x: button.x,
+                        y: button.y + 4.0,
+                    },
+                });
+            }
+
+            if button.is_hovered(mouse_state.x, mouse_state.y) {
+                // show pointer for directories and cursor for files
+                *cursor_icon = if *is_dir {
+                    CursorIcon::Pointer
+                } else {
+                    CursorIcon::Default
+                };
+                if !*is_dir {
+                    if is_audio_file(path) {
+                        if mouse_state.left_clicked && matches!(click_result, ClickResult::None) {
+                            *click_result = ClickResult::FsPreviewSample(path.clone());
+                        }
+                        if mouse_state.left_click_held && matches!(click_result, ClickResult::None)
+                        {
+                            *click_result = ClickResult::FsStartDragFile(path.clone());
+                        }
                     }
-                    if mouse_state.left_click_held && matches!(click_result, ClickResult::None) {
-                        *click_result = ClickResult::FsStartDragFile(path.clone());
-                    }
+                    // non-audio files do nothing
+                } else if mouse_state.left_clicked && matches!(click_result, ClickResult::None) {
+                    *click_result = ClickResult::FsToggleDir(path.clone());
                 }
-                // non-audio files do nothing
-            } else if mouse_state.left_clicked && matches!(click_result, ClickResult::None) {
-                *click_result = ClickResult::FsToggleDir(path.clone());
             }
         }
 
         *row += 1.0;
 
         if *is_dir && expanded_dirs.contains(path) {
-            let line_x = button.x + 8.0;
+            let line_x = PAD_4 + indent + 8.0;
             let line_top = y + 24.0;
 
             let mut child_icons = draw_fs_tree(
@@ -172,15 +193,19 @@ fn draw_fs_tree(
             );
             icons.append(&mut child_icons);
 
-            // ui visual nesting of items within a directory
-            let line_bottom = base_y + *row * PAD_32 - scroll_offset;
-            Rectangle {
-                x: line_x,
-                y: line_top,
-                width: 1.0,
-                height: line_bottom - line_top - 2.0,
+            // ui visual nesting of items within a directory — only draw this line
+            // if the parent row itself was visible; if it wasn't, its top anchor
+            // point is off-screen and drawing the line would be meaningless
+            if !above_visible {
+                let line_bottom = base_y + *row * PAD_32 - scroll_offset;
+                Rectangle {
+                    x: line_x,
+                    y: line_top,
+                    width: 1.0,
+                    height: line_bottom - line_top - 2.0,
+                }
+                .draw(screen_config, DARK_GRAY_HOVER, NO_RADIUS, out);
             }
-            .draw(screen_config, DARK_GRAY_HOVER, NO_RADIUS, out);
         }
     }
     icons
