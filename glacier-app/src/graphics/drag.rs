@@ -1,3 +1,5 @@
+//! File for handling the user's drag actions
+
 use crate::graphics::mini_window::{mixer::MIXER_ITEM_WIDTH, playlist::PLAYLIST_STEP_GAP};
 
 use super::*;

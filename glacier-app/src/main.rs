@@ -1,3 +1,4 @@
+//! main method. Build thread ring buffers, start the audio stream, and run the app's event loop.
 mod app;
 mod audio;
 mod config;

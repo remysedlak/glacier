@@ -1,4 +1,4 @@
-// project.rs - structured objects to store song data
+//! structured objects to store song data
 use serde::{Deserialize, Serialize};
 
 /// Project data stores song information
@@ -50,6 +50,7 @@ impl Project {
 }
 
 impl Default for Project {
+    /// Return the default empty "New Project" for user's opening the app.
     fn default() -> Project {
         Project {
             name: "New Project".to_string(),
@@ -66,7 +67,7 @@ impl Default for Project {
     }
 }
 
-// types of blocks to be placed
+/// different audio elements that can be placed on the playlist timeline
 #[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(tag = "kind", content = "id")]
 pub enum AudioBlockType {
@@ -103,7 +104,7 @@ pub struct Track {
 }
 
 impl Track {
-    // build track with data at default states
+    /// build track with data at default states
     pub fn from_data(data: TrackData, samples: Vec<f32>) -> Track {
         Track {
             samples,
@@ -215,6 +216,7 @@ pub fn path_to_vector(track_path: &str) -> Vec<f32> {
         .collect()
 }
 
+/// Return preview clip of a track's audio data from file path
 pub fn path_to_preview(track_path: &str, seconds: usize) -> Vec<f32> {
     let mut reader = match hound::WavReader::open(track_path) {
         Ok(r) => r,
@@ -234,6 +236,7 @@ pub fn path_to_preview(track_path: &str, seconds: usize) -> Vec<f32> {
         .collect()
 }
 
+/// return how many file system rows are in a Path
 pub fn count_fs_rows(
     dir: &std::path::Path,
     expanded_dirs: &std::collections::HashSet<std::path::PathBuf>,

@@ -26,6 +26,7 @@ pub const ICON_SIZE: f32 = 32.0;
 
 pub const TITLEBAR_HEIGHT: f32 = 32.0;
 
+/// A square stores 2D position and size
 #[derive(Debug)]
 pub struct Square {
     pub x: f32,
@@ -61,6 +62,7 @@ impl Square {
     }
 }
 
+/// A rectangle stores 2D position,width, and height
 #[derive(Debug)]
 pub struct Rectangle {
     pub x: f32,
@@ -69,34 +71,28 @@ pub struct Rectangle {
     pub height: f32,
 }
 impl Rectangle {
-    // if a rectangle has the mouse hovered
+    /// if a rectangle has the mouse hovered
     pub fn is_hovered(&self, mouse_x: f32, mouse_y: f32) -> bool {
         mouse_x > self.x
             && mouse_x < self.x + self.width
             && mouse_y > self.y
             && mouse_y < self.y + self.height
     }
-    // if either edge of a rectangle has the mouse hovered
-    // pub fn is_hovered_edge(&self, mouse_x: f32, mouse_y: f32) -> bool {
-    //     ((mouse_x > self.x + self.width - PAD_8 && mouse_x < self.x + self.width + PAD_8) || (mouse_x > self.x - PAD_8 && mouse_x < self.x + PAD_8))
-    //         && mouse_y > self.y
-    //         && mouse_y < self.y + self.height
-    // }
-    // if the left edge of a rectangle has the mouse hovered
+    /// if the left edge of a rectangle has the mouse hovered
     pub fn is_hovered_left_edge(&self, mouse_x: f32, mouse_y: f32) -> bool {
         // on left edge within y range
         (mouse_x > self.x - PAD_4 && mouse_x < self.x + PAD_4)
             && mouse_y > self.y
             && mouse_y < self.y + self.height
     }
-    // if the right edge of a rectangle has the mouse hovered
+    /// if the right edge of a rectangle has the mouse hovered
     pub fn is_hovered_right_edge(&self, mouse_x: f32, mouse_y: f32) -> bool {
         // on r edge within y range
         (mouse_x > self.x + self.width - PAD_8 && mouse_x < self.x + self.width + PAD_8)
             && mouse_y > self.y
             && mouse_y < self.y + self.height
     }
-    // draw vertices with rectangle details
+    /// draw vertices with rectangle details
     pub fn draw(
         &self,
         screen_config: &ScreenConfig,
@@ -122,11 +118,12 @@ pub const MIXER_TRACK_WIDTH: f32 = 4.0;
 pub const THUMB_HEIGHT: f32 = 16.0;
 pub const MIXER_THUMB_WIDTH: f32 = 32.0;
 
+/// return the y position of the slider based on volume
 fn volume_to_slider_position(volume: f32) -> f32 {
     (1.0 - volume) * MIXER_TRACK_HEIGHT
 }
 
-/// draw one slider for master panel
+/// draw one slider for mixer.rs
 pub fn draw_slider(
     master_volume: f32,
     x: f32,
@@ -153,6 +150,7 @@ pub fn draw_slider(
     thumb.draw(screen_config, LIGHT_GRAY, NO_RADIUS, out);
 }
 
+/// Draws the title bar of a MiniWindow
 pub fn window_title_bar(
     window: &MiniWindow,
     title: &str,
@@ -209,11 +207,13 @@ pub fn window_title_bar(
     (window_title, result, cursor_icon)
 }
 
+/// Returns the x position of where text will appear centered for a MiniWindow title bar
 pub fn center_title_x(window: &MiniWindow, text: &str) -> f32 {
     let center_x = window.x + (window.width / 2.0);
     center_x - (text.len() as f32 * 9.0 / 2.0)
 }
 
+/// Returns the background rectangle of a MiniWindow
 pub fn window_background(window: &MiniWindow) -> Rectangle {
     Rectangle {
         x: window.x,

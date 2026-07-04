@@ -1,4 +1,4 @@
-// config.rs - user configs store long term ui preferences & customizations
+//! user configs store long term ui preferences & customizations
 
 use serde::{Deserialize, Serialize};
 
@@ -10,7 +10,7 @@ pub struct UserSettings {
     pub instrument_search_paths: Vec<String>,
 }
 
-// get the UserSettings path
+/// get the UserSettings path
 pub fn config_path() -> std::path::PathBuf {
     dirs::config_dir()
         .unwrap_or_else(|| std::path::PathBuf::from("."))
@@ -18,7 +18,7 @@ pub fn config_path() -> std::path::PathBuf {
         .join("settings.toml")
 }
 
-// get the UserSettings data
+/// get the UserSettings data from disk
 pub fn load() -> UserSettings {
     let path = config_path();
     if path.exists() {
@@ -29,7 +29,7 @@ pub fn load() -> UserSettings {
     }
 }
 
-// save the UserSettings data
+/// save the UserSettings data to disk
 pub fn save(settings: &UserSettings) {
     let path = config_path();
     std::fs::create_dir_all(path.parent().unwrap()).ok();

@@ -1,4 +1,4 @@
-// audio.rs -  audio engine for sequencing compositions and applying DSP
+//! audio engine for sequencing compositions and applying DSP
 use crate::project::*;
 use crate::UiCommand;
 use cpal::{
@@ -10,7 +10,7 @@ use ringbuf::{
     HeapCons, HeapProd,
 };
 
-// commands retrieved from the user interface
+/// commands retrieved from the user interface to control the audio engine
 pub enum AudioCommand {
     // composition details
     ToggleStep(usize, usize, usize),

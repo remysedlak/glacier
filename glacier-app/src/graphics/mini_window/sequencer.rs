@@ -22,6 +22,7 @@ pub const SEQUENCER_STEP_HEIGHT: f32 = 48.0;
 pub const MUTE_SQUARE_LENGTH: f32 = 16.0;
 pub const MAX_STEPS: u32 = 256;
 
+/// Draw the sequencer Mini Window. The user can compose a pattern here or access track context menus
 pub fn draw(
     window: &MiniWindow,
     patterns: &[PatternData],

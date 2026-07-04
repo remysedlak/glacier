@@ -1,4 +1,4 @@
-// app.rs - main state logic for audio and ui decoupling
+//! main state logic for audio and ui decoupling threads
 use crate::audio::{init, AudioCommand};
 use crate::config::{self, UserSettings};
 use crate::graphics::{
@@ -128,6 +128,7 @@ enum State {
 
 // app created for the main event loop
 impl App {
+    /// Initialzie the app's state
     pub fn new(
         producer: HeapProd<AudioCommand>,
         consumer: HeapCons<UiCommand>,
@@ -170,7 +171,7 @@ impl App {
         }
     }
 
-    // if the state is ready, draw each frame and handle it's click results
+    /// if the state is ready, draw each frame and handle it's click results
     fn draw(&mut self, event_loop: &ActiveEventLoop) {
         let mut should_exit = false;
 
@@ -781,6 +782,7 @@ impl App {
         }
     }
 
+    /// Response to user resizing the main window
     fn resized(&mut self, size: PhysicalSize<u32>) {
         if let State::Ready(gfx) = &mut self.state {
             gfx.resize(size);
@@ -812,6 +814,7 @@ impl ApplicationHandler<Graphics> for App {
         self.state = State::Ready(Box::new(graphics));
     }
 
+    /// Window events include user i/o such as keyboard and mouse or closing the app.
     fn window_event(
         &mut self,
         event_loop: &ActiveEventLoop,
@@ -1071,6 +1074,7 @@ impl ApplicationHandler<Graphics> for App {
     }
 }
 
+/// Helper method for starting a thread to handle loading a new track to the project from the file system
 fn spawn_track_load(path_str: String) -> Receiver<(TrackData, Vec<f32>)> {
     let (tx, rx) = std::sync::mpsc::channel();
     std::thread::spawn(move || {

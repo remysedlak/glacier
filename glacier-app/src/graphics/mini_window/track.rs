@@ -15,6 +15,7 @@ const TRACK_GRAPHICS_WIDTH: f32 = 200.0;
 const TRACK_GRAPHICS_HEIGHT: f32 = 128.0;
 const TRACK_GRAPHICS_HEIGHT_HALF: f32 = 128.0 / 2.0;
 
+/// Draw a Mini Window that contains the track information and audio tools
 pub fn draw(
     window: &MiniWindow,
     mouse_state: &MouseState,

@@ -8,6 +8,7 @@ use crate::graphics::{
 pub const FOOTER_Y_HEIGHT: f32 = 32.0;
 pub const FPS_COUNTER_X_OFFSET: f32 = 80.0;
 
+/// Draw the app footer. Contains project metadata and frame rate label
 pub fn draw(
     screen_config: &ScreenConfig,
     path: &String,

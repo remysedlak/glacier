@@ -1,5 +1,5 @@
 use crate::app::MouseState;
-use crate::graphics::color::{DARK_GRAY_HOVER, LL_GRAY};
+use crate::graphics::color::DARK_GRAY_HOVER;
 use crate::graphics::{
     color::{BLACK, LIGHT_GRAY, LIGHT_GRAY_HOVER, PEBBLE},
     components::{side_panel::*, toolbar::icon_color},

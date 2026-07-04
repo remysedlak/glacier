@@ -17,6 +17,7 @@ const PLAYLIST_TRACK_GAP: f32 = 70.0;
 const TIMELINE_X_ORIGIN: f32 = 128.0;
 const PLAYHEAD_WIDTH: f32 = 4.0;
 
+/// Draw the playlist Mini Window. This is where the user composes the entire song and project. Instruments can be placed here from the track tray, and patterns from the pattern track.
 pub fn draw(
     window: &MiniWindow,
     events: &[AudioBlock],

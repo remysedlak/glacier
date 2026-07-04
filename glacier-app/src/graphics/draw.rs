@@ -1,6 +1,8 @@
+//! Main draw method for painting all shapes and handling vertex buffers.
+
 use super::*;
 use crate::graphics::{
-    color::{DARK_GRAY_HOVER, LIGHT_GRAY, LL_GRAY, PEBBLE},
+    color::{DARK_GRAY_HOVER, LIGHT_GRAY, PEBBLE},
     components::modal,
 };
 use std::time::Duration;
@@ -435,7 +437,7 @@ impl Graphics {
                         cursor_icon = cursor;
                     }
                 }
-                /// draw the track details window
+                // draw the track details window
                 track => {
                     let window = &self.mini_windows[track];
                     if window.is_open {

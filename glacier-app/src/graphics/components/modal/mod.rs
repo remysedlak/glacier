@@ -1,3 +1,4 @@
+//! Modals are popups that appear in the middle of the screen, the rest of the app is blurred out.
 use crate::graphics::{
     color::DARK_GRAY,
     font::TextItem,
@@ -8,6 +9,7 @@ use crate::graphics::{
 const MODAL_HEIGHT: f32 = 256.0;
 const MODAL_WIDTH: f32 = 512.0;
 
+/// Experimental: Draw a modal to the screen
 pub fn draw(screen_config: &ScreenConfig) -> (Vec<Vertex>, Vec<TextItem>) {
     let mut vertices: Vec<Vertex> = Vec::new();
     let text_items: Vec<TextItem> = Vec::new();

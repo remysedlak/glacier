@@ -1,6 +1,7 @@
 use crate::graphics::MouseState;
 use crate::graphics::{color::*, font::TextItem};
 
+/// TODO: potentially abstract away repeatedly passed arguments to draw methods.
 pub struct DrawCtx<'a> {
     pub vertices: &'a mut Vec<Vertex>,
     pub glyph_vertices: &'a mut Vec<Vertex>,
@@ -25,11 +26,13 @@ pub const BUTTON_GAP: f32 = 24.0;
 
 pub const ONE_MEGABYTE: u64 = 1024 * 1024;
 
+/// Stores the width and height of the user's application window
 pub struct ScreenConfig {
     pub width: u32,
     pub height: u32,
 }
 
+/// Stores the vertices and texts of one region of paint
 pub struct DrawRegion {
     pub vertices: Vec<Vertex>,
     pub text_items: Vec<TextItem>,
@@ -37,6 +40,7 @@ pub struct DrawRegion {
 
 #[repr(C)]
 #[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
+/// The primitive drawing unit that builds triangles to build all shapes on the screen.
 pub struct Vertex {
     pub position: [f32; 3],
     pub local_pos: [f32; 2],
@@ -66,13 +70,16 @@ impl Vertex {
     }
 }
 
+/// returns the normalized device x coordinate for the screen
 pub fn to_ndc_x(x: f32, screen_config: &ScreenConfig) -> f32 {
     2.0 * (x / screen_config.width as f32) - 1.0
 }
+/// returns the normalized device y coordinate for the screen
 pub fn to_ndc_y(y: f32, screen_config: &ScreenConfig) -> f32 {
     1.0 - (y / screen_config.height as f32) * 2.0
 }
 
+/// Draws one rectangle to the vertex buffer. Currently customizations include color and corner_radius.
 pub fn draw_rectangle(
     x: f32,
     y: f32,
@@ -147,6 +154,7 @@ pub fn draw_rectangle(
     });
 }
 
+/// Draws one circle to the vertex buffer
 pub fn draw_circle(
     cx: f32,
     cy: f32,
@@ -181,6 +189,8 @@ pub fn draw_circle(
         vertex_buffer.push(inert_v(cx + radius * a1.cos(), cy + radius * a1.sin()));
     }
 }
+
+/// Draws one volume knob to the vertex buffer
 pub fn draw_knob(
     cx: f32,
     cy: f32,
@@ -226,7 +236,7 @@ pub fn draw_knob(
     vertex_buffer.push(v(p3.0, p3.1));
 }
 
-// draw a line across the entire screen
+/// draw a horizontal line across the entire screen
 pub fn draw_h_line(
     y: f32,
     thickness: f32,

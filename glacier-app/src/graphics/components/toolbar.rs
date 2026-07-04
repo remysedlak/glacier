@@ -1,3 +1,4 @@
+//! The toolbar contains easy access toggle buttons for opening windows, loading files, or view project bpm/step/time info.
 use crate::app::MouseState;
 use crate::graphics::{
     color::*,

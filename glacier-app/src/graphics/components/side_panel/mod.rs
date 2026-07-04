@@ -1,3 +1,4 @@
+//! Side panels appear on the left and right side of the screen.
 use crate::graphics::{
     color::WHITE,
     font::{TextItem, ROBOTO, TITLE},

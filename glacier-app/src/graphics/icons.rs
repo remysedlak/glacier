@@ -1,3 +1,4 @@
+//! Icons are loaded
 use std::collections::HashMap;
 
 use wgpu::util::DeviceExt;
@@ -28,6 +29,7 @@ pub const ICONS: &[(&str, u32, u32)] = &[
     ("bpm_down", 32, 12),
 ];
 
+/// Icon File Wrapper. path and size.
 pub struct IconSvg {
     pub width: f32,
     pub height: f32,
@@ -35,12 +37,14 @@ pub struct IconSvg {
 }
 
 #[derive(Clone, PartialEq)]
+/// A hover label anchored at (x, y); text: None means no tooltip shown.
 pub struct Tooltip {
     pub text: Option<&'static str>,
     pub x: f32,
     pub y: f32,
 }
 
+/// Pre-loaded app Icon with Tooltip defined
 pub struct IconDraw {
     pub name: &'static str,
     pub x: f32,
@@ -50,12 +54,13 @@ pub struct IconDraw {
     pub tooltip: Tooltip,
 }
 impl IconDraw {
+    /// if an icon is hovered.
     pub fn is_hovered(&self, mx: f32, my: f32) -> bool {
         mx > self.x && mx < self.x + self.width && my > self.y && my < self.y + self.height
     }
 }
 
-/// pushing icons to draw
+/// Pushes icons to wgpu buffer using painting information and the icon cache
 pub fn push_icon_draw<'a>(
     icon_cache: &'a HashMap<String, (wgpu::Texture, wgpu::BindGroup)>,
     device: &wgpu::Device,
@@ -74,6 +79,7 @@ pub fn push_icon_draw<'a>(
     }
 }
 
+/// Input's an SVG path and outputs a wgpu texture and icon size information
 pub fn rasterize_icon(
     device: &wgpu::Device,
     queue: &wgpu::Queue,
@@ -174,7 +180,7 @@ pub fn rasterize_icon(
     )
 }
 
-// return vec of vertex building the font letter
+/// return vector of vertices building the icon
 pub fn draw_icon(x: f32, y: f32, w: f32, h: f32, screen_config: &ScreenConfig) -> Vec<Vertex> {
     let ndc_x = 2.0 * (x / screen_config.width as f32) - 1.0;
     let ndc_y = 1.0 - (y / screen_config.height as f32) * 2.0;

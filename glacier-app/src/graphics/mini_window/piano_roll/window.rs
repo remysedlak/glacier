@@ -13,6 +13,7 @@ use crate::graphics::{
 use crate::project::{PatternData, Sequence, Track};
 use winit::window::CursorIcon;
 
+/// Draws the Piano Roll. Contains a static, piano key, and piano grid draw region.
 pub fn draw(
     window: &MiniWindow,
     mouse_state: &MouseState,

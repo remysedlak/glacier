@@ -49,6 +49,7 @@ use winit::{
 
 pub type Rc<T> = std::sync::Arc<T>;
 
+/// Each frame, a ClickResult is returned from the draw method. If the mouse left clicked a component on a screen, then a ClickResult is returned and handled in app.rs.
 pub enum ClickResult {
     // sequencer
     ToggleStep(usize, usize, usize), // pattern_id, track_id, step_idx

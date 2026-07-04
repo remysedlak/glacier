@@ -1,32 +1,51 @@
+//! Fonts are loaded to wgpu with fontdue
 use crate::graphics::{
     color::Color,
     primitives::{ScreenConfig, Vertex, NO_RADIUS},
 };
 use std::collections::HashMap;
 
+/// A single rasterized glyph: its wgpu texture, the bind group used to draw
+/// it, and fontdue's layout metrics (width/height/advance) for positioning.
 #[expect(dead_code)] // wgpu texture is not used, just needs to exist
 pub struct GlyphEntry(wgpu::Texture, wgpu::BindGroup, fontdue::Metrics);
 impl GlyphEntry {
+    /// The bind group to set before drawing this glyph's quad.
     pub fn bind_group(&self) -> &wgpu::BindGroup {
         &self.1
     }
 }
+
+/// Pre-rasterized glyphs for every loaded font, keyed by font name and then
+/// by (character, size). Built once at startup via `build_glyph_cache` per
+/// font; `Graphics::draw` looks glyphs up here every frame instead of
+/// rasterizing on the fly.
 pub struct GlyphCache(HashMap<String, HashMap<(char, u32), GlyphEntry>>);
 impl GlyphCache {
+    /// An empty cache with no fonts loaded yet.
     pub fn new() -> Self {
         GlyphCache(HashMap::new())
     }
+    /// Register a font's full glyph set under `name` (as produced by
+    /// `build_glyph_cache`), overwriting any existing entry for that name.
     pub fn insert(&mut self, name: String, entry: HashMap<(char, u32), GlyphEntry>) {
         self.0.insert(name, entry);
     }
+    /// Look up a single rasterized glyph by font name, character, and size.
+    /// Returns `None` if the font isn't loaded or that glyph/size wasn't
+    /// pre-rasterized.
     pub fn get(&self, font: &str, ch: char, size: u32) -> Option<&GlyphEntry> {
         self.0.get(font)?.get(&(ch, size))
     }
+    /// Any bind group in the cache — used to satisfy wgpu's requirement that
+    /// a bind group be set before issuing a draw call, even for the
+    /// non-glyph geometry pass where the actual texture doesn't matter.
     pub fn any_bind_group(&self) -> Option<&wgpu::BindGroup> {
         Some(&self.0.values().next()?.values().next()?.1)
     }
 }
 
+/// A text item stores the text visual information for wgpu to later draw as vertices
 pub struct TextItem {
     pub text: String,
     pub size: f32,
@@ -36,6 +55,7 @@ pub struct TextItem {
     pub y: f32,
 }
 
+/// Shortens text to a certain length for visual purposes. E.g.: Piano_Key_A6.wav -> Piano_Ke...
 pub fn truncate_text(name: &str, length: usize) -> String {
     let track_button_text: String = if name.len() > length {
         let end = name.floor_char_boundary(length);
@@ -53,6 +73,8 @@ pub const MONOSPACED: &str = "mono";
 pub const TITLE: f32 = 18.0;
 pub const BODY: f32 = 12.0;
 
+/// The bind group layout shared by every glyph/icon texture: one filterable
+/// 2D texture (binding 0) plus one filtering sampler (binding 1).
 pub fn create_bind_group_layout(device: &wgpu::Device) -> wgpu::BindGroupLayout {
     device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
         label: None,
@@ -87,12 +109,11 @@ pub fn build_glyph_cache(
     let mut cache = HashMap::new();
     for &size in sizes {
         for c in ' '..='~' {
-            let (metrics, _) = font.rasterize(c, size);
+            let (metrics, _) = font.rasterize(c, size); // call #1: cheap empty-glyph check
             if metrics.width == 0 || metrics.height == 0 {
                 continue;
             }
-            let (texture, bind_group, _, _, _) = rasterize_glyph(device, queue, font, c, size);
-            let (metrics, _) = font.rasterize(c, size);
+            let (texture, bind_group, _, metrics) = rasterize_glyph(device, queue, font, c, size); // call #2, metrics reused below
             cache.insert((c, size as u32), GlyphEntry(texture, bind_group, metrics));
         }
     }
@@ -106,7 +127,12 @@ pub fn rasterize_glyph(
     font: &fontdue::Font,
     c: char,
     size: f32,
-) -> (wgpu::Texture, wgpu::BindGroup, wgpu::BindGroupLayout, u32, u32) {
+) -> (
+    wgpu::Texture,
+    wgpu::BindGroup,
+    wgpu::BindGroupLayout,
+    fontdue::Metrics,
+) {
     let (metrics, bitmap) = font.rasterize(c, size);
 
     let texture = device.create_texture(&wgpu::TextureDescriptor {
@@ -180,11 +206,20 @@ pub fn rasterize_glyph(
         ],
     });
 
-    (texture, bind_group, bgl, metrics.width as u32, metrics.height as u32)
+    (texture, bind_group, bgl, metrics)
 }
 
-// return vec of vertex building the font letter
-pub fn draw_glyph(x: f32, y: f32, w: f32, h: f32, screen_config: &ScreenConfig, color: (f32, f32, f32)) -> Vec<Vertex> {
+/// Build vertices for one glyph quad at the given screen position, sized to
+/// (w, h) and tinted `color`. Two triangles (6 vertices), UV-mapped 0..1
+/// so the fragment shader samples the glyph's rasterized texture directly.
+pub fn draw_glyph(
+    x: f32,
+    y: f32,
+    w: f32,
+    h: f32,
+    screen_config: &ScreenConfig,
+    color: (f32, f32, f32),
+) -> Vec<Vertex> {
     let ndc_x = 2.0 * (x / screen_config.width as f32) - 1.0;
     let ndc_y = 1.0 - (y / screen_config.height as f32) * 2.0;
     let ndc_w = (w / screen_config.width as f32) * 2.0;

@@ -1,3 +1,4 @@
+//! The mixer window contains controls for all audio mixing and mastering such as volume and plugins.
 use winit::window::CursorIcon;
 
 use crate::{

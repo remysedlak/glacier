@@ -1,3 +1,4 @@
+//! A context menu appears when you right click a song item. This is handy for shortcuts to other windows or for user CRUD operations.
 use winit::window::CursorIcon;
 
 use crate::{
@@ -27,6 +28,8 @@ pub struct ContextMenu {
     pub y: f32,
     pub width: f32,
 }
+
+/// Color interactivity of the items of a Context Menu (the individual MenuItem's to hover)
 fn menu_item_color(rect: &Rectangle, mx: f32, my: f32, held: bool) -> Color {
     if rect.is_hovered(mx, my) && !held {
         DARK_GRAY_HOVER_HOVER
@@ -36,6 +39,7 @@ fn menu_item_color(rect: &Rectangle, mx: f32, my: f32, held: bool) -> Color {
 }
 
 impl ContextMenu {
+    /// Draw a context menu
     pub fn draw(
         &self,
         screen_config: &ScreenConfig,
@@ -52,6 +56,7 @@ impl ContextMenu {
         }
     }
 
+    /// Draw the background of a ContextMenu
     pub fn draw_background(&self) -> Rectangle {
         Rectangle {
             height: (CONTEXT_MENU_ITEM_HEIGHT + CONTEXT_MENU_PADDING)
@@ -63,6 +68,7 @@ impl ContextMenu {
         }
     }
 
+    /// Return text for one item of a context item for Patterns
     pub fn draw_pattern_context_item_text(&self, index: usize) -> TextItem {
         let label = match index {
             0 => "Rename",
@@ -80,6 +86,7 @@ impl ContextMenu {
         }
     }
 
+    /// Return text for one item of a context item for Tracks
     pub fn draw_track_context_item_text(&self, index: usize) -> TextItem {
         let label = match index {
             0 => "Rename",
@@ -112,6 +119,7 @@ impl ContextMenu {
         rect.is_hovered(mx, my)
     }
 
+    /// Draw the context menu for a pattern
     fn draw_pattern_context(
         &self,
         screen_config: &ScreenConfig,
@@ -179,6 +187,7 @@ impl ContextMenu {
         (text_items, click_result, cursor_icon)
     }
 
+    /// Draw the context menu of a Track
     fn draw_track_context(
         &self,
         screen_config: &ScreenConfig,
