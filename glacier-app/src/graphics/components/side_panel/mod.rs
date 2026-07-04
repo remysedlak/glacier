@@ -14,6 +14,7 @@ pub const DEFAULT_TRAY_WIDTH: f32 = 128.0;
 pub const PATTERN_TRAY_HEADER_MARGIN: f32 = 64.0;
 pub const PATTERN_TRAY_ITEM_GAP: f32 = 32.0;
 
+/// draw the title of the tray. (Imagine the H1 of component)
 pub fn draw_title(title: &str, origin: (f32, f32)) -> TextItem {
     TextItem {
         text: title.to_string(),

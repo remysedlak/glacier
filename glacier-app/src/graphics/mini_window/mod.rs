@@ -64,25 +64,3 @@ impl MiniWindow {
             && mouse_y < self.y + self.height
     }
 }
-
-/// Tracks the position of the global vertex buffers of where a windows shapes are.
-pub struct WindowDrawRange {
-    pub vert_start: u32,
-    pub vert_end: u32,
-    pub char_start: usize,
-    pub char_end: usize,
-}
-
-/// the playlist has three DrawRange's: non moving static shapes, the header of the playlist, and the timeline itself
-pub struct PlaylistDrawRanges {
-    pub static_range: WindowDrawRange,
-    pub header_range: WindowDrawRange,
-    pub timeline_range: WindowDrawRange,
-}
-
-/// the piano roll has three DrawRanges: non moving static shapes, the actual piano, and the piano grid.
-pub struct PianoRollDrawRanges {
-    pub static_range: WindowDrawRange, // background + titlebar
-    pub piano_range: WindowDrawRange,  // fixed piano keys, no scroll
-    pub grid_range: WindowDrawRange,   // scrollable note grid
-}

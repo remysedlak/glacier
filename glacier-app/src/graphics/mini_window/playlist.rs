@@ -14,7 +14,7 @@ const PLAYLIST_STEP_WIDTH: f32 = 32.0;
 const PLAYLIST_STEP_HEIGHT: f32 = 64.0;
 pub const PLAYLIST_STEP_GAP: f32 = 35.0;
 const PLAYLIST_TRACK_GAP: f32 = 70.0;
-const TIMELINE_X_ORIGIN: f32 = 128.0;
+pub const TIMELINE_X_ORIGIN: f32 = 128.0;
 const PLAYHEAD_WIDTH: f32 = 4.0;
 
 /// Draw the playlist Mini Window. This is where the user composes the entire song and project. Instruments can be placed here from the track tray, and patterns from the pattern track.

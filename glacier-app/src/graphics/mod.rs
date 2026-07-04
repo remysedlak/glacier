@@ -7,6 +7,7 @@ pub mod font;
 pub mod icons;
 pub mod mini_window;
 pub mod primitives;
+pub mod regions;
 pub mod widgets;
 
 use crate::app::{MouseState, PianoRollState, ScrollOffset};
@@ -27,8 +28,7 @@ use icons::{push_icon_draw, Tooltip};
 use mini_window::{
     mixer, piano_roll, playlist, sequencer,
     sequencer::{ACTIONS_Y_OFFSET, KNOB_OFFSET, KNOB_RADIUS, TRACK_GAP},
-    track, MiniWindow, PianoRollDrawRanges, PlaylistDrawRanges, WindowDrawRange, WindowKind,
-    MIXER_ID, PIANO_ROLL_ID, PLAYLIST_ID, SEQUENCER_ID,
+    track, MiniWindow, WindowKind, MIXER_ID, PIANO_ROLL_ID, PLAYLIST_ID, SEQUENCER_ID,
 };
 use primitives::*;
 use std::{borrow::Cow, collections::HashMap};

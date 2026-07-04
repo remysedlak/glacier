@@ -4,6 +4,8 @@ use super::*;
 use crate::graphics::{
     color::{DARK_GRAY_HOVER, LIGHT_GRAY, PEBBLE},
     components::modal,
+    mini_window::playlist::TIMELINE_X_ORIGIN,
+    regions::*,
 };
 use std::time::Duration;
 
@@ -52,71 +54,6 @@ impl Graphics {
                 }
             }
         }
-    }
-
-    /// Clamps a scissor rect so paint never goes outside screen bounds
-    fn safe_scissor(x: u32, y: u32, w: u32, h: u32, sw: u32, sh: u32) -> (u32, u32, u32, u32) {
-        let x = x.min(sw.saturating_sub(1));
-        let y = y.min(sh.saturating_sub(1));
-        let w = w.min(sw.saturating_sub(x)).max(1);
-        let h = h.min(sh.saturating_sub(y)).max(1);
-        (x, y, w, h)
-    }
-
-    /// Draw a range of colored/textured geometry quads
-    fn draw_geom(
-        r_pass: &mut wgpu::RenderPass,
-        vertex_buffer: &wgpu::Buffer,
-        any_bg: &wgpu::BindGroup,
-        start: u32,
-        end: u32,
-    ) {
-        if start < end {
-            r_pass.set_bind_group(0, any_bg, &[]);
-            r_pass.set_vertex_buffer(0, vertex_buffer.slice(..));
-            r_pass.draw(start..end, 0..1);
-        }
-    }
-
-    /// Draw a range of glyph quads, each with its own bind group
-    fn draw_chars(
-        r_pass: &mut wgpu::RenderPass,
-        glyph_vertex_buffer: &wgpu::Buffer,
-        char_draws: &[(u64, &wgpu::BindGroup)],
-        start: usize,
-        end: usize,
-    ) {
-        let stride = (6 * std::mem::size_of::<Vertex>()) as u64;
-        for (offset, bg) in char_draws.iter().skip(start).take(end - start) {
-            r_pass.set_bind_group(0, *bg, &[]);
-            r_pass.set_vertex_buffer(0, glyph_vertex_buffer.slice(*offset..*offset + stride));
-            r_pass.draw(0..6, 0..1);
-        }
-    }
-
-    /// Draw geometry + glyphs for a WindowDrawRange in one call
-    fn draw_range(
-        r_pass: &mut wgpu::RenderPass,
-        vertex_buffer: &wgpu::Buffer,
-        glyph_vertex_buffer: &wgpu::Buffer,
-        any_bg: &wgpu::BindGroup,
-        char_draws: &[(u64, &wgpu::BindGroup)],
-        range: &WindowDrawRange,
-    ) {
-        Self::draw_geom(
-            r_pass,
-            vertex_buffer,
-            any_bg,
-            range.vert_start,
-            range.vert_end,
-        );
-        Self::draw_chars(
-            r_pass,
-            glyph_vertex_buffer,
-            char_draws,
-            range.char_start,
-            range.char_end,
-        );
     }
 
     pub fn draw(
@@ -942,9 +879,9 @@ impl Graphics {
                         let key_w = grid_x.saturating_sub(wx);
                         let grid_w = win_right.saturating_sub(grid_x).saturating_sub(16);
 
-                        let (sx, sy, sw2, sh2) = Self::safe_scissor(wx, wy, ww, wh, sw, sh);
+                        let (sx, sy, sw2, sh2) = safe_scissor(wx, wy, ww, wh, sw, sh);
                         r_pass.set_scissor_rect(sx, sy, sw2, sh2);
-                        Graphics::draw_range(
+                        draw_range(
                             &mut r_pass,
                             &self.vertex_buffer,
                             &self.glyph_vertex_buffer,
@@ -954,9 +891,9 @@ impl Graphics {
                         );
 
                         let (sx, sy, sw2, sh2) =
-                            Self::safe_scissor(wx, content_y, key_w, content_h, sw, sh);
+                            safe_scissor(wx, content_y, key_w, content_h, sw, sh);
                         r_pass.set_scissor_rect(sx, sy, sw2, sh2);
-                        Graphics::draw_range(
+                        draw_range(
                             &mut r_pass,
                             &self.vertex_buffer,
                             &self.glyph_vertex_buffer,
@@ -966,9 +903,9 @@ impl Graphics {
                         );
 
                         let (sx, sy, sw2, sh2) =
-                            Self::safe_scissor(grid_x, content_y, grid_w, content_h, sw, sh);
+                            safe_scissor(grid_x, content_y, grid_w, content_h, sw, sh);
                         r_pass.set_scissor_rect(sx, sy, sw2, sh2);
-                        Graphics::draw_range(
+                        draw_range(
                             &mut r_pass,
                             &self.vertex_buffer,
                             &self.glyph_vertex_buffer,
@@ -997,15 +934,16 @@ impl Graphics {
                         let win_bottom = ((win.y + win.height) as u32).min(sh);
                         let ww = win_right.saturating_sub(wx);
                         let wh = win_bottom.saturating_sub(wy);
-                        let content_y = (win.y as u32 + 64).min(sh);
+                        let content_y = (win.y as u32 + PAD_64 as u32).min(sh);
                         let content_h = win_bottom.saturating_sub(content_y);
-                        let header_x = ((win.x + 144.0).max(0.0) as u32).min(sw);
+                        let header_x =
+                            ((win.x + PAD_16 + TIMELINE_X_ORIGIN).max(0.0) as u32).min(sw);
                         let header_w = header_x.saturating_sub(wx);
                         let timeline_w = win_right.saturating_sub(header_x);
 
-                        let (sx, sy, sw2, sh2) = Self::safe_scissor(wx, wy, ww, wh, sw, sh);
+                        let (sx, sy, sw2, sh2) = safe_scissor(wx, wy, ww, wh, sw, sh);
                         r_pass.set_scissor_rect(sx, sy, sw2, sh2);
-                        Graphics::draw_range(
+                        draw_range(
                             &mut r_pass,
                             &self.vertex_buffer,
                             &self.glyph_vertex_buffer,
@@ -1015,9 +953,9 @@ impl Graphics {
                         );
 
                         let (sx, sy, sw2, sh2) =
-                            Self::safe_scissor(wx, content_y, header_w, content_h, sw, sh);
+                            safe_scissor(wx, content_y, header_w, content_h, sw, sh);
                         r_pass.set_scissor_rect(sx, sy, sw2, sh2);
-                        Graphics::draw_range(
+                        draw_range(
                             &mut r_pass,
                             &self.vertex_buffer,
                             &self.glyph_vertex_buffer,
@@ -1027,9 +965,9 @@ impl Graphics {
                         );
 
                         let (sx, sy, sw2, sh2) =
-                            Self::safe_scissor(header_x, content_y, timeline_w, content_h, sw, sh);
+                            safe_scissor(header_x, content_y, timeline_w, content_h, sw, sh);
                         r_pass.set_scissor_rect(sx, sy, sw2, sh2);
-                        Graphics::draw_range(
+                        draw_range(
                             &mut r_pass,
                             &self.vertex_buffer,
                             &self.glyph_vertex_buffer,
@@ -1047,7 +985,7 @@ impl Graphics {
                     continue;
                 }
 
-                Graphics::draw_range(
+                draw_range(
                     &mut r_pass,
                     &self.vertex_buffer,
                     &self.glyph_vertex_buffer,
@@ -1063,9 +1001,9 @@ impl Graphics {
                 let sh = self.surface_config.height;
                 let tray_bottom = sh / 2 + 2;
                 let (sx, sy, sw2, sh2) =
-                    Self::safe_scissor(0, 0, self.track_tray_width as u32, tray_bottom, sw, sh);
+                    safe_scissor(0, 0, self.track_tray_width as u32, tray_bottom, sw, sh);
                 r_pass.set_scissor_rect(sx, sy, sw2, sh2);
-                Graphics::draw_range(
+                draw_range(
                     &mut r_pass,
                     &self.vertex_buffer,
                     &self.glyph_vertex_buffer,
@@ -1078,7 +1016,7 @@ impl Graphics {
 
             // divider + title — unscissored, drawn on top of both tray sections
             if let Some(ref dr) = divider_range {
-                Graphics::draw_range(
+                draw_range(
                     &mut r_pass,
                     &self.vertex_buffer,
                     &self.glyph_vertex_buffer,
@@ -1093,7 +1031,7 @@ impl Graphics {
                 let sw = self.surface_config.width;
                 let sh = self.surface_config.height;
                 let divider_y = sh / 2 + (PAD_32 + PAD_16) as u32;
-                let (sx, sy, sw2, sh2) = Self::safe_scissor(
+                let (sx, sy, sw2, sh2) = safe_scissor(
                     0,
                     divider_y,
                     self.track_tray_width as u32,
@@ -1102,7 +1040,7 @@ impl Graphics {
                     sh,
                 );
                 r_pass.set_scissor_rect(sx, sy, sw2, sh2);
-                Graphics::draw_range(
+                draw_range(
                     &mut r_pass,
                     &self.vertex_buffer,
                     &self.glyph_vertex_buffer,
@@ -1119,7 +1057,7 @@ impl Graphics {
             }
 
             if let Some(ref gr) = drag_ghost_range {
-                Graphics::draw_range(
+                draw_range(
                     &mut r_pass,
                     &self.vertex_buffer,
                     &self.glyph_vertex_buffer,
@@ -1130,7 +1068,7 @@ impl Graphics {
             }
 
             // toolbar
-            Graphics::draw_range(
+            draw_range(
                 &mut r_pass,
                 &self.vertex_buffer,
                 &self.glyph_vertex_buffer,
@@ -1150,7 +1088,7 @@ impl Graphics {
             }
 
             // tooltip
-            Graphics::draw_range(
+            draw_range(
                 &mut r_pass,
                 &self.vertex_buffer,
                 &self.glyph_vertex_buffer,
@@ -1160,7 +1098,7 @@ impl Graphics {
             );
 
             // context menu
-            Graphics::draw_range(
+            draw_range(
                 &mut r_pass,
                 &self.vertex_buffer,
                 &self.glyph_vertex_buffer,
@@ -1170,7 +1108,7 @@ impl Graphics {
             );
 
             // footer
-            Graphics::draw_range(
+            draw_range(
                 &mut r_pass,
                 &self.vertex_buffer,
                 &self.glyph_vertex_buffer,
