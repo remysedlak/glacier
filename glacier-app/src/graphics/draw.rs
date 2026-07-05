@@ -231,14 +231,12 @@ impl Graphics {
                         &mut glyph_vertices,
                         &mut char_draws,
                     );
-                    regions.push(RecordedRegion {
-                        range: WindowDrawRange {
-                            vert_start: static_vert_start,
-                            vert_end: vertices.len() as u32,
-                            char_start: static_char_start,
-                            char_end: char_draws.len(),
-                        },
-                        scissor: Some(safe_scissor(
+                    regions.push(record(
+                        &vertices,
+                        &char_draws,
+                        static_vert_start,
+                        static_char_start,
+                        Some(safe_scissor(
                             wx,
                             wy,
                             win_right.saturating_sub(wx),
@@ -246,7 +244,7 @@ impl Graphics {
                             sw,
                             sh,
                         )),
-                    });
+                    ));
 
                     let header_vert_start = vertices.len() as u32;
                     let header_char_start = char_draws.len();
@@ -259,15 +257,13 @@ impl Graphics {
                         &mut glyph_vertices,
                         &mut char_draws,
                     );
-                    regions.push(RecordedRegion {
-                        range: WindowDrawRange {
-                            vert_start: header_vert_start,
-                            vert_end: vertices.len() as u32,
-                            char_start: header_char_start,
-                            char_end: char_draws.len(),
-                        },
-                        scissor: Some(safe_scissor(wx, content_y, header_w, content_h, sw, sh)),
-                    });
+                    regions.push(record(
+                        &vertices,
+                        &char_draws,
+                        header_vert_start,
+                        header_char_start,
+                        Some(safe_scissor(wx, content_y, header_w, content_h, sw, sh)),
+                    ));
 
                     let timeline_vert_start = vertices.len() as u32;
                     let timeline_char_start = char_draws.len();
@@ -280,17 +276,15 @@ impl Graphics {
                         &mut glyph_vertices,
                         &mut char_draws,
                     );
-                    regions.push(RecordedRegion {
-                        range: WindowDrawRange {
-                            vert_start: timeline_vert_start,
-                            vert_end: vertices.len() as u32,
-                            char_start: timeline_char_start,
-                            char_end: char_draws.len(),
-                        },
-                        scissor: Some(safe_scissor(
+                    regions.push(record(
+                        &vertices,
+                        &char_draws,
+                        timeline_vert_start,
+                        timeline_char_start,
+                        Some(safe_scissor(
                             header_x, content_y, timeline_w, content_h, sw, sh,
                         )),
-                    });
+                    ));
 
                     if cursor != CursorIcon::Default {
                         cursor_icon = cursor;
@@ -413,15 +407,14 @@ impl Graphics {
                         },
                         scissor: Some(safe_scissor(wx, content_y, key_w, content_h, sw, sh)),
                     });
-                    regions.push(RecordedRegion {
-                        range: WindowDrawRange {
-                            vert_start: grid_vert_start,
-                            vert_end: vertices.len() as u32,
-                            char_start: grid_char_start,
-                            char_end: char_draws.len(),
-                        },
-                        scissor: Some(safe_scissor(grid_x, content_y, grid_w, content_h, sw, sh)),
-                    });
+                    regions.push(record(
+                        &vertices,
+                        &char_draws,
+                        grid_vert_start,
+                        grid_char_start,
+                        Some(safe_scissor(grid_x, content_y, grid_w, content_h, sw, sh)),
+                    ));
+
                     click_result = click_result.or(result);
                     if cursor != CursorIcon::Default {
                         cursor_icon = cursor;
@@ -468,15 +461,7 @@ impl Graphics {
             }
 
             // position of vertexes and texts in the buffers
-            regions.push(RecordedRegion {
-                range: WindowDrawRange {
-                    vert_start,
-                    vert_end: vertices.len() as u32,
-                    char_start,
-                    char_end: char_draws.len(),
-                },
-                scissor: None,
-            });
+            regions.push(record(&vertices, &char_draws, vert_start, char_start, None));
         }
 
         // --- track tray + file tree ---
@@ -523,14 +508,12 @@ impl Graphics {
             );
 
             let tray_bottom = sh / 2 + 2;
-            regions.push(RecordedRegion {
-                range: WindowDrawRange {
-                    vert_start: tray_vert_start,
-                    vert_end: vertices.len() as u32,
-                    char_start: tray_char_start,
-                    char_end: char_draws.len(),
-                },
-                scissor: Some(safe_scissor(
+            regions.push(record(
+                &vertices,
+                &char_draws,
+                tray_vert_start,
+                tray_char_start,
+                Some(safe_scissor(
                     0,
                     0,
                     self.track_tray_width as u32,
@@ -538,7 +521,7 @@ impl Graphics {
                     sw,
                     sh,
                 )),
-            });
+            ));
 
             // SECOND: DIVIDER (unscissored)
             let divider_vert_start = vertices.len() as u32;
@@ -623,14 +606,12 @@ impl Graphics {
             tray_icon_end = icon_draws.len();
 
             let divider_y = sh / 2 + (PAD_32 + PAD_16) as u32;
-            regions.push(RecordedRegion {
-                range: WindowDrawRange {
-                    vert_start: file_tree_vert_start,
-                    vert_end: vertices.len() as u32,
-                    char_start: file_tree_char_start,
-                    char_end: char_draws.len(),
-                },
-                scissor: Some(safe_scissor(
+            regions.push(record(
+                &vertices,
+                &char_draws,
+                file_tree_vert_start,
+                file_tree_char_start,
+                Some(safe_scissor(
                     0,
                     divider_y,
                     self.track_tray_width as u32,
@@ -638,7 +619,7 @@ impl Graphics {
                     sw,
                     sh,
                 )),
-            });
+            ));
         }
 
         // --- toolbar (pattern tray + top bar) ---
