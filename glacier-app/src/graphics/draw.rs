@@ -35,10 +35,13 @@ impl Graphics {
                 if let Some(entry) =
                     glyph_cache.get(text_item.font, glyph.parent, text_item.size as u32)
                 {
-                    // generate 6 vertices (a quad) for that glyph at the correct screen position
+                    // Nearest-filter glyph sampling has zero tolerance for sub-pixel
+                    // offsets — round to whole pixels so every screen pixel maps
+                    // cleanly to one texel, avoiding uneven/jagged glyphs at
+                    // certain positions.
                     let gverts = font::draw_glyph(
-                        text_item.x + glyph.x,
-                        text_item.y + glyph.y,
+                        (text_item.x + glyph.x).round(),
+                        (text_item.y + glyph.y).round(),
                         glyph.width as f32,
                         glyph.height as f32,
                         screen_config,
