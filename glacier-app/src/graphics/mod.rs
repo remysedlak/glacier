@@ -469,8 +469,14 @@ impl Graphics {
         }
     }
     pub fn load_pattern(&mut self, p: PatternData) {
-        if p.id >= self.patterns.len() {
-            self.patterns.push(p)
+        if let Some(existing) = self
+            .patterns
+            .iter_mut()
+            .find(|existing| existing.id == p.id)
+        {
+            *existing = p;
+        } else {
+            self.patterns.push(p);
         }
     }
     pub fn load_event(&mut self, a: AudioBlock) {

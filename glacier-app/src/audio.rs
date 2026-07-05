@@ -269,6 +269,9 @@ pub fn init(
                         };
                         patterns[pattern_id].sequences.push(seq);
                     }
+                    producer
+                        .try_push(UiCommand::LoadPattern(patterns[pattern_id].clone()))
+                        .ok();
                 }
                 AudioCommand::DeleteTrack(track_id) => {
                     // remove all references of this track_id from saved patterns
