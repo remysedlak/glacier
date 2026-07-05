@@ -12,15 +12,31 @@ impl From<(f32, f32, f32)> for Color {
 }
 impl Color {
     pub fn hovered(self) -> Color {
+        // hand-picked overrides for colors where the generic formula
+        // produces bad contrast (near-black backgrounds under white text/icons)
+        if self.is(DARK_GRAY) {
+            return DARK_GRAY_HOVER;
+        }
+        if self.is(SURFACE) {
+            return SURFACE_HOVER;
+        }
+
+        // generic fallback for colors without a hand-picked hover value
         let max_channel = self.r.max(self.g).max(self.b);
         let (h, s, l) = rgb_to_hsl(self.r, self.g, self.b);
         let l = if max_channel > 0.85 {
-            l * 0.85 // scale down proportionally, never a flat subtract
+            l * 0.85
         } else {
-            l + (1.0 - l) * 0.25 // move 25% of the way to white
+            l + (1.0 - l) * 0.15 // smaller nudge than before — these are small icon buttons, not big flat panels
         };
         let (r, g, b) = hsl_to_rgb(h, s, l);
         Color { r, g, b }
+    }
+
+    fn is(self, other: Color) -> bool {
+        (self.r - other.r).abs() < f32::EPSILON
+            && (self.g - other.g).abs() < f32::EPSILON
+            && (self.b - other.b).abs() < f32::EPSILON
     }
 }
 
@@ -97,6 +113,12 @@ pub const DARK_GRAY: Color = Color {
     r: 0.03,
     g: 0.03,
     b: 0.03,
+};
+
+pub const DARK_GRAY_HOVER: Color = Color {
+    r: 0.05,
+    g: 0.05,
+    b: 0.05,
 };
 
 pub const BLACK: Color = Color {
