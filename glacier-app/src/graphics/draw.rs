@@ -77,12 +77,30 @@ impl Graphics {
             height: self.surface_config.height,
         };
 
+        // if the save modal is open, block everything else in the app from
+        // seeing real mouse input — shadowing `mouse_state` here means every
+        // existing call below (which already takes `mouse_state`) is
+        // automatically masked with zero per-call-site edits
+        let real_mouse_state = *mouse_state;
+        let masked_for_modal = MouseState {
+            x: f32::NEG_INFINITY,
+            y: f32::NEG_INFINITY,
+            left_clicked: false,
+            right_clicked: false,
+            left_double_clicked: false,
+            ..*mouse_state
+        };
+        let mouse_state: &MouseState = if self.show_save_modal {
+            &masked_for_modal
+        } else {
+            mouse_state
+        };
+
         let menu_is_hovered = self
             .context_menu
             .as_ref()
             .map(|m| m.is_hovered(mouse_state.x, mouse_state.y))
             .unwrap_or(false);
-
         // If a user clicks on a mini window out of view, bring it to the front of the z stack
         if mouse_state.left_clicked && !menu_is_hovered {
             let z_order = self.z_order.clone();
@@ -691,8 +709,12 @@ impl Graphics {
         }
 
         if self.show_save_modal {
-            let (verts, texts) = modal::draw(&screen_config);
-            vertices.extend(verts);
+            let (texts, result, cursor) =
+                modal::draw(&screen_config, &real_mouse_state, &mut vertices);
+            click_result = click_result.or(result);
+            if cursor != CursorIcon::Default {
+                cursor_icon = cursor;
+            }
             Graphics::push_text_draws(
                 &texts,
                 &self.font_cache,

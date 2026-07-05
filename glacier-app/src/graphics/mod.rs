@@ -99,6 +99,11 @@ pub enum ClickResult {
     SelectPattern(usize),
     SelectTrackTray(u32),
 
+    // modal controls
+    ModalConfirmSaveAndExit,
+    ModalConfirmDiscardAndExit,
+    ModalCancelExit,
+
     // file system
     FsToggleDir(PathBuf),
     FsPreviewSample(PathBuf),

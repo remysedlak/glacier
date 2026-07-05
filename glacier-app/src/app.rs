@@ -388,6 +388,19 @@ impl App {
             }
             // dispatch audio commands based on what was clicked
             match result {
+                ClickResult::ModalConfirmSaveAndExit => {
+                    gfx.show_save_modal = false;
+                    self.producer.try_push(AudioCommand::Shutdown).ok(); // existing behavior: saves, then exits
+                }
+                ClickResult::ModalConfirmDiscardAndExit => {
+                    gfx.show_save_modal = false;
+                    self.producer
+                        .try_push(AudioCommand::ShutdownWithoutSaving)
+                        .ok(); // new variant, no save_to_toml
+                }
+                ClickResult::ModalCancelExit => {
+                    gfx.show_save_modal = false; // just closes the modal, everything else untouched
+                }
                 ClickResult::StartRenamingPattern(id) => {
                     gfx.context_menu = None;
                     // find the pattern in the graphics state
@@ -850,9 +863,14 @@ impl ApplicationHandler<Graphics> for App {
         event: WindowEvent,
     ) {
         match event {
+            // when the user closes the window (click the x button)
             WindowEvent::CloseRequested => {
-                self.producer.try_push(AudioCommand::ShutDown).ok();
                 if let State::Ready(gfx) = &mut self.state {
+                    if self.project_is_dirty {
+                        gfx.show_save_modal = true;
+                    } else {
+                        self.producer.try_push(AudioCommand::Shutdown).ok();
+                    }
                     gfx.request_redraw();
                 }
             }

@@ -31,7 +31,8 @@ pub enum AudioCommand {
     PreviewSample(Vec<f32>),
 
     // project state
-    ShutDown,
+    Shutdown,
+    ShutdownWithoutSaving,
     SaveProject,
     SetProjectPath(String),
 
@@ -138,6 +139,12 @@ pub fn init(
         // parse incoming UI commands before fulfilling data callback
         while let Some(cmd) = consumer.try_pop() {
             match cmd {
+                AudioCommand::ShutdownWithoutSaving => {
+                    if !is_playing {
+                        producer.try_push(UiCommand::ShutdownComplete).ok();
+                    }
+                    is_shutting_down = true;
+                }
                 AudioCommand::RenamePattern(pattern_id, name) => {
                     if let Some(pattern) = patterns.iter_mut().find(|p| p.id == pattern_id) {
                         pattern.name = name;
@@ -318,7 +325,7 @@ pub fn init(
                     producer.try_push(UiCommand::SaveComplete).ok();
                     println!("saved to {}", &project_path);
                 }
-                AudioCommand::ShutDown => {
+                AudioCommand::Shutdown => {
                     let project = Project::new(
                         name.clone(),
                         bpm,
