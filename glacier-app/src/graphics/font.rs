@@ -1,4 +1,6 @@
 //! Fonts are loaded to wgpu with fontdue
+use fontdue::layout::{CoordinateSystem, Layout, TextStyle};
+
 use crate::graphics::{
     color::Color,
     primitives::{ScreenConfig, Vertex, NO_RADIUS},
@@ -43,6 +45,17 @@ impl GlyphCache {
     pub fn any_bind_group(&self) -> Option<&wgpu::BindGroup> {
         Some(&self.0.values().next()?.values().next()?.1)
     }
+}
+
+/// returns the float width in pixels of a character for a font
+pub fn measure_text_width(font: &fontdue::Font, text: &str, size: f32) -> f32 {
+    let mut layout = Layout::new(CoordinateSystem::PositiveYDown);
+    layout.append(&[font], &TextStyle::new(text, size, 0));
+    layout
+        .glyphs()
+        .last()
+        .map(|g| g.x + g.width as f32)
+        .unwrap_or(0.0)
 }
 
 /// A text item stores the text visual information for wgpu to later draw as vertices

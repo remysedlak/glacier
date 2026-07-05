@@ -82,6 +82,10 @@ pub enum ClickResult {
     OpenPatternMenu(f32, f32, usize),
     StartResizeEvent(usize),
 
+    // renaming
+    StartRenamingPattern(usize),
+    StartRenamingTrack(usize),
+
     // piano roll
     TogglePianoRollWindow,
     LoadPianoRoll(PianoRollState),
@@ -333,6 +337,7 @@ pub async fn create_graphics(window: Rc<Window>, proxy: EventLoopProxy<Graphics>
         master_peak: 0.0,
         expanded_dirs: std::collections::HashSet::new(),
         user_fs_location: audio_root,
+        renaming: None,
     };
 
     let _ = proxy.send_event(gfx);
@@ -406,6 +411,7 @@ pub struct Graphics {
     pub track_tray_width: f32,
     pub pattern_tray_width: f32,
     pub active_tray: AudioBlockType, // Pattern(id) or Track(id)
+    pub renaming: Option<RenameState>,
 
     pub dragging_file: Option<PathBuf>,
 

@@ -1,8 +1,9 @@
-//! Main draw method for painting all shapes and handling vertex buffers.
+//! Main builder draw method. paints all shapes using core draw methods and handles the app's vertex buffers.
 use super::*;
 use crate::graphics::{
     color::{LIGHT_GRAY, SURFACE},
     components::modal,
+    font::measure_text_width,
     mini_window::playlist::TIMELINE_X_ORIGIN,
     regions::*,
     side_panel::track_tray::file_tree,
@@ -638,13 +639,33 @@ impl Graphics {
                 AudioBlockType::Pattern(id) => Some(id as u32),
                 _ => None,
             };
+            let pattern_tray_mouse = if self.context_menu.is_some() {
+                MouseState {
+                    x: f32::NEG_INFINITY,
+                    y: f32::NEG_INFINITY,
+                    left_clicked: false,
+                    right_clicked: false,
+                    ..*mouse_state
+                }
+            } else {
+                *mouse_state
+            };
+            let rename_cursor_offset: Option<f32> = self.renaming.as_ref().map(|r| {
+                let font = self
+                    .font_cache
+                    .get(ROBOTO)
+                    .expect("ROBOTO font missing from cache");
+                measure_text_width(font, &r.edited_name[..r.cursor], 14.0) // match pattern label's font size
+            });
             let (texts, result, cursor, icon, tooltip) = side_panel::pattern_tray::draw(
                 &screen_config,
                 &self.patterns,
                 selected_pattern_id,
-                mouse_state,
+                &pattern_tray_mouse,
                 sequencer_is_open,
                 self.pattern_tray_width,
+                &self.renaming,
+                rename_cursor_offset,
                 &mut vertices,
             );
             if cursor != CursorIcon::Default {

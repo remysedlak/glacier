@@ -10,6 +10,21 @@ pub struct DrawCtx<'a> {
     pub mouse_state: &'a MouseState,
 }
 
+/// Text editing state.
+pub struct RenameState {
+    pub target: RenameTarget,  // which component is being renamed
+    pub original_name: String, // what the name was before editing
+    pub edited_name: String,   // what the name is after editing (live buffer)
+    pub cursor: usize, // position they are editing at, as a byte/char index into edited_name
+}
+
+/// What type of ui component is having text edited
+#[derive(Clone, Copy, PartialEq, Debug)]
+pub enum RenameTarget {
+    Track(usize),
+    Pattern(usize),
+}
+
 pub const PAD_64: f32 = 64.0;
 pub const PAD_32: f32 = 32.0;
 pub const PAD_16: f32 = 16.0;

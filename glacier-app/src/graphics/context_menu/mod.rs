@@ -165,7 +165,7 @@ impl ContextMenu {
                     match item {
                         0 => {
                             // rename
-                            click_result = ClickResult::CloseContextMenu;
+                            click_result = ClickResult::StartRenamingPattern(id);
                         }
                         1 => {
                             // delete
@@ -234,10 +234,8 @@ impl ContextMenu {
                 match item {
                     0 => {
                         // rename
-                        {
-                            if mouse_state.right_clicked || mouse_state.left_clicked {
-                                click_result = ClickResult::CloseContextMenu;
-                            }
+                        if mouse_state.right_clicked || mouse_state.left_clicked {
+                            click_result = ClickResult::StartRenamingTrack(track_id);
                         }
                     }
                     1 => {

@@ -40,6 +40,10 @@ pub enum AudioCommand {
     AddPattern,
     DeletePattern(usize),
 
+    // renaming state
+    RenamePattern(usize, String),
+    RenameTrack(usize, String),
+
     // tracks
     LoadTrack(TrackData, Vec<f32>),
     DeleteTrack(usize),
@@ -134,6 +138,16 @@ pub fn init(
         // parse incoming UI commands before fulfilling data callback
         while let Some(cmd) = consumer.try_pop() {
             match cmd {
+                AudioCommand::RenamePattern(pattern_id, name) => {
+                    if let Some(pattern) = patterns.iter_mut().find(|p| p.id == pattern_id) {
+                        pattern.name = name;
+                    }
+                }
+                AudioCommand::RenameTrack(track_id, name) => {
+                    if let Some(track) = tracks.iter_mut().find(|t| t.data.id == track_id as u32) {
+                        track.data.name = name;
+                    }
+                }
                 AudioCommand::PreviewSample(samples) => {
                     preview_samples = samples;
                     preview_position = 0.0;

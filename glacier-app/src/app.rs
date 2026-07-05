@@ -1,6 +1,7 @@
 //! main state logic for audio and ui decoupling threads
 use crate::audio::{init, AudioCommand};
 use crate::config::{self, UserSettings};
+use crate::graphics::primitives::{RenameState, RenameTarget};
 use crate::graphics::{
     context_menu::{ContextMenu, ContextMenuKind},
     drag::DragResult,
@@ -387,6 +388,30 @@ impl App {
             }
             // dispatch audio commands based on what was clicked
             match result {
+                ClickResult::StartRenamingPattern(id) => {
+                    gfx.context_menu = None;
+                    // find the pattern in the graphics state
+                    if let Some(pattern) = gfx.patterns.iter().find(|p| p.id == id) {
+                        gfx.renaming = Some(RenameState {
+                            target: RenameTarget::Pattern(id),
+                            original_name: pattern.name.clone(),
+                            edited_name: pattern.name.clone(),
+                            cursor: pattern.name.len(),
+                        });
+                    }
+                }
+                ClickResult::StartRenamingTrack(id) => {
+                    gfx.context_menu = None;
+                    // find the pattern in the graphics state
+                    if let Some(track) = gfx.tracks.iter().find(|t| t.data.id == id as u32) {
+                        gfx.renaming = Some(RenameState {
+                            target: RenameTarget::Track(id),
+                            original_name: track.data.name.clone(),
+                            edited_name: track.data.name.clone(),
+                            cursor: track.data.name.len(),
+                        });
+                    }
+                }
                 ClickResult::FsStartDragFile(path) => {
                     gfx.dragging_file = Some(path);
                 }
@@ -849,44 +874,113 @@ impl ApplicationHandler<Graphics> for App {
                 }
 
                 if event.state.is_pressed() {
-                    match event.physical_key {
-                        PhysicalKey::Code(KeyCode::Space) => {
-                            self.producer.try_push(AudioCommand::TogglePlay).ok();
-                            if let State::Ready(gfx) = &mut self.state {
-                                gfx.is_playing = !gfx.is_playing;
-                            }
-                        }
-                        PhysicalKey::Code(KeyCode::ControlLeft) => {
-                            self.ctrl_pressed = true;
-                        }
-                        PhysicalKey::Code(KeyCode::ShiftLeft | KeyCode::ShiftRight) => {
-                            self.shift_pressed = true;
-                        }
-                        PhysicalKey::Code(KeyCode::KeyS) if self.ctrl_pressed => {
-                            if let State::Ready(gfx) = &mut self.state {
-                                if gfx.project_path
-                                    == crate::project::Project::default_project_file()
-                                {
-                                    // show save-as dialog instead
-                                    if self.project_save_dialog_rx.is_none() {
-                                        let (tx, rx) =
-                                            std::sync::mpsc::channel::<Option<PathBuf>>();
-                                        self.project_save_dialog_rx = Some(rx);
-                                        thread::spawn(move || {
-                                            let file = FileDialog::new()
-                                                .add_filter("toml", &["toml"])
-                                                .set_file_name("project.toml")
-                                                .save_file();
-                                            tx.send(file).ok();
-                                        });
+                    if let State::Ready(gfx) = &mut self.state {
+                        if let Some(renaming) = &mut gfx.renaming {
+                            //
+                            // use this section for editing patterns and tracks text lively
+                            //
+                            match event.physical_key {
+                                PhysicalKey::Code(KeyCode::Enter) => {
+                                    let final_name = renaming.edited_name.clone();
+                                    let target = renaming.target;
+                                    match target {
+                                        RenameTarget::Pattern(id) => {
+                                            if let Some(pattern) =
+                                                gfx.patterns.iter_mut().find(|p| p.id == id)
+                                            {
+                                                pattern.name = final_name.clone();
+                                            }
+                                            self.producer
+                                                .try_push(AudioCommand::RenamePattern(
+                                                    id, final_name,
+                                                ))
+                                                .ok();
+                                        }
+                                        RenameTarget::Track(id) => {
+                                            if let Some(track) = gfx
+                                                .tracks
+                                                .iter_mut()
+                                                .find(|t| t.data.id == id as u32)
+                                            {
+                                                track.data.name = final_name.clone();
+                                            }
+                                            self.producer
+                                                .try_push(AudioCommand::RenameTrack(id, final_name))
+                                                .ok();
+                                        }
                                     }
-                                } else {
-                                    self.producer.try_push(AudioCommand::SaveProject).ok();
+                                    self.project_is_dirty = true;
+                                    gfx.renaming = None;
+                                }
+                                PhysicalKey::Code(KeyCode::Escape) => {
+                                    gfx.renaming = None; // discard edit, original untouched
+                                }
+                                PhysicalKey::Code(KeyCode::Backspace) => {
+                                    if renaming.cursor > 0 {
+                                        renaming.edited_name.remove(renaming.cursor - 1);
+                                        renaming.cursor -= 1;
+                                    }
+                                }
+                                PhysicalKey::Code(KeyCode::Delete) => {
+                                    if renaming.cursor < renaming.edited_name.len() {
+                                        renaming.edited_name.remove(renaming.cursor);
+                                    }
+                                }
+                                PhysicalKey::Code(KeyCode::ArrowLeft) => {
+                                    renaming.cursor = renaming.cursor.saturating_sub(1);
+                                }
+                                PhysicalKey::Code(KeyCode::ArrowRight) => {
+                                    renaming.cursor =
+                                        (renaming.cursor + 1).min(renaming.edited_name.len());
+                                }
+                                _ => {
+                                    if let Some(text) = &event.text {
+                                        renaming.edited_name.insert_str(renaming.cursor, text);
+                                        renaming.cursor += text.len();
+                                    }
                                 }
                             }
-                        }
+                        } else {
+                            match event.physical_key {
+                                PhysicalKey::Code(KeyCode::Space) => {
+                                    self.producer.try_push(AudioCommand::TogglePlay).ok();
+                                    if let State::Ready(gfx) = &mut self.state {
+                                        gfx.is_playing = !gfx.is_playing;
+                                    }
+                                }
+                                PhysicalKey::Code(KeyCode::ControlLeft) => {
+                                    self.ctrl_pressed = true;
+                                }
+                                PhysicalKey::Code(KeyCode::ShiftLeft | KeyCode::ShiftRight) => {
+                                    self.shift_pressed = true;
+                                }
+                                PhysicalKey::Code(KeyCode::KeyS) if self.ctrl_pressed => {
+                                    if let State::Ready(gfx) = &mut self.state {
+                                        if gfx.project_path
+                                            == crate::project::Project::default_project_file()
+                                        {
+                                            // show save-as dialog instead
+                                            if self.project_save_dialog_rx.is_none() {
+                                                let (tx, rx) =
+                                                    std::sync::mpsc::channel::<Option<PathBuf>>();
+                                                self.project_save_dialog_rx = Some(rx);
+                                                thread::spawn(move || {
+                                                    let file = FileDialog::new()
+                                                        .add_filter("toml", &["toml"])
+                                                        .set_file_name("project.toml")
+                                                        .save_file();
+                                                    tx.send(file).ok();
+                                                });
+                                            }
+                                        } else {
+                                            self.producer.try_push(AudioCommand::SaveProject).ok();
+                                        }
+                                    }
+                                }
 
-                        _ => {}
+                                _ => {}
+                            }
+                        }
                     }
                 }
             }
