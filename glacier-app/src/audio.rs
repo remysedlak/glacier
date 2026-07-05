@@ -140,6 +140,7 @@ pub fn init(
         // parse incoming UI commands before fulfilling data callback
         while let Some(cmd) = consumer.try_pop() {
             match cmd {
+                // clear a patterns step data by looping through each sequencer and emptying the note
                 AudioCommand::ClearPattern(pattern_id) => {
                     if let Some(pattern) = patterns.iter_mut().find(|p| p.id == pattern_id) {
                         for seq in pattern.sequences.iter_mut() {
@@ -147,6 +148,7 @@ pub fn init(
                                 *note = Note::DEFAULT;
                             }
                         }
+                        // update the ui
                         producer
                             .try_push(UiCommand::LoadPattern(pattern.clone()))
                             .ok();
@@ -160,12 +162,18 @@ pub fn init(
                 }
                 AudioCommand::RenamePattern(pattern_id, name) => {
                     if let Some(pattern) = patterns.iter_mut().find(|p| p.id == pattern_id) {
-                        pattern.name = name;
+                        pattern.name = name.clone();
+                        producer
+                            .try_push(UiCommand::PatternRenamed(pattern_id, name))
+                            .ok();
                     }
                 }
                 AudioCommand::RenameTrack(track_id, name) => {
                     if let Some(track) = tracks.iter_mut().find(|t| t.data.id == track_id as u32) {
-                        track.data.name = name;
+                        track.data.name = name.clone();
+                        producer
+                            .try_push(UiCommand::TrackRenamed(track.data.id, name))
+                            .ok();
                     }
                 }
                 AudioCommand::PreviewSample(samples) => {
@@ -182,6 +190,7 @@ pub fn init(
                     if let Some(pattern) = patterns.iter().find(|p| p.id == pattern_id).cloned() {
                         let new_pattern = pattern.duplicate(patterns.len());
                         patterns.push(new_pattern.clone());
+                        // update the ui
                         producer.try_push(UiCommand::LoadPattern(new_pattern)).ok();
                     }
                 }

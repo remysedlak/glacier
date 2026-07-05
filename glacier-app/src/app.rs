@@ -85,6 +85,8 @@ pub enum UiCommand {
     LoadPattern(PatternData),
     LoadEvent(AudioBlock),
     PlayheadPosition(f32),
+    PatternRenamed(usize, String),
+    TrackRenamed(u32, String),
 }
 
 // app state
@@ -238,6 +240,16 @@ impl App {
             // consume audio -> ui commands
             while let Some(cmd) = self.consumer.try_pop() {
                 match cmd {
+                    UiCommand::PatternRenamed(id, name) => {
+                        if let Some(pattern) = gfx.patterns.iter_mut().find(|p| p.id == id) {
+                            pattern.name = name;
+                        }
+                    }
+                    UiCommand::TrackRenamed(id, name) => {
+                        if let Some(track) = gfx.tracks.iter_mut().find(|t| t.data.id == id) {
+                            track.data.name = name;
+                        }
+                    }
                     UiCommand::PlayheadPosition(beat) => {
                         gfx.playhead_beat = beat;
                     }
@@ -488,17 +500,6 @@ impl App {
                         .try_push(AudioCommand::DuplicatePattern(pattern_id))
                         .ok();
                     self.project_is_dirty = true;
-                    gfx.patterns.push(PatternData {
-                        id: gfx.patterns.len(),
-                        name: format!("Pattern {}", gfx.patterns.len()),
-                        sequences: gfx
-                            .patterns
-                            .iter()
-                            .find(|p| p.id == pattern_id)
-                            .unwrap()
-                            .sequences
-                            .clone(),
-                    });
                 }
                 ClickResult::LoadPianoRoll(piano_state) => {
                     gfx.context_menu = None;
@@ -907,14 +908,8 @@ impl ApplicationHandler<Graphics> for App {
                             match event.physical_key {
                                 PhysicalKey::Code(KeyCode::Enter) => {
                                     let final_name = renaming.edited_name.clone();
-                                    let target = renaming.target;
-                                    match target {
+                                    match renaming.target {
                                         RenameTarget::Pattern(id) => {
-                                            if let Some(pattern) =
-                                                gfx.patterns.iter_mut().find(|p| p.id == id)
-                                            {
-                                                pattern.name = final_name.clone();
-                                            }
                                             self.producer
                                                 .try_push(AudioCommand::RenamePattern(
                                                     id, final_name,
@@ -922,13 +917,6 @@ impl ApplicationHandler<Graphics> for App {
                                                 .ok();
                                         }
                                         RenameTarget::Track(id) => {
-                                            if let Some(track) = gfx
-                                                .tracks
-                                                .iter_mut()
-                                                .find(|t| t.data.id == id as u32)
-                                            {
-                                                track.data.name = final_name.clone();
-                                            }
                                             self.producer
                                                 .try_push(AudioCommand::RenameTrack(id, final_name))
                                                 .ok();
