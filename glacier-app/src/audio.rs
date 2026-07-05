@@ -40,6 +40,7 @@ pub enum AudioCommand {
     DuplicatePattern(usize),
     AddPattern,
     DeletePattern(usize),
+    ClearPattern(usize),
 
     // renaming state
     RenamePattern(usize, String),
@@ -139,6 +140,18 @@ pub fn init(
         // parse incoming UI commands before fulfilling data callback
         while let Some(cmd) = consumer.try_pop() {
             match cmd {
+                AudioCommand::ClearPattern(pattern_id) => {
+                    if let Some(pattern) = patterns.iter_mut().find(|p| p.id == pattern_id) {
+                        for seq in pattern.sequences.iter_mut() {
+                            for note in seq.steps.iter_mut() {
+                                *note = Note::DEFAULT;
+                            }
+                        }
+                        producer
+                            .try_push(UiCommand::LoadPattern(pattern.clone()))
+                            .ok();
+                    }
+                }
                 AudioCommand::ShutdownWithoutSaving => {
                     if !is_playing {
                         producer.try_push(UiCommand::ShutdownComplete).ok();

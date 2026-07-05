@@ -78,6 +78,7 @@ pub enum ClickResult {
     DeletePattern(usize),
     DuplicatePattern(usize),
     CreatePattern,
+    ClearPattern(usize),
     AddPlaylistPattern(usize, u32, usize, AudioBlockType),
     OpenPatternMenu(f32, f32, usize),
     StartResizeEvent(usize),

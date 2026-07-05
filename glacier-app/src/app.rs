@@ -388,6 +388,13 @@ impl App {
             }
             // dispatch audio commands based on what was clicked
             match result {
+                ClickResult::ClearPattern(pattern_id) => {
+                    self.producer
+                        .try_push(AudioCommand::ClearPattern(pattern_id))
+                        .ok();
+                    gfx.context_menu = None;
+                    self.project_is_dirty = true;
+                }
                 ClickResult::ModalConfirmSaveAndExit => {
                     gfx.show_save_modal = false;
                     self.producer.try_push(AudioCommand::Shutdown).ok(); // existing behavior: saves, then exits
@@ -971,6 +978,20 @@ impl ApplicationHandler<Graphics> for App {
                                 }
                                 PhysicalKey::Code(KeyCode::ShiftLeft | KeyCode::ShiftRight) => {
                                     self.shift_pressed = true;
+                                }
+                                PhysicalKey::Code(KeyCode::F2) => {
+                                    if let AudioBlockType::Pattern(id) = gfx.active_tray {
+                                        if let Some(pattern) =
+                                            gfx.patterns.iter().find(|p| p.id == id)
+                                        {
+                                            gfx.renaming = Some(RenameState {
+                                                target: RenameTarget::Pattern(id),
+                                                original_name: pattern.name.clone(),
+                                                edited_name: pattern.name.clone(),
+                                                cursor: pattern.name.len(),
+                                            });
+                                        }
+                                    }
                                 }
                                 PhysicalKey::Code(KeyCode::KeyS) if self.ctrl_pressed => {
                                     if let State::Ready(gfx) = &mut self.state {

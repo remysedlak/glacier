@@ -74,12 +74,13 @@ impl ContextMenu {
             0 => "Rename",
             1 => "Delete",
             2 => "Duplicate",
+            3 => "Clear",
             _ => "N/A",
         };
         TextItem {
             text: label.to_string(),
             x: self.x - PAD_64 + PAD_4 + PAD_2,
-            y: (self.y + (CONTEXT_MENU_ITEM_HEIGHT + PAD_4) * index as f32) + PAD_32,
+            y: (self.y + (CONTEXT_MENU_ITEM_HEIGHT + PAD_4) * index as f32) + PAD_32 + PAD_2,
             color: WHITE,
             font: ROBOTO,
             size: CONTEXT_MENU_FONT_SIZE,
@@ -174,6 +175,10 @@ impl ContextMenu {
                         2 => {
                             // duplicate
                             click_result = ClickResult::DuplicatePattern(id);
+                        }
+                        3 => {
+                            // clear
+                            click_result = ClickResult::ClearPattern(id);
                         }
 
                         _ => {
