@@ -110,17 +110,7 @@ pub fn draw(
     if open_file_background.is_hovered(mouse_state.x, mouse_state.y) && mouse_state.left_clicked {
         click_result = ClickResult::OpenTrackFileLocation(track.data.path.clone())
     };
-    open_file_background.draw(
-        screen_config,
-        crate::graphics::components::toolbar::icon_color(
-            &open_file_background,
-            mouse_state.x,
-            mouse_state.y,
-            mouse_state.left_click_held,
-        ),
-        RADIUS_4,
-        out,
-    );
+    open_file_background.draw_interactive(screen_config, DARK_GRAY, mouse_state, RADIUS_4, out);
     icons.push(IconDraw {
         name: "file",
         x: open_file_button_x - 2.0,

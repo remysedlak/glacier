@@ -222,20 +222,17 @@ pub fn draw(
                 let hovered = piano_roll_step.is_hovered(mouse_state.x, mouse_state.y)
                     && !mouse_state.left_click_held;
 
+                let base = if (step_index / 4) % 2 == 0 {
+                    BLUE
+                } else {
+                    DARK_BLUE
+                };
                 let color = if is_active {
                     ORANGE
                 } else if hovered {
-                    if (step_index / 4) % 2 == 0 {
-                        BLUE_HOVER
-                    } else {
-                        DARK_BLUE_HOVER
-                    }
+                    base.hovered()
                 } else {
-                    if (step_index / 4) % 2 == 0 {
-                        BLUE
-                    } else {
-                        DARK_BLUE
-                    }
+                    base
                 };
 
                 // trigger note on and off

@@ -4,7 +4,7 @@ use winit::window::CursorIcon;
 use crate::{
     app::{MouseState, ScrollOffset},
     graphics::{
-        color::{Color, DARK_GRAY, DARK_GRAY_HOVER, DARK_GRAY_HOVER_HOVER, WHITE},
+        color::{Color, DARK_GRAY, SURFACE, WHITE},
         font::{TextItem, ROBOTO},
         primitives::{ScreenConfig, PAD_2, PAD_32, PAD_4, PAD_64, PAD_8, RADIUS_4, RADIUS_8},
         widgets::Rectangle,
@@ -32,9 +32,9 @@ pub struct ContextMenu {
 /// Color interactivity of the items of a Context Menu (the individual MenuItem's to hover)
 fn menu_item_color(rect: &Rectangle, mx: f32, my: f32, held: bool) -> Color {
     if rect.is_hovered(mx, my) && !held {
-        DARK_GRAY_HOVER_HOVER
+        DARK_GRAY.hovered()
     } else {
-        DARK_GRAY_HOVER
+        DARK_GRAY
     }
 }
 

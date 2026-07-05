@@ -116,7 +116,7 @@ fn draw_fs_tree(
             let color = if button.is_hovered(mouse_state.x, mouse_state.y) {
                 DARK_GRAY
             } else {
-                PEBBLE
+                SURFACE
             };
             button.draw(screen_config, color, RADIUS_4, out);
 
@@ -204,7 +204,7 @@ fn draw_fs_tree(
                     width: 1.0,
                     height: line_bottom - line_top - 2.0,
                 }
-                .draw(screen_config, DARK_GRAY_HOVER, NO_RADIUS, out);
+                .draw(screen_config, DARK_GRAY, NO_RADIUS, out);
             }
         }
     }

@@ -34,7 +34,7 @@ pub fn draw(
         width: tray_width,
         height: screen_config.height as f32 - TOOLBAR_Y,
     };
-    track_tray.draw(screen_config, PEBBLE, NO_RADIUS, out);
+    track_tray.draw(screen_config, SURFACE, NO_RADIUS, out);
 
     if track_tray.is_hovered_right_edge(mouse_state.x, mouse_state.y) || resizing {
         cursor_icon = CursorIcon::ColResize;
@@ -53,9 +53,9 @@ pub fn draw(
         };
 
         let track_button_color = if track_button.is_hovered(mouse_state.x, mouse_state.y) {
-            DARK_GRAY_HOVER_HOVER
+            SURFACE_HOVER
         } else {
-            DARK_GRAY_HOVER
+            SURFACE
         };
 
         track_button.draw(screen_config, track_button_color, RADIUS_4, out);

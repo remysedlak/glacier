@@ -15,14 +15,6 @@ pub const TOOLTIP_RIGHT_MARGIN: f32 = 96.0;
 const WINDOW_ICONS_OFFSET: f32 = 320.0;
 const ICON_GAP: f32 = 48.0;
 
-pub fn icon_color(rect: &Square, mx: f32, my: f32, held: bool) -> Color {
-    if rect.is_hovered(mx, my) && !held {
-        DARK_GRAY_HOVER
-    } else {
-        DARK_GRAY
-    }
-}
-
 pub fn draw_toolbar(
     mouse_state: &MouseState,
     screen_config: &ScreenConfig,
@@ -38,21 +30,18 @@ pub fn draw_toolbar(
     CursorIcon,
     Option<Tooltip>,
 ) {
-    // setup
-
     let mut text_items: Vec<TextItem> = Vec::new();
     let mut click_result = ClickResult::None;
     let mut cursor_icon = CursorIcon::Default;
     let mut tooltip: Option<Tooltip> = None;
 
-    // background of toolbar's buttons and components
     let toolbar_background = Rectangle {
         x: 0.0,
         y: 0.0,
         width: screen_config.width as f32,
         height: TOOLBAR_Y,
     };
-    toolbar_background.draw(screen_config, PEBBLE, NO_RADIUS, out);
+    toolbar_background.draw(screen_config, SURFACE, NO_RADIUS, out);
 
     let toolbar_divider = Rectangle {
         x: toolbar_background.x,
@@ -60,12 +49,7 @@ pub fn draw_toolbar(
         height: 1.0,
         width: toolbar_background.width,
     };
-    toolbar_divider.draw(screen_config, DARK_GRAY_HOVER, NO_RADIUS, out);
-
-    /* BPM Control
-     * Up
-     * Down
-     */
+    toolbar_divider.draw(screen_config, DARK_GRAY, NO_RADIUS, out);
 
     let bpm_counter = TextItem {
         text: bpm.to_string(),
@@ -76,37 +60,30 @@ pub fn draw_toolbar(
         font: MONOSPACED,
     };
 
-    let color = |rect: &Rectangle, m: &MouseState| {
-        if rect.is_hovered(m.x, m.y) && !m.left_click_held {
-            DARK_GRAY_HOVER
-        } else {
-            DARK_GRAY
-        }
-    };
-
-    // bpm button increment
     let bpm_up = Rectangle {
         x: bpm_counter.x + 40.0,
         y: 6.0,
         width: PAD_32,
         height: 12.0,
     };
-    bpm_up.draw(screen_config, color(&bpm_up, mouse_state), RADIUS_4, out);
-    if bpm_up.is_hovered(mouse_state.x, mouse_state.y) {
+    let bpm_up_hovered =
+        bpm_up.draw_interactive(screen_config, DARK_GRAY, mouse_state, RADIUS_4, out);
+    if bpm_up_hovered {
         cursor_icon = CursorIcon::Pointer;
         if mouse_state.left_clicked {
             click_result = ClickResult::ChangeBpmUp;
         }
     }
-    // bpm button decrement
+
     let bpm_down = Rectangle {
         x: bpm_up.x,
         y: bpm_up.y + 18.0,
         width: bpm_up.width,
         height: bpm_up.height,
     };
-    bpm_down.draw(screen_config, color(&bpm_down, mouse_state), RADIUS_4, out);
-    if bpm_down.is_hovered(mouse_state.x, mouse_state.y) {
+    let bpm_down_hovered =
+        bpm_down.draw_interactive(screen_config, DARK_GRAY, mouse_state, RADIUS_4, out);
+    if bpm_down_hovered {
         cursor_icon = CursorIcon::Pointer;
         if mouse_state.left_clicked {
             click_result = ClickResult::ChangeBpmDown;
@@ -114,62 +91,27 @@ pub fn draw_toolbar(
     }
     text_items.push(bpm_counter);
 
-    /* TRANSPORT CONTROL
-
-        PLAY - start the song at the current step
-        PAUSE - pause the song at the current step
-        STOP - pause the song, reset current step
-    */
-
-    // play / pauses button
     let play_button = Square {
         x: PLAY_X_ORIGIN,
         y: PLAY_Y_ORIGIN,
         size: ICON_SIZE,
     };
-    if play_button.is_hovered(mouse_state.x, mouse_state.y) && mouse_state.left_clicked {
+    let play_hovered =
+        play_button.draw_interactive(screen_config, DARK_GRAY, mouse_state, RADIUS_4, out);
+    if play_hovered && mouse_state.left_clicked {
         click_result = ClickResult::TogglePlay;
-    };
-    play_button.draw(
-        screen_config,
-        icon_color(
-            &play_button,
-            mouse_state.x,
-            mouse_state.y,
-            mouse_state.left_click_held,
-        ),
-        RADIUS_4,
-        out,
-    );
+    }
 
-    // stop button
     let stop_button = Square {
         x: PLAY_X_ORIGIN + ICON_GAP,
         y: PLAY_Y_ORIGIN,
         size: ICON_SIZE,
     };
-    if stop_button.is_hovered(mouse_state.x, mouse_state.y)
-        && mouse_state.left_clicked
-        && active_step != 0
-    {
+    let stop_hovered =
+        stop_button.draw_interactive(screen_config, DARK_GRAY, mouse_state, RADIUS_4, out);
+    if stop_hovered && mouse_state.left_clicked && active_step != 0 {
         click_result = ClickResult::Stop;
-    };
-
-    stop_button.draw(
-        screen_config,
-        icon_color(
-            &stop_button,
-            mouse_state.x,
-            mouse_state.y,
-            mouse_state.left_click_held,
-        ),
-        RADIUS_4,
-        out,
-    );
-
-    /* AUDIO TIME
-
-    */
+    }
 
     let time_background = Rectangle {
         x: PLAY_X_ORIGIN + ICON_GAP + ICON_GAP,
@@ -185,7 +127,6 @@ pub fn draw_toolbar(
         active_step.to_string()
     };
 
-    // debug current step
     text_items.push(TextItem {
         text: step_label,
         x: time_background.x + time_background.width - PAD_16 - PAD_8 - PAD_4 - PAD_2,
@@ -203,192 +144,100 @@ pub fn draw_toolbar(
         font: MONOSPACED,
     });
 
-    /* MINI WINDOW TOGGLING
-     *
-     *  Sequencer
-     *  Mixer
-     *  Playlist
-     *  Piano Roll
-     *  Pattern Tray
-     *  Track Tray
-     */
-
     let sequencer_toggle = Square {
         x: PLAY_X_ORIGIN + WINDOW_ICONS_OFFSET,
         y: PLAY_Y_ORIGIN,
         size: ICON_SIZE,
     };
-
-    sequencer_toggle.draw(
-        screen_config,
-        icon_color(
-            &sequencer_toggle,
-            mouse_state.x,
-            mouse_state.y,
-            mouse_state.left_click_held,
-        ),
-        RADIUS_4,
-        out,
-    );
-    if sequencer_toggle.is_hovered(mouse_state.x, mouse_state.y) && mouse_state.left_clicked {
+    let sequencer_hovered =
+        sequencer_toggle.draw_interactive(screen_config, DARK_GRAY, mouse_state, RADIUS_4, out);
+    if sequencer_hovered && mouse_state.left_clicked {
         click_result = ClickResult::ToggleSequencerWindow;
-    };
+    }
 
     let mixer_toggle = Square {
         x: PLAY_X_ORIGIN + WINDOW_ICONS_OFFSET + ICON_GAP,
         y: PLAY_Y_ORIGIN,
-
         size: ICON_SIZE,
     };
-
-    mixer_toggle.draw(
-        screen_config,
-        icon_color(
-            &mixer_toggle,
-            mouse_state.x,
-            mouse_state.y,
-            mouse_state.left_click_held,
-        ),
-        RADIUS_4,
-        out,
-    );
-    if mixer_toggle.is_hovered(mouse_state.x, mouse_state.y) && mouse_state.left_clicked {
+    let mixer_hovered =
+        mixer_toggle.draw_interactive(screen_config, DARK_GRAY, mouse_state, RADIUS_4, out);
+    if mixer_hovered && mouse_state.left_clicked {
         click_result = ClickResult::ToggleMixerWindow;
-    };
+    }
 
     let playlist_toggle = Square {
         x: PLAY_X_ORIGIN + WINDOW_ICONS_OFFSET + (ICON_GAP * 2.0),
         y: PLAY_Y_ORIGIN,
-
         size: ICON_SIZE,
     };
-
-    playlist_toggle.draw(
-        screen_config,
-        icon_color(
-            &playlist_toggle,
-            mouse_state.x,
-            mouse_state.y,
-            mouse_state.left_click_held,
-        ),
-        RADIUS_4,
-        out,
-    );
-    if playlist_toggle.is_hovered(mouse_state.x, mouse_state.y) && mouse_state.left_clicked {
+    let playlist_hovered =
+        playlist_toggle.draw_interactive(screen_config, DARK_GRAY, mouse_state, RADIUS_4, out);
+    if playlist_hovered && mouse_state.left_clicked {
         click_result = ClickResult::TogglePlaylistWindow;
-    };
+    }
 
     let piano_toggle = Square {
         x: PLAY_X_ORIGIN + WINDOW_ICONS_OFFSET + (ICON_GAP * 3.0),
         y: PLAY_Y_ORIGIN,
-
         size: ICON_SIZE,
     };
-    piano_toggle.draw(
-        screen_config,
-        icon_color(
-            &piano_toggle,
-            mouse_state.x,
-            mouse_state.y,
-            mouse_state.left_click_held,
-        ),
-        RADIUS_4,
-        out,
-    );
-    if piano_toggle.is_hovered(mouse_state.x, mouse_state.y) && mouse_state.left_clicked {
+    let piano_hovered =
+        piano_toggle.draw_interactive(screen_config, DARK_GRAY, mouse_state, RADIUS_4, out);
+    if piano_hovered && mouse_state.left_clicked {
         click_result = ClickResult::TogglePianoRollWindow;
-    };
+    }
 
     let track_selection_toggle = Square {
         x: PLAY_X_ORIGIN + WINDOW_ICONS_OFFSET + (ICON_GAP * 4.0),
         y: PLAY_Y_ORIGIN,
-
         size: ICON_SIZE,
     };
-    track_selection_toggle.draw(
+    let track_selection_hovered = track_selection_toggle.draw_interactive(
         screen_config,
-        icon_color(
-            &track_selection_toggle,
-            mouse_state.x,
-            mouse_state.y,
-            mouse_state.left_click_held,
-        ),
+        DARK_GRAY,
+        mouse_state,
         RADIUS_4,
         out,
     );
-    if track_selection_toggle.is_hovered(mouse_state.x, mouse_state.y) && mouse_state.left_clicked {
+    if track_selection_hovered && mouse_state.left_clicked {
         click_result = ClickResult::ToggleTrackTray;
-    };
+    }
 
     let patterns_toggle = Square {
         x: PLAY_X_ORIGIN + WINDOW_ICONS_OFFSET + (ICON_GAP * 5.0),
         y: PLAY_Y_ORIGIN,
-
         size: ICON_SIZE,
     };
-    patterns_toggle.draw(
-        screen_config,
-        icon_color(
-            &patterns_toggle,
-            mouse_state.x,
-            mouse_state.y,
-            mouse_state.left_click_held,
-        ),
-        RADIUS_4,
-        out,
-    );
-    if patterns_toggle.is_hovered(mouse_state.x, mouse_state.y) && mouse_state.left_clicked {
+    let patterns_hovered =
+        patterns_toggle.draw_interactive(screen_config, DARK_GRAY, mouse_state, RADIUS_4, out);
+    if patterns_hovered && mouse_state.left_clicked {
         click_result = ClickResult::TogglePatternTray;
-    };
+    }
 
-    // toolbar line
     draw_h_line(TOOLBAR_Y, TOOLBAR_THICKNESS, screen_config, out);
 
-    /*  Project Composition I/O
-     *
-     * Load Project
-     * Load Track
-     */
     let load_project_button = Square {
         x: screen_config.width as f32 - 40.0,
         y: TOOLBAR_MARGIN,
         size: ICON_SIZE,
     };
-    load_project_button.draw(
-        screen_config,
-        icon_color(
-            &load_project_button,
-            mouse_state.x,
-            mouse_state.y,
-            mouse_state.left_click_held,
-        ),
-        RADIUS_4,
-        out,
-    );
-    if load_project_button.is_hovered(mouse_state.x, mouse_state.y) && mouse_state.left_clicked {
-        click_result = ClickResult::ProjectFileDialog
-    };
+    let load_project_hovered =
+        load_project_button.draw_interactive(screen_config, DARK_GRAY, mouse_state, RADIUS_4, out);
+    if load_project_hovered && mouse_state.left_clicked {
+        click_result = ClickResult::ProjectFileDialog;
+    }
 
-    // load an track
     let load_track_button = Square {
         x: load_project_button.x - ICON_GAP,
         y: TOOLBAR_MARGIN,
         size: ICON_SIZE,
     };
-    load_track_button.draw(
-        screen_config,
-        icon_color(
-            &load_track_button,
-            mouse_state.x,
-            mouse_state.y,
-            mouse_state.left_click_held,
-        ),
-        RADIUS_4,
-        out,
-    );
-    if load_track_button.is_hovered(mouse_state.x, mouse_state.y) && mouse_state.left_clicked {
-        click_result = ClickResult::TrackFileDialog
-    };
+    let load_track_hovered =
+        load_track_button.draw_interactive(screen_config, DARK_GRAY, mouse_state, RADIUS_4, out);
+    if load_track_hovered && mouse_state.left_clicked {
+        click_result = ClickResult::TrackFileDialog;
+    }
 
     let icons = vec![
         IconDraw {

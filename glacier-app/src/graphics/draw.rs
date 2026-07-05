@@ -1,7 +1,7 @@
 //! Main draw method for painting all shapes and handling vertex buffers.
 use super::*;
 use crate::graphics::{
-    color::{DARK_GRAY_HOVER, LIGHT_GRAY, PEBBLE},
+    color::{LIGHT_GRAY, SURFACE},
     components::modal,
     mini_window::playlist::TIMELINE_X_ORIGIN,
     regions::*,
@@ -532,21 +532,21 @@ impl Graphics {
                 width: self.track_tray_width,
                 height: screen_config.height as f32 - (screen_config.height / 2) as f32,
             }
-            .draw(&screen_config, PEBBLE, NO_RADIUS, &mut vertices);
+            .draw(&screen_config, SURFACE, NO_RADIUS, &mut vertices);
             let w_divider = Rectangle {
                 x: PAD_2,
                 y: (screen_config.height / 2) as f32,
                 width: self.track_tray_width - PAD_4,
                 height: 1.0,
             };
-            w_divider.draw(&screen_config, DARK_GRAY_HOVER, RADIUS_4, &mut vertices);
+            w_divider.draw(&screen_config, DARK_GRAY, RADIUS_4, &mut vertices);
             let h_divider = Rectangle {
                 x: self.track_tray_width - 1.0,
                 y: TOOLBAR_MARGIN,
                 width: 1.0,
                 height: screen_config.height as f32 - TOOLBAR_MARGIN,
             };
-            h_divider.draw(&screen_config, DARK_GRAY_HOVER, NO_RADIUS, &mut vertices);
+            h_divider.draw(&screen_config, DARK_GRAY, NO_RADIUS, &mut vertices);
             use crate::graphics::side_panel::draw_title;
             Graphics::push_text_draws(
                 &[draw_title("File Tree", (w_divider.x - 2.0, w_divider.y))],

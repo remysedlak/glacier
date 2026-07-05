@@ -60,6 +60,23 @@ impl Square {
             out,
         );
     }
+    pub fn draw_interactive(
+        &self,
+        screen_config: &ScreenConfig,
+        base_color: Color,
+        mouse_state: &MouseState,
+        radius: [f32; 4],
+        out: &mut Vec<Vertex>,
+    ) -> bool {
+        let hovered = self.is_hovered(mouse_state.x, mouse_state.y);
+        let color = if hovered {
+            base_color.hovered()
+        } else {
+            base_color
+        };
+        self.draw(screen_config, color, radius, out);
+        hovered
+    }
 }
 
 /// A rectangle stores 2D position,width, and height
@@ -110,6 +127,23 @@ impl Rectangle {
             corner_radius,
             out,
         );
+    }
+    pub fn draw_interactive(
+        &self,
+        screen_config: &ScreenConfig,
+        base_color: Color,
+        mouse_state: &MouseState,
+        radius: [f32; 4],
+        out: &mut Vec<Vertex>,
+    ) -> bool {
+        let hovered = self.is_hovered(mouse_state.x, mouse_state.y);
+        let color = if hovered {
+            base_color.hovered()
+        } else {
+            base_color
+        };
+        self.draw(screen_config, color, radius, out);
+        hovered
     }
 }
 
@@ -177,13 +211,15 @@ pub fn window_title_bar(
         width: 15.0,
         height: 5.0,
     };
-    let close_window_color = if close_window_button.is_hovered(mouse_state.x, mouse_state.y) {
-        LIGHT_GRAY_HOVER
-    } else {
-        LIGHT_GRAY
-    };
-    close_window_button.draw(screen_config, close_window_color, NO_RADIUS, out);
-    if close_window_button.is_hovered(mouse_state.x, mouse_state.y) {
+    let hovered = close_window_button.draw_interactive(
+        screen_config,
+        LIGHT_GRAY,
+        mouse_state,
+        NO_RADIUS,
+        out,
+    );
+
+    if hovered {
         cursor_icon = CursorIcon::Pointer;
         if mouse_state.left_clicked {
             result = match window.window_kind {

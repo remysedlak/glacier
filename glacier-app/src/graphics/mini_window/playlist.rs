@@ -74,7 +74,12 @@ pub fn draw(
         if background.y + background.height < window.y || background.y > window.y + window.height {
             continue;
         }
-        background.draw(screen_config, PEBBLE, NO_RADIUS, &mut track_header_vertices);
+        background.draw(
+            screen_config,
+            SURFACE,
+            NO_RADIUS,
+            &mut track_header_vertices,
+        );
         track_header_text_items.push(TextItem {
             text: format!("Track {}", track),
             x: window.x + PAD_16 + PAD_8,
@@ -103,22 +108,13 @@ pub fn draw(
             let hovered =
                 pl_step.is_hovered(mouse_state.x, mouse_state.y) && !mouse_state.left_click_held;
 
-            let color = if hovered {
-                if dragging_file.is_some() {
-                    GREEN
-                } else {
-                    if group % 2 != 0 {
-                        BLUE_HOVER
-                    } else {
-                        DARK_BLUE_HOVER
-                    }
-                }
+            let base = if group % 2 != 0 { BLUE } else { DARK_BLUE };
+            let color = if dragging_file.is_some() && hovered {
+                GREEN
+            } else if hovered {
+                base.hovered()
             } else {
-                if group % 2 != 0 {
-                    BLUE
-                } else {
-                    DARK_BLUE
-                }
+                base
             };
 
             if pl_step.is_hovered(mouse_state.x, mouse_state.y) {
@@ -227,7 +223,7 @@ pub fn draw(
 
         let pl_pattern_color =
             if pl_pattern.is_hovered(mouse_state.x, mouse_state.y) && resizing_event.is_none() {
-                LIGHT_GRAY_HOVER
+                LIGHT_GRAY.hovered()
             } else {
                 LIGHT_GRAY
             };

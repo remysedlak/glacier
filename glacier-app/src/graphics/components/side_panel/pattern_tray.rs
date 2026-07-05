@@ -1,8 +1,9 @@
 use crate::app::MouseState;
-use crate::graphics::color::DARK_GRAY_HOVER;
+use crate::graphics::color::{DARK_GRAY, SURFACE, SURFACE_HOVER};
+use crate::graphics::primitives::PAD_4;
 use crate::graphics::{
-    color::{BLACK, LIGHT_GRAY, LIGHT_GRAY_HOVER, PEBBLE},
-    components::{side_panel::*, toolbar::icon_color},
+    color::{BLACK, LIGHT_GRAY},
+    components::side_panel::*,
     font::{TextItem, ROBOTO},
     icons::{IconDraw, Tooltip},
     primitives::{ScreenConfig, PAD_16, PAD_32, PAD_64, PAD_8, RADIUS_8},
@@ -44,7 +45,7 @@ pub fn draw(
         width: tray_width,
         height: screen_config.height as f32 - TOOLBAR_THICKNESS,
     };
-    pattern_tray.draw(screen_config, PEBBLE, NO_RADIUS, out);
+    pattern_tray.draw(screen_config, SURFACE, NO_RADIUS, out);
 
     let w_divider = Rectangle {
         x: pattern_tray.x,
@@ -52,7 +53,7 @@ pub fn draw(
         width: 1.0,
         height: pattern_tray.height,
     };
-    w_divider.draw(screen_config, DARK_GRAY_HOVER, NO_RADIUS, out);
+    w_divider.draw_interactive(screen_config, DARK_GRAY, mouse_state, NO_RADIUS, out);
 
     if pattern_tray.is_hovered_left_edge(mouse_state.x, mouse_state.y) {
         cursor_icon = CursorIcon::ColResize
@@ -66,18 +67,9 @@ pub fn draw(
         y: pattern_tray.y + PAD_8,
         size: ICON_SIZE,
     };
-    add_pattern_button.draw(
-        screen_config,
-        icon_color(
-            &add_pattern_button,
-            mouse_state.x,
-            mouse_state.y,
-            mouse_state.left_click_held,
-        ),
-        RADIUS_8,
-        out,
-    );
-    if add_pattern_button.is_hovered(mouse_state.x, mouse_state.y) {
+    let hovered =
+        add_pattern_button.draw_interactive(screen_config, DARK_GRAY, mouse_state, RADIUS_8, out);
+    if hovered {
         cursor_icon = CursorIcon::Pointer;
         if mouse_state.left_clicked {
             click_result = ClickResult::CreatePattern;
@@ -103,30 +95,14 @@ pub fn draw(
     for (i, pattern) in patterns.iter().enumerate() {
         // draw the shape
         let pattern_button = Rectangle {
-            x: pattern_tray.x + PAD_16,
+            x: pattern_tray.x + PAD_4,
             y: PATTERN_TRAY_HEADER_MARGIN + (PATTERN_TRAY_ITEM_GAP * i as f32) + PAD_32,
-            width: pattern_tray.width - PAD_32,
+            width: pattern_tray.width - PAD_8,
             height: PATTERN_TRAY_ITEM_HEIGHT,
         };
-        if Some(pattern.id as u32) == selected_pattern_id {
-            let indicator = Rectangle {
-                x: pattern_tray.x + PAD_8,
-                y: PATTERN_TRAY_HEADER_MARGIN + (PATTERN_TRAY_ITEM_GAP * i as f32) + PAD_32,
-                width: 4.0,
-                height: PATTERN_TRAY_ITEM_HEIGHT,
-            };
-            indicator.draw(
-                screen_config,
-                crate::graphics::color::ORANGE,
-                [7.0, 7.0, 7.0, 7.0],
-                out,
-            );
-        }
-        let pattern_button_color = if pattern_button.is_hovered(mouse_state.x, mouse_state.y) {
-            LIGHT_GRAY_HOVER
-        } else {
-            LIGHT_GRAY
-        };
+
+        let hovered = pattern_button.is_hovered(mouse_state.x, mouse_state.y);
+        let pattern_button_color = if hovered { SURFACE_HOVER } else { SURFACE };
         pattern_button.draw(
             screen_config,
             pattern_button_color,
@@ -148,6 +124,21 @@ pub fn draw(
                     ClickResult::OpenPatternMenu(pattern_button.x, pattern_button.y, pattern.id);
             }
         }
+
+        if Some(pattern.id as u32) == selected_pattern_id {
+            let indicator = Rectangle {
+                x: pattern_tray.x + PAD_4,
+                y: PATTERN_TRAY_HEADER_MARGIN + (PATTERN_TRAY_ITEM_GAP * i as f32) + PAD_32,
+                width: 4.0,
+                height: PATTERN_TRAY_ITEM_HEIGHT,
+            };
+            indicator.draw(
+                screen_config,
+                crate::graphics::color::ORANGE,
+                [7.0, 7.0, 7.0, 7.0],
+                out,
+            );
+        }
     }
     // load each pattern's name
     for (i, pattern) in patterns.iter().enumerate() {
@@ -155,8 +146,8 @@ pub fn draw(
             text: pattern.name.to_string(),
             x: screen_config.width as f32 - PATTERN_TRAY_ITEM_WIDTH,
             y: PATTERN_TRAY_HEADER_MARGIN + (PATTERN_TRAY_ITEM_GAP * i as f32) + PAD_32 + PAD_2,
-            size: 16.0,
-            color: BLACK,
+            size: 14.0,
+            color: WHITE,
             font: ROBOTO,
         });
     }

@@ -159,10 +159,12 @@ pub fn draw(
                     height: SEQUENCER_STEP_HEIGHT,
                 };
                 let hovered = step_button.is_hovered(mouse_state.x, mouse_state.y); // cache it!
-                let mut step_color = if j == active_step as u32 && hovered {
-                    BLUE_HOVER
-                } else if j == active_step as u32 {
-                    BLUE
+                let mut step_color = if j == active_step as u32 {
+                    if hovered {
+                        BLUE.hovered()
+                    } else {
+                        BLUE
+                    }
                 } else if hovered && is_active {
                     DARK_GRAY
                 } else if hovered {
@@ -198,14 +200,28 @@ pub fn draw(
             width: 172.0,
             height: 24.0,
         };
-        let track_button_color = if track_button.is_hovered(mouse_state.x, mouse_state.y)
-            && !mouse_state.left_click_held
-        {
-            DARK_GRAY_HOVER
+        let hovered = track_button.is_hovered(mouse_state.x, mouse_state.y);
+        let color_hovered = hovered && !mouse_state.left_click_held;
+        let color = if color_hovered {
+            SURFACE_HOVER
         } else {
-            DARK_GRAY
+            SURFACE
         };
-        track_button.draw(screen_config, track_button_color, RADIUS_4, out);
+        track_button.draw(screen_config, color, RADIUS_4, out);
+        if hovered {
+            cursor_icon = CursorIcon::Pointer;
+            if mouse_state.left_clicked {
+                click_result = ClickResult::ToggleTrackWindow(i);
+            }
+            if mouse_state.right_clicked {
+                click_result = ClickResult::OpenTrackMenu(
+                    track_button_x,
+                    track_button_y,
+                    active_pattern_id,
+                    i,
+                );
+            }
+        }
         if track_button.is_hovered(mouse_state.x, mouse_state.y) {
             cursor_icon = CursorIcon::Pointer;
             if mouse_state.left_clicked {
@@ -230,15 +246,14 @@ pub fn draw(
         };
         let hovered =
             mute_button.is_hovered(mouse_state.x, mouse_state.y) && !mouse_state.left_click_held;
-        let mute_button_color = if hovered && track.data.is_muted {
-            ORANGE_HOVER
-        } else if hovered {
-            LL_GRAY
-        } else if track.data.is_muted {
+        let hovered =
+            mute_button.is_hovered(mouse_state.x, mouse_state.y) && !mouse_state.left_click_held;
+        let base = if track.data.is_muted {
             ORANGE
         } else {
             LIGHT_GRAY
         };
+        let mute_button_color = if hovered { base.hovered() } else { base };
         mute_button.draw(screen_config, mute_button_color, RADIUS_4, out);
 
         text_items.push(TextItem {
@@ -265,15 +280,12 @@ pub fn draw(
 
         let hovered = velocity_button.is_hovered(mouse_state.x, mouse_state.y)
             && !mouse_state.left_click_held;
-        let velocity_button_color = if hovered && track.show_velocity {
-            ORANGE_HOVER
-        } else if hovered {
-            LL_GRAY
-        } else if track.show_velocity {
+        let base = if track.show_velocity {
             ORANGE
         } else {
             LIGHT_GRAY
         };
+        let velocity_button_color = if hovered { base.hovered() } else { base };
         velocity_button.draw(screen_config, velocity_button_color, RADIUS_4, out);
 
         text_items.push(TextItem {
