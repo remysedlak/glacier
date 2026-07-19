@@ -15,6 +15,22 @@ pub const TOOLTIP_RIGHT_MARGIN: f32 = 96.0;
 const WINDOW_ICONS_OFFSET: f32 = 320.0;
 const ICON_GAP: f32 = 48.0;
 
+struct IconRow {
+    x: f32,
+    y: f32,
+}
+impl IconRow {
+    fn next(&mut self) -> Square {
+        let sq = Square {
+            x: self.x,
+            y: self.y,
+            size: ICON_SIZE,
+        };
+        self.x += ICON_GAP;
+        sq
+    }
+}
+
 pub fn draw_toolbar(
     mouse_state: &MouseState,
     screen_config: &ScreenConfig,
@@ -34,6 +50,11 @@ pub fn draw_toolbar(
     let mut click_result = ClickResult::None;
     let mut cursor_icon = CursorIcon::Default;
     let mut tooltip: Option<Tooltip> = None;
+
+    let mut window_icons = IconRow {
+        x: PLAY_X_ORIGIN + WINDOW_ICONS_OFFSET,
+        y: PLAY_Y_ORIGIN,
+    };
 
     let toolbar_background = Rectangle {
         x: 0.0,
@@ -144,55 +165,44 @@ pub fn draw_toolbar(
         font: MONOSPACED,
     });
 
-    let sequencer_toggle = Square {
-        x: PLAY_X_ORIGIN + WINDOW_ICONS_OFFSET,
+    // TODO: draw power spectrum of song by taking foureir series and displaying db log info
+    let spectrum_background = Rectangle {
+        x: screen_config.width as f32 - 420.0,
         y: PLAY_Y_ORIGIN,
-        size: ICON_SIZE,
+        width: ICON_SIZE * 5.0,
+        height: ICON_SIZE,
     };
+    spectrum_background.draw(screen_config, BLACK, RADIUS_4, out);
+
+    let sequencer_toggle = window_icons.next();
     let sequencer_hovered =
         sequencer_toggle.draw_interactive(screen_config, DARK_GRAY, mouse_state, RADIUS_4, out);
     if sequencer_hovered && mouse_state.left_clicked {
         click_result = ClickResult::ToggleSequencerWindow;
     }
 
-    let mixer_toggle = Square {
-        x: PLAY_X_ORIGIN + WINDOW_ICONS_OFFSET + ICON_GAP,
-        y: PLAY_Y_ORIGIN,
-        size: ICON_SIZE,
-    };
+    let mixer_toggle = window_icons.next();
     let mixer_hovered =
         mixer_toggle.draw_interactive(screen_config, DARK_GRAY, mouse_state, RADIUS_4, out);
     if mixer_hovered && mouse_state.left_clicked {
         click_result = ClickResult::ToggleMixerWindow;
     }
 
-    let playlist_toggle = Square {
-        x: PLAY_X_ORIGIN + WINDOW_ICONS_OFFSET + (ICON_GAP * 2.0),
-        y: PLAY_Y_ORIGIN,
-        size: ICON_SIZE,
-    };
+    let playlist_toggle = window_icons.next();
     let playlist_hovered =
         playlist_toggle.draw_interactive(screen_config, DARK_GRAY, mouse_state, RADIUS_4, out);
     if playlist_hovered && mouse_state.left_clicked {
         click_result = ClickResult::TogglePlaylistWindow;
     }
 
-    let piano_toggle = Square {
-        x: PLAY_X_ORIGIN + WINDOW_ICONS_OFFSET + (ICON_GAP * 3.0),
-        y: PLAY_Y_ORIGIN,
-        size: ICON_SIZE,
-    };
+    let piano_toggle = window_icons.next();
     let piano_hovered =
         piano_toggle.draw_interactive(screen_config, DARK_GRAY, mouse_state, RADIUS_4, out);
     if piano_hovered && mouse_state.left_clicked {
         click_result = ClickResult::TogglePianoRollWindow;
     }
 
-    let track_selection_toggle = Square {
-        x: PLAY_X_ORIGIN + WINDOW_ICONS_OFFSET + (ICON_GAP * 4.0),
-        y: PLAY_Y_ORIGIN,
-        size: ICON_SIZE,
-    };
+    let track_selection_toggle = window_icons.next();
     let track_selection_hovered = track_selection_toggle.draw_interactive(
         screen_config,
         DARK_GRAY,
@@ -204,11 +214,7 @@ pub fn draw_toolbar(
         click_result = ClickResult::ToggleTrackTray;
     }
 
-    let patterns_toggle = Square {
-        x: PLAY_X_ORIGIN + WINDOW_ICONS_OFFSET + (ICON_GAP * 5.0),
-        y: PLAY_Y_ORIGIN,
-        size: ICON_SIZE,
-    };
+    let patterns_toggle = window_icons.next();
     let patterns_hovered =
         patterns_toggle.draw_interactive(screen_config, DARK_GRAY, mouse_state, RADIUS_4, out);
     if patterns_hovered && mouse_state.left_clicked {
