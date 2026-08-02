@@ -40,7 +40,7 @@ pub fn draw(
 
     // display frames per second
     text_items.push(TextItem {
-        text: frame_rate.to_string(),
+        text: (frame_rate as u32).to_string(),
         x: screen_config.width as f32 - FPS_COUNTER_X_OFFSET,
         y: screen_config.height as f32 - FOOTER_Y_HEIGHT + PAD_8,
         size: BODY,

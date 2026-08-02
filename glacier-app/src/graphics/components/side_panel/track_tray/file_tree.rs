@@ -6,7 +6,7 @@ use crate::{
         font::{TextItem, ROBOTO},
         icons::IconDraw,
         primitives::*,
-        widgets::{Rectangle, TOOLBAR_Y},
+        widgets::Rectangle,
         ClickResult, Tooltip,
     },
 };

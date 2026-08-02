@@ -78,41 +78,11 @@ pub fn init(
         .unwrap_or_default();
 
     let mut project_path = project_file.unwrap_or_else(|| Project::default_project_file());
-
-    // setup Tracks
     let mut tracks: Vec<Track> = get_tracks(&project);
-    for track in tracks.iter() {
-        producer.try_push(UiCommand::LoadTrack(track.clone())).ok();
-    }
-
-    // setup Patterns
     let mut patterns = project.patterns;
-    for pattern in &patterns {
-        producer
-            .try_push(UiCommand::LoadPattern(pattern.clone()))
-            .ok();
-    }
-
-    // setup Events
     let mut events = project.events;
-    for event in &events {
-        producer.try_push(UiCommand::LoadEvent(event.clone())).ok();
-    }
-
-    producer
-        .try_push(UiCommand::LoadProjectPath(project_path.clone()))
-        .ok();
-
-    // setup bpm and volume
     let mut bpm: f32 = project.bpm;
-    producer.try_push(UiCommand::LoadBpm(bpm)).ok();
-
     let mut master_volume = project.master_volume;
-    producer
-        .try_push(UiCommand::LoadMasterVolume(project.master_volume))
-        .ok();
-
-    // setup song state
     let mut current_step = events
         .iter()
         .map(|e| e.start_step + e.length)
@@ -133,6 +103,15 @@ pub fn init(
 
     let mut preview_samples: Vec<f32> = Vec::new();
     let mut preview_position: f32 = 0.0;
+
+    producer.try_push(UiCommand::LoadProject {
+        tracks: tracks.clone(),
+        patterns: patterns.clone(),
+        events: events.clone(),
+        bpm,
+        master_volume,
+        project_path: project_path.clone(),
+    }).ok();
 
     // audio callback
     // fills samples requested from CPAL audio driver
@@ -303,7 +282,7 @@ pub fn init(
                         }
                     } else {
                         let mut seq = Sequence {
-                            track_id: track_id,
+                            track_id,
                             steps: vec![Note::DEFAULT; step_idx + 1],
                         };
                         seq.steps[step_idx] = Note {
