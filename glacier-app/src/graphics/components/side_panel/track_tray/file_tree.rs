@@ -4,9 +4,9 @@ use crate::{
     graphics::{
         color::*,
         font::{TextItem, ROBOTO},
+        geometry::Rectangle,
         icons::IconDraw,
         primitives::*,
-        widgets::Rectangle,
         ClickResult, Tooltip,
     },
 };

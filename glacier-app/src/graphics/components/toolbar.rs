@@ -1,20 +1,29 @@
 //! The toolbar contains easy access toggle buttons for opening windows, loading files, or view project bpm/step/time info.
 use crate::app::MouseState;
-use crate::graphics::components::{spectrum, toolbar};
+use crate::graphics::components::spectrum;
 use crate::graphics::{
     color::*,
     font::{TextItem, MONOSPACED, TITLE},
+    geometry::*,
     icons::{IconDraw, Tooltip},
     primitives::*,
-    widgets::*,
-    ClickResult, ScreenConfig, Vertex, TOOLBAR_THICKNESS,
+    ClickResult, ScreenConfig, Vertex,
 };
 use winit::window::CursorIcon;
 
+pub const TOOLBAR_Y: f32 = 42.0;
+pub const TOOLBAR_THICKNESS: f32 = 0.003;
+pub const TOOLBAR_MARGIN: f32 = 4.0;
+
 pub const TOOLTIP_MARGIN: f32 = 36.0;
 pub const TOOLTIP_RIGHT_MARGIN: f32 = 96.0;
+
 const WINDOW_ICONS_OFFSET: f32 = 320.0;
 const ICON_GAP: f32 = 48.0;
+pub const ICON_SIZE: f32 = 32.0;
+
+pub const PLAY_Y_ORIGIN: f32 = 4.0;
+pub const PLAY_X_ORIGIN: f32 = 90.0;
 
 struct IconRow {
     x: f32,

@@ -4,11 +4,11 @@ pub mod context_menu;
 pub mod drag;
 pub mod draw;
 pub mod font;
+pub mod geometry;
 pub mod icons;
 pub mod mini_window;
 pub mod primitives;
 pub mod regions;
-pub mod widgets;
 
 use crate::app::{MouseState, PianoRollState, ScrollOffset};
 use crate::config::DEFAULT_BPM;
@@ -24,6 +24,7 @@ use font::{
     ROBOTO,
 };
 use fontdue::layout::{CoordinateSystem, Layout, TextStyle};
+use geometry::*;
 use icons::{push_icon_draw, Tooltip};
 use mini_window::{
     mixer, piano_roll, playlist, sequencer,
@@ -32,7 +33,6 @@ use mini_window::{
 };
 use primitives::*;
 use std::{borrow::Cow, collections::HashMap};
-use widgets::*;
 
 use wgpu::{
     CommandEncoderDescriptor, DeviceDescriptor, Features, FragmentState, Instance, Limits, LoadOp,

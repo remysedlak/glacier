@@ -1,6 +1,21 @@
 //! Mini windows are internal floating windows that use painters algorithm for visual hierarchy
 
-use crate::graphics::TITLEBAR_HEIGHT;
+use winit::window::CursorIcon;
+
+use crate::{
+    app::MouseState,
+    graphics::{
+        color::{DARK_GRAY, LIGHT_GRAY, WHITE},
+        font::{TextItem, ROBOTO},
+        geometry::Rectangle,
+        primitives::{ScreenConfig, Vertex, NO_RADIUS, PAD_16, PAD_4, PAD_8},
+        ClickResult,
+    },
+};
+
+pub const TOP_RADIUS_6: [f32; 4] = [6.0, 0.0, 6.0, 0.0];
+
+pub const TITLEBAR_HEIGHT: f32 = 32.0;
 
 pub mod mixer;
 pub mod piano_roll;
@@ -62,5 +77,77 @@ impl MiniWindow {
             && mouse_x < self.x + self.width
             && mouse_y > self.y - TITLEBAR_HEIGHT
             && mouse_y < self.y + self.height
+    }
+    /// Returns the x position of where text will appear centered for a MiniWindow title bar
+    pub fn center_title_x(&self, text: &str) -> f32 {
+        let center_x = self.x + (self.width / 2.0);
+        center_x - (text.len() as f32 * 9.0 / 2.0)
+    }
+    pub fn background(&self) -> Rectangle {
+        Rectangle {
+            x: self.x,
+            y: self.y,
+            width: self.width,
+            height: self.height,
+        }
+    }
+    /// Draws the title bar of a MiniWindow, bordered so it meets up with the
+    /// body's own border at the seam and reads as one outlined window.
+    pub fn title_bar(
+        &self,
+        title: &str,
+        screen_config: &ScreenConfig,
+        mouse_state: &MouseState,
+        out: &mut Vec<Vertex>,
+    ) -> (TextItem, ClickResult, CursorIcon) {
+        let mut result = ClickResult::None;
+        let mut cursor_icon = CursorIcon::Default;
+
+        // build rectangle
+        let title_bar_background = Rectangle {
+            x: self.x,
+            y: self.y - TITLEBAR_HEIGHT,
+            width: self.width,
+            height: TITLEBAR_HEIGHT,
+        };
+        title_bar_background.draw(screen_config, DARK_GRAY, TOP_RADIUS_6, out);
+
+        // add button for closing the window
+        let close_window_button = Rectangle {
+            x: self.x + self.width - PAD_16 - PAD_8 - PAD_4,
+            y: self.y - TITLEBAR_HEIGHT + PAD_8 + PAD_4,
+            width: 15.0,
+            height: 5.0,
+        };
+        let hovered = close_window_button.draw_interactive(
+            screen_config,
+            LIGHT_GRAY,
+            mouse_state,
+            NO_RADIUS,
+            out,
+        );
+
+        if hovered {
+            cursor_icon = CursorIcon::Pointer;
+            if mouse_state.left_clicked {
+                result = match self.window_kind {
+                    WindowKind::Sequencer => ClickResult::ToggleSequencerWindow,
+                    WindowKind::Playlist => ClickResult::TogglePlaylistWindow,
+                    WindowKind::Mixer => ClickResult::ToggleMixerWindow,
+                    WindowKind::PianoRoll => ClickResult::TogglePianoRollWindow,
+                    WindowKind::TrackDetail(usize) => ClickResult::ToggleTrackWindow(usize),
+                }
+            }
+        }
+        // build text item
+        let window_title = TextItem {
+            text: title.to_string(),
+            x: self.center_title_x(title),
+            y: self.y - TITLEBAR_HEIGHT + PAD_4,
+            color: WHITE,
+            size: 18.0,
+            font: ROBOTO,
+        };
+        (window_title, result, cursor_icon)
     }
 }

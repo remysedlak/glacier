@@ -1,11 +1,7 @@
 use crate::app::{MouseState, ScrollOffset};
 use crate::graphics::{
-    color::*,
-    font::TextItem,
-    mini_window::MiniWindow,
-    primitives::*,
-    widgets::{window_background, window_title_bar},
-    AudioBlockType, ClickResult, PathBuf, Rectangle,
+    color::*, font::TextItem, mini_window::MiniWindow, primitives::*, AudioBlockType, ClickResult,
+    PathBuf, Rectangle,
 };
 use crate::project::{AudioBlock, PatternData, Track};
 use winit::window::CursorIcon;
@@ -43,21 +39,16 @@ pub fn draw(
     let step_count = 64;
     let track_count = 32;
 
-    let playlist_background = window_background(window);
+    let playlist_background = window.background();
     playlist_background.draw(
         screen_config,
         MINI_WINDOW_BACKGROUND,
-        BOTTOM_RADIUS_16,
+        [0.0, 16.0, 0.0, 16.0],
         &mut static_vertices,
     );
 
-    let (titlebar_texts, result, cursor) = window_title_bar(
-        window,
-        "Playlist",
-        screen_config,
-        mouse_state,
-        &mut static_vertices,
-    );
+    let (titlebar_texts, result, cursor) =
+        window.title_bar("Playlist", screen_config, mouse_state, &mut static_vertices);
     if !matches!(cursor, CursorIcon::Default) {
         cursor_icon = cursor;
     }

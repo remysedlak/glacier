@@ -2,9 +2,9 @@
 use super::*;
 use crate::graphics::{
     color::{LIGHT_GRAY, SURFACE},
-    components::modal,
+    components::{modal, toolbar::TOOLBAR_MARGIN},
     font::measure_text_width,
-    mini_window::playlist::TIMELINE_X_ORIGIN,
+    mini_window::{playlist::TIMELINE_X_ORIGIN, TITLEBAR_HEIGHT},
     regions::*,
     side_panel::track_tray::file_tree,
 };

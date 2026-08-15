@@ -1,21 +1,19 @@
 //! The mixer window contains controls for all audio mixing and mastering such as volume and plugins.
-use winit::window::CursorIcon;
-
+use crate::graphics::components::slider;
 use crate::{
     app::MouseState,
     graphics::{
         color::*,
+        components::slider::MIXER_TRACK_HEIGHT,
         font::{BODY, MONOSPACED},
+        geometry::Rectangle,
         mini_window::MiniWindow,
         primitives::{ScreenConfig, BOTTOM_RADIUS_16, NO_RADIUS, PAD_16, PAD_32, PAD_4, PAD_8},
-        widgets::{
-            draw_slider, window_background, window_title_bar, Rectangle, MIXER_TRACK_HEIGHT,
-        },
         ClickResult, TextItem, Vertex,
     },
     project::Track,
 };
-
+use winit::window::CursorIcon;
 pub const SLIDER_BACKGROUND_OFFSET: f32 = PAD_16;
 pub const MIXER_ITEM_WIDTH: f32 = 50.0;
 
@@ -34,11 +32,11 @@ pub fn draw(
     let mut click_result = ClickResult::None;
     let mut cursor_icon = CursorIcon::Default;
 
-    let window_background = window_background(window);
+    let window_background = window.background();
     window_background.draw(screen_config, MINI_WINDOW_BACKGROUND, BOTTOM_RADIUS_16, out);
 
     let (titlebar_texts, result, cursor) =
-        window_title_bar(window, "Mixer", screen_config, mouse_state, out);
+        window.title_bar("Mixer", screen_config, mouse_state, out);
     if !matches!(cursor, CursorIcon::Default) {
         cursor_icon = cursor;
     }
@@ -112,7 +110,7 @@ pub fn draw(
 
         // slider bottom half
         let slider_y = bg.y + meter_area_height + slider_area_height - 172.0;
-        draw_slider(volume, col_x, slider_y, screen_config, vertices);
+        slider::draw(volume, col_x, slider_y, screen_config, vertices);
 
         text_items.push(TextItem {
             text: format!("{:.2}", volume),

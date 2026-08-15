@@ -1,3 +1,5 @@
+use crate::graphics::components::toolbar::TOOLBAR_Y;
+use crate::graphics::geometry::Rectangle;
 use crate::project::Track;
 use crate::{
     app::MouseState,
@@ -7,7 +9,6 @@ use crate::{
         font::{truncate_text, TextItem, ROBOTO},
         primitives::*,
         side_panel::{draw_title, PATTERN_TRAY_ITEM_HEIGHT},
-        widgets::{Rectangle, TOOLBAR_Y},
         ClickResult,
     },
 };

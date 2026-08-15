@@ -1,7 +1,7 @@
 pub mod window;
 use crate::graphics::{
     color::{Color, C_NOTE_COLOR, ORANGE, WHITE},
-    widgets::Rectangle,
+    geometry::Rectangle,
 };
 
 pub const BLACK_SEMITONE_INDEXES: [u32; 5] = [1, 3, 5, 8, 10];

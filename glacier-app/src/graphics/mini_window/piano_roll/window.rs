@@ -1,13 +1,14 @@
 use crate::app::{MouseState, PianoRollState, ScrollOffset};
+use crate::graphics::components::toolbar::ICON_SIZE;
 use crate::graphics::{
     color::*,
     font::{TextItem, MONOSPACED},
-    mini_window::{piano_roll::*, MiniWindow},
+    geometry::Rectangle,
+    mini_window::{piano_roll::*, MiniWindow, TITLEBAR_HEIGHT},
     primitives::{
         DrawRegion, ScreenConfig, Vertex, BOTTOM_RADIUS_16, NO_RADIUS, PAD_16, PAD_2, PAD_32,
         PAD_4, PAD_8,
     },
-    widgets::{window_background, window_title_bar, Rectangle, ICON_SIZE, TITLEBAR_HEIGHT},
     ClickResult,
 };
 use crate::project::{PatternData, Sequence, Track};
@@ -42,7 +43,7 @@ pub fn draw(
     let mut cursor_icon = CursorIcon::Default;
     let mut click_result = ClickResult::None;
 
-    let playlist_background = window_background(window);
+    let playlist_background = window.background();
     playlist_background.draw(
         screen_config,
         MINI_WINDOW_BACKGROUND,
@@ -60,13 +61,8 @@ pub fn draw(
     } else {
         "Piano Roll".to_string()
     };
-    let (titlebar_texts, result, cursor) = window_title_bar(
-        window,
-        &title,
-        screen_config,
-        mouse_state,
-        &mut static_vertices,
-    );
+    let (titlebar_texts, result, cursor) =
+        window.title_bar(&title, screen_config, mouse_state, &mut static_vertices);
     if !matches!(cursor, CursorIcon::Default) {
         cursor_icon = cursor;
     }

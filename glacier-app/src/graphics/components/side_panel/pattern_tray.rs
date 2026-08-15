@@ -1,16 +1,14 @@
 use crate::app::MouseState;
 use crate::graphics::color::{DARK_GRAY, ORANGE, SURFACE, SURFACE_HOVER, WHITE};
+use crate::graphics::components::toolbar::{TOOLBAR_THICKNESS, TOOLBAR_Y};
 use crate::graphics::primitives::{RenameState, RenameTarget, PAD_4};
 use crate::graphics::{
     components::side_panel::*,
     font::{TextItem, ROBOTO},
+    geometry::Square,
     icons::{IconDraw, Tooltip},
     primitives::{ScreenConfig, PAD_32, PAD_64, PAD_8, RADIUS_8},
-    widgets::Square,
-    {
-        ClickResult, CursorIcon, PatternData, Rectangle, Vertex, NO_RADIUS, PAD_2,
-        TOOLBAR_THICKNESS, TOOLBAR_Y,
-    },
+    {ClickResult, CursorIcon, PatternData, Rectangle, Vertex, NO_RADIUS, PAD_2},
 };
 
 const ICON_SIZE: f32 = 20.0;

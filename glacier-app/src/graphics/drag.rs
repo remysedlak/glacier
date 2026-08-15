@@ -1,6 +1,12 @@
 //! File for handling the user's drag actions
 
-use crate::graphics::mini_window::{mixer::MIXER_ITEM_WIDTH, playlist::PLAYLIST_STEP_GAP};
+use crate::graphics::{
+    components::{
+        slider::{MIXER_THUMB_WIDTH, MIXER_TRACK_HEIGHT},
+        toolbar::TOOLBAR_Y,
+    },
+    mini_window::{mixer::MIXER_ITEM_WIDTH, playlist::PLAYLIST_STEP_GAP, TITLEBAR_HEIGHT},
+};
 
 use super::*;
 

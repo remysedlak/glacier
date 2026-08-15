@@ -5,7 +5,6 @@ use crate::graphics::{
     icons::IconDraw,
     mini_window::MiniWindow,
     primitives::*,
-    widgets::window_title_bar,
     {ClickResult, Rectangle, ScrollOffset, TextItem},
 };
 use crate::project::{Note, PatternData, Track};
@@ -51,7 +50,7 @@ pub fn draw(
 
     // titlebar
     let (titlebar_texts, result, cursor) =
-        window_title_bar(window, &window.title, screen_config, mouse_state, out);
+        window.title_bar(&window.title, screen_config, mouse_state, out);
     if !matches!(cursor, CursorIcon::Default) {
         cursor_icon = cursor;
     }

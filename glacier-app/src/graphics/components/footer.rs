@@ -1,8 +1,8 @@
 use crate::graphics::{
     color::{BLACK, ORANGE, WHITE},
     font::{TextItem, BODY, MONOSPACED, ROBOTO},
+    geometry::Rectangle,
     primitives::{ScreenConfig, Vertex, NO_RADIUS, PAD_4, PAD_8},
-    widgets::Rectangle,
 };
 
 pub const FOOTER_Y_HEIGHT: f32 = 32.0;

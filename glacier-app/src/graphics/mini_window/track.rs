@@ -2,10 +2,10 @@ use crate::app::MouseState;
 use crate::graphics::{
     color::{DARK_GRAY, MINI_WINDOW_BACKGROUND, WHITE},
     components::toolbar::TOOLTIP_MARGIN,
+    geometry::Square,
     icons::{IconDraw, Tooltip},
-    mini_window::MiniWindow,
+    mini_window::{MiniWindow, TITLEBAR_HEIGHT},
     primitives::{ScreenConfig, Vertex, NO_RADIUS, PAD_16, PAD_8, RADIUS_4},
-    widgets::{window_background, window_title_bar, Square, TITLEBAR_HEIGHT},
     {ClickResult, Rectangle, TextItem},
 };
 use crate::project::Track;
@@ -36,7 +36,7 @@ pub fn draw(
     let mut cursor_icon = CursorIcon::Default;
     let mut tooltip: Option<Tooltip> = None;
     // window background
-    let window_background = window_background(window);
+    let window_background = window.background();
     window_background.draw(
         screen_config,
         MINI_WINDOW_BACKGROUND,
@@ -45,8 +45,7 @@ pub fn draw(
     );
 
     // titlebar
-    let (titlebar_texts, result, cursor) = window_title_bar(
-        window,
+    let (titlebar_texts, result, cursor) = window.title_bar(
         &format!("Track: {}", track.data.name),
         screen_config,
         mouse_state,
