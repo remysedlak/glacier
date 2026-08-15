@@ -8,7 +8,11 @@ use crate::graphics::{
         piano_roll::PIANO_ROLL_DEFAULT_Y, sequencer::TRACK_GAP, MiniWindow, WindowKind, MIXER_ID,
         PIANO_ROLL_ID, PLAYLIST_ID, SEQUENCER_ID,
     },
+<<<<<<< HEAD
     primitives::{RenameState, RenameTarget, PAD_32},
+=======
+    primitives::{PAD_32,RenameState, RenameTarget},
+>>>>>>> b7bfbcff9080971650c2a22fcccc9e7c1350d814
     {bring_to_front, create_graphics, ClickResult, Graphics, Rc},
 };
 use crate::project::{AudioBlock, AudioBlockType, PatternData, Track, TrackData};
@@ -72,22 +76,34 @@ pub struct PianoRollState {
 
 // commands that the audio engine sends to the UI thread
 pub enum UiCommand {
-    LoadProjectPath(String),
     StepAdvanced(usize),
     TrackLevel(u32, f32, f32, f32), // track_id, rms_l, rms_r, peak
     MasterLevel(f32, f32, f32),     // rms_l, rms_r, peak
     LoadTrack(Track),
+<<<<<<< HEAD
     LoadBpm(f32),
     LoadSampleRate(f32),
     LoadMasterVolume(f32),
+=======
+>>>>>>> b7bfbcff9080971650c2a22fcccc9e7c1350d814
     ShutdownComplete,
     SaveComplete,
     LoadPattern(PatternData),
-    LoadEvent(AudioBlock),
     PlayheadPosition(f32),
     PatternRenamed(usize, String),
     TrackRenamed(u32, String),
+<<<<<<< HEAD
     SpectrumFrame(Vec<f32>), // one output buffer of spectrum information
+=======
+    LoadProject {
+        tracks: Vec<Track>,
+        patterns: Vec<PatternData>,
+        events: Vec<AudioBlock>,
+        bpm: f32,
+        master_volume: f32,
+        project_path: String,
+    },
+>>>>>>> b7bfbcff9080971650c2a22fcccc9e7c1350d814
 }
 
 // app state
@@ -241,8 +257,18 @@ impl App {
             // consume audio -> ui commands
             while let Some(cmd) = self.consumer.try_pop() {
                 match cmd {
+<<<<<<< HEAD
                     UiCommand::SpectrumFrame(samples) => {
                         gfx.spectrum = samples;
+=======
+                    UiCommand::LoadProject { tracks, patterns, events, bpm, master_volume, project_path } => {
+                        gfx.tracks = tracks;
+                        gfx.patterns = patterns;
+                        gfx.events = events;
+                        gfx.bpm = bpm;
+                        gfx.master_volume = master_volume;
+                        gfx.project_path = project_path;
+>>>>>>> b7bfbcff9080971650c2a22fcccc9e7c1350d814
                     }
                     UiCommand::PatternRenamed(id, name) => {
                         if let Some(pattern) = gfx.patterns.iter_mut().find(|p| p.id == id) {
@@ -256,9 +282,6 @@ impl App {
                     }
                     UiCommand::PlayheadPosition(beat) => {
                         gfx.playhead_beat = beat;
-                    }
-                    UiCommand::LoadProjectPath(path) => {
-                        gfx.project_path = path;
                     }
                     UiCommand::TrackLevel(track_id, rms_l, rms_r, peak) => {
                         if let Some(track) = gfx.tracks.iter_mut().find(|t| t.data.id == track_id) {
@@ -301,6 +324,7 @@ impl App {
                             bring_to_front(&mut gfx.z_order, SEQUENCER_ID);
                         }
                     }
+<<<<<<< HEAD
                     UiCommand::LoadBpm(bpm) => {
                         gfx.bpm = bpm;
                     }
@@ -310,11 +334,10 @@ impl App {
                     UiCommand::LoadEvent(event) => {
                         gfx.load_event(event);
                     }
+=======
+>>>>>>> b7bfbcff9080971650c2a22fcccc9e7c1350d814
                     UiCommand::LoadPattern(pattern) => {
                         gfx.load_pattern(pattern);
-                    }
-                    UiCommand::LoadMasterVolume(volume) => {
-                        gfx.master_volume = volume;
                     }
                     UiCommand::StepAdvanced(step) => {
                         gfx.active_step = step;
@@ -327,10 +350,6 @@ impl App {
                     }
                     UiCommand::SaveComplete => {
                         if let Some(path) = self.pending_project.take() {
-                            // reset ui
-                            gfx.tracks.clear();
-                            gfx.patterns.clear();
-
                             // reset IPC state
                             let _ = self.stream.pause();
                             let (audio_prod, audio_cons) = HeapRb::<AudioCommand>::new(64).split();
@@ -1209,7 +1228,7 @@ impl ApplicationHandler<Graphics> for App {
 fn spawn_track_load(path_str: String) -> Receiver<(TrackData, Vec<f32>)> {
     let (tx, rx) = std::sync::mpsc::channel();
     std::thread::spawn(move || {
-        let samples = crate::project::path_to_vector(&path_str);
+        let (samples, channels) = crate::project::path_to_vector(&path_str);
         let name = std::path::Path::new(&path_str)
             .file_name()
             .map(|n| n.to_string_lossy().to_string())
@@ -1218,6 +1237,7 @@ fn spawn_track_load(path_str: String) -> Receiver<(TrackData, Vec<f32>)> {
             id: 0,
             path: path_str,
             name,
+            channels,
             is_muted: false,
             target_volume: 1.0,
             track_volume: 1.0,

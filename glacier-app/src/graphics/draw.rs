@@ -222,7 +222,7 @@ impl Graphics {
                         &masked_mouse,
                         &self.active_tray,
                         &self.playlist_scroll_offset,
-                        self.active_step,
+                        self.playhead_beat,
                         self.resizing_event,
                         self.dragging_file.as_ref(),
                         &screen_config,

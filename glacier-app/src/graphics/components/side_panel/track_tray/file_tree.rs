@@ -7,6 +7,10 @@ use crate::{
         geometry::Rectangle,
         icons::IconDraw,
         primitives::*,
+<<<<<<< HEAD
+=======
+        widgets::Rectangle,
+>>>>>>> b7bfbcff9080971650c2a22fcccc9e7c1350d814
         ClickResult, Tooltip,
     },
 };

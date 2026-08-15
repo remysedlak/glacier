@@ -22,7 +22,7 @@ pub fn draw(
     mouse_state: &MouseState,
     active_tray: &AudioBlockType,
     scroll_offset: &ScrollOffset,
-    current_step: usize,
+    playhead_beat: f32, // was: current_step: usize
     resizing_event: Option<usize>,
     dragging_file: Option<&PathBuf>,
     screen_config: &ScreenConfig,
@@ -235,8 +235,9 @@ pub fn draw(
         });
     }
 
+    // @TODO: replace current_step with current_sample
     let playhead = Rectangle {
-        x: window.x + (current_step as f32 * PLAYLIST_STEP_GAP) + PAD_16 + TIMELINE_X_ORIGIN
+        x: window.x + (playhead_beat * PLAYLIST_STEP_GAP) + PAD_16 + TIMELINE_X_ORIGIN
             - scroll_offset.x,
         y: window.y + PAD_64,
         width: PLAYHEAD_WIDTH,

@@ -134,6 +134,7 @@ pub struct TrackData {
     pub name: String,
     pub path: String,
     pub is_muted: bool,
+    pub channels: u16, // new — 1 = mono, 2 = stereo, from WAV header
 
     // volume ramping
     pub target_volume: f32,
@@ -194,26 +195,32 @@ pub fn get_tracks(project: &Project) -> Vec<Track> {
     project
         .tracks
         .iter()
-        .map(|track| Track::from_data(track.clone(), path_to_vector(&track.path)))
+        .map(|track| {
+            let (samples, channels) = path_to_vector(&track.path);
+            let mut data = track.clone();
+            data.channels = channels; // keep TrackData in sync with actual file
+            Track::from_data(data, samples)
+        })
         .collect()
 }
 
 /// load a track's float data from it's file path
-pub fn path_to_vector(track_path: &str) -> Vec<f32> {
+pub fn path_to_vector(track_path: &str) -> (Vec<f32>, u16) {
     let mut reader = match hound::WavReader::open(track_path) {
         Ok(r) => r,
         Err(e) => {
             eprintln!("Failed to load {}: {}", track_path, e);
-            return Vec::new();
+            return (Vec::new(), 2);
         }
     };
     let spec = reader.spec();
     let divisor = 1 << (spec.bits_per_sample - 1);
-    reader
+    let samples = reader
         .samples::<i32>()
         .filter_map(|s| s.ok())
         .map(|s| s as f32 / divisor as f32)
-        .collect()
+        .collect();
+    (samples, spec.channels)
 }
 
 /// Return preview clip of a track's audio data from file path
