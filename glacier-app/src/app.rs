@@ -8,11 +8,7 @@ use crate::graphics::{
         piano_roll::PIANO_ROLL_DEFAULT_Y, sequencer::TRACK_GAP, MiniWindow, WindowKind, MIXER_ID,
         PIANO_ROLL_ID, PLAYLIST_ID, SEQUENCER_ID,
     },
-<<<<<<< HEAD
     primitives::{RenameState, RenameTarget, PAD_32},
-=======
-    primitives::{PAD_32,RenameState, RenameTarget},
->>>>>>> b7bfbcff9080971650c2a22fcccc9e7c1350d814
     {bring_to_front, create_graphics, ClickResult, Graphics, Rc},
 };
 use crate::project::{AudioBlock, AudioBlockType, PatternData, Track, TrackData};
@@ -80,21 +76,20 @@ pub enum UiCommand {
     TrackLevel(u32, f32, f32, f32), // track_id, rms_l, rms_r, peak
     MasterLevel(f32, f32, f32),     // rms_l, rms_r, peak
     LoadTrack(Track),
-<<<<<<< HEAD
+
     LoadBpm(f32),
     LoadSampleRate(f32),
     LoadMasterVolume(f32),
-=======
->>>>>>> b7bfbcff9080971650c2a22fcccc9e7c1350d814
+    LoadEvent(AudioBlock),
     ShutdownComplete,
     SaveComplete,
     LoadPattern(PatternData),
     PlayheadPosition(f32),
     PatternRenamed(usize, String),
     TrackRenamed(u32, String),
-<<<<<<< HEAD
+
     SpectrumFrame(Vec<f32>), // one output buffer of spectrum information
-=======
+
     LoadProject {
         tracks: Vec<Track>,
         patterns: Vec<PatternData>,
@@ -103,7 +98,6 @@ pub enum UiCommand {
         master_volume: f32,
         project_path: String,
     },
->>>>>>> b7bfbcff9080971650c2a22fcccc9e7c1350d814
 }
 
 // app state
@@ -257,18 +251,24 @@ impl App {
             // consume audio -> ui commands
             while let Some(cmd) = self.consumer.try_pop() {
                 match cmd {
-<<<<<<< HEAD
                     UiCommand::SpectrumFrame(samples) => {
                         gfx.spectrum = samples;
-=======
-                    UiCommand::LoadProject { tracks, patterns, events, bpm, master_volume, project_path } => {
+                    }
+                    UiCommand::LoadMasterVolume(volume) => gfx.master_volume = volume,
+                    UiCommand::LoadProject {
+                        tracks,
+                        patterns,
+                        events,
+                        bpm,
+                        master_volume,
+                        project_path,
+                    } => {
                         gfx.tracks = tracks;
                         gfx.patterns = patterns;
                         gfx.events = events;
                         gfx.bpm = bpm;
                         gfx.master_volume = master_volume;
                         gfx.project_path = project_path;
->>>>>>> b7bfbcff9080971650c2a22fcccc9e7c1350d814
                     }
                     UiCommand::PatternRenamed(id, name) => {
                         if let Some(pattern) = gfx.patterns.iter_mut().find(|p| p.id == id) {
@@ -324,7 +324,7 @@ impl App {
                             bring_to_front(&mut gfx.z_order, SEQUENCER_ID);
                         }
                     }
-<<<<<<< HEAD
+
                     UiCommand::LoadBpm(bpm) => {
                         gfx.bpm = bpm;
                     }
@@ -334,8 +334,7 @@ impl App {
                     UiCommand::LoadEvent(event) => {
                         gfx.load_event(event);
                     }
-=======
->>>>>>> b7bfbcff9080971650c2a22fcccc9e7c1350d814
+
                     UiCommand::LoadPattern(pattern) => {
                         gfx.load_pattern(pattern);
                     }

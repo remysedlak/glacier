@@ -1,3 +1,4 @@
+use crate::graphics::primitives::{NO_RADIUS, PAD_16, PAD_2, PAD_32, PAD_4, RADIUS_4};
 use crate::project::is_audio_file;
 use crate::{
     app::MouseState,
@@ -6,12 +7,7 @@ use crate::{
         font::{TextItem, ROBOTO},
         geometry::Rectangle,
         icons::IconDraw,
-        primitives::*,
-<<<<<<< HEAD
-=======
-        widgets::Rectangle,
->>>>>>> b7bfbcff9080971650c2a22fcccc9e7c1350d814
-        ClickResult, Tooltip,
+        ClickResult, ScreenConfig, Tooltip, Vertex,
     },
 };
 use std::collections::HashMap;

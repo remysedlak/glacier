@@ -81,14 +81,10 @@ pub fn init(
     let mut tracks: Vec<Track> = get_tracks(&project);
     let mut patterns = project.patterns;
     let mut events = project.events;
-<<<<<<< HEAD
+
     for event in &events {
         producer.try_push(UiCommand::LoadEvent(event.clone())).ok();
     }
-
-    producer
-        .try_push(UiCommand::LoadProjectPath(project_path.clone()))
-        .ok();
 
     // load sample rate
     producer
@@ -96,8 +92,7 @@ pub fn init(
         .ok();
 
     // setup bpm and volume
-=======
->>>>>>> b7bfbcff9080971650c2a22fcccc9e7c1350d814
+
     let mut bpm: f32 = project.bpm;
     let mut master_volume = project.master_volume;
     let mut current_step = events
@@ -125,14 +120,16 @@ pub fn init(
     let mut preview_samples: Vec<f32> = Vec::new();
     let mut preview_position: f32 = 0.0;
 
-    producer.try_push(UiCommand::LoadProject {
-        tracks: tracks.clone(),
-        patterns: patterns.clone(),
-        events: events.clone(),
-        bpm,
-        master_volume,
-        project_path: project_path.clone(),
-    }).ok();
+    producer
+        .try_push(UiCommand::LoadProject {
+            tracks: tracks.clone(),
+            patterns: patterns.clone(),
+            events: events.clone(),
+            bpm,
+            master_volume,
+            project_path: project_path.clone(),
+        })
+        .ok();
 
     // audio callback
     // fills samples requested from CPAL audio driver
