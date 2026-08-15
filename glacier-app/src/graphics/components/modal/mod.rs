@@ -3,7 +3,7 @@ use crate::app::MouseState;
 use crate::graphics::{
     color::{DARK_GRAY, SURFACE, WHITE},
     font::{TextItem, ROBOTO},
-    primitives::{ScreenConfig, Vertex, NO_RADIUS, PAD_16, PAD_4, PAD_8, RADIUS_4, RADIUS_8},
+    primitives::{ScreenConfig, Vertex, PAD_16, PAD_4, PAD_8, RADIUS_4, RADIUS_8},
     widgets::Rectangle,
     ClickResult, CursorIcon,
 };

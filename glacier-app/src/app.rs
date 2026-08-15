@@ -1,7 +1,6 @@
 //! main state logic for audio and ui decoupling threads
 use crate::audio::{init, AudioCommand};
 use crate::config::{self, UserSettings};
-use crate::graphics::primitives::{RenameState, RenameTarget};
 use crate::graphics::{
     context_menu::{ContextMenu, ContextMenuKind},
     drag::DragResult,
@@ -9,7 +8,7 @@ use crate::graphics::{
         piano_roll::PIANO_ROLL_DEFAULT_Y, sequencer::TRACK_GAP, MiniWindow, WindowKind, MIXER_ID,
         PIANO_ROLL_ID, PLAYLIST_ID, SEQUENCER_ID,
     },
-    primitives::PAD_32,
+    primitives::{RenameState, RenameTarget, PAD_32},
     {bring_to_front, create_graphics, ClickResult, Graphics, Rc},
 };
 use crate::project::{AudioBlock, AudioBlockType, PatternData, Track, TrackData};
@@ -79,6 +78,7 @@ pub enum UiCommand {
     MasterLevel(f32, f32, f32),     // rms_l, rms_r, peak
     LoadTrack(Track),
     LoadBpm(f32),
+    LoadSampleRate(f32),
     LoadMasterVolume(f32),
     ShutdownComplete,
     SaveComplete,
@@ -87,6 +87,7 @@ pub enum UiCommand {
     PlayheadPosition(f32),
     PatternRenamed(usize, String),
     TrackRenamed(u32, String),
+    SpectrumFrame(Vec<f32>), // one output buffer of spectrum information
 }
 
 // app state
@@ -240,6 +241,9 @@ impl App {
             // consume audio -> ui commands
             while let Some(cmd) = self.consumer.try_pop() {
                 match cmd {
+                    UiCommand::SpectrumFrame(samples) => {
+                        gfx.spectrum = samples;
+                    }
                     UiCommand::PatternRenamed(id, name) => {
                         if let Some(pattern) = gfx.patterns.iter_mut().find(|p| p.id == id) {
                             pattern.name = name;
@@ -299,6 +303,9 @@ impl App {
                     }
                     UiCommand::LoadBpm(bpm) => {
                         gfx.bpm = bpm;
+                    }
+                    UiCommand::LoadSampleRate(rate) => {
+                        gfx.sample_rate = rate;
                     }
                     UiCommand::LoadEvent(event) => {
                         gfx.load_event(event);

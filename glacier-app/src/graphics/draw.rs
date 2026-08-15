@@ -741,6 +741,8 @@ impl Graphics {
             self.bpm,
             self.is_playing,
             self.active_step,
+            &self.spectrum,
+            self.sample_rate,
             time_string,
             &mut vertices,
         );

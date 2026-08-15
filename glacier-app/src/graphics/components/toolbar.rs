@@ -1,5 +1,6 @@
 //! The toolbar contains easy access toggle buttons for opening windows, loading files, or view project bpm/step/time info.
 use crate::app::MouseState;
+use crate::graphics::components::{spectrum, toolbar};
 use crate::graphics::{
     color::*,
     font::{TextItem, MONOSPACED, TITLE},
@@ -37,6 +38,8 @@ pub fn draw_toolbar(
     bpm: f32,
     is_playing: bool,
     active_step: usize,
+    spectrum: &Vec<f32>,
+    sample_rate: f32,
     seconds: String,
     out: &mut Vec<Vertex>,
 ) -> (
@@ -165,14 +168,8 @@ pub fn draw_toolbar(
         font: MONOSPACED,
     });
 
-    // TODO: draw power spectrum of song by taking foureir series and displaying db log info
-    let spectrum_background = Rectangle {
-        x: screen_config.width as f32 - 420.0,
-        y: PLAY_Y_ORIGIN,
-        width: ICON_SIZE * 5.0,
-        height: ICON_SIZE,
-    };
-    spectrum_background.draw(screen_config, BLACK, RADIUS_4, out);
+    // draw power spectrogram of audio frequency domain.
+    spectrum::draw(screen_config, &spectrum, sample_rate, 2048, out);
 
     let sequencer_toggle = window_icons.next();
     let sequencer_hovered =

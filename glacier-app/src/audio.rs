@@ -103,6 +103,11 @@ pub fn init(
         .try_push(UiCommand::LoadProjectPath(project_path.clone()))
         .ok();
 
+    // load sample rate
+    producer
+        .try_push(UiCommand::LoadSampleRate(config.sample_rate as f32))
+        .ok();
+
     // setup bpm and volume
     let mut bpm: f32 = project.bpm;
     producer.try_push(UiCommand::LoadBpm(bpm)).ok();
@@ -130,6 +135,10 @@ pub fn init(
     let mut master_rms_l: f32 = 0.0;
     let mut master_rms_r: f32 = 0.0;
     let mut master_peak: f32 = 0.0;
+
+    // store samples for spectrum math over multiple audio callbacks
+    let mut spectrum_buffer: Vec<f32> = Vec::with_capacity(2048);
+    const SPECTRUM_WINDOW: usize = 2048;
 
     let mut preview_samples: Vec<f32> = Vec::new();
     let mut preview_position: f32 = 0.0;
@@ -434,6 +443,9 @@ pub fn init(
                 preview_position += 2.0;
             }
 
+            // feed the spectrum analyzer with the final mixed mono signal
+            spectrum_buffer.push((sample[0] + sample[1]) * 0.5);
+
             // update master meter info
             master_rms_l = glacier_dsp::smooth_toward(master_rms_l, sample[0] * sample[0], 0.01);
             master_rms_r = glacier_dsp::smooth_toward(master_rms_r, sample[1] * sample[1], 0.01);
@@ -463,6 +475,27 @@ pub fn init(
                     .ok();
                 track.peak_hold = 0.0;
             }
+        }
+
+        // when the spectrum buffer is full, push fourier compute to ui
+        if spectrum_buffer.len() >= SPECTRUM_WINDOW {
+            let window = glacier_dsp::hann_window(SPECTRUM_WINDOW);
+            let compensation = glacier_dsp::window_compensation(&window);
+
+            let windowed: Vec<f32> = spectrum_buffer
+                .iter()
+                .zip(window.iter())
+                .map(|(x, w)| x * w)
+                .collect();
+
+            let magnitudes = glacier_dsp::dft_window(&windowed);
+            let db: Vec<f32> = magnitudes
+                .iter()
+                .map(|m| glacier_dsp::magnitude_to_db(*m, SPECTRUM_WINDOW, compensation))
+                .collect();
+
+            producer.try_push(UiCommand::SpectrumFrame(db)).ok();
+            spectrum_buffer.clear();
         }
 
         if is_playing {

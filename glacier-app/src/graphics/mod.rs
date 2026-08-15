@@ -344,6 +344,8 @@ pub async fn create_graphics(window: Rc<Window>, proxy: EventLoopProxy<Graphics>
         expanded_dirs: std::collections::HashSet::new(),
         user_fs_location: audio_root,
         renaming: None,
+        spectrum: Vec::new(),
+        sample_rate: 0.0,
     };
 
     let _ = proxy.send_event(gfx);
@@ -447,6 +449,8 @@ pub struct Graphics {
     pub master_rms_l: f32,
     pub master_rms_r: f32,
     pub master_peak: f32,
+    pub spectrum: Vec<f32>,
+    pub sample_rate: f32,
 
     // dragging
     pub dragging_knob: Option<usize>,   // volume knob
