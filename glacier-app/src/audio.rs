@@ -82,10 +82,6 @@ pub fn init(
     let mut patterns = project.patterns;
     let mut events = project.events;
 
-    for event in &events {
-        producer.try_push(UiCommand::LoadEvent(event.clone())).ok();
-    }
-
     // load sample rate
     producer
         .try_push(UiCommand::LoadSampleRate(config.sample_rate as f32))

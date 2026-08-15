@@ -204,6 +204,32 @@ pub fn get_tracks(project: &Project) -> Vec<Track> {
         .collect()
 }
 
+use std::sync::mpsc::Receiver;
+
+/// Helper method for starting a thread to handle loading a new track to the project from the file system
+pub fn spawn_track_load(path_str: String) -> Receiver<(TrackData, Vec<f32>)> {
+    let (tx, rx) = std::sync::mpsc::channel();
+    std::thread::spawn(move || {
+        let (samples, channels) = path_to_vector(&path_str);
+        let name = std::path::Path::new(&path_str)
+            .file_name()
+            .map(|n| n.to_string_lossy().to_string())
+            .unwrap_or_else(|| "unknown".to_string());
+        let data = TrackData {
+            id: 0,
+            path: path_str,
+            name,
+            channels,
+            is_muted: false,
+            target_volume: 1.0,
+            track_volume: 1.0,
+            root_note: 60,
+        };
+        tx.send((data, samples)).ok();
+    });
+    rx
+}
+
 /// load a track's float data from it's file path
 pub fn path_to_vector(track_path: &str) -> (Vec<f32>, u16) {
     let mut reader = match hound::WavReader::open(track_path) {
