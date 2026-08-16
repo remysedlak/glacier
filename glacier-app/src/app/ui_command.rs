@@ -17,6 +17,7 @@ pub enum UiCommand {
     ShutdownComplete,
     SaveComplete,
     LoadPattern(PatternData),
+    LoadEvent(AudioBlock),
     PlayheadPosition(f32),
     PatternRenamed(usize, String),
     TrackRenamed(u32, String),
@@ -52,6 +53,10 @@ impl App {
         let State::Ready(gfx) = state else { return };
 
         match cmd {
+            UiCommand::LoadEvent(audio_block) => {
+                gfx.events.push(audio_block);
+                self.project_is_dirty = true;
+            }
             UiCommand::SpectrumFrame(samples) => gfx.spectrum = samples,
             UiCommand::LoadProject {
                 tracks,

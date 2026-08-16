@@ -181,7 +181,14 @@ pub fn init(
                 }
                 AudioCommand::DuplicatePattern(pattern_id) => {
                     if let Some(pattern) = patterns.iter().find(|p| p.id == pattern_id).cloned() {
-                        let new_pattern = pattern.duplicate(patterns.len());
+                        let new_pattern = pattern.duplicate(
+                            patterns
+                                .iter()
+                                .map(|x| x.id)
+                                .max()
+                                .map(|m| m + 1)
+                                .unwrap_or(0),
+                        );
                         patterns.push(new_pattern.clone());
                         // update the ui
                         producer.try_push(UiCommand::LoadPattern(new_pattern)).ok();
@@ -221,7 +228,16 @@ pub fn init(
                     }
                 }
                 AudioCommand::AddPattern => {
+                    let new_pattern_id = patterns
+                        .iter()
+                        .map(|x| x.id)
+                        .max()
+                        .map(|m| m + 1)
+                        .unwrap_or(0);
+
+                    // create name to be Nth pattern available
                     let name = format!("Pattern {}", patterns.len() + 1);
+
                     let sequences = tracks
                         .iter()
                         .map(|instr| Sequence {
@@ -230,7 +246,7 @@ pub fn init(
                         })
                         .collect();
                     let p = PatternData {
-                        id: patterns.len(),
+                        id: new_pattern_id,
                         name,
                         sequences,
                     };
@@ -248,9 +264,6 @@ pub fn init(
                             true
                         }
                     });
-                    for (i, p) in patterns.iter_mut().enumerate() {
-                        p.id = i;
-                    }
                 }
                 AudioCommand::DeleteAudioBlock(audio_block_id) => {
                     events.retain(|e| e.id != audio_block_id);
@@ -261,13 +274,20 @@ pub fn init(
                 }
                 AudioCommand::CreateAudioBlock(track, start_step, length, block_type) => {
                     // add new event to playlist
-                    events.push(AudioBlock {
-                        id: events.len(),
+                    let audio_block = AudioBlock {
+                        id: events
+                            .iter()
+                            .map(|x| x.id)
+                            .max()
+                            .map(|m| m + 1)
+                            .unwrap_or(0),
                         track,
                         start_step,
                         length: length as u32,
                         block_type,
-                    });
+                    };
+                    events.push(audio_block.clone());
+                    producer.try_push(UiCommand::LoadEvent(audio_block)).ok();
                 }
                 AudioCommand::ChangeMasterVolume(new_volume) => master_volume = new_volume,
                 AudioCommand::ChangeTrackVolume(track_id, new_volume) => {
@@ -315,11 +335,24 @@ pub fn init(
                     for pattern in patterns.iter_mut() {
                         pattern.sequences.retain(|s| s.track_id != data_id);
                     }
+                    events.retain(|e| {
+                        if let crate::project::AudioBlockType::Sample(pid) = e.block_type {
+                            pid != data_id as usize
+                        } else {
+                            true
+                        }
+                    });
                     tracks.remove(track_id);
                 }
 
                 AudioCommand::LoadTrack(mut track_data, samples) => {
-                    track_data.id = tracks.len() as u32;
+                    // used to be tracks.len()
+                    track_data.id = tracks
+                        .iter()
+                        .map(|x| x.data.id)
+                        .max()
+                        .map(|m| m + 1)
+                        .unwrap_or(0) as u32;
                     let track = Track::from_data(track_data, samples);
                     tracks.push(track.clone()); // ownership clone
                     producer.try_push(UiCommand::LoadTrack(track)).ok();

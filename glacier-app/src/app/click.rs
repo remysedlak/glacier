@@ -257,7 +257,8 @@ impl App {
                     .ok();
                 self.project_is_dirty = true;
             }
-            ClickResult::AddPlaylistPattern(track, start_step, length, block_type) => {
+            ClickResult::AddPlaylistAudioBlock(track, start_step, length, block_type) => {
+                // request audio thread to create audio block
                 self.producer
                     .try_push(AudioCommand::CreateAudioBlock(
                         track,
@@ -266,14 +267,6 @@ impl App {
                         block_type.clone(),
                     ))
                     .ok();
-                gfx.events.push(AudioBlock {
-                    id: gfx.events.len(),
-                    track,
-                    start_step,
-                    length: length as u32,
-                    block_type,
-                });
-                self.project_is_dirty = true;
             }
             ClickResult::DeletePattern(pattern_id) => {
                 self.producer
@@ -287,9 +280,6 @@ impl App {
                         true
                     }
                 });
-                for (i, p) in gfx.patterns.iter_mut().enumerate() {
-                    p.id = i;
-                }
                 gfx.context_menu = None;
                 self.project_is_dirty = true;
             }

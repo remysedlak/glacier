@@ -123,7 +123,7 @@ pub fn draw(
                             .unwrap_or(16),
                         _ => 1,
                     };
-                    click_result = ClickResult::AddPlaylistPattern(
+                    click_result = ClickResult::AddPlaylistAudioBlock(
                         track,
                         step as u32,
                         length,
