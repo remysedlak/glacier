@@ -2,7 +2,6 @@ use crate::app::MouseState;
 use crate::graphics::{
     color::{DARK_GRAY, MINI_WINDOW_BACKGROUND, WHITE},
     components::toolbar::TOOLTIP_MARGIN,
-    geometry::Square,
     icons::{IconDraw, Tooltip},
     mini_window::{MiniWindow, TITLEBAR_HEIGHT},
     primitives::{ScreenConfig, Vertex, NO_RADIUS, PAD_16, PAD_8, RADIUS_4},
@@ -101,15 +100,20 @@ pub fn draw(
     let open_file_button_x = (window.x + window.width) - PAD_16 - TRACK_GRAPHICS_WIDTH;
     let open_file_button_y = graphics_y + TRACK_GRAPHICS_HEIGHT + PAD_8;
     const SVG_PADDING: f32 = 4.0;
-    let open_file_background = Square {
-        x: open_file_button_x - SVG_PADDING,
-        y: open_file_button_y - SVG_PADDING,
-        size: 32.0 + SVG_PADDING,
-    };
-    if open_file_background.is_hovered(mouse_state.x, mouse_state.y) && mouse_state.left_clicked {
+
+    let open_file_background = Rectangle::square(
+        open_file_button_x - SVG_PADDING,
+        open_file_button_y - SVG_PADDING,
+        32.0 + SVG_PADDING,
+    )
+    .draw_style()
+    .interactive(Some(mouse_state))
+    .draw(screen_config, DARK_GRAY, RADIUS_4, out);
+
+    if open_file_background.hovered && mouse_state.left_clicked {
         click_result = ClickResult::OpenTrackFileLocation(track.data.path.clone())
     };
-    open_file_background.draw_interactive(screen_config, DARK_GRAY, mouse_state, RADIUS_4, out);
+
     icons.push(IconDraw {
         name: "file",
         x: open_file_button_x - 2.0,

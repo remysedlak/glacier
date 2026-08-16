@@ -113,21 +113,17 @@ impl MiniWindow {
         title_bar_background.draw(screen_config, DARK_GRAY, TOP_RADIUS_6, out);
 
         // add button for closing the window
-        let close_window_button = Rectangle {
-            x: self.x + self.width - PAD_16 - PAD_8 - PAD_4,
-            y: self.y - TITLEBAR_HEIGHT + PAD_8 + PAD_4,
-            width: 15.0,
-            height: 5.0,
-        };
-        let hovered = close_window_button.draw_interactive(
-            screen_config,
-            LIGHT_GRAY,
-            mouse_state,
-            NO_RADIUS,
-            out,
-        );
+        let close_window_button = Rectangle::new(
+            self.x + self.width - PAD_16 - PAD_8 - PAD_4,
+            self.y - TITLEBAR_HEIGHT + PAD_8 + PAD_4,
+            15.0,
+            5.0,
+        )
+        .draw_style()
+        .interactive(Some(mouse_state))
+        .draw(screen_config, LIGHT_GRAY, NO_RADIUS, out);
 
-        if hovered {
+        if close_window_button.hovered {
             cursor_icon = CursorIcon::Pointer;
             if mouse_state.left_clicked {
                 result = match self.window_kind {

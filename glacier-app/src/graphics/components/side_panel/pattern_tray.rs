@@ -5,7 +5,6 @@ use crate::graphics::primitives::{RenameState, RenameTarget, PAD_4};
 use crate::graphics::{
     components::side_panel::*,
     font::{TextItem, ROBOTO},
-    geometry::Square,
     icons::{IconDraw, Tooltip},
     primitives::{ScreenConfig, PAD_32, PAD_64, PAD_8, RADIUS_8},
     {ClickResult, CursorIcon, PatternData, Rectangle, Vertex, NO_RADIUS, PAD_2},
@@ -45,13 +44,10 @@ pub fn draw(
     };
     pattern_tray.draw(screen_config, SURFACE, NO_RADIUS, out);
 
-    let w_divider = Rectangle {
-        x: pattern_tray.x,
-        y: pattern_tray.y,
-        width: 1.0,
-        height: pattern_tray.height,
-    };
-    w_divider.draw_interactive(screen_config, DARK_GRAY, mouse_state, NO_RADIUS, out);
+    let w_divider = Rectangle::new(pattern_tray.x, pattern_tray.y, 1.0, pattern_tray.height)
+        .draw_style()
+        .interactive(Some(mouse_state))
+        .draw(screen_config, DARK_GRAY, NO_RADIUS, out);
 
     if pattern_tray.is_hovered_left_edge(mouse_state.x, mouse_state.y) {
         cursor_icon = CursorIcon::ColResize
@@ -61,14 +57,16 @@ pub fn draw(
     text_items.push(draw_title("Patterns", (pattern_tray.x, pattern_tray.y)));
 
     // add pattern button
-    let add_pattern_button = Square {
-        x: screen_config.width as f32 - PAD_32,
-        y: pattern_tray.y + PAD_8,
-        size: ICON_SIZE,
-    };
-    let add_button_hovered =
-        add_pattern_button.draw_interactive(screen_config, DARK_GRAY, mouse_state, RADIUS_8, out);
-    if add_button_hovered {
+    let add_pattern_button = Rectangle::square(
+        screen_config.width as f32 - PAD_32,
+        pattern_tray.y + PAD_8,
+        ICON_SIZE,
+    )
+    .draw_style()
+    .interactive(Some(mouse_state))
+    .draw(screen_config, DARK_GRAY, RADIUS_8, out);
+
+    if add_pattern_button.hovered {
         cursor_icon = CursorIcon::Pointer;
         if mouse_state.left_clicked {
             click_result = ClickResult::CreatePattern;

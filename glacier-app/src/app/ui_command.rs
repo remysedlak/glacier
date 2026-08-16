@@ -14,7 +14,6 @@ pub enum UiCommand {
     MasterLevel(f32, f32, f32),
     LoadTrack(Track),
     LoadSampleRate(f32),
-    LoadEvent(AudioBlock),
     ShutdownComplete,
     SaveComplete,
     LoadPattern(PatternData),
@@ -122,7 +121,6 @@ impl App {
                 }
             }
             UiCommand::LoadSampleRate(rate) => gfx.sample_rate = rate,
-            UiCommand::LoadEvent(event) => gfx.load_event(event),
             UiCommand::LoadPattern(pattern) => gfx.load_pattern(pattern),
             UiCommand::StepAdvanced(step) => {
                 gfx.active_step = step;

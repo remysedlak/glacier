@@ -1,4 +1,5 @@
-//! Icons are loaded
+//! Icons are loaded from svg
+
 use std::collections::HashMap;
 
 use wgpu::util::DeviceExt;

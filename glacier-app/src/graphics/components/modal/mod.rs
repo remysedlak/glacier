@@ -55,41 +55,54 @@ pub fn draw(
 
     // buttons sit along the bottom edge, right-aligned
     let button_y = modal_background.y + MODAL_HEIGHT - PAD_16 - BUTTON_HEIGHT;
-    let cancel_button = Rectangle {
-        x: modal_background.x + MODAL_WIDTH - PAD_16 - BUTTON_WIDTH,
-        y: button_y,
-        width: BUTTON_WIDTH,
-        height: BUTTON_HEIGHT,
-    };
-    let discard_button = Rectangle {
-        x: cancel_button.x - BUTTON_GAP - BUTTON_WIDTH,
-        y: button_y,
-        width: BUTTON_WIDTH,
-        height: BUTTON_HEIGHT,
-    };
-    let save_button = Rectangle {
-        x: discard_button.x - BUTTON_GAP - BUTTON_WIDTH,
-        y: button_y,
-        width: BUTTON_WIDTH,
-        height: BUTTON_HEIGHT,
-    };
 
-    if save_button.draw_interactive(screen_config, DARK_GRAY, mouse_state, RADIUS_4, out) {
+    let cancel_button = Rectangle::new(
+        modal_background.x + MODAL_WIDTH - PAD_16 - BUTTON_WIDTH,
+        button_y,
+        BUTTON_WIDTH,
+        BUTTON_HEIGHT,
+    )
+    .draw_style()
+    .interactive(Some(mouse_state))
+    .draw(screen_config, DARK_GRAY, RADIUS_4, out);
+
+    if cancel_button.hovered {
         cursor_icon = CursorIcon::Pointer;
         if mouse_state.left_clicked {
-            click_result = ClickResult::ModalConfirmSaveAndExit;
+            click_result = ClickResult::ModalCancelExit;
         }
     }
-    if discard_button.draw_interactive(screen_config, DARK_GRAY, mouse_state, RADIUS_4, out) {
+
+    let discard_button = Rectangle::new(
+        cancel_button.x - BUTTON_GAP - BUTTON_WIDTH,
+        button_y,
+        BUTTON_WIDTH,
+        BUTTON_HEIGHT,
+    )
+    .draw_style()
+    .interactive(Some(mouse_state))
+    .draw(screen_config, DARK_GRAY, RADIUS_4, out);
+    if discard_button.hovered {
         cursor_icon = CursorIcon::Pointer;
         if mouse_state.left_clicked {
             click_result = ClickResult::ModalConfirmDiscardAndExit;
         }
     }
-    if cancel_button.draw_interactive(screen_config, DARK_GRAY, mouse_state, RADIUS_4, out) {
+
+    let save_button = Rectangle::new(
+        discard_button.x - BUTTON_GAP - BUTTON_WIDTH,
+        button_y,
+        BUTTON_WIDTH,
+        BUTTON_HEIGHT,
+    )
+    .draw_style()
+    .interactive(Some(mouse_state))
+    .draw(screen_config, DARK_GRAY, RADIUS_4, out);
+
+    if save_button.hovered {
         cursor_icon = CursorIcon::Pointer;
         if mouse_state.left_clicked {
-            click_result = ClickResult::ModalCancelExit;
+            click_result = ClickResult::ModalConfirmSaveAndExit;
         }
     }
 

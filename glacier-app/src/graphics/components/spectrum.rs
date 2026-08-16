@@ -2,6 +2,7 @@
 use crate::graphics::{
     color::{BLACK, ORANGE},
     components::toolbar::{ICON_SIZE, PLAY_Y_ORIGIN},
+    geometry::ICON_BORDER,
     Rectangle, ScreenConfig, Vertex, NO_RADIUS, RADIUS_4,
 };
 
@@ -16,13 +17,15 @@ pub fn draw(
     window_size: usize,
     out: &mut Vec<Vertex>,
 ) {
-    let spectrum_background = Rectangle {
-        x: screen_config.width as f32 - 420.0,
-        y: PLAY_Y_ORIGIN,
-        width: ICON_SIZE * 5.0,
-        height: ICON_SIZE,
-    };
-    spectrum_background.draw(screen_config, BLACK, RADIUS_4, out);
+    let spectrum_background = Rectangle::new(
+        screen_config.width as f32 - 420.0,
+        PLAY_Y_ORIGIN,
+        ICON_SIZE * 5.0,
+        ICON_SIZE,
+    )
+    .draw_style()
+    .bordered(Some(ICON_BORDER))
+    .draw(screen_config, BLACK, RADIUS_4, out);
 
     let max_freq = sample_rate / 2.0; // Nyquist
 
