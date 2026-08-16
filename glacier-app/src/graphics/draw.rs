@@ -1,12 +1,15 @@
 //! Main builder draw method. paints all shapes using core draw methods and handles the app's vertex buffers.
 use super::*;
-use crate::graphics::{
-    color::{LIGHT_GRAY, SURFACE},
-    components::{modal, toolbar::TOOLBAR_MARGIN},
-    font::measure_text_width,
-    mini_window::{playlist::TIMELINE_X_ORIGIN, TITLEBAR_HEIGHT},
-    regions::*,
-    side_panel::track_tray::file_tree,
+use crate::{
+    app::click::ClickResult,
+    graphics::{
+        color::{LIGHT_GRAY, SURFACE},
+        components::{modal, toolbar::TOOLBAR_MARGIN},
+        font::measure_text_width,
+        mini_window::{playlist::TIMELINE_X_ORIGIN, TITLEBAR_HEIGHT},
+        regions::*,
+        side_panel::track_tray::file_tree,
+    },
 };
 use std::time::Duration;
 

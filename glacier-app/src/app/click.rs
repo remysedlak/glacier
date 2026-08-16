@@ -1,21 +1,98 @@
 //! handle all mouse click interactivity
 use super::{App, State};
+use crate::app::PianoRollState;
 use crate::audio::AudioCommand;
 use crate::graphics::{
+    bring_to_front,
     context_menu::{ContextMenu, ContextMenuKind},
     mini_window::{
-        piano_roll::PIANO_ROLL_DEFAULT_Y, sequencer::TRACK_GAP, MiniWindow, WindowKind, MIXER_ID,
-        PIANO_ROLL_ID, PLAYLIST_ID, SEQUENCER_ID,
+        piano_roll::PIANO_ROLL_DEFAULT_Y, MiniWindow, WindowKind, MIXER_ID, PIANO_ROLL_ID,
+        PLAYLIST_ID, SEQUENCER_ID,
     },
     primitives::{RenameState, RenameTarget},
-    {bring_to_front, ClickResult},
 };
-use crate::project::{AudioBlock, AudioBlockType};
+use crate::project::AudioBlockType;
 use rfd::FileDialog;
 use ringbuf::traits::Producer;
 use std::path::PathBuf;
 use std::thread;
 use winit::event_loop::ActiveEventLoop;
+
+/// Each frame, a ClickResult is returned from the draw method. If the mouse left clicked a component on a screen, then a ClickResult is returned and handled in app.rs.
+pub enum ClickResult {
+    // sequencer
+    ToggleStep(usize, u32, usize),     // pattern_id, track_id, step_idx
+    ToggleNote(usize, u32, usize, u8), // pattern_id, track_id, step_idx, pitch
+    ToggleTrackMute(usize),
+    DeleteTrack(usize),
+    ToggleSequencerWindow,
+    OpenTrackFileLocation(String),
+
+    // toolbar
+    Stop,
+    ChangeBpmUp,
+    ChangeBpmDown,
+    #[expect(dead_code)]
+    ChangeBpm(f32),
+    TogglePlay,
+    ProjectFileDialog,
+    TrackFileDialog,
+
+    // menus
+    OpenTrackMenu(f32, f32, usize, usize),
+    CloseContextMenu,
+
+    // patterns
+    DeletePlaylistAudioBlock(usize),
+    DeletePattern(usize),
+    DuplicatePattern(usize),
+    CreatePattern,
+    ClearPattern(usize),
+    AddPlaylistAudioBlock(usize, u32, usize, AudioBlockType),
+    OpenPatternMenu(f32, f32, usize),
+    StartResizeEvent(usize),
+
+    // renaming
+    StartRenamingPattern(usize),
+    StartRenamingTrack(usize),
+
+    // piano roll
+    TogglePianoRollWindow,
+    LoadPianoRoll(PianoRollState),
+
+    // toggle ui components
+    ToggleMixerWindow,
+    TogglePlaylistWindow,
+    ToggleTrackWindow(usize),
+    TogglePatternTray,
+    ToggleTrackTray,
+    SelectPattern(usize),
+    SelectTrackTray(u32),
+
+    // modal controls
+    ModalConfirmSaveAndExit,
+    ModalConfirmDiscardAndExit,
+    ModalCancelExit,
+
+    // file system
+    FsToggleDir(PathBuf),
+    FsPreviewSample(PathBuf),
+    FsStartDragFile(PathBuf),
+    FSEndDragFile(PathBuf, usize, usize), // track, step
+
+    // no click result
+    None,
+}
+impl ClickResult {
+    /// combine click results, prioritizing the first if it's not None
+    pub fn or(self, other: ClickResult) -> ClickResult {
+        if matches!(self, ClickResult::None) {
+            other
+        } else {
+            self
+        }
+    }
+}
 
 impl App {
     pub(super) fn handle_click_result(
@@ -250,12 +327,10 @@ impl App {
                 self.producer.try_push(AudioCommand::AddPattern).ok();
                 self.project_is_dirty = true;
             }
-            ClickResult::DeletePlaylistPattern(id) => {
-                gfx.events.retain(|e| e.id != id);
+            ClickResult::DeletePlaylistAudioBlock(id) => {
                 self.producer
                     .try_push(AudioCommand::DeleteAudioBlock(id))
                     .ok();
-                self.project_is_dirty = true;
             }
             ClickResult::AddPlaylistAudioBlock(track, start_step, length, block_type) => {
                 // request audio thread to create audio block
@@ -272,16 +347,6 @@ impl App {
                 self.producer
                     .try_push(AudioCommand::DeletePattern(pattern_id))
                     .ok();
-                gfx.patterns.retain(|p| p.id != pattern_id);
-                gfx.events.retain(|e| {
-                    if let crate::project::AudioBlockType::Pattern(pid) = e.block_type {
-                        pid != pattern_id
-                    } else {
-                        true
-                    }
-                });
-                gfx.context_menu = None;
-                self.project_is_dirty = true;
             }
             ClickResult::ToggleSequencerWindow => {
                 if let Some(win) = gfx
@@ -347,21 +412,9 @@ impl App {
                 self.producer.try_push(AudioCommand::TogglePlay).ok();
             }
             ClickResult::DeleteTrack(track_id) => {
-                let data_id = gfx.tracks[track_id].data.id as usize;
                 self.producer
                     .try_push(AudioCommand::DeleteTrack(track_id))
                     .ok();
-                gfx.tracks.remove(track_id);
-                gfx.mini_windows[SEQUENCER_ID].height = 100.0 + TRACK_GAP * gfx.tracks.len() as f32;
-                gfx.events.retain(|e| {
-                    if let AudioBlockType::Sample(id) = e.block_type {
-                        id != data_id
-                    } else {
-                        true
-                    }
-                });
-                gfx.context_menu = None;
-                self.project_is_dirty = true;
             }
             ClickResult::ProjectFileDialog => {
                 if self.project_file_dialog_rx.is_none() {

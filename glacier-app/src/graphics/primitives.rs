@@ -1,15 +1,6 @@
 use crate::graphics::MouseState;
 use crate::graphics::{color::*, font::TextItem};
 
-/// TODO: potentially abstract away repeatedly passed arguments to draw methods.
-pub struct DrawCtx<'a> {
-    pub vertices: &'a mut Vec<Vertex>,
-    pub glyph_vertices: &'a mut Vec<Vertex>,
-    pub char_draws: &'a mut Vec<(u64, &'a wgpu::BindGroup)>,
-    pub screen_config: &'a ScreenConfig,
-    pub mouse_state: &'a MouseState,
-}
-
 /// Text editing state.
 pub struct RenameState {
     pub target: RenameTarget,  // which component is being renamed

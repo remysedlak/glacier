@@ -13,7 +13,7 @@ use ringbuf::{
 /// commands retrieved from the user interface to control the audio engine
 pub enum AudioCommand {
     // composition details
-    ToggleStep(usize, usize, usize),
+    ToggleStep(usize, u32, usize),
     ToggleNote(usize, u32, usize, u8), // pattern_id, track_id, step_idx, pitch
     ChangeBpm(f32),
     DeleteAudioBlock(usize),
@@ -84,7 +84,7 @@ pub fn init(
 
     // load sample rate
     producer
-        .try_push(UiCommand::LoadSampleRate(config.sample_rate as f32))
+        .try_push(UiCommand::SampleRateLoaded(config.sample_rate as f32))
         .ok();
 
     // setup bpm and volume
@@ -143,7 +143,7 @@ pub fn init(
                         }
                         // update the ui
                         producer
-                            .try_push(UiCommand::LoadPattern(pattern.clone()))
+                            .try_push(UiCommand::PatternLoaded(pattern.clone()))
                             .ok();
                     }
                 }
@@ -191,40 +191,43 @@ pub fn init(
                         );
                         patterns.push(new_pattern.clone());
                         // update the ui
-                        producer.try_push(UiCommand::LoadPattern(new_pattern)).ok();
+                        producer
+                            .try_push(UiCommand::PatternLoaded(new_pattern))
+                            .ok();
                     }
                 }
 
+                // activate a step within a track within a pattern
                 AudioCommand::ToggleNote(pattern_id, track_id, step_idx, pitch) => {
-                    if let Some(seq) = patterns[pattern_id]
-                        .sequences
-                        .iter_mut()
-                        .find(|s| s.track_id == track_id)
-                    {
-                        if step_idx >= seq.steps.len() {
-                            seq.steps.resize(step_idx + 1, Note::DEFAULT);
-                        }
-                        let note = &mut seq.steps[step_idx];
-                        if note.velocity > 0.0 && note.pitch == pitch {
-                            *note = Note::DEFAULT;
+                    if let Some(pattern) = patterns.iter_mut().find(|p| p.id == pattern_id) {
+                        if let Some(seq) = pattern
+                            .sequences
+                            .iter_mut()
+                            .find(|s| s.track_id == track_id)
+                        {
+                            if step_idx >= seq.steps.len() {
+                                seq.steps.resize(step_idx + 1, Note::DEFAULT);
+                            }
+                            let note = &mut seq.steps[step_idx];
+                            if note.velocity > 0.0 && note.pitch == pitch {
+                                *note = Note::DEFAULT;
+                            } else {
+                                *note = Note {
+                                    velocity: 95.0,
+                                    pitch,
+                                };
+                            }
+                            while seq.steps.last().map(|n| n.velocity == 0.0).unwrap_or(false) {
+                                seq.steps.pop();
+                            }
                         } else {
-                            *note = Note {
+                            let mut steps = vec![Note::DEFAULT; step_idx + 1];
+                            steps[step_idx] = Note {
                                 velocity: 95.0,
                                 pitch,
                             };
+                            pattern.sequences.push(Sequence { track_id, steps });
                         }
-                        while seq.steps.last().map(|n| n.velocity == 0.0).unwrap_or(false) {
-                            seq.steps.pop();
-                        }
-                    } else {
-                        let mut steps = vec![Note::DEFAULT; step_idx + 1];
-                        steps[step_idx] = Note {
-                            velocity: 95.0,
-                            pitch,
-                        };
-                        patterns[pattern_id]
-                            .sequences
-                            .push(Sequence { track_id, steps });
                     }
                 }
                 AudioCommand::AddPattern => {
@@ -251,7 +254,7 @@ pub fn init(
                         sequences,
                     };
                     patterns.push(p.clone());
-                    producer.try_push(UiCommand::LoadPattern(p)).ok();
+                    producer.try_push(UiCommand::PatternLoaded(p)).ok();
                 }
                 AudioCommand::DeletePattern(pattern_id) => {
                     // remove the pattern from list of patterns
@@ -264,9 +267,15 @@ pub fn init(
                             true
                         }
                     });
+                    producer
+                        .try_push(UiCommand::PatternDeleted(pattern_id))
+                        .ok();
                 }
                 AudioCommand::DeleteAudioBlock(audio_block_id) => {
                     events.retain(|e| e.id != audio_block_id);
+                    producer
+                        .try_push(UiCommand::AudioBlockDeleted(audio_block_id))
+                        .ok();
                 }
                 AudioCommand::Stop => {
                     is_playing = false;
@@ -287,47 +296,52 @@ pub fn init(
                         block_type,
                     };
                     events.push(audio_block.clone());
-                    producer.try_push(UiCommand::LoadEvent(audio_block)).ok();
+                    producer
+                        .try_push(UiCommand::AudioBlockLoaded(audio_block))
+                        .ok();
                 }
                 AudioCommand::ChangeMasterVolume(new_volume) => master_volume = new_volume,
                 AudioCommand::ChangeTrackVolume(track_id, new_volume) => {
-                    tracks[track_id].data.track_volume = new_volume;
+                    if let Some(track) = tracks.iter_mut().find(|t| t.data.id == track_id as u32) {
+                        track.data.track_volume = new_volume;
+                    }
                 }
-                AudioCommand::ToggleStep(pattern_id, track_idx, step_idx) => {
-                    let track_id = tracks[track_idx].data.id;
-                    if let Some(seq) = patterns[pattern_id]
-                        .sequences
-                        .iter_mut()
-                        .find(|s| s.track_id == track_id)
-                    {
-                        if step_idx >= seq.steps.len() {
-                            seq.steps.resize(step_idx + 1, Note::DEFAULT);
-                        }
-                        seq.steps[step_idx] = if seq.steps[step_idx].velocity > 0.0 {
-                            Note::DEFAULT
+                AudioCommand::ToggleStep(pattern_id, track_id, step_idx) => {
+                    if let Some(pattern) = patterns.iter_mut().find(|p| p.id == pattern_id) {
+                        if let Some(seq) = pattern
+                            .sequences
+                            .iter_mut()
+                            .find(|s| s.track_id == track_id)
+                        {
+                            if step_idx >= seq.steps.len() {
+                                seq.steps.resize(step_idx + 1, Note::DEFAULT);
+                            }
+                            seq.steps[step_idx] = if seq.steps[step_idx].velocity > 0.0 {
+                                Note::DEFAULT
+                            } else {
+                                Note {
+                                    velocity: 95.0,
+                                    pitch: 60,
+                                }
+                            };
+                            while seq.steps.last().map(|n| n.velocity == 0.0).unwrap_or(false) {
+                                seq.steps.pop();
+                            }
                         } else {
-                            Note {
+                            let mut seq = Sequence {
+                                track_id,
+                                steps: vec![Note::DEFAULT; step_idx + 1],
+                            };
+                            seq.steps[step_idx] = Note {
                                 velocity: 95.0,
                                 pitch: 60,
-                            }
-                        };
-                        while seq.steps.last().map(|n| n.velocity == 0.0).unwrap_or(false) {
-                            seq.steps.pop();
+                            };
+                            pattern.sequences.push(seq);
                         }
-                    } else {
-                        let mut seq = Sequence {
-                            track_id,
-                            steps: vec![Note::DEFAULT; step_idx + 1],
-                        };
-                        seq.steps[step_idx] = Note {
-                            velocity: 95.0,
-                            pitch: 60,
-                        };
-                        patterns[pattern_id].sequences.push(seq);
+                        producer
+                            .try_push(UiCommand::PatternLoaded(pattern.clone()))
+                            .ok();
                     }
-                    producer
-                        .try_push(UiCommand::LoadPattern(patterns[pattern_id].clone()))
-                        .ok();
                 }
                 AudioCommand::DeleteTrack(track_id) => {
                     // remove all references of this track_id from saved patterns
@@ -343,6 +357,9 @@ pub fn init(
                         }
                     });
                     tracks.remove(track_id);
+                    producer
+                        .try_push(UiCommand::TrackDeleted(data_id as usize))
+                        .ok();
                 }
 
                 AudioCommand::LoadTrack(mut track_data, samples) => {
@@ -355,10 +372,14 @@ pub fn init(
                         .unwrap_or(0) as u32;
                     let track = Track::from_data(track_data, samples);
                     tracks.push(track.clone()); // ownership clone
-                    producer.try_push(UiCommand::LoadTrack(track)).ok();
+                    producer.try_push(UiCommand::TrackLoaded(track)).ok();
                 }
                 AudioCommand::ChangeBpm(new_bpm) => bpm = new_bpm,
-                AudioCommand::ToggleTrackMute(track_id) => tracks[track_id].mute(),
+                AudioCommand::ToggleTrackMute(track_id) => {
+                    if let Some(track) = tracks.iter_mut().find(|t| t.data.id == track_id as u32) {
+                        track.mute();
+                    }
+                }
                 AudioCommand::TogglePlay => is_playing = !is_playing,
                 AudioCommand::SaveProject => {
                     let project = Project::new(

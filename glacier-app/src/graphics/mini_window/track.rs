@@ -1,11 +1,11 @@
-use crate::app::MouseState;
+use crate::app::{click::ClickResult, MouseState};
 use crate::graphics::{
     color::{DARK_GRAY, MINI_WINDOW_BACKGROUND, WHITE},
     components::toolbar::TOOLTIP_MARGIN,
     icons::{IconDraw, Tooltip},
     mini_window::{MiniWindow, TITLEBAR_HEIGHT},
     primitives::{ScreenConfig, Vertex, NO_RADIUS, PAD_16, PAD_8, RADIUS_4},
-    {ClickResult, Rectangle, TextItem},
+    {Rectangle, TextItem},
 };
 use crate::project::Track;
 use winit::window::CursorIcon;

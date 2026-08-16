@@ -1,3 +1,4 @@
+use crate::app::click::ClickResult;
 use crate::graphics::components::toolbar::TOOLBAR_Y;
 use crate::graphics::geometry::Rectangle;
 use crate::project::Track;
@@ -9,7 +10,6 @@ use crate::{
         font::{truncate_text, TextItem, ROBOTO},
         primitives::*,
         side_panel::{draw_title, PATTERN_TRAY_ITEM_HEIGHT},
-        ClickResult,
     },
 };
 use winit::window::CursorIcon;

@@ -49,82 +49,6 @@ use winit::{
 
 pub type Rc<T> = std::sync::Arc<T>;
 
-/// Each frame, a ClickResult is returned from the draw method. If the mouse left clicked a component on a screen, then a ClickResult is returned and handled in app.rs.
-pub enum ClickResult {
-    // sequencer
-    ToggleStep(usize, usize, usize), // pattern_id, track_id, step_idx
-    ToggleNote(usize, u32, usize, u8), // pattern_id, track_id, step_idx, pitch
-    ToggleTrackMute(usize),
-    DeleteTrack(usize),
-    ToggleSequencerWindow,
-    OpenTrackFileLocation(String),
-
-    // toolbar
-    Stop,
-    ChangeBpmUp,
-    ChangeBpmDown,
-    #[expect(dead_code)]
-    ChangeBpm(f32),
-    TogglePlay,
-    ProjectFileDialog,
-    TrackFileDialog,
-
-    // menus
-    OpenTrackMenu(f32, f32, usize, usize),
-    CloseContextMenu,
-
-    // patterns
-    DeletePlaylistPattern(usize),
-    DeletePattern(usize),
-    DuplicatePattern(usize),
-    CreatePattern,
-    ClearPattern(usize),
-    AddPlaylistAudioBlock(usize, u32, usize, AudioBlockType),
-    OpenPatternMenu(f32, f32, usize),
-    StartResizeEvent(usize),
-
-    // renaming
-    StartRenamingPattern(usize),
-    StartRenamingTrack(usize),
-
-    // piano roll
-    TogglePianoRollWindow,
-    LoadPianoRoll(PianoRollState),
-
-    // toggle ui components
-    ToggleMixerWindow,
-    TogglePlaylistWindow,
-    ToggleTrackWindow(usize),
-    TogglePatternTray,
-    ToggleTrackTray,
-    SelectPattern(usize),
-    SelectTrackTray(u32),
-
-    // modal controls
-    ModalConfirmSaveAndExit,
-    ModalConfirmDiscardAndExit,
-    ModalCancelExit,
-
-    // file system
-    FsToggleDir(PathBuf),
-    FsPreviewSample(PathBuf),
-    FsStartDragFile(PathBuf),
-    FSEndDragFile(PathBuf, usize, usize), // track, step
-
-    // no click result
-    None,
-}
-impl ClickResult {
-    /// combine click results, prioritizing the first if it's not None
-    pub fn or(self, other: ClickResult) -> ClickResult {
-        if matches!(self, ClickResult::None) {
-            other
-        } else {
-            self
-        }
-    }
-}
-
 /// Initialize the graphics with default/loaded state and find driver/display info
 pub async fn create_graphics(window: Rc<Window>, proxy: EventLoopProxy<Graphics>) {
     // Context for all other wgpu objects. Instance of wgpu.
@@ -479,11 +403,6 @@ impl Graphics {
     }
 
     // loading project data into the graphics state, called from the app when a project is loaded or created new
-    pub fn load_track(&mut self, i: Track) {
-        if i.data.id >= self.tracks.len() as u32 {
-            self.tracks.push(i);
-        }
-    }
     pub fn load_pattern(&mut self, p: PatternData) {
         if let Some(existing) = self
             .patterns

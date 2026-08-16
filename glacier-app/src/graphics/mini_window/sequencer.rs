@@ -1,11 +1,11 @@
-use crate::app::MouseState;
+use crate::app::{click::ClickResult, MouseState};
 use crate::graphics::{
     color::*,
     font::{truncate_text, ROBOTO},
     icons::IconDraw,
     mini_window::MiniWindow,
     primitives::*,
-    {ClickResult, Rectangle, ScrollOffset, TextItem},
+    {Rectangle, ScrollOffset, TextItem},
 };
 use crate::project::{Note, PatternData, Track};
 use winit::window::CursorIcon;
@@ -180,11 +180,8 @@ pub fn draw(
 
                 // check if the step was clicked
                 if hovered && mouse_state.left_clicked {
-                    click_result = ClickResult::ToggleStep(
-                        active_pattern_id,
-                        track.data.id as usize,
-                        j as usize,
-                    );
+                    click_result =
+                        ClickResult::ToggleStep(active_pattern_id, track.data.id, j as usize);
                 }
             }
         }
@@ -243,7 +240,7 @@ pub fn draw(
             width: MUTE_SQUARE_LENGTH * 2.0,
             height: MUTE_SQUARE_LENGTH,
         };
-        let hovered =
+        let _hovered =
             mute_button.is_hovered(mouse_state.x, mouse_state.y) && !mouse_state.left_click_held;
         let hovered =
             mute_button.is_hovered(mouse_state.x, mouse_state.y) && !mouse_state.left_click_held;

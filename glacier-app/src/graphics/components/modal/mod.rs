@@ -1,11 +1,12 @@
 //! Modals are popups that appear in the center of the screen, with a dim overlay behind them.
+use crate::app::click::ClickResult;
 use crate::app::MouseState;
 use crate::graphics::{
     color::{DARK_GRAY, SURFACE, WHITE},
     font::{TextItem, ROBOTO},
     geometry::Rectangle,
     primitives::{ScreenConfig, Vertex, PAD_16, PAD_4, PAD_8, RADIUS_4, RADIUS_8},
-    ClickResult, CursorIcon,
+    CursorIcon,
 };
 
 const MODAL_HEIGHT: f32 = 256.0;

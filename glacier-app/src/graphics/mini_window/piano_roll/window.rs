@@ -1,4 +1,4 @@
-use crate::app::{MouseState, PianoRollState, ScrollOffset};
+use crate::app::{click::ClickResult, MouseState, PianoRollState, ScrollOffset};
 use crate::graphics::components::toolbar::ICON_SIZE;
 use crate::graphics::{
     color::*,
@@ -9,7 +9,6 @@ use crate::graphics::{
         DrawRegion, ScreenConfig, Vertex, BOTTOM_RADIUS_16, NO_RADIUS, PAD_16, PAD_2, PAD_32,
         PAD_4, PAD_8,
     },
-    ClickResult,
 };
 use crate::project::{PatternData, Sequence, Track};
 use winit::window::CursorIcon;

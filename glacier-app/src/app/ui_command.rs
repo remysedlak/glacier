@@ -9,19 +9,27 @@ use cpal::traits::StreamTrait;
 
 /// UiCommands are used to sync the audio engine to the graphics engine
 pub enum UiCommand {
-    StepAdvanced(usize),
     TrackLevel(u32, f32, f32, f32),
+    TrackLoaded(Track),
+    TrackRenamed(u32, String),
+    TrackDeleted(usize),
+
+    PatternRenamed(usize, String),
+    PatternLoaded(PatternData),
+    PatternDeleted(usize),
+
+    AudioBlockDeleted(usize),
+    AudioBlockLoaded(AudioBlock),
+
     MasterLevel(f32, f32, f32),
-    LoadTrack(Track),
-    LoadSampleRate(f32),
+    SampleRateLoaded(f32),
+    StepAdvanced(usize),
+    PlayheadPosition(f32),
+    SpectrumFrame(Vec<f32>),
+
     ShutdownComplete,
     SaveComplete,
-    LoadPattern(PatternData),
-    LoadEvent(AudioBlock),
-    PlayheadPosition(f32),
-    PatternRenamed(usize, String),
-    TrackRenamed(u32, String),
-    SpectrumFrame(Vec<f32>),
+
     LoadProject {
         tracks: Vec<Track>,
         patterns: Vec<PatternData>,
@@ -53,8 +61,37 @@ impl App {
         let State::Ready(gfx) = state else { return };
 
         match cmd {
-            UiCommand::LoadEvent(audio_block) => {
+            UiCommand::AudioBlockLoaded(audio_block) => {
                 gfx.events.push(audio_block);
+                self.project_is_dirty = true;
+            }
+            UiCommand::TrackDeleted(track_id) => {
+                gfx.tracks.remove(track_id);
+                gfx.mini_windows[SEQUENCER_ID].height = 100.0 + TRACK_GAP * gfx.tracks.len() as f32;
+                gfx.events.retain(|e| {
+                    if let AudioBlockType::Sample(id) = e.block_type {
+                        id != track_id
+                    } else {
+                        true
+                    }
+                });
+                gfx.context_menu = None;
+                self.project_is_dirty = true;
+            }
+            UiCommand::AudioBlockDeleted(event_id) => {
+                gfx.events.retain(|e| e.id != event_id);
+                self.project_is_dirty = true;
+            }
+            UiCommand::PatternDeleted(pattern_id) => {
+                gfx.patterns.retain(|p| p.id != pattern_id);
+                gfx.events.retain(|e| {
+                    if let crate::project::AudioBlockType::Pattern(pid) = e.block_type {
+                        pid != pattern_id
+                    } else {
+                        true
+                    }
+                });
+                gfx.context_menu = None;
                 self.project_is_dirty = true;
             }
             UiCommand::SpectrumFrame(samples) => gfx.spectrum = samples,
@@ -96,10 +133,10 @@ impl App {
                 gfx.master_rms_r = rms_r;
                 gfx.master_peak = peak;
             }
-            UiCommand::LoadTrack(track) => {
+            UiCommand::TrackLoaded(track) => {
                 let track_id = track.data.id as usize;
                 gfx.active_tray = AudioBlockType::Sample(track_id);
-                gfx.load_track(track);
+                gfx.tracks.push(track);
                 let win = &mut gfx.mini_windows[SEQUENCER_ID];
                 win.height = 100.0 + TRACK_GAP * gfx.tracks.len() as f32;
 
@@ -112,21 +149,13 @@ impl App {
                             AudioBlockType::Sample(track_id),
                         ))
                         .ok();
-                    gfx.events.push(AudioBlock {
-                        id: gfx.events.len(),
-                        track: playlist_track,
-                        start_step: step as u32,
-                        length: 1,
-                        block_type: AudioBlockType::Sample(track_id),
-                    });
-                    *project_is_dirty = true;
                 } else {
                     win.is_open = true;
                     bring_to_front(&mut gfx.z_order, SEQUENCER_ID);
                 }
             }
-            UiCommand::LoadSampleRate(rate) => gfx.sample_rate = rate,
-            UiCommand::LoadPattern(pattern) => gfx.load_pattern(pattern),
+            UiCommand::SampleRateLoaded(rate) => gfx.sample_rate = rate,
+            UiCommand::PatternLoaded(pattern) => gfx.load_pattern(pattern),
             UiCommand::StepAdvanced(step) => {
                 gfx.active_step = step;
                 gfx.request_redraw();

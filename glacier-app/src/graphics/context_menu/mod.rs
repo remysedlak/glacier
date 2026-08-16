@@ -2,13 +2,13 @@
 use winit::window::CursorIcon;
 
 use crate::{
-    app::{MouseState, ScrollOffset},
+    app::{click::ClickResult, MouseState, ScrollOffset},
     graphics::{
         color::{Color, DARK_GRAY, WHITE},
         font::{TextItem, ROBOTO},
         geometry::Rectangle,
         primitives::{ScreenConfig, PAD_2, PAD_32, PAD_4, PAD_64, PAD_8, RADIUS_4, RADIUS_8},
-        ClickResult, Vertex,
+        Vertex,
     },
 };
 

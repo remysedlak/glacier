@@ -3,13 +3,13 @@
 use winit::window::CursorIcon;
 
 use crate::{
+    app::click::ClickResult,
     app::MouseState,
     graphics::{
         color::{DARK_GRAY, LIGHT_GRAY, WHITE},
         font::{TextItem, ROBOTO},
         geometry::Rectangle,
         primitives::{ScreenConfig, Vertex, NO_RADIUS, PAD_16, PAD_4, PAD_8},
-        ClickResult,
     },
 };
 

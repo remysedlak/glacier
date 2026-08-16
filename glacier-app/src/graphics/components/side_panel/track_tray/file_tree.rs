@@ -1,3 +1,4 @@
+use crate::app::click::ClickResult;
 use crate::graphics::primitives::{NO_RADIUS, PAD_16, PAD_2, PAD_32, PAD_4, RADIUS_4};
 use crate::project::is_audio_file;
 use crate::{
@@ -7,7 +8,7 @@ use crate::{
         font::{TextItem, ROBOTO},
         geometry::Rectangle,
         icons::IconDraw,
-        ClickResult, ScreenConfig, Tooltip, Vertex,
+        ScreenConfig, Tooltip, Vertex,
     },
 };
 use std::collections::HashMap;

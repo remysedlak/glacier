@@ -27,7 +27,7 @@ use winit::{
     window::{Window, WindowId},
 };
 
-mod click;
+pub mod click;
 mod rename;
 mod ui_command;
 

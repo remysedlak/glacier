@@ -1,13 +1,15 @@
+use crate::app::click::ClickResult;
 use crate::app::MouseState;
-use crate::graphics::color::{DARK_GRAY, ORANGE, SURFACE, SURFACE_HOVER, WHITE};
-use crate::graphics::components::toolbar::{TOOLBAR_THICKNESS, TOOLBAR_Y};
-use crate::graphics::primitives::{RenameState, RenameTarget, PAD_4};
 use crate::graphics::{
-    components::side_panel::*,
+    color::{DARK_GRAY, ORANGE, SURFACE, SURFACE_HOVER, WHITE},
+    components::{
+        side_panel::*,
+        toolbar::{TOOLBAR_THICKNESS, TOOLBAR_Y},
+    },
     font::{TextItem, ROBOTO},
     icons::{IconDraw, Tooltip},
-    primitives::{ScreenConfig, PAD_32, PAD_64, PAD_8, RADIUS_8},
-    {ClickResult, CursorIcon, PatternData, Rectangle, Vertex, NO_RADIUS, PAD_2},
+    primitives::{RenameState, RenameTarget, ScreenConfig, PAD_32, PAD_4, PAD_64, PAD_8, RADIUS_8},
+    {CursorIcon, PatternData, Rectangle, Vertex, NO_RADIUS, PAD_2},
 };
 
 const ICON_SIZE: f32 = 20.0;
@@ -44,7 +46,7 @@ pub fn draw(
     };
     pattern_tray.draw(screen_config, SURFACE, NO_RADIUS, out);
 
-    let w_divider = Rectangle::new(pattern_tray.x, pattern_tray.y, 1.0, pattern_tray.height)
+    let _w_divider = Rectangle::new(pattern_tray.x, pattern_tray.y, 1.0, pattern_tray.height)
         .draw_style()
         .interactive(Some(mouse_state))
         .draw(screen_config, DARK_GRAY, NO_RADIUS, out);

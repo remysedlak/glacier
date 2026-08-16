@@ -1,7 +1,7 @@
-use crate::app::{MouseState, ScrollOffset};
+use crate::app::{click::ClickResult, MouseState, ScrollOffset};
 use crate::graphics::{
-    color::*, font::TextItem, mini_window::MiniWindow, primitives::*, AudioBlockType, ClickResult,
-    PathBuf, Rectangle,
+    color::*, font::TextItem, mini_window::MiniWindow, primitives::*, AudioBlockType, PathBuf,
+    Rectangle,
 };
 use crate::project::{AudioBlock, PatternData, Track};
 use winit::window::CursorIcon;
@@ -202,7 +202,7 @@ pub fn draw(
         if pl_pattern.is_hovered(mouse_state.x, mouse_state.y) {
             cursor_icon = CursorIcon::Pointer;
             if mouse_state.right_clicked {
-                click_result = ClickResult::DeletePlaylistPattern(event.id);
+                click_result = ClickResult::DeletePlaylistAudioBlock(event.id);
             }
         }
         if pl_pattern.is_hovered_right_edge(mouse_state.x, mouse_state.y) {
