@@ -111,6 +111,7 @@ impl App {
                 gfx.bpm = bpm;
                 gfx.master_volume = master_volume;
                 gfx.project_path = project_path;
+                gfx.mini_windows[SEQUENCER_ID].height = 100.0 + TRACK_GAP * gfx.tracks.len() as f32;
             }
             UiCommand::PatternRenamed(id, name) => {
                 if let Some(pattern) = gfx.patterns.iter_mut().find(|p| p.id == id) {
