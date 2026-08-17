@@ -110,7 +110,7 @@ pub fn draw(
         peak_line.draw(screen_config, ORANGE, NO_RADIUS, vertices);
 
         // slider bottom half
-        let slider_y = bg.y + meter_area_height + slider_area_height - 172.0;
+        let slider_y = slider::slider_y_origin(window.y, window.height);
         slider::draw(volume, col_x, slider_y, screen_config, vertices);
 
         text_items.push(TextItem {
@@ -133,9 +133,9 @@ pub fn draw(
         master_peak,
     );
 
-    for track in tracks {
-        let col_x = (master_slider_x - PAD_8 + PAD_16)
-            + ((MIXER_ITEM_WIDTH + PAD_4) * (track.data.id + 1) as f32);
+    for (i, track) in tracks.iter().enumerate() {
+        let col_x =
+            (master_slider_x - PAD_8 + PAD_16) + ((MIXER_ITEM_WIDTH + PAD_4) * (i + 1) as f32);
         draw_channel(
             out,
             &mut text_items,

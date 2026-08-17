@@ -205,7 +205,8 @@ impl App {
                 || gfx.dragging
                 || gfx.dragging_window.is_some()
                 || gfx.dragging_knob.is_some()
-                || gfx.resizing_event.is_some();
+                || gfx.resizing_event.is_some()
+                || gfx.dragging_slider.is_some();
 
             let draw_mouse = if any_dragging || gfx.dragging_file.is_some() {
                 MouseState {
@@ -495,6 +496,7 @@ impl ApplicationHandler<Graphics> for App {
                         gfx.dragging = false;
                         gfx.dragging_window = None;
                         gfx.dragging_knob = None;
+                        gfx.dragging_slider = None;
                         gfx.resizing_track_tray = false;
                         gfx.resizing_event = None;
                         gfx.dragging_file = None;
@@ -555,6 +557,7 @@ impl ApplicationHandler<Graphics> for App {
                         }
                     } else {
                         gfx.dragging_knob = None;
+                        gfx.dragging_slider = None;
                     }
                 }
             }

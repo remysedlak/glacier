@@ -12,7 +12,7 @@ pub enum UiCommand {
     TrackLevel(u32, f32, f32, f32),
     TrackLoaded(Track),
     TrackRenamed(u32, String),
-    TrackDeleted(usize),
+    TrackDeleted(u32),
 
     PatternRenamed(usize, String),
     PatternLoaded(PatternData),
@@ -66,11 +66,13 @@ impl App {
                 self.project_is_dirty = true;
             }
             UiCommand::TrackDeleted(track_id) => {
-                gfx.tracks.remove(track_id);
+                if let Some(pos) = gfx.tracks.iter().position(|t| t.data.id == track_id) {
+                    gfx.tracks.remove(pos);
+                }
                 gfx.mini_windows[SEQUENCER_ID].height = 100.0 + TRACK_GAP * gfx.tracks.len() as f32;
                 gfx.events.retain(|e| {
                     if let AudioBlockType::Sample(id) = e.block_type {
-                        id != track_id
+                        id != track_id as usize
                     } else {
                         true
                     }

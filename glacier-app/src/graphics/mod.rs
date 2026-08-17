@@ -253,6 +253,7 @@ pub async fn create_graphics(window: Rc<Window>, proxy: EventLoopProxy<Graphics>
         mini_windows,
         dragging_window: None,
         dragging: false,
+        dragging_slider: None,
         playlist_scroll_offset: ScrollOffset::default(),
         sequencer_scroll_offset: ScrollOffset::default(),
         fs_scroll_offset: 0.0,
@@ -345,8 +346,6 @@ pub struct Graphics {
     pub active_tray: AudioBlockType, // Pattern(id) or Track(id)
     pub renaming: Option<RenameState>,
 
-    pub dragging_file: Option<PathBuf>,
-
     pub mini_windows: Vec<MiniWindow>,
     num_vertices: u32,
     pub active_pattern_id: usize,
@@ -381,6 +380,8 @@ pub struct Graphics {
     pub dragging_window: Option<usize>, // window titlebar
     pub resizing_track_tray: bool,
     pub dragging: bool,
+    pub dragging_file: Option<PathBuf>,
+    pub dragging_slider: Option<Option<usize>>,
     pub resizing_event: Option<usize>, // pattern resizing in playlist
     pub resize_drag_accumulator: f32,
 

@@ -357,9 +357,7 @@ pub fn init(
                         }
                     });
                     tracks.remove(track_id);
-                    producer
-                        .try_push(UiCommand::TrackDeleted(data_id as usize))
-                        .ok();
+                    producer.try_push(UiCommand::TrackDeleted(data_id)).ok();
                 }
 
                 AudioCommand::LoadTrack(mut track_data, samples) => {

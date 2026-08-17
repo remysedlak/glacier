@@ -2,7 +2,7 @@
 
 use crate::graphics::{
     components::{
-        slider::{MIXER_THUMB_WIDTH, MIXER_TRACK_HEIGHT},
+        slider::{self, MIXER_THUMB_WIDTH, MIXER_TRACK_HEIGHT},
         toolbar::TOOLBAR_Y,
     },
     mini_window::{mixer::MIXER_ITEM_WIDTH, playlist::PLAYLIST_STEP_GAP, TITLEBAR_HEIGHT},
@@ -47,11 +47,49 @@ impl Graphics {
             win.y = (win.y + dy).clamp(TITLEBAR_HEIGHT + TOOLBAR_Y, max_y);
             return DragResult::None;
         }
-        if let Some(i) = self.dragging_knob {
-            self.tracks[i].data.track_volume =
-                (self.tracks[i].data.track_volume - dy * 0.005).clamp(0.0, 1.0);
+        if let Some(track_id) = self.dragging_knob {
+            if let Some(track) = self
+                .tracks
+                .iter_mut()
+                .find(|t| t.data.id as usize == track_id)
+            {
+                track.data.track_volume = (track.data.track_volume - dy * 0.005).clamp(0.0, 1.0);
+                self.dragging = true;
+                return DragResult::DragTrackVolumeKnob(track_id, track.data.track_volume);
+            }
             self.dragging = true;
-            return DragResult::DragTrackVolumeKnob(i, self.tracks[i].data.track_volume);
+            return DragResult::None;
+        }
+        if let Some(slider_target) = self.dragging_slider {
+            let mixer_window = &self.mini_windows[MIXER_ID];
+            let slider_y = slider::slider_y_origin(mixer_window.y, mixer_window.height);
+            match slider_target {
+                None => {
+                    self.master_volume =
+                        1.0 - ((mouse_y - slider_y) / MIXER_TRACK_HEIGHT).clamp(0.0, 1.0);
+                    self.dragging_slider = Some(None);
+                    self.dragging = true;
+                    return DragResult::DragMasterVolumeSlider(self.master_volume);
+                }
+                Some(track_id) => {
+                    if let Some(track) = self
+                        .tracks
+                        .iter_mut()
+                        .find(|t| t.data.id as usize == track_id)
+                    {
+                        track.data.track_volume =
+                            1.0 - ((mouse_y - slider_y) / MIXER_TRACK_HEIGHT).clamp(0.0, 1.0);
+                        self.dragging_slider = Some(Some(track.data.id as usize));
+                        self.dragging = true;
+                        return DragResult::DragTrackVolumeSlider(
+                            track_id,
+                            track.data.track_volume,
+                        );
+                    }
+                    self.dragging = true;
+                    return DragResult::None;
+                }
+            }
         }
         if let Some(event_id) = self.resizing_event {
             if let Some(event) = self.events.iter_mut().find(|event| event.id == event_id) {
@@ -89,13 +127,14 @@ impl Graphics {
             // MASTER VOLUME SLIDER
             let slider_hit = Rectangle {
                 x: mixer_window.x + PAD_16,
-                y: mixer_window.y + mixer_window.height - 172.0,
+                y: slider::slider_y_origin(mixer_window.y, mixer_window.height),
                 width: MIXER_THUMB_WIDTH,
                 height: MIXER_TRACK_HEIGHT,
             };
             if slider_hit.is_hovered(mouse_x, mouse_y) {
                 self.master_volume =
                     1.0 - ((mouse_y - slider_hit.y) / MIXER_TRACK_HEIGHT).clamp(0.0, 1.0);
+                self.dragging_slider = Some(None);
                 self.dragging = true;
                 return DragResult::DragMasterVolumeSlider(self.master_volume);
             }
@@ -104,17 +143,21 @@ impl Graphics {
                 let slider_hit = Rectangle {
                     x: mixer_window.x
                         + PAD_16
-                        + (MIXER_ITEM_WIDTH + PAD_4) * (track.data.id + 1) as f32
+                        + (MIXER_ITEM_WIDTH + PAD_4) * (i + 1) as f32
                         + PAD_8,
-                    y: mixer_window.y + mixer_window.height - 172.0,
+                    y: slider::slider_y_origin(mixer_window.y, mixer_window.height),
                     width: MIXER_THUMB_WIDTH,
                     height: MIXER_TRACK_HEIGHT,
                 };
                 if slider_hit.is_hovered(mouse_x, mouse_y) {
                     track.data.track_volume =
                         1.0 - ((mouse_y - slider_hit.y) / MIXER_TRACK_HEIGHT).clamp(0.0, 1.0);
+                    self.dragging_slider = Some(Some(track.data.id as usize));
                     self.dragging = true;
-                    return DragResult::DragTrackVolumeSlider(i, track.data.track_volume);
+                    return DragResult::DragTrackVolumeSlider(
+                        track.data.id as usize,
+                        track.data.track_volume,
+                    );
                 }
             }
 
@@ -127,10 +170,13 @@ impl Graphics {
                     height: KNOB_RADIUS * 2.0,
                 };
                 if knob_rect.is_hovered(mouse_x, mouse_y) {
-                    self.dragging_knob = Some(i);
+                    self.dragging_knob = Some(track.data.id as usize);
                     track.data.track_volume = (track.data.track_volume - dy * 0.01).clamp(0.0, 1.0);
                     self.dragging = true;
-                    return DragResult::DragTrackVolumeKnob(i, track.data.track_volume);
+                    return DragResult::DragTrackVolumeKnob(
+                        track.data.id as usize,
+                        track.data.track_volume,
+                    );
                 }
             }
         }
