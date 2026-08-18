@@ -30,9 +30,6 @@ pub enum ClickResult {
 
     // toolbar
     Stop,
-    ChangeBpmUp,
-    ChangeBpmDown,
-    #[expect(dead_code)]
     ChangeBpm(f32),
     TogglePlay,
     ProjectFileDialog,
@@ -275,19 +272,8 @@ impl App {
                     width: 128.0,
                 });
             }
-            ClickResult::ChangeBpmDown => {
-                gfx.bpm -= 1.0;
-                self.producer
-                    .try_push(AudioCommand::ChangeBpm(gfx.bpm))
-                    .ok();
-                self.project_is_dirty = true;
-            }
-            ClickResult::ChangeBpmUp => {
-                gfx.bpm += 1.0;
-                self.producer
-                    .try_push(AudioCommand::ChangeBpm(gfx.bpm))
-                    .ok();
-                self.project_is_dirty = true;
+            ClickResult::ChangeBpm(bpm) => {
+                self.producer.try_push(AudioCommand::ChangeBpm(bpm)).ok();
             }
             ClickResult::SelectPattern(pattern_id) => {
                 gfx.active_pattern_id = pattern_id;

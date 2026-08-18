@@ -372,7 +372,10 @@ pub fn init(
                     tracks.push(track.clone()); // ownership clone
                     producer.try_push(UiCommand::TrackLoaded(track)).ok();
                 }
-                AudioCommand::ChangeBpm(new_bpm) => bpm = new_bpm,
+                AudioCommand::ChangeBpm(new_bpm) => {
+                    bpm = new_bpm;
+                    producer.try_push(UiCommand::BpmChanged(new_bpm)).ok();
+                }
                 AudioCommand::ToggleTrackMute(track_id) => {
                     if let Some(track) = tracks.iter_mut().find(|t| t.data.id == track_id as u32) {
                         track.mute();

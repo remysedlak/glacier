@@ -97,7 +97,7 @@ pub fn draw_toolbar(
     if bpm_up.hovered {
         cursor_icon = CursorIcon::Pointer;
         if mouse_state.left_clicked {
-            click_result = ClickResult::ChangeBpmUp;
+            click_result = ClickResult::ChangeBpm(bpm + 1.0);
         }
     }
 
@@ -109,7 +109,7 @@ pub fn draw_toolbar(
     if bpm_down.hovered {
         cursor_icon = CursorIcon::Pointer;
         if mouse_state.left_clicked {
-            click_result = ClickResult::ChangeBpmDown;
+            click_result = ClickResult::ChangeBpm(bpm - 1.0);
         }
     }
 

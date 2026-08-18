@@ -14,6 +14,8 @@ pub enum UiCommand {
     TrackRenamed(u32, String),
     TrackDeleted(u32),
 
+    BpmChanged(f32),
+
     PatternRenamed(usize, String),
     PatternLoaded(PatternData),
     PatternDeleted(usize),
@@ -61,6 +63,10 @@ impl App {
         let State::Ready(gfx) = state else { return };
 
         match cmd {
+            UiCommand::BpmChanged(bpm) => {
+                gfx.bpm = bpm;
+                self.project_is_dirty = true;
+            }
             UiCommand::AudioBlockLoaded(audio_block) => {
                 gfx.events.push(audio_block);
                 self.project_is_dirty = true;
