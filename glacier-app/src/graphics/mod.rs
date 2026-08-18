@@ -204,7 +204,7 @@ pub async fn create_graphics(window: Rc<Window>, proxy: EventLoopProxy<Graphics>
         track_tray_width: DEFAULT_TRAY_WIDTH,
         pattern_tray_width: DEFAULT_TRAY_WIDTH,
         dragging_file: None,
-        resizing_track_tray: false,
+
         active_tray: AudioBlockType::Mixing, // Pattern(id) or Track(id)
         fs_cache: {
             let mut cache = std::collections::HashMap::new();
@@ -259,8 +259,11 @@ pub async fn create_graphics(window: Rc<Window>, proxy: EventLoopProxy<Graphics>
         fs_scroll_offset: 0.0,
         z_order: vec![SEQUENCER_ID, PLAYLIST_ID, MIXER_ID, PIANO_ROLL_ID],
         context_menu: None,
+
         resizing_event: None,
         resize_drag_accumulator: 0.0,
+        resizing_track_tray: false,
+
         show_track_tray: true,
         show_pattern_tray: true,
         master_rms_l: 0.0,

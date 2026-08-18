@@ -46,6 +46,16 @@ pub struct MouseState {
     pub scroll_y: f32,
     pub hover_duration: Option<Instant>,
 }
+impl MouseState {
+    pub fn clear(&mut self) {
+        self.left_clicked = false;
+        self.left_double_clicked = false;
+        self.right_clicked = false;
+        self.scroll_x = 0.0;
+        self.scroll_y = 0.0;
+        self.left_released = false;
+    }
+}
 
 #[derive(Clone, Copy)]
 pub struct ScrollOffset {
@@ -75,8 +85,6 @@ pub struct App {
     ctrl_pressed: bool,
     pub shift_pressed: bool,
     mouse_state: MouseState,
-    prev_mouse_x: f32,
-    prev_mouse_y: f32,
     right_click_held: bool,
     last_click_time: Option<std::time::Instant>,
     track_file_dialog_rx: Option<Receiver<Option<PathBuf>>>,
@@ -113,8 +121,6 @@ impl App {
             project_file_dialog_rx: None,
             project_save_dialog_rx: None,
             track_load_rx: None,
-            prev_mouse_x: 0.0,
-            prev_mouse_y: 0.0,
             last_click_time: None,
             pending_drop: None,
             config,
@@ -201,12 +207,8 @@ impl App {
             };
 
             let start = std::time::Instant::now();
-            let any_dragging = gfx.resizing_track_tray
-                || gfx.dragging
-                || gfx.dragging_window.is_some()
-                || gfx.dragging_knob.is_some()
-                || gfx.resizing_event.is_some()
-                || gfx.dragging_slider.is_some();
+            // if user is currently dragging any UI components
+            let any_dragging = gfx.is_dragging();
 
             let draw_mouse = if any_dragging || gfx.dragging_file.is_some() {
                 MouseState {
@@ -263,12 +265,8 @@ impl App {
         // --- handle click result: needs &mut self, so gfx must NOT be held ---
         self.handle_click_result(result, event_loop);
 
-        self.mouse_state.left_clicked = false;
-        self.mouse_state.left_double_clicked = false;
-        self.mouse_state.right_clicked = false;
-        self.mouse_state.scroll_x = 0.0;
-        self.mouse_state.scroll_y = 0.0;
-        self.mouse_state.left_released = false;
+        // clear mouse state after handling click result
+        self.mouse_state.clear();
 
         if let State::Ready(gfx) = &mut self.state {
             gfx.request_redraw();
@@ -318,6 +316,7 @@ impl ApplicationHandler<Graphics> for App {
         event: WindowEvent,
     ) {
         match event {
+            // User clicks the (x) button on the app [soft shutdown]
             WindowEvent::CloseRequested => {
                 if let State::Ready(gfx) = &mut self.state {
                     if self.project_is_dirty {
@@ -328,9 +327,11 @@ impl ApplicationHandler<Graphics> for App {
                     gfx.request_redraw();
                 }
             }
+            // resizing the main app window
             WindowEvent::Resized(size) => self.resized(size),
+            // draw the next frame
             WindowEvent::RedrawRequested => self.draw(event_loop),
-
+            // manage keyboard presses
             WindowEvent::KeyboardInput { event, .. } => {
                 if !event.state.is_pressed() {
                     match event.physical_key {
@@ -394,7 +395,7 @@ impl ApplicationHandler<Graphics> for App {
                     }
                 }
             }
-
+            // manage mouse wheel scrolls (up and down)
             WindowEvent::MouseWheel { delta, .. } => {
                 match delta {
                     winit::event::MouseScrollDelta::LineDelta(x, y) => {
@@ -419,6 +420,7 @@ impl ApplicationHandler<Graphics> for App {
                         })
                         .copied();
 
+                    // PLAYLIST SCROLLING
                     if scroll_owner == Some(PLAYLIST_ID) {
                         if self.shift_pressed {
                             gfx.playlist_scroll_offset.x = (gfx.playlist_scroll_offset.x
@@ -429,7 +431,9 @@ impl ApplicationHandler<Graphics> for App {
                                 - self.mouse_state.scroll_y * 35.0)
                                 .clamp(0.0, 1448.0);
                         }
-                    } else if scroll_owner == Some(PIANO_ROLL_ID) {
+                    }
+                    // PIANO ROLL SCROLLING
+                    else if scroll_owner == Some(PIANO_ROLL_ID) {
                         if let Some(state) = gfx.piano_roll_state.as_mut() {
                             if self.shift_pressed {
                                 state.scroll_offset.x = (state.scroll_offset.x
@@ -441,7 +445,9 @@ impl ApplicationHandler<Graphics> for App {
                                     .clamp(0.0, 1448.0);
                             }
                         }
-                    } else if scroll_owner == Some(SEQUENCER_ID) {
+                    }
+                    // SEQUENCER SCROLLING
+                    else if scroll_owner == Some(SEQUENCER_ID) {
                         if self.shift_pressed {
                             gfx.sequencer_scroll_offset.x = (gfx.sequencer_scroll_offset.x
                                 - self.mouse_state.scroll_y * 35.0)
@@ -451,7 +457,9 @@ impl ApplicationHandler<Graphics> for App {
                                 - self.mouse_state.scroll_y * 35.0)
                                 .clamp(0.0, 1448.0);
                         }
-                    } else if self.mouse_state.x < gfx.track_tray_width
+                    }
+                    // TRACK TRAY SCROLLING
+                    else if self.mouse_state.x < gfx.track_tray_width
                         && self.mouse_state.y > (gfx.surface_config.height as f32 / 2.0)
                     {
                         let divider_y = gfx.surface_config.height as f32 / 2.0;
@@ -470,57 +478,59 @@ impl ApplicationHandler<Graphics> for App {
                     }
                 }
             }
-
+            // manage mouse clicks (left + right)
             WindowEvent::MouseInput { state, button, .. } => {
+                // LEFT CLICK
                 if state.is_pressed() && button == MouseButton::Left {
+                    // check if part of a double click
                     let now = std::time::Instant::now();
                     let is_double_click = self
                         .last_click_time
                         .map(|t| now.duration_since(t).as_millis() < 300)
                         .unwrap_or(false);
                     self.last_click_time = Some(now);
-
                     if is_double_click {
                         self.mouse_state.left_double_clicked = true;
                     }
+
                     self.mouse_state.left_click_held = true;
                     self.mouse_state.left_clicked = true;
                     self.draw(event_loop);
-                } else {
+                }
+                // NOT LEFT CLICK
+                else {
                     self.mouse_state.left_released = true;
                     self.mouse_state.left_click_held = false;
                     self.mouse_state.left_clicked = false;
                     self.draw(event_loop);
 
                     if let State::Ready(gfx) = &mut self.state {
-                        gfx.dragging = false;
-                        gfx.dragging_window = None;
-                        gfx.dragging_knob = None;
-                        gfx.dragging_slider = None;
-                        gfx.resizing_track_tray = false;
-                        gfx.resizing_event = None;
-                        gfx.dragging_file = None;
+                        gfx.clear_drag_state();
                     }
                 }
+                // RIGHT CLICK
                 if state.is_pressed() && button == MouseButton::Right {
                     self.mouse_state.right_clicked = true;
                     self.right_click_held = true;
                     self.draw(event_loop);
-                } else {
+                }
+                // NO RIGHT CLICK
+                else {
                     self.right_click_held = false;
                     self.mouse_state.right_clicked = false;
                 }
             }
-
+            // manage mouse movement (drag / drop + hover)
             WindowEvent::CursorMoved { position, .. } => {
+                // calculate mouse distance
+                let delta_y = position.y as f32 - self.mouse_state.y;
+                let delta_x = position.x as f32 - self.mouse_state.x;
+                // update mouse state
                 self.mouse_state.x = position.x as f32;
                 self.mouse_state.y = position.y as f32;
-                let delta_y = position.y as f32 - self.prev_mouse_y;
-                let delta_x = position.x as f32 - self.prev_mouse_x;
-                self.prev_mouse_y = position.y as f32;
-                self.prev_mouse_x = position.x as f32;
 
                 if let State::Ready(gfx) = &mut self.state {
+                    // IF USER IS ALREADY DRAGGING SOMETHING
                     if self.mouse_state.left_click_held {
                         match gfx.handle_drag(
                             position.x as f32,
@@ -556,8 +566,7 @@ impl ApplicationHandler<Graphics> for App {
                             }
                         }
                     } else {
-                        gfx.dragging_knob = None;
-                        gfx.dragging_slider = None;
+                        gfx.clear_drag_state()
                     }
                 }
             }

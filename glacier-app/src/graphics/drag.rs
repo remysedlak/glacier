@@ -1,4 +1,4 @@
-//! File for handling the user's drag actions
+//! File for handling the user's click and drag actions
 
 use crate::graphics::{
     components::{
@@ -27,6 +27,24 @@ pub enum DragResult {
     None,
 }
 impl Graphics {
+    /// Reset drag state of graphics thread
+    pub fn clear_drag_state(&mut self) {
+        self.dragging = false;
+        self.dragging_window = None;
+        self.dragging_knob = None;
+        self.dragging_slider = None;
+        self.resizing_track_tray = false;
+        self.resizing_event = None;
+        self.dragging_file = None;
+    }
+    pub fn is_dragging(&self) -> bool {
+        self.resizing_track_tray
+            || self.dragging
+            || self.dragging_window.is_some()
+            || self.dragging_knob.is_some()
+            || self.resizing_event.is_some()
+            || self.dragging_slider.is_some()
+    }
     /// Track if/where the user's mouse is dragging a component
     pub fn handle_drag(&mut self, mouse_x: f32, mouse_y: f32, dy: f32, dx: f32) -> DragResult {
         if self.dragging_file.is_some() {
@@ -37,6 +55,8 @@ impl Graphics {
             self.track_tray_width = (self.track_tray_width + dx).clamp(80.0, 400.0);
             return DragResult::ResizeTrackTray(self.track_tray_width);
         }
+
+        // DRAGGING WINDOW
         if let Some(i) = self.dragging_window {
             let win = &mut self.mini_windows[i];
             let max_y = self.surface_config.height as f32 - TITLEBAR_HEIGHT;
@@ -47,6 +67,8 @@ impl Graphics {
             win.y = (win.y + dy).clamp(TITLEBAR_HEIGHT + TOOLBAR_Y, max_y);
             return DragResult::None;
         }
+
+        // DRAGGING KNOB
         if let Some(track_id) = self.dragging_knob {
             if let Some(track) = self
                 .tracks
@@ -60,6 +82,8 @@ impl Graphics {
             self.dragging = true;
             return DragResult::None;
         }
+
+        // DRAGGING SLIDER
         if let Some(slider_target) = self.dragging_slider {
             let mixer_window = &self.mini_windows[MIXER_ID];
             let slider_y = slider::slider_y_origin(mixer_window.y, mixer_window.height);
@@ -91,6 +115,8 @@ impl Graphics {
                 }
             }
         }
+
+        // RESIZING EVENT
         if let Some(event_id) = self.resizing_event {
             if let Some(event) = self.events.iter_mut().find(|event| event.id == event_id) {
                 self.resize_drag_accumulator += dx;
@@ -107,6 +133,7 @@ impl Graphics {
             return DragResult::None;
         }
 
+        // TRACK TRAY
         // initial detection — only runs if nothing is currently active
         let tray_edge = Rectangle {
             x: self.track_tray_width - PAD_8,
@@ -123,8 +150,9 @@ impl Graphics {
         let sequencer_window = &self.mini_windows[SEQUENCER_ID];
         let mixer_window = &self.mini_windows[MIXER_ID];
 
+        // DRAGGING KNOB
         if self.dragging_knob.is_none() {
-            // MASTER VOLUME SLIDER
+            // MASTER VOLUME SLIDER (0)
             let slider_hit = Rectangle {
                 x: mixer_window.x + PAD_16,
                 y: slider::slider_y_origin(mixer_window.y, mixer_window.height),
@@ -138,7 +166,7 @@ impl Graphics {
                 self.dragging = true;
                 return DragResult::DragMasterVolumeSlider(self.master_volume);
             }
-
+            // TRACK VOLUME SLIDERS (1,2,3,4,5,...)
             for (i, track) in self.tracks.iter_mut().enumerate() {
                 let slider_hit = Rectangle {
                     x: mixer_window.x
