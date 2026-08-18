@@ -102,23 +102,7 @@ impl App {
         };
 
         match result {
-            ClickResult::ClearPattern(pattern_id) => {
-                self.producer
-                    .try_push(AudioCommand::ClearPattern(pattern_id))
-                    .ok();
-                gfx.context_menu = None;
-                self.project_is_dirty = true;
-            }
-            ClickResult::ModalConfirmSaveAndExit => {
-                gfx.show_save_modal = false;
-                self.producer.try_push(AudioCommand::Shutdown).ok();
-            }
-            ClickResult::ModalConfirmDiscardAndExit => {
-                gfx.show_save_modal = false;
-                self.producer
-                    .try_push(AudioCommand::ShutdownWithoutSaving)
-                    .ok();
-            }
+            // UI EDITS
             ClickResult::ModalCancelExit => {
                 gfx.show_save_modal = false;
             }
@@ -153,12 +137,7 @@ impl App {
                 self.pending_drop = Some((track, step));
                 self.track_load_rx = Some(crate::project::spawn_track_load(path_str));
             }
-            ClickResult::FsPreviewSample(track_path) => {
-                let preview = crate::project::path_to_preview(&track_path.to_string_lossy(), 5);
-                self.producer
-                    .try_push(AudioCommand::PreviewSample(preview))
-                    .ok();
-            }
+
             ClickResult::FsToggleDir(path) => {
                 if gfx.expanded_dirs.contains(&path) {
                     gfx.expanded_dirs.remove(&path);
@@ -179,16 +158,9 @@ impl App {
             }
             ClickResult::TogglePatternTray => gfx.show_pattern_tray = !gfx.show_pattern_tray,
             ClickResult::ToggleTrackTray => gfx.show_track_tray = !gfx.show_track_tray,
-            ClickResult::OpenTrackFileLocation(path) => {
-                showfile::show_path_in_file_manager(path);
-            }
+            ClickResult::OpenTrackFileLocation(path) => showfile::show_path_in_file_manager(path),
             ClickResult::StartResizeEvent(id) => gfx.resizing_event = Some(id),
-            ClickResult::DuplicatePattern(pattern_id) => {
-                self.producer
-                    .try_push(AudioCommand::DuplicatePattern(pattern_id))
-                    .ok();
-                self.project_is_dirty = true;
-            }
+
             ClickResult::LoadPianoRoll(piano_state) => {
                 gfx.context_menu = None;
                 gfx.piano_roll_state = Some(piano_state);
@@ -214,47 +186,6 @@ impl App {
                     gfx.context_menu = None;
                 }
             }
-            ClickResult::ToggleNote(pattern_id, track_id, step_idx, pitch) => {
-                self.producer
-                    .try_push(AudioCommand::ToggleNote(
-                        pattern_id, track_id, step_idx, pitch,
-                    ))
-                    .ok();
-                if let Some(pattern) = gfx.patterns.iter_mut().find(|p| p.id == pattern_id) {
-                    if let Some(seq) = pattern
-                        .sequences
-                        .iter_mut()
-                        .find(|s| s.track_id == track_id)
-                    {
-                        if step_idx >= seq.steps.len() {
-                            seq.steps
-                                .resize(step_idx + 1, crate::project::Note::DEFAULT);
-                        }
-                        let note = &mut seq.steps[step_idx];
-                        if note.velocity > 0.0 && note.pitch == pitch {
-                            *note = crate::project::Note::DEFAULT;
-                        } else {
-                            *note = crate::project::Note {
-                                velocity: 95.0,
-                                pitch,
-                            };
-                        }
-                        while seq.steps.last().map(|n| n.velocity == 0.0).unwrap_or(false) {
-                            seq.steps.pop();
-                        }
-                    } else {
-                        let mut steps = vec![crate::project::Note::DEFAULT; step_idx + 1];
-                        steps[step_idx] = crate::project::Note {
-                            velocity: 95.0,
-                            pitch,
-                        };
-                        pattern
-                            .sequences
-                            .push(crate::project::Sequence { track_id, steps });
-                    }
-                }
-                self.project_is_dirty = true;
-            }
             ClickResult::CloseContextMenu => gfx.context_menu = None,
             ClickResult::OpenPatternMenu(x, y, pattern_id) => {
                 gfx.context_menu = Some(ContextMenu {
@@ -272,9 +203,7 @@ impl App {
                     width: 128.0,
                 });
             }
-            ClickResult::ChangeBpm(bpm) => {
-                self.producer.try_push(AudioCommand::ChangeBpm(bpm)).ok();
-            }
+
             ClickResult::SelectPattern(pattern_id) => {
                 gfx.active_pattern_id = pattern_id;
                 gfx.active_tray = AudioBlockType::Pattern(pattern_id);
@@ -311,28 +240,6 @@ impl App {
             }
             ClickResult::CreatePattern => {
                 self.producer.try_push(AudioCommand::AddPattern).ok();
-                self.project_is_dirty = true;
-            }
-            ClickResult::DeletePlaylistAudioBlock(id) => {
-                self.producer
-                    .try_push(AudioCommand::DeleteAudioBlock(id))
-                    .ok();
-            }
-            ClickResult::AddPlaylistAudioBlock(track, start_step, length, block_type) => {
-                // request audio thread to create audio block
-                self.producer
-                    .try_push(AudioCommand::CreateAudioBlock(
-                        track,
-                        start_step,
-                        length,
-                        block_type.clone(),
-                    ))
-                    .ok();
-            }
-            ClickResult::DeletePattern(pattern_id) => {
-                self.producer
-                    .try_push(AudioCommand::DeletePattern(pattern_id))
-                    .ok();
             }
             ClickResult::ToggleSequencerWindow => {
                 if let Some(win) = gfx
@@ -370,31 +277,80 @@ impl App {
                     win.is_open = !win.is_open;
                 }
             }
+            // AUDIO PING
+            ClickResult::ClearPattern(pattern_id) => {
+                self.producer
+                    .try_push(AudioCommand::ClearPattern(pattern_id))
+                    .ok();
+                gfx.context_menu = None;
+            }
+            ClickResult::ModalConfirmSaveAndExit => {
+                gfx.show_save_modal = false;
+                self.producer.try_push(AudioCommand::Shutdown).ok();
+            }
+            ClickResult::ModalConfirmDiscardAndExit => {
+                gfx.show_save_modal = false;
+                self.producer
+                    .try_push(AudioCommand::ShutdownWithoutSaving)
+                    .ok();
+            }
+            // play a 5 second sample of the audio clip
+            ClickResult::FsPreviewSample(track_path) => {
+                let preview = crate::project::path_to_preview(&track_path.to_string_lossy(), 5);
+                self.producer
+                    .try_push(AudioCommand::PreviewSample(preview))
+                    .ok();
+            }
+            ClickResult::ChangeBpm(bpm) => {
+                self.producer.try_push(AudioCommand::ChangeBpm(bpm)).ok();
+            }
+            ClickResult::DuplicatePattern(pattern_id) => {
+                self.producer
+                    .try_push(AudioCommand::DuplicatePattern(pattern_id))
+                    .ok();
+            }
+            ClickResult::ToggleNote(pattern_id, track_id, step_idx, pitch) => {
+                self.producer
+                    .try_push(AudioCommand::ToggleNote(
+                        pattern_id, track_id, step_idx, pitch,
+                    ))
+                    .ok();
+            }
+            ClickResult::DeletePlaylistAudioBlock(id) => {
+                self.producer
+                    .try_push(AudioCommand::DeleteAudioBlock(id))
+                    .ok();
+            }
+            ClickResult::AddPlaylistAudioBlock(track, start_step, length, block_type) => {
+                // request audio thread to create audio block
+                self.producer
+                    .try_push(AudioCommand::CreateAudioBlock(
+                        track,
+                        start_step,
+                        length,
+                        block_type.clone(),
+                    ))
+                    .ok();
+            }
+            ClickResult::DeletePattern(pattern_id) => {
+                self.producer
+                    .try_push(AudioCommand::DeletePattern(pattern_id))
+                    .ok();
+            }
             ClickResult::ToggleStep(pattern_id, track_id, step) => {
                 self.producer
                     .try_push(AudioCommand::ToggleStep(pattern_id, track_id, step))
                     .ok();
-                self.project_is_dirty = true;
             }
             ClickResult::Stop => {
-                gfx.is_playing = false;
-                gfx.active_step = 0;
                 self.producer.try_push(AudioCommand::Stop).ok();
             }
             ClickResult::ToggleTrackMute(track_id) => {
                 self.producer
                     .try_push(AudioCommand::ToggleTrackMute(track_id))
                     .ok();
-                self.project_is_dirty = true;
-            }
-            ClickResult::ChangeBpm(new_bpm) => {
-                self.producer
-                    .try_push(AudioCommand::ChangeBpm(new_bpm))
-                    .ok();
-                self.project_is_dirty = true;
             }
             ClickResult::TogglePlay => {
-                gfx.is_playing = !gfx.is_playing;
                 self.producer.try_push(AudioCommand::TogglePlay).ok();
             }
             ClickResult::DeleteTrack(track_id) => {

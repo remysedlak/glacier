@@ -13,7 +13,7 @@ pub mod regions;
 use crate::app::{MouseState, PianoRollState, ScrollOffset};
 use crate::config::DEFAULT_BPM;
 use crate::graphics::components::side_panel::DEFAULT_TRAY_WIDTH;
-use crate::project::{AudioBlock, AudioBlockType, PatternData, Track};
+use crate::project::{AudioBlock, AudioBlockType, PatternData, Track, TrackData};
 use std::path::PathBuf;
 
 use color::{Color, DARK_GRAY, WHITE};
@@ -406,8 +406,8 @@ impl Graphics {
         self.window.request_redraw();
     }
 
-    // loading project data into the graphics state, called from the app when a project is loaded or created new
-    pub fn load_pattern(&mut self, p: PatternData) {
+    /// update existing pattern by matching id, if id not found create new pattern
+    pub fn update_pattern(&mut self, p: PatternData) {
         if let Some(existing) = self
             .patterns
             .iter_mut()
@@ -418,8 +418,15 @@ impl Graphics {
             self.patterns.push(p);
         }
     }
-    pub fn load_event(&mut self, a: AudioBlock) {
-        self.events.push(a);
+    /// update existing track data by matching track data id
+    pub fn update_track_data(&mut self, t: TrackData) {
+        if let Some(existing) = self
+            .tracks
+            .iter_mut()
+            .find(|existing| existing.data.id == t.id)
+        {
+            existing.data = t;
+        }
     }
 
     /// main window resizing

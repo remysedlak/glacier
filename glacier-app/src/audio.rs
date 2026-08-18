@@ -143,7 +143,7 @@ pub fn init(
                         }
                         // update the ui
                         producer
-                            .try_push(UiCommand::PatternLoaded(pattern.clone()))
+                            .try_push(UiCommand::PatternUpdated(pattern.clone()))
                             .ok();
                     }
                 }
@@ -157,7 +157,7 @@ pub fn init(
                     if let Some(pattern) = patterns.iter_mut().find(|p| p.id == pattern_id) {
                         pattern.name = name.clone();
                         producer
-                            .try_push(UiCommand::PatternRenamed(pattern_id, name))
+                            .try_push(UiCommand::PatternUpdated(pattern.clone()))
                             .ok();
                     }
                 }
@@ -165,7 +165,7 @@ pub fn init(
                     if let Some(track) = tracks.iter_mut().find(|t| t.data.id == track_id as u32) {
                         track.data.name = name.clone();
                         producer
-                            .try_push(UiCommand::TrackRenamed(track.data.id, name))
+                            .try_push(UiCommand::TrackUpdated(track.data.clone()))
                             .ok();
                     }
                 }
@@ -192,7 +192,7 @@ pub fn init(
                         patterns.push(new_pattern.clone());
                         // update the ui
                         producer
-                            .try_push(UiCommand::PatternLoaded(new_pattern))
+                            .try_push(UiCommand::PatternUpdated(new_pattern))
                             .ok();
                     }
                 }
@@ -228,6 +228,9 @@ pub fn init(
                             };
                             pattern.sequences.push(Sequence { track_id, steps });
                         }
+                        producer
+                            .try_push(UiCommand::PatternUpdated(pattern.clone()))
+                            .ok();
                     }
                 }
                 AudioCommand::AddPattern => {
@@ -254,7 +257,7 @@ pub fn init(
                         sequences,
                     };
                     patterns.push(p.clone());
-                    producer.try_push(UiCommand::PatternLoaded(p)).ok();
+                    producer.try_push(UiCommand::PatternUpdated(p)).ok();
                 }
                 AudioCommand::DeletePattern(pattern_id) => {
                     // remove the pattern from list of patterns
@@ -280,6 +283,7 @@ pub fn init(
                 AudioCommand::Stop => {
                     is_playing = false;
                     current_step = 0;
+                    producer.try_push(UiCommand::PlaybackStopped).ok();
                 }
                 AudioCommand::CreateAudioBlock(track, start_step, length, block_type) => {
                     // add new event to playlist
@@ -304,6 +308,9 @@ pub fn init(
                 AudioCommand::ChangeTrackVolume(track_id, new_volume) => {
                     if let Some(track) = tracks.iter_mut().find(|t| t.data.id == track_id as u32) {
                         track.data.track_volume = new_volume;
+                        producer
+                            .try_push(UiCommand::TrackUpdated(track.data.clone()))
+                            .ok();
                     }
                 }
                 AudioCommand::ToggleStep(pattern_id, track_id, step_idx) => {
@@ -339,7 +346,7 @@ pub fn init(
                             pattern.sequences.push(seq);
                         }
                         producer
-                            .try_push(UiCommand::PatternLoaded(pattern.clone()))
+                            .try_push(UiCommand::PatternUpdated(pattern.clone()))
                             .ok();
                     }
                 }
@@ -379,9 +386,15 @@ pub fn init(
                 AudioCommand::ToggleTrackMute(track_id) => {
                     if let Some(track) = tracks.iter_mut().find(|t| t.data.id == track_id as u32) {
                         track.mute();
+                        producer
+                            .try_push(UiCommand::TrackUpdated(track.data.clone()))
+                            .ok();
                     }
                 }
-                AudioCommand::TogglePlay => is_playing = !is_playing,
+                AudioCommand::TogglePlay => {
+                    is_playing = !is_playing;
+                    producer.try_push(UiCommand::PlayToggled).ok();
+                }
                 AudioCommand::SaveProject => {
                     let project = Project::new(
                         name.clone(),

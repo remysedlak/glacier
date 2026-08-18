@@ -1,23 +1,25 @@
 //! handle all commands incoming from audio thread
 use super::{App, State};
-use crate::graphics::{
-    bring_to_front,
-    mini_window::{sequencer::TRACK_GAP, SEQUENCER_ID},
-};
 use crate::project::{AudioBlock, AudioBlockType, PatternData, Track};
+use crate::{
+    graphics::{
+        bring_to_front,
+        mini_window::{sequencer::TRACK_GAP, SEQUENCER_ID},
+    },
+    project::TrackData,
+};
 use cpal::traits::StreamTrait;
 
 /// UiCommands are used to sync the audio engine to the graphics engine
 pub enum UiCommand {
     TrackLevel(u32, f32, f32, f32),
     TrackLoaded(Track),
-    TrackRenamed(u32, String),
     TrackDeleted(u32),
+    TrackUpdated(TrackData),
 
     BpmChanged(f32),
 
-    PatternRenamed(usize, String),
-    PatternLoaded(PatternData),
+    PatternUpdated(PatternData),
     PatternDeleted(usize),
 
     AudioBlockDeleted(usize),
@@ -28,6 +30,9 @@ pub enum UiCommand {
     StepAdvanced(usize),
     PlayheadPosition(f32),
     SpectrumFrame(Vec<f32>),
+
+    PlaybackStopped,
+    PlayToggled,
 
     ShutdownComplete,
     SaveComplete,
@@ -63,6 +68,13 @@ impl App {
         let State::Ready(gfx) = state else { return };
 
         match cmd {
+            UiCommand::PlayToggled => {
+                gfx.is_playing = !gfx.is_playing;
+            }
+            UiCommand::PlaybackStopped => {
+                gfx.is_playing = false;
+                gfx.active_step = 0;
+            }
             UiCommand::BpmChanged(bpm) => {
                 gfx.bpm = bpm;
                 self.project_is_dirty = true;
@@ -119,15 +131,8 @@ impl App {
                 gfx.project_path = project_path;
                 gfx.mini_windows[SEQUENCER_ID].height = 100.0 + TRACK_GAP * gfx.tracks.len() as f32;
             }
-            UiCommand::PatternRenamed(id, name) => {
-                if let Some(pattern) = gfx.patterns.iter_mut().find(|p| p.id == id) {
-                    pattern.name = name;
-                }
-            }
-            UiCommand::TrackRenamed(id, name) => {
-                if let Some(track) = gfx.tracks.iter_mut().find(|t| t.data.id == id) {
-                    track.data.name = name;
-                }
+            UiCommand::TrackUpdated(track_data) => {
+                gfx.update_track_data(track_data);
             }
             UiCommand::PlayheadPosition(beat) => gfx.playhead_beat = beat,
             UiCommand::TrackLevel(track_id, rms_l, rms_r, peak) => {
@@ -164,7 +169,10 @@ impl App {
                 }
             }
             UiCommand::SampleRateLoaded(rate) => gfx.sample_rate = rate,
-            UiCommand::PatternLoaded(pattern) => gfx.load_pattern(pattern),
+            UiCommand::PatternUpdated(pattern) => {
+                gfx.update_pattern(pattern);
+                self.project_is_dirty = true;
+            }
             UiCommand::StepAdvanced(step) => {
                 gfx.active_step = step;
                 gfx.request_redraw();
