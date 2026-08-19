@@ -26,6 +26,7 @@ pub const ICONS: &[(&str, u32, u32)] = &[
     ("music_dir", 32, 32),
     ("music_file", 32, 32),
     ("add", 32, 32),
+    ("left_sidepanel", 32, 32),
     ("bpm_up", 32, 12),
     ("bpm_down", 32, 12),
 ];

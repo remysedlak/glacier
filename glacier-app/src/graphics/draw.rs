@@ -790,7 +790,7 @@ impl Graphics {
         } else {
             self.project_path.clone()
         };
-        let (texts, footer_click, icon, tooltip, cursor) = footer::draw(
+        let (texts, footer_click, icons, tooltip, cursor) = footer::draw(
             &screen_config,
             &title,
             1000.0 / self.frame_ms,
@@ -801,13 +801,15 @@ impl Graphics {
             cursor_icon = cursor;
         }
         self.tooltip = tooltip.or(self.tooltip.take());
-        push_icon_draw(
-            &self.icon_cache,
-            &self.device,
-            &screen_config,
-            &icon,
-            &mut icon_draws,
-        );
+        for icon in icons {
+            push_icon_draw(
+                &self.icon_cache,
+                &self.device,
+                &screen_config,
+                &icon,
+                &mut icon_draws,
+            );
+        }
         click_result = click_result.or(footer_click);
         Graphics::push_text_draws(
             &texts,
