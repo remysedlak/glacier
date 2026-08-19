@@ -189,7 +189,7 @@ pub async fn create_graphics(window: Rc<Window>, proxy: EventLoopProxy<Graphics>
     // wgsl shader and render pipeline setup
     let render_pipeline = create_pipeline(&device, surface_config.format, &bind_group_layout);
 
-    let audio_root = dirs::audio_dir().unwrap_or_else(|| PathBuf::from(".")); // TODO: FIX UNWRAP...User OS may not have audio location
+    let audio_root = PathBuf::from("./assets/free-drum-samples");
 
     let gfx = Graphics {
         // graphics
