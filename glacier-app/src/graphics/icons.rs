@@ -40,10 +40,12 @@ pub struct IconSvg {
 #[derive(Clone, PartialEq)]
 /// A hover label anchored at (x, y); text: None means no tooltip shown.
 pub struct Tooltip {
-    pub text: Option<&'static str>,
+    pub text: Option<String>,
     pub x: f32,
     pub y: f32,
+    pub width: f32,
 }
+pub const DEFAULT_TOOLTIP_WIDTH: f32 = 128.0;
 
 /// Pre-loaded app Icon with Tooltip defined
 pub struct IconDraw {

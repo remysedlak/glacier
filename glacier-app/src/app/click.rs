@@ -158,7 +158,12 @@ impl App {
             }
             ClickResult::TogglePatternTray => gfx.show_pattern_tray = !gfx.show_pattern_tray,
             ClickResult::ToggleTrackTray => gfx.show_track_tray = !gfx.show_track_tray,
-            ClickResult::OpenTrackFileLocation(path) => showfile::show_path_in_file_manager(path),
+            ClickResult::OpenTrackFileLocation(path) => {
+                let abs = std::fs::canonicalize(&path).unwrap_or_else(|_| PathBuf::from(&path));
+                thread::spawn(move || {
+                    showfile::show_path_in_file_manager(abs);
+                });
+            }
             ClickResult::StartResizeEvent(id) => gfx.resizing_event = Some(id),
 
             ClickResult::LoadPianoRoll(piano_state) => {

@@ -1,4 +1,5 @@
 use crate::app::click::ClickResult;
+use crate::graphics::icons::DEFAULT_TOOLTIP_WIDTH;
 use crate::graphics::primitives::{NO_RADIUS, PAD_16, PAD_2, PAD_32, PAD_4, RADIUS_4};
 use crate::project::is_audio_file;
 use crate::{
@@ -139,9 +140,10 @@ fn draw_fs_tree(
                     width: 16.0,
                     height: 16.0,
                     tooltip: Tooltip {
-                        text: Some("Add Track"),
+                        text: Some("Add Track".to_string()),
                         x: button.x,
                         y: button.y + 4.0,
+                        width: DEFAULT_TOOLTIP_WIDTH,
                     },
                 });
             }

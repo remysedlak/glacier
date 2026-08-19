@@ -1,5 +1,6 @@
 use crate::app::click::ClickResult;
 use crate::app::MouseState;
+use crate::graphics::icons::DEFAULT_TOOLTIP_WIDTH;
 use crate::graphics::{
     color::{DARK_GRAY, ORANGE, SURFACE, SURFACE_HOVER, WHITE},
     components::{
@@ -82,9 +83,10 @@ pub fn draw(
         width: ICON_SIZE,
         height: ICON_SIZE,
         tooltip: Tooltip {
-            text: Some("Add pattern"),
+            text: Some("Add pattern".to_string()),
             x: add_pattern_button.x - PAD_64 - PAD_64 - PAD_8,
             y: add_pattern_button.y,
+            width: DEFAULT_TOOLTIP_WIDTH,
         },
     };
     if add_icon.is_hovered(mouse_state.x, mouse_state.y) {

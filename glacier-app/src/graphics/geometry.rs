@@ -23,6 +23,7 @@ pub const ICON_BORDER: BorderStyle = BorderStyle {
 pub struct RectangleCtx<'a> {
     rectangle: &'a Rectangle,
     interactive: Option<&'a MouseState>,
+    hover_effect: bool,
     border: Option<BorderStyle>,
 }
 
@@ -43,6 +44,10 @@ impl<'a> RectangleCtx<'a> {
         self.interactive = mouse_state;
         self
     }
+    pub fn disabled(mut self) -> RectangleCtx<'a> {
+        self.hover_effect = false;
+        self
+    }
     pub fn draw(
         self,
         screen_config: &ScreenConfig,
@@ -54,7 +59,9 @@ impl<'a> RectangleCtx<'a> {
         let mut hovered = false;
         if let Some(mouse_state) = self.interactive {
             hovered = self.rectangle.is_hovered(mouse_state.x, mouse_state.y);
-            rectangle_color = if hovered { color.hovered() } else { color };
+            if self.hover_effect {
+                rectangle_color = if hovered { color.hovered() } else { color };
+            }
         }
 
         if let Some(border_style) = self.border {
@@ -100,6 +107,7 @@ impl<'a> Rectangle {
             rectangle: self,
             interactive: None,
             border: None,
+            hover_effect: true,
         }
     }
 

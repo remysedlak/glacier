@@ -1,5 +1,6 @@
 //! The toolbar contains easy access toggle buttons for opening windows, loading files, or view project bpm/step/time info.
 use crate::app::{click::ClickResult, MouseState};
+use crate::graphics::icons::DEFAULT_TOOLTIP_WIDTH;
 use crate::graphics::{
     color::*,
     components::spectrum,
@@ -37,7 +38,7 @@ impl IconRow {
     }
 }
 
-pub fn draw_toolbar(
+pub fn draw(
     mouse_state: &MouseState,
     screen_config: &ScreenConfig,
     bpm: f32,
@@ -281,9 +282,10 @@ pub fn draw_toolbar(
             width: ICON_SIZE,
             height: ICON_SIZE,
             tooltip: Tooltip {
-                text: Some("Add Track"),
+                text: Some("Add Track".to_string()),
                 x: load_project_button.x - ICON_GAP - TOOLTIP_RIGHT_MARGIN,
                 y: load_track_button.y + TOOLTIP_MARGIN,
+                width: DEFAULT_TOOLTIP_WIDTH,
             },
         },
         IconDraw {
@@ -293,9 +295,10 @@ pub fn draw_toolbar(
             width: ICON_SIZE,
             height: ICON_SIZE,
             tooltip: Tooltip {
-                text: Some("Open Project"),
+                text: Some("Open Project".to_string()),
                 x: load_project_button.x - TOOLTIP_RIGHT_MARGIN,
                 y: load_project_button.y + TOOLTIP_MARGIN,
+                width: DEFAULT_TOOLTIP_WIDTH,
             },
         },
         IconDraw {
@@ -305,9 +308,10 @@ pub fn draw_toolbar(
             width: ICON_SIZE,
             height: ICON_SIZE,
             tooltip: Tooltip {
-                text: Some("Sequencer"),
+                text: Some("Sequencer".to_string()),
                 x: sequencer_toggle.x,
                 y: sequencer_toggle.y + TOOLTIP_MARGIN,
+                width: DEFAULT_TOOLTIP_WIDTH,
             },
         },
         IconDraw {
@@ -317,9 +321,10 @@ pub fn draw_toolbar(
             width: ICON_SIZE,
             height: ICON_SIZE,
             tooltip: Tooltip {
-                text: Some("Mixer"),
+                text: Some("Mixer".to_string()),
                 x: mixer_toggle.x,
                 y: mixer_toggle.y + TOOLTIP_MARGIN,
+                width: DEFAULT_TOOLTIP_WIDTH,
             },
         },
         IconDraw {
@@ -329,9 +334,10 @@ pub fn draw_toolbar(
             width: ICON_SIZE,
             height: ICON_SIZE,
             tooltip: Tooltip {
-                text: Some("Playlist"),
+                text: Some("Playlist".to_string()),
                 x: playlist_toggle.x,
                 y: playlist_toggle.y + TOOLTIP_MARGIN,
+                width: DEFAULT_TOOLTIP_WIDTH,
             },
         },
         IconDraw {
@@ -341,9 +347,10 @@ pub fn draw_toolbar(
             width: ICON_SIZE,
             height: ICON_SIZE,
             tooltip: Tooltip {
-                text: Some("Piano Roll"),
+                text: Some("Piano Roll".to_string()),
                 x: piano_toggle.x,
                 y: piano_toggle.y + TOOLTIP_MARGIN,
+                width: DEFAULT_TOOLTIP_WIDTH,
             },
         },
         IconDraw {
@@ -353,9 +360,14 @@ pub fn draw_toolbar(
             width: ICON_SIZE,
             height: ICON_SIZE,
             tooltip: Tooltip {
-                text: Some(if is_playing { "Pause" } else { "Play" }),
+                text: Some(if is_playing {
+                    "Pause".to_string()
+                } else {
+                    "Play".to_string()
+                }),
                 x: play_button.x,
                 y: play_button.y + TOOLTIP_MARGIN,
+                width: DEFAULT_TOOLTIP_WIDTH,
             },
         },
         IconDraw {
@@ -365,9 +377,10 @@ pub fn draw_toolbar(
             width: ICON_SIZE,
             height: ICON_SIZE,
             tooltip: Tooltip {
-                text: Some("Stop"),
+                text: Some("Stop".to_string()),
                 x: stop_button.x,
                 y: stop_button.y + TOOLTIP_MARGIN,
+                width: DEFAULT_TOOLTIP_WIDTH,
             },
         },
         IconDraw {
@@ -377,9 +390,10 @@ pub fn draw_toolbar(
             width: ICON_SIZE,
             height: ICON_SIZE,
             tooltip: Tooltip {
-                text: Some("Tracks"),
+                text: Some("Tracks".to_string()),
                 x: track_selection_toggle.x,
                 y: track_selection_toggle.y + TOOLTIP_MARGIN,
+                width: DEFAULT_TOOLTIP_WIDTH,
             },
         },
         IconDraw {
@@ -389,9 +403,10 @@ pub fn draw_toolbar(
             width: ICON_SIZE,
             height: ICON_SIZE,
             tooltip: Tooltip {
-                text: Some("Patterns"),
+                text: Some("Patterns".to_string()),
                 x: patterns_toggle.x,
                 y: patterns_toggle.y + TOOLTIP_MARGIN,
+                width: DEFAULT_TOOLTIP_WIDTH,
             },
         },
         IconDraw {
@@ -401,9 +416,10 @@ pub fn draw_toolbar(
             width: bpm_up.width,
             height: bpm_up.height,
             tooltip: Tooltip {
-                text: Some("Increment BPM"),
+                text: Some("Increment BPM".to_string()),
                 x: bpm_up.x,
                 y: bpm_up.y + TOOLTIP_MARGIN,
+                width: DEFAULT_TOOLTIP_WIDTH,
             },
         },
         IconDraw {
@@ -413,9 +429,10 @@ pub fn draw_toolbar(
             width: bpm_up.width,
             height: bpm_up.height,
             tooltip: Tooltip {
-                text: Some("Decrement BPM"),
+                text: Some("Decrement BPM".to_string()),
                 x: bpm_up.x,
                 y: bpm_up.y + TOOLTIP_MARGIN,
+                width: DEFAULT_TOOLTIP_WIDTH,
             },
         },
     ];

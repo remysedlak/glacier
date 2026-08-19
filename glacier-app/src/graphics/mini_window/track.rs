@@ -1,4 +1,5 @@
 use crate::app::{click::ClickResult, MouseState};
+use crate::graphics::icons::DEFAULT_TOOLTIP_WIDTH;
 use crate::graphics::{
     color::{DARK_GRAY, MINI_WINDOW_BACKGROUND, WHITE},
     components::toolbar::TOOLTIP_MARGIN,
@@ -121,9 +122,10 @@ pub fn draw(
         width: 32.0,
         height: 32.0,
         tooltip: Tooltip {
-            text: Some("Open File"),
+            text: Some("Open File".to_string()),
             x: (open_file_button_x),
             y: (open_file_button_y + TOOLTIP_MARGIN),
+            width: DEFAULT_TOOLTIP_WIDTH,
         },
     });
 

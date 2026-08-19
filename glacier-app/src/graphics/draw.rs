@@ -3,7 +3,7 @@ use super::*;
 use crate::{
     app::click::ClickResult,
     graphics::{
-        color::{LIGHT_GRAY, SURFACE},
+        color::{LIGHT_GRAY, LL_GRAY, SURFACE},
         components::{modal, toolbar::TOOLBAR_MARGIN},
         font::measure_text_width,
         mini_window::{playlist::TIMELINE_X_ORIGIN, TITLEBAR_HEIGHT},
@@ -738,7 +738,7 @@ impl Graphics {
             (total_seconds % 3600) / 60,
             total_seconds % 60
         );
-        let (texts, icons, result, cursor, tooltip) = components::toolbar::draw_toolbar(
+        let (texts, icons, result, cursor, tooltip) = components::toolbar::draw(
             mouse_state,
             &screen_config,
             self.bpm,
@@ -790,12 +790,25 @@ impl Graphics {
         } else {
             self.project_path.clone()
         };
-        let texts = footer::draw(
+        let (texts, footer_click, icon, tooltip, cursor) = footer::draw(
             &screen_config,
             &title,
             1000.0 / self.frame_ms,
+            mouse_state,
             &mut vertices,
         );
+        if cursor != CursorIcon::Default {
+            cursor_icon = cursor;
+        }
+        self.tooltip = tooltip.or(self.tooltip.take());
+        push_icon_draw(
+            &self.icon_cache,
+            &self.device,
+            &screen_config,
+            &icon,
+            &mut icon_draws,
+        );
+        click_result = click_result.or(footer_click);
         Graphics::push_text_draws(
             &texts,
             &self.font_cache,
@@ -888,14 +901,14 @@ impl Graphics {
                 .hover_duration
                 .map_or(false, |t| t.elapsed() > Duration::from_millis(400))
             {
-                let tooltip_rectangle = Rectangle {
-                    x: tt.x,
-                    y: tt.y,
-                    width: 128.0,
-                    height: 24.0,
-                };
-                tooltip_rectangle.draw(&screen_config, DARK_GRAY, RADIUS_8, &mut vertices);
-                if let Some(text) = tt.text {
+                let tooltip_rectangle = Rectangle::new(tt.x, tt.y, tt.width, 24.0)
+                    .draw_style()
+                    // .bordered(Some(BorderStyle {
+                    //     color: LL_GRAY,
+                    //     size: 0.5,
+                    // }))
+                    .draw(&screen_config, DARK_GRAY, RADIUS_8, &mut vertices);
+                if let Some(text) = &tt.text {
                     let tooltip_text = [TextItem {
                         text: text.to_string(),
                         x: tt.x + PAD_4,
