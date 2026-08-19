@@ -363,7 +363,7 @@ impl ApplicationHandler<Graphics> for App {
                                     {
                                         gfx.renaming = Some(RenameState {
                                             target: RenameTarget::Pattern(id),
-                                            original_name: pattern.name.clone(),
+
                                             edited_name: pattern.name.clone(),
                                             cursor: pattern.name.len(),
                                         });
@@ -492,9 +492,9 @@ impl ApplicationHandler<Graphics> for App {
                     if is_double_click {
                         self.mouse_state.left_double_clicked = true;
                     }
-
-                    self.mouse_state.left_click_held = true;
                     self.mouse_state.left_clicked = true;
+                    self.mouse_state.left_click_held = true;
+
                     self.draw(event_loop);
                 }
                 // NOT LEFT CLICK
@@ -539,8 +539,8 @@ impl ApplicationHandler<Graphics> for App {
                             delta_x,
                         ) {
                             DragResult::None => {}
-                            DragResult::DraggingFile(_) => gfx.request_redraw(),
-                            DragResult::ResizeTrackTray(_) => gfx.request_redraw(),
+                            DragResult::DraggingFile => gfx.request_redraw(),
+                            DragResult::ResizeTrackTray => gfx.request_redraw(),
                             DragResult::DragMasterVolumeSlider(new_volume) => {
                                 self.producer
                                     .try_push(AudioCommand::ChangeMasterVolume(new_volume))

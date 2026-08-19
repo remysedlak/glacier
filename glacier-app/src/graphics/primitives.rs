@@ -1,13 +1,10 @@
-use crate::graphics::MouseState;
 use crate::graphics::{color::*, font::TextItem};
 
 /// Text editing state.
 pub struct RenameState {
-    pub target: RenameTarget,  // which component is being renamed
-    pub original_name: String, // what the name was before editingpub struct Vertex {
-
-    pub edited_name: String, // what the name is after editing (live buffer)
-    pub cursor: usize,       // position they are editing at, as a byte/char index into edited_name
+    pub target: RenameTarget, // which component is being renamed
+    pub edited_name: String,  // what the name is after editing (live buffer)
+    pub cursor: usize,        // position they are editing at, as a byte/char index into edited_name
 }
 
 /// What type of ui component is having text edited

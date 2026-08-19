@@ -49,7 +49,7 @@ pub fn draw(
 
     let col_height = window.height - PAD_32;
     let meter_area_height = col_height * 0.5;
-    let slider_area_height = col_height * 0.5;
+    // let slider_area_height = col_height * 0.5;
 
     // helper closure to draw one channel strip
     let draw_channel = |vertices: &mut Vec<Vertex>,

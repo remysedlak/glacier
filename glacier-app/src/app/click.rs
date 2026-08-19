@@ -111,7 +111,7 @@ impl App {
                 if let Some(pattern) = gfx.patterns.iter().find(|p| p.id == id) {
                     gfx.renaming = Some(RenameState {
                         target: RenameTarget::Pattern(id),
-                        original_name: pattern.name.clone(),
+
                         edited_name: pattern.name.clone(),
                         cursor: pattern.name.len(),
                     });
@@ -122,7 +122,7 @@ impl App {
                 if let Some(track) = gfx.tracks.iter().find(|t| t.data.id == id as u32) {
                     gfx.renaming = Some(RenameState {
                         target: RenameTarget::Track(id),
-                        original_name: track.data.name.clone(),
+
                         edited_name: track.data.name.clone(),
                         cursor: track.data.name.len(),
                     });

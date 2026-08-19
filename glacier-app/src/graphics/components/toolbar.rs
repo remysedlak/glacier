@@ -1,8 +1,8 @@
 //! The toolbar contains easy access toggle buttons for opening windows, loading files, or view project bpm/step/time info.
 use crate::app::{click::ClickResult, MouseState};
-use crate::graphics::components::spectrum;
 use crate::graphics::{
     color::*,
+    components::spectrum,
     font::{TextItem, MONOSPACED, TITLE},
     geometry::*,
     icons::{IconDraw, Tooltip},

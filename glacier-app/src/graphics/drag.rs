@@ -20,10 +20,10 @@ pub enum DragResult {
     ResizeAudioBlock(usize, u32),
 
     // tray resizing
-    ResizeTrackTray(f32),
+    ResizeTrackTray,
 
     //fs
-    DraggingFile(PathBuf),
+    DraggingFile,
     None,
 }
 impl Graphics {
@@ -48,12 +48,12 @@ impl Graphics {
     /// Track if/where the user's mouse is dragging a component
     pub fn handle_drag(&mut self, mouse_x: f32, mouse_y: f32, dy: f32, dx: f32) -> DragResult {
         if self.dragging_file.is_some() {
-            return DragResult::DraggingFile(self.dragging_file.clone().unwrap());
+            return DragResult::DraggingFile;
         }
         // sticky drags — once started, keep going until mouse release
         if self.resizing_track_tray {
             self.track_tray_width = (self.track_tray_width + dx).clamp(80.0, 400.0);
-            return DragResult::ResizeTrackTray(self.track_tray_width);
+            return DragResult::ResizeTrackTray;
         }
 
         // DRAGGING WINDOW
@@ -142,9 +142,8 @@ impl Graphics {
             height: self.surface_config.height as f32,
         };
         if tray_edge.is_hovered(mouse_x, mouse_y) {
-            self.track_tray_width = (self.track_tray_width + dx).clamp(80.0, 400.0);
             self.resizing_track_tray = true;
-            return DragResult::ResizeTrackTray(self.track_tray_width);
+            return DragResult::ResizeTrackTray;
         }
 
         let sequencer_window = &self.mini_windows[SEQUENCER_ID];
