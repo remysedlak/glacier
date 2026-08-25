@@ -40,7 +40,7 @@ pub enum UiCommand {
     LoadProject {
         tracks: Vec<Track>,
         patterns: Vec<PatternData>,
-        events: Vec<AudioBlock>,
+        audio_blocks: Vec<AudioBlock>,
         bpm: f32,
         master_volume: f32,
         project_path: String,
@@ -80,7 +80,7 @@ impl App {
                 self.project_is_dirty = true;
             }
             UiCommand::AudioBlockLoaded(audio_block) => {
-                gfx.events.push(audio_block);
+                gfx.audio_blocks.push(audio_block);
                 self.project_is_dirty = true;
             }
             UiCommand::TrackDeleted(track_id) => {
@@ -88,7 +88,7 @@ impl App {
                     gfx.tracks.remove(pos);
                 }
                 gfx.mini_windows[SEQUENCER_ID].height = 100.0 + TRACK_GAP * gfx.tracks.len() as f32;
-                gfx.events.retain(|e| {
+                gfx.audio_blocks.retain(|e| {
                     if let AudioBlockType::Sample(id) = e.block_type {
                         id != track_id as usize
                     } else {
@@ -99,12 +99,12 @@ impl App {
                 self.project_is_dirty = true;
             }
             UiCommand::AudioBlockDeleted(event_id) => {
-                gfx.events.retain(|e| e.id != event_id);
+                gfx.audio_blocks.retain(|e| e.id != event_id);
                 self.project_is_dirty = true;
             }
             UiCommand::PatternDeleted(pattern_id) => {
                 gfx.patterns.retain(|p| p.id != pattern_id);
-                gfx.events.retain(|e| {
+                gfx.audio_blocks.retain(|e| {
                     if let crate::project::AudioBlockType::Pattern(pid) = e.block_type {
                         pid != pattern_id
                     } else {
@@ -118,14 +118,14 @@ impl App {
             UiCommand::LoadProject {
                 tracks,
                 patterns,
-                events,
+                audio_blocks,
                 bpm,
                 master_volume,
                 project_path,
             } => {
                 gfx.tracks = tracks;
                 gfx.patterns = patterns;
-                gfx.events = events;
+                gfx.audio_blocks = audio_blocks;
                 gfx.bpm = bpm;
                 gfx.master_volume = master_volume;
                 gfx.project_path = project_path;

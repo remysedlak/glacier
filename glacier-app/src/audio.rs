@@ -80,7 +80,7 @@ pub fn init(
     let mut project_path = project_file.unwrap_or_else(|| Project::default_project_file());
     let mut tracks: Vec<Track> = get_tracks(&project);
     let mut patterns = project.patterns;
-    let mut events = project.events;
+    let mut audio_blocks = project.audio_blocks;
 
     // load sample rate
     producer
@@ -91,7 +91,7 @@ pub fn init(
 
     let mut bpm: f32 = project.bpm;
     let mut master_volume = project.master_volume;
-    let mut current_step = events
+    let mut current_step = audio_blocks
         .iter()
         .map(|e| e.start_step + e.length)
         .max()
@@ -113,6 +113,8 @@ pub fn init(
     let mut spectrum_buffer: Vec<f32> = Vec::with_capacity(2048);
     const SPECTRUM_WINDOW: usize = 2048;
 
+    let spectrum_analyzer = glacier_dsp::SpectrumAnalyzer::new(SPECTRUM_WINDOW);
+
     let mut preview_samples: Vec<f32> = Vec::new();
     let mut preview_position: f32 = 0.0;
 
@@ -120,7 +122,7 @@ pub fn init(
         .try_push(UiCommand::LoadProject {
             tracks: tracks.clone(),
             patterns: patterns.clone(),
-            events: events.clone(),
+            audio_blocks: audio_blocks.clone(),
             bpm,
             master_volume,
             project_path: project_path.clone(),
@@ -174,9 +176,12 @@ pub fn init(
                     preview_position = 0.0;
                 }
                 AudioCommand::SetProjectPath(new_path) => project_path = new_path,
-                AudioCommand::ResizeAudioBlock(event_id, new_length) => {
-                    if let Some(event) = events.iter_mut().find(|event| event.id == event_id) {
-                        event.length = new_length;
+                AudioCommand::ResizeAudioBlock(audio_block_id, new_length) => {
+                    if let Some(audio_block) = audio_blocks
+                        .iter_mut()
+                        .find(|audio_block| audio_block.id == audio_block_id)
+                    {
+                        audio_block.length = new_length;
                     }
                 }
                 AudioCommand::DuplicatePattern(pattern_id) => {
@@ -262,8 +267,8 @@ pub fn init(
                 AudioCommand::DeletePattern(pattern_id) => {
                     // remove the pattern from list of patterns
                     patterns.retain(|p| p.id != pattern_id);
-                    // remove the pattern from list of events
-                    events.retain(|e| {
+                    // remove the pattern from list of audio_blocks
+                    audio_blocks.retain(|e| {
                         if let AudioBlockType::Pattern(pid) = e.block_type {
                             pid != pattern_id
                         } else {
@@ -275,7 +280,7 @@ pub fn init(
                         .ok();
                 }
                 AudioCommand::DeleteAudioBlock(audio_block_id) => {
-                    events.retain(|e| e.id != audio_block_id);
+                    audio_blocks.retain(|e| e.id != audio_block_id);
                     producer
                         .try_push(UiCommand::AudioBlockDeleted(audio_block_id))
                         .ok();
@@ -288,7 +293,7 @@ pub fn init(
                 AudioCommand::CreateAudioBlock(track, start_step, length, block_type) => {
                     // add new event to playlist
                     let audio_block = AudioBlock {
-                        id: events
+                        id: audio_blocks
                             .iter()
                             .map(|x| x.id)
                             .max()
@@ -299,7 +304,7 @@ pub fn init(
                         length: length as u32,
                         block_type,
                     };
-                    events.push(audio_block.clone());
+                    audio_blocks.push(audio_block.clone());
                     producer
                         .try_push(UiCommand::AudioBlockLoaded(audio_block))
                         .ok();
@@ -356,7 +361,7 @@ pub fn init(
                     for pattern in patterns.iter_mut() {
                         pattern.sequences.retain(|s| s.track_id != data_id);
                     }
-                    events.retain(|e| {
+                    audio_blocks.retain(|e| {
                         if let crate::project::AudioBlockType::Sample(pid) = e.block_type {
                             pid != data_id as usize
                         } else {
@@ -402,7 +407,7 @@ pub fn init(
                         master_volume,
                         &tracks,
                         patterns.clone(),
-                        events.clone(),
+                        audio_blocks.clone(),
                     );
                     project.save_to_toml(&project_path);
                     producer.try_push(UiCommand::SaveComplete).ok();
@@ -415,7 +420,7 @@ pub fn init(
                         master_volume,
                         &tracks,
                         patterns.clone(),
-                        events.clone(),
+                        audio_blocks.clone(),
                     );
                     project.save_to_toml(&project_path);
 
@@ -540,7 +545,7 @@ pub fn init(
                 .map(|(x, w)| x * w)
                 .collect();
 
-            let magnitudes = glacier_dsp::dft_window(&windowed);
+            let magnitudes = spectrum_analyzer.process(&windowed);
             let db: Vec<f32> = magnitudes
                 .iter()
                 .map(|m| glacier_dsp::magnitude_to_db(*m, SPECTRUM_WINDOW, compensation))
@@ -564,7 +569,7 @@ pub fn init(
             if sample_counter >= samples_per_step {
                 sample_counter = 0.0;
 
-                let total_steps = events
+                let total_steps = audio_blocks
                     .iter()
                     .map(|e| e.start_step + e.length)
                     .max()
@@ -576,7 +581,7 @@ pub fn init(
                     .ok();
 
                 // build out each note
-                let triggers: Vec<(usize, f32, u8)> = events
+                let triggers: Vec<(usize, f32, u8)> = audio_blocks
                     .iter()
                     .filter_map(|e| {
                         if let AudioBlockType::Pattern(pattern_id) = e.block_type {
@@ -606,9 +611,9 @@ pub fn init(
                     })
                     .collect();
 
-                for event in &events {
-                    if let AudioBlockType::Sample(track_id) = event.block_type {
-                        if current_step == event.start_step as usize {
+                for audio_block in &audio_blocks {
+                    if let AudioBlockType::Sample(track_id) = audio_block.block_type {
+                        if current_step == audio_block.start_step as usize {
                             if let Some(track) =
                                 tracks.iter_mut().find(|t| t.data.id as usize == track_id)
                             {

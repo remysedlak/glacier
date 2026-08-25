@@ -3,7 +3,7 @@ use super::*;
 use crate::{
     app::click::ClickResult,
     graphics::{
-        color::{LIGHT_GRAY, LL_GRAY, SURFACE},
+        color::{LIGHT_GRAY, SURFACE},
         components::{modal, toolbar::TOOLBAR_MARGIN},
         font::measure_text_width,
         mini_window::{playlist::TIMELINE_X_ORIGIN, TITLEBAR_HEIGHT},
@@ -219,14 +219,14 @@ impl Graphics {
                         cursor,
                     ) = playlist::draw(
                         window,
-                        &self.events,
+                        &self.audio_blocks,
                         &self.patterns,
                         &self.tracks,
                         &masked_mouse,
                         &self.active_tray,
                         &self.playlist_scroll_offset,
                         self.playhead_beat,
-                        self.resizing_event,
+                        self.resizing_audio_block,
                         self.dragging_file.as_ref(),
                         &screen_config,
                     );

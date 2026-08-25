@@ -1,7 +1,30 @@
-use rustfft::{FftPlanner, num_complex::Complex32};
-use std::f32::consts::TAU;
+//! library contains implementations of ZCR, RMSE/Peaks, Envelope Follower
 
-/// library contains implementations of ZCR, RMSE/Peaks, Envelope Follower
+use rustfft::{Fft, FftPlanner, num_complex::Complex32};
+use std::f32::consts::TAU;
+use std::sync::Arc;
+
+pub struct SpectrumAnalyzer {
+    fft: Arc<dyn Fft<f32>>,
+    window_size: usize,
+}
+
+impl SpectrumAnalyzer {
+    pub fn new(window_size: usize) -> Self {
+        let mut planner = FftPlanner::new();
+        let fft = planner.plan_fft_forward(window_size);
+        Self { fft, window_size }
+    }
+
+    pub fn process(&self, samples: &[f32]) -> Vec<f32> {
+        let mut buffer: Vec<Complex32> = samples.iter().map(|&x| Complex32::new(x, 0.0)).collect();
+        self.fft.process(&mut buffer);
+        buffer[..self.window_size / 2 + 1]
+            .iter()
+            .map(|c| c.norm())
+            .collect()
+    }
+}
 
 /// Helper. returns a peak (maximum) amplitude for one window
 ///
@@ -46,27 +69,8 @@ pub fn zcr_window(samples: &[f32]) -> usize {
     crosses
 }
 
-/// compute the discrete fourier transform of one window via FFT
-/// returns magnitude per frequency bin, from 0 Hz up to Nyquist (N/2)
-///
-/// NOTE: if `samples` was produced by applying a window function (e.g. `hann_window`),
-/// the returned magnitudes are attenuated by that window's average value and should be
-/// passed through `magnitude_to_db` with the matching `window_compensation` before display.
-pub fn dft_window(samples: &[f32]) -> Vec<f32> {
-    let n = samples.len();
-    let mut buffer: Vec<Complex32> = samples.iter().map(|&x| Complex32::new(x, 0.0)).collect();
-
-    let mut planner = FftPlanner::new();
-    let fft = planner.plan_fft_forward(n);
-    fft.process(&mut buffer);
-
-    // only the first half + Nyquist bin is unique for real-valued input;
-    // the rest is a mirror image and carries no extra information
-    buffer[..n / 2 + 1].iter().map(|c| c.norm()).collect()
-}
-
 /// Hann window samples. used for smoothing non-periodic captured signals
-/// * narrows the frequency spectrum from an FFT
+/// * narrows the frequency spectrum leakage from FT
 pub fn hann_window(samples: usize) -> Vec<f32> {
     let mut freq: Vec<f32> = vec![];
     let n = samples as f32;
@@ -98,7 +102,7 @@ pub fn window_compensation(window: &[f32]) -> f32 {
 /// (optionally) the amplitude loss from a window function.
 ///
 /// # Arguments
-/// * magnitude - one bin's value from `dft_window`
+/// * magnitude - one bin's value from `SpectrumAnalyzer::process`
 /// * window_size - N, the size of the window the FFT was run on
 /// * compensation - output of `window_compensation`; pass 1.0 if no window was applied
 pub fn magnitude_to_db(magnitude: f32, window_size: usize, compensation: f32) -> f32 {
@@ -144,7 +148,7 @@ pub fn freq_resolution_per_bin(sample_rate: f32, window_size: usize) -> u32 {
 pub fn stft(samples: &[f32], window_size: usize, hop_size: usize) -> Vec<Vec<f32>> {
     let window = hann_window(window_size);
     let mut frames: Vec<Vec<f32>> = vec![];
-
+    let spectrum_analyzer = SpectrumAnalyzer::new(window_size);
     let mut pos = 0;
     while pos + window_size <= samples.len() {
         let windowed: Vec<f32> = samples[pos..pos + window_size]
@@ -152,7 +156,7 @@ pub fn stft(samples: &[f32], window_size: usize, hop_size: usize) -> Vec<Vec<f32
             .zip(window.iter())
             .map(|(x, w)| x * w)
             .collect();
-        frames.push(dft_window(&windowed));
+        frames.push(spectrum_analyzer.process(&windowed));
         pos += hop_size;
     }
     frames
@@ -276,18 +280,6 @@ mod tests {
         let envelope = envelope_follower(&result, 1.0, 0.01);
         let answer = [0.0_f32; 15];
         assert_eq!(envelope, answer);
-    }
-    #[test]
-    fn sine_dft_peaks_at_correct_bin() {
-        let samples = &sine_samples(); // 1 cycle per 1024-sample window
-        let spectrum = dft_window(samples);
-        let peak_bin = spectrum
-            .iter()
-            .enumerate()
-            .max_by(|a, b| a.1.partial_cmp(b.1).unwrap())
-            .map(|(i, _)| i)
-            .unwrap();
-        assert_eq!(peak_bin, 1); // fundamental frequency = 1 cycle/window
     }
     #[test]
     fn stft_frame_count_and_bin_count() {

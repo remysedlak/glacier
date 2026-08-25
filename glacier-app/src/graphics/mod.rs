@@ -231,7 +231,7 @@ pub async fn create_graphics(window: Rc<Window>, proxy: EventLoopProxy<Graphics>
         // song information
         tracks: Vec::new(),
         patterns: Vec::new(),
-        events: Vec::new(),
+        audio_blocks: Vec::new(),
         active_step: 0,
         active_pattern_id: 0,
         bpm: DEFAULT_BPM,
@@ -260,7 +260,7 @@ pub async fn create_graphics(window: Rc<Window>, proxy: EventLoopProxy<Graphics>
         z_order: vec![SEQUENCER_ID, PLAYLIST_ID, MIXER_ID, PIANO_ROLL_ID],
         context_menu: None,
 
-        resizing_event: None,
+        resizing_audio_block: None,
         resize_drag_accumulator: 0.0,
         resizing_track_tray: false,
 
@@ -366,7 +366,7 @@ pub struct Graphics {
     pub project_path: String,
     pub tracks: Vec<Track>,
     pub patterns: Vec<PatternData>,
-    pub events: Vec<AudioBlock>,
+    pub audio_blocks: Vec<AudioBlock>,
     pub active_step: usize,
     pub playhead_beat: f32,
     pub bpm: f32,
@@ -385,7 +385,7 @@ pub struct Graphics {
     pub dragging: bool,
     pub dragging_file: Option<PathBuf>,
     pub dragging_slider: Option<Option<usize>>,
-    pub resizing_event: Option<usize>, // pattern resizing in playlist
+    pub resizing_audio_block: Option<usize>, // pattern resizing in playlist
     pub resize_drag_accumulator: f32,
 
     // scrolling

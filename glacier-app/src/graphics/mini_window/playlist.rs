@@ -16,7 +16,7 @@ const PLAYHEAD_WIDTH: f32 = 4.0;
 /// Draw the playlist Mini Window. This is where the user composes the entire song and project. Instruments can be placed here from the track tray, and patterns from the pattern track.
 pub fn draw(
     window: &MiniWindow,
-    events: &[AudioBlock],
+    audio_blocks: &[AudioBlock],
     patterns: &[PatternData],
     tracks: &[Track],
     mouse_state: &MouseState,
@@ -36,6 +36,7 @@ pub fn draw(
     let mut click_result = ClickResult::None;
     let mut cursor_icon = CursorIcon::Default;
 
+    // lazy implementation - TODO: add dynamic track count and step count for projects
     let step_count = 64;
     let track_count = 32;
 
@@ -55,6 +56,7 @@ pub fn draw(
     click_result = click_result.or(result);
     static_text_items.push(titlebar_texts);
 
+    // for each ui track
     for track in 0..track_count {
         let background = Rectangle {
             x: window.x + PAD_16,
@@ -147,19 +149,19 @@ pub fn draw(
         }
     }
 
-    // event rendering
-    for event in events {
-        let (pl_pattern, label) = match event.block_type {
+    // render
+    for audio_block in audio_blocks {
+        let (pl_pattern, label) = match audio_block.block_type {
             AudioBlockType::Pattern(id) => {
                 let rect = Rectangle {
                     x: window.x
-                        + (event.start_step as f32 * PLAYLIST_STEP_GAP)
+                        + (audio_block.start_step as f32 * PLAYLIST_STEP_GAP)
                         + PAD_16
                         + TIMELINE_X_ORIGIN
                         - scroll_offset.x,
-                    y: window.y + (event.track as f32 * PLAYLIST_TRACK_GAP) + PAD_64
+                    y: window.y + (audio_block.track as f32 * PLAYLIST_TRACK_GAP) + PAD_64
                         - scroll_offset.y,
-                    width: PLAYLIST_STEP_GAP * event.length as f32 - 2.0,
+                    width: PLAYLIST_STEP_GAP * audio_block.length as f32 - 2.0,
                     height: PLAYLIST_STEP_HEIGHT,
                 };
                 let label = patterns
@@ -173,13 +175,13 @@ pub fn draw(
             AudioBlockType::Sample(id) => {
                 let rect = Rectangle {
                     x: window.x
-                        + (event.start_step as f32 * PLAYLIST_STEP_GAP)
+                        + (audio_block.start_step as f32 * PLAYLIST_STEP_GAP)
                         + PAD_16
                         + TIMELINE_X_ORIGIN
                         - scroll_offset.x,
-                    y: window.y + (event.track as f32 * PLAYLIST_TRACK_GAP) + PAD_64
+                    y: window.y + (audio_block.track as f32 * PLAYLIST_TRACK_GAP) + PAD_64
                         - scroll_offset.y,
-                    width: PLAYLIST_STEP_GAP * event.length as f32 - 2.0,
+                    width: PLAYLIST_STEP_GAP * audio_block.length as f32 - 2.0,
                     height: PLAYLIST_STEP_HEIGHT,
                 };
                 let label = tracks
@@ -202,13 +204,13 @@ pub fn draw(
         if pl_pattern.is_hovered(mouse_state.x, mouse_state.y) {
             cursor_icon = CursorIcon::Pointer;
             if mouse_state.right_clicked {
-                click_result = ClickResult::DeletePlaylistAudioBlock(event.id);
+                click_result = ClickResult::DeletePlaylistAudioBlock(audio_block.id);
             }
         }
         if pl_pattern.is_hovered_right_edge(mouse_state.x, mouse_state.y) {
             cursor_icon = CursorIcon::ColResize;
             if mouse_state.left_clicked {
-                click_result = ClickResult::StartResizeEvent(event.id);
+                click_result = ClickResult::StartResizeEvent(audio_block.id);
             }
         }
 

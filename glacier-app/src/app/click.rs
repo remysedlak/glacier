@@ -164,7 +164,7 @@ impl App {
                     showfile::show_path_in_file_manager(abs);
                 });
             }
-            ClickResult::StartResizeEvent(id) => gfx.resizing_event = Some(id),
+            ClickResult::StartResizeEvent(id) => gfx.resizing_audio_block = Some(id),
 
             ClickResult::LoadPianoRoll(piano_state) => {
                 gfx.context_menu = None;
@@ -313,6 +313,7 @@ impl App {
                 self.producer
                     .try_push(AudioCommand::DuplicatePattern(pattern_id))
                     .ok();
+                gfx.context_menu = None;
             }
             ClickResult::ToggleNote(pattern_id, track_id, step_idx, pitch) => {
                 self.producer

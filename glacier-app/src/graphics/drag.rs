@@ -34,7 +34,7 @@ impl Graphics {
         self.dragging_knob = None;
         self.dragging_slider = None;
         self.resizing_track_tray = false;
-        self.resizing_event = None;
+        self.resizing_audio_block = None;
         self.dragging_file = None;
     }
     pub fn is_dragging(&self) -> bool {
@@ -42,7 +42,7 @@ impl Graphics {
             || self.dragging
             || self.dragging_window.is_some()
             || self.dragging_knob.is_some()
-            || self.resizing_event.is_some()
+            || self.resizing_audio_block.is_some()
             || self.dragging_slider.is_some()
     }
     /// Track if/where the user's mouse is dragging a component
@@ -117,14 +117,18 @@ impl Graphics {
         }
 
         // RESIZING EVENT
-        if let Some(event_id) = self.resizing_event {
-            if let Some(event) = self.events.iter_mut().find(|event| event.id == event_id) {
+        if let Some(audio_block_id) = self.resizing_audio_block {
+            if let Some(audio_block) = self
+                .audio_blocks
+                .iter_mut()
+                .find(|audio_block| audio_block.id == audio_block_id)
+            {
                 self.resize_drag_accumulator += dx;
                 let delta_steps = (self.resize_drag_accumulator / PLAYLIST_STEP_GAP) as i32;
                 if delta_steps != 0 {
                     self.resize_drag_accumulator -= delta_steps as f32 * PLAYLIST_STEP_GAP;
-                    event.length = (event.length as i32 + delta_steps).max(1) as u32;
-                    return DragResult::ResizeAudioBlock(event_id, event.length);
+                    audio_block.length = (audio_block.length as i32 + delta_steps).max(1) as u32;
+                    return DragResult::ResizeAudioBlock(audio_block_id, audio_block.length);
                 }
             }
             return DragResult::None;

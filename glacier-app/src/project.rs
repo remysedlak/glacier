@@ -7,9 +7,9 @@ pub struct Project {
     pub name: String, // Name of the project
     pub bpm: f32,     // beats per minute
     pub master_volume: f32,
-    pub events: Vec<AudioBlock>,    // Instrument + time +  location
-    pub tracks: Vec<TrackData>,     // List of instruments
-    pub patterns: Vec<PatternData>, // List of patterns
+    pub audio_blocks: Vec<AudioBlock>, // Instrument + time +  location
+    pub tracks: Vec<TrackData>,        // List of instruments
+    pub patterns: Vec<PatternData>,    // List of patterns
 }
 
 impl Project {
@@ -20,7 +20,7 @@ impl Project {
         master_volume: f32,
         tracks: &[Track],
         patterns: Vec<PatternData>,
-        events: Vec<AudioBlock>,
+        audio_blocks: Vec<AudioBlock>,
     ) -> Project {
         Project {
             name: name.clone(),
@@ -28,7 +28,7 @@ impl Project {
             master_volume,
             tracks: tracks.iter().map(|track| track.data.clone()).collect(),
             patterns: patterns.clone(),
-            events: events.clone(),
+            audio_blocks: audio_blocks.clone(),
         }
     }
     /// Save the project details to a location on disk
@@ -56,7 +56,7 @@ impl Default for Project {
             name: "New Project".to_string(),
             bpm: 120.0,
             master_volume: 1.00,
-            events: vec![],
+            audio_blocks: vec![],
             tracks: vec![],
             patterns: vec![PatternData {
                 id: 0,
@@ -76,13 +76,13 @@ pub enum AudioBlockType {
     Mixing,         // Automation
 }
 
-/// AudioBlocks are how audio events are timed within a playlist
+/// AudioBlocks are how audio elements are timed within a playlist
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct AudioBlock {
     pub id: usize,                  // uuid
     pub track: usize,               // track id
     pub start_step: u32,            // what step does this patterns start at?
-    pub length: u32,                // how long is this event? (cut/extended?)
+    pub length: u32,                // how long is this block? (cut/extended?)
     pub block_type: AudioBlockType, // pattern/instrument/mixing
 }
 

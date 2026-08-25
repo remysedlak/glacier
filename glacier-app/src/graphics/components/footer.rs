@@ -7,7 +7,7 @@ use crate::{
         font::{TextItem, BODY, MONOSPACED},
         geometry::Rectangle,
         icons::{IconDraw, Tooltip},
-        primitives::{ScreenConfig, Vertex, NO_RADIUS, PAD_16, PAD_32, PAD_4, PAD_8, RADIUS_8},
+        primitives::{ScreenConfig, Vertex, NO_RADIUS, PAD_16, PAD_4, PAD_8, RADIUS_8},
     },
 };
 
