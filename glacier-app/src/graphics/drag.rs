@@ -5,7 +5,7 @@ use crate::graphics::{
         slider::{self, MIXER_THUMB_WIDTH, MIXER_TRACK_HEIGHT},
         toolbar::TOOLBAR_Y,
     },
-    mini_window::{mixer::MIXER_ITEM_WIDTH, playlist::PLAYLIST_STEP_GAP, TITLEBAR_HEIGHT},
+    mini_window::{mixer::MIXER_ITEM_WIDTH, playlist::grid::PLAYLIST_STEP_GAP, TITLEBAR_HEIGHT},
 };
 
 use super::*;
