@@ -57,7 +57,7 @@ impl MouseState {
     }
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq)]
 pub struct ScrollOffset {
     pub x: f32,
     pub y: f32,
@@ -68,6 +68,7 @@ impl Default for ScrollOffset {
     }
 }
 
+#[derive(PartialEq)]
 pub struct PianoRollState {
     pub pattern_id: usize,
     pub track_id: u32,
@@ -150,6 +151,7 @@ impl App {
 
         // --- dialogs: only touches gfx fields directly, no self-methods called ---
         if let State::Ready(gfx) = &mut self.state {
+            // new track loaded
             if let Some(rx) = &self.track_file_dialog_rx {
                 match rx.try_recv() {
                     Ok(Some(path)) => {
@@ -163,6 +165,7 @@ impl App {
                     Err(TryRecvError::Disconnected) => self.track_file_dialog_rx = None,
                 }
             }
+            // new project loaded
             if let Some(rx) = &self.project_file_dialog_rx {
                 match rx.try_recv() {
                     Ok(Some(path)) => {
@@ -234,9 +237,9 @@ impl App {
                 self.mouse_state
             };
 
-            let (r, i) = gfx.draw(&draw_mouse, self.project_is_dirty);
-            result = r;
-            icon = i;
+            let interaction = gfx.draw(&draw_mouse, self.project_is_dirty);
+            result = interaction.click;
+            icon = interaction.cursor;
             gfx.window.set_cursor(icon);
             gfx.frame_ms = start.elapsed().as_secs_f32() * 1000.0;
 
@@ -249,6 +252,7 @@ impl App {
             }
         } // <- gfx borrow ends here
 
+        // if the track is done loading into memory, send it to the audio thread.
         if let Some(rx) = &self.track_load_rx {
             match rx.try_recv() {
                 Ok((data, samples)) => {

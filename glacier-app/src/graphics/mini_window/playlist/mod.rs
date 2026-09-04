@@ -1,4 +1,5 @@
 use crate::app::{click::ClickResult, MouseState, ScrollOffset};
+use crate::graphics::mini_window::InteractionResult;
 use crate::graphics::{
     color::*, font::TextItem, mini_window::MiniWindow, primitives::*, AudioBlockType, PathBuf,
 };
@@ -8,6 +9,7 @@ use winit::window::CursorIcon;
 pub mod block;
 pub mod grid;
 pub mod playhead;
+mod toolbar;
 
 /// Draw the playlist Mini Window. This is where the user composes the entire song and project. Instruments can be placed here from the track tray, and patterns from the pattern track.
 pub fn draw(
@@ -22,12 +24,14 @@ pub fn draw(
     resizing_audio_block: Option<usize>,
     dragging_file: Option<&PathBuf>,
     screen_config: &ScreenConfig,
-) -> (DrawRegion, DrawRegion, DrawRegion, ClickResult, CursorIcon) {
+) -> (DrawRegion, DrawRegion, DrawRegion, InteractionResult) {
     // setup
     let mut static_vertices: Vec<Vertex> = Vec::new();
     let mut static_text_items: Vec<TextItem> = Vec::new();
-    let mut click_result = ClickResult::None;
-    let mut cursor_icon = CursorIcon::Default;
+    let mut interaction = InteractionResult {
+        click: ClickResult::None,
+        cursor: CursorIcon::Default,
+    };
 
     // lazy implementation - TODO: add dynamic track count and step count for projects
     let step_count = 64;
@@ -41,12 +45,9 @@ pub fn draw(
         &mut static_vertices,
     );
 
-    let (titlebar_texts, result, cursor) =
+    let (titlebar_texts, titlebar_interaction) =
         window.title_bar("Playlist", screen_config, mouse_state, &mut static_vertices);
-    if !matches!(cursor, CursorIcon::Default) {
-        cursor_icon = cursor;
-    }
-    click_result = click_result.or(result);
+    interaction = interaction.or(titlebar_interaction);
     static_text_items.push(titlebar_texts);
 
     // where u place sounds
@@ -84,12 +85,12 @@ pub fn draw(
             &mut timeline_text_items,
         );
         if !matches!(cursor, CursorIcon::Default) {
-            cursor_icon = cursor;
+            interaction.cursor = cursor;
         }
         block_click = block_click.or(click);
     }
 
-    click_result = click_result.or(block_click).or(result);
+    interaction.click = interaction.click.or(block_click).or(result);
 
     // draw playhead at the current beat
     playhead::draw(playhead_beat, window, scroll_offset).draw(
@@ -113,7 +114,6 @@ pub fn draw(
             vertices: track_header_vertices,
             text_items: track_header_text_items,
         },
-        click_result,
-        cursor_icon,
+        interaction,
     )
 }

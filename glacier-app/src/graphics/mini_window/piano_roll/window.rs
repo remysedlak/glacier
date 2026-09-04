@@ -1,5 +1,6 @@
 use crate::app::{click::ClickResult, MouseState, PianoRollState, ScrollOffset};
 use crate::graphics::components::toolbar::ICON_SIZE;
+use crate::graphics::mini_window::InteractionResult;
 use crate::graphics::{
     color::*,
     font::{TextItem, MONOSPACED},
@@ -26,8 +27,7 @@ pub fn draw(
     DrawRegion, // static
     DrawRegion, // piano key
     DrawRegion, // grid
-    ClickResult,
-    CursorIcon,
+    InteractionResult,
 ) {
     // setup
     let mut static_vertices: Vec<Vertex> = Vec::new();
@@ -39,8 +39,10 @@ pub fn draw(
     let mut grid_vertices: Vec<Vertex> = Vec::new();
     let grid_text_items: Vec<TextItem> = Vec::new();
 
-    let mut cursor_icon = CursorIcon::Default;
-    let mut click_result = ClickResult::None;
+    let mut interaction = InteractionResult {
+        cursor: CursorIcon::Default,
+        click: ClickResult::None,
+    };
 
     let playlist_background = window.background();
     playlist_background.draw(
@@ -60,12 +62,9 @@ pub fn draw(
     } else {
         "Piano Roll".to_string()
     };
-    let (titlebar_texts, result, cursor) =
+    let (titlebar_texts, titlebar_interaction) =
         window.title_bar(&title, screen_config, mouse_state, &mut static_vertices);
-    if !matches!(cursor, CursorIcon::Default) {
-        cursor_icon = cursor;
-    }
-    click_result = click_result.or(result);
+    interaction = interaction.or(titlebar_interaction);
 
     static_text_items.push(titlebar_texts);
 
@@ -211,7 +210,7 @@ pub fn draw(
 
                 if piano_roll_step.is_hovered_right_edge(mouse_state.x, mouse_state.y) && is_active
                 {
-                    cursor_icon = CursorIcon::ColResize;
+                    interaction.cursor = CursorIcon::ColResize;
                 }
 
                 let hovered = piano_roll_step.is_hovered(mouse_state.x, mouse_state.y)
@@ -235,7 +234,7 @@ pub fn draw(
                     && mouse_state.left_clicked
                 {
                     if let Some(state) = piano_roll_state {
-                        click_result = ClickResult::ToggleNote(
+                        interaction.click = ClickResult::ToggleNote(
                             state.pattern_id,
                             state.track_id,
                             step_index,
@@ -287,7 +286,6 @@ pub fn draw(
             vertices: grid_vertices,
             text_items: grid_text_items,
         },
-        click_result,
-        cursor_icon,
+        interaction,
     )
 }

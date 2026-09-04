@@ -38,6 +38,28 @@ pub enum WindowKind {
     TrackDetail(usize), // which track
 }
 
+pub struct InteractionResult {
+    pub click: ClickResult,
+    pub cursor: CursorIcon,
+}
+
+impl InteractionResult {
+    pub fn or(self, other: InteractionResult) -> InteractionResult {
+        InteractionResult {
+            click: if self.click != ClickResult::None {
+                self.click
+            } else {
+                other.click
+            },
+            cursor: if self.cursor != CursorIcon::Default {
+                self.cursor
+            } else {
+                other.cursor
+            },
+        }
+    }
+}
+
 #[derive(Debug)]
 /// The MiniWindow is a internal draggable window that follows painters algorithm and culls or scissor rects overflowing shapes.
 pub struct MiniWindow {
@@ -99,9 +121,9 @@ impl MiniWindow {
         screen_config: &ScreenConfig,
         mouse_state: &MouseState,
         out: &mut Vec<Vertex>,
-    ) -> (TextItem, ClickResult, CursorIcon) {
-        let mut result = ClickResult::None;
-        let mut cursor_icon = CursorIcon::Default;
+    ) -> (TextItem, InteractionResult) {
+        let mut click = ClickResult::None;
+        let mut cursor = CursorIcon::Default;
 
         // build rectangle
         let title_bar_background = Rectangle {
@@ -124,9 +146,9 @@ impl MiniWindow {
         .draw(screen_config, LIGHT_GRAY, NO_RADIUS, out);
 
         if close_window_button.hovered {
-            cursor_icon = CursorIcon::Pointer;
+            cursor = CursorIcon::Pointer;
             if mouse_state.left_clicked {
-                result = match self.window_kind {
+                click = match self.window_kind {
                     WindowKind::Sequencer => ClickResult::ToggleSequencerWindow,
                     WindowKind::Playlist => ClickResult::TogglePlaylistWindow,
                     WindowKind::Mixer => ClickResult::ToggleMixerWindow,
@@ -144,6 +166,6 @@ impl MiniWindow {
             size: 18.0,
             font: ROBOTO,
         };
-        (window_title, result, cursor_icon)
+        (window_title, InteractionResult { click, cursor })
     }
 }

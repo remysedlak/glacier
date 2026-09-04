@@ -6,7 +6,7 @@ use crate::{
         color::{BLUE, DARK_BLUE, GREEN, SURFACE, WHITE},
         font::{TextItem, ROBOTO},
         geometry::Rectangle,
-        mini_window::MiniWindow,
+        mini_window::{playlist::toolbar, MiniWindow},
         primitives::{ScreenConfig, Vertex, NO_RADIUS, PAD_16, PAD_4, PAD_64, PAD_8},
     },
     project::{AudioBlockType, PatternData},
@@ -42,7 +42,12 @@ pub fn draw(
     let mut timeline_vertices: Vec<Vertex> = Vec::new();
     let mut timeline_text_items: Vec<TextItem> = Vec::new();
 
+    let mut static_vertices: Vec<Vertex> = Vec::new();
+    let mut static_text_items: Vec<TextItem> = Vec::new();
+
     let mut click_result = ClickResult::None;
+
+    toolbar::draw();
 
     // for each ui track
     for track in 0..track_count {

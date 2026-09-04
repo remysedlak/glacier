@@ -1,5 +1,6 @@
 //! The mixer window contains controls for all audio mixing and mastering such as volume and plugins.
 use crate::app::click::ClickResult;
+use crate::graphics::mini_window::InteractionResult;
 use crate::{
     app::MouseState,
     graphics::{
@@ -27,20 +28,19 @@ pub fn draw(
     screen_config: &ScreenConfig,
     mouse_state: &MouseState,
     out: &mut Vec<Vertex>,
-) -> (Vec<TextItem>, ClickResult, CursorIcon) {
+) -> (Vec<TextItem>, InteractionResult) {
     let mut text_items: Vec<TextItem> = Vec::new();
-    let mut click_result = ClickResult::None;
-    let mut cursor_icon = CursorIcon::Default;
+    let mut interaction = InteractionResult {
+        click: ClickResult::None,
+        cursor: CursorIcon::Default,
+    };
 
     let window_background = window.background();
     window_background.draw(screen_config, MINI_WINDOW_BACKGROUND, BOTTOM_RADIUS_16, out);
 
-    let (titlebar_texts, result, cursor) =
+    let (titlebar_texts, titlebar_interaction) =
         window.title_bar("Mixer", screen_config, mouse_state, out);
-    if !matches!(cursor, CursorIcon::Default) {
-        cursor_icon = cursor;
-    }
-    click_result = click_result.or(result);
+    interaction = interaction.or(titlebar_interaction);
     text_items.push(titlebar_texts);
 
     let master_slider_x = window.x + SLIDER_BACKGROUND_OFFSET;
@@ -146,5 +146,5 @@ pub fn draw(
         );
     }
 
-    (text_items, click_result, cursor_icon)
+    (text_items, interaction)
 }

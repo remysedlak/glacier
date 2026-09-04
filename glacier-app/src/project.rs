@@ -68,7 +68,7 @@ impl Default for Project {
 }
 
 /// different audio elements that can be placed on the playlist timeline
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 #[serde(tag = "kind", content = "id")]
 pub enum AudioBlockType {
     Sample(usize),  // Instrument

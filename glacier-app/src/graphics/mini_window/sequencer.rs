@@ -1,4 +1,5 @@
 use crate::app::{click::ClickResult, MouseState};
+use crate::graphics::mini_window::InteractionResult;
 use crate::graphics::{
     color::*,
     font::{truncate_text, ROBOTO},
@@ -32,11 +33,13 @@ pub fn draw(
     mouse_state: &MouseState,
     screen_config: &ScreenConfig,
     out: &mut Vec<Vertex>,
-) -> (Vec<TextItem>, Vec<IconDraw>, ClickResult, CursorIcon) {
+) -> (Vec<TextItem>, Vec<IconDraw>, InteractionResult) {
     // setup
     let mut text_items: Vec<TextItem> = Vec::new();
-    let mut click_result = ClickResult::None;
-    let mut cursor_icon = CursorIcon::Default;
+    let mut interaction = InteractionResult {
+        click: ClickResult::None,
+        cursor: CursorIcon::Default,
+    };
     let icons: Vec<IconDraw> = Vec::new();
 
     // window background
@@ -49,12 +52,9 @@ pub fn draw(
     window_background.draw(screen_config, MINI_WINDOW_BACKGROUND, BOTTOM_RADIUS_16, out);
 
     // titlebar
-    let (titlebar_texts, result, cursor) =
+    let (titlebar_texts, titlebar_interaction) =
         window.title_bar(&window.title, screen_config, mouse_state, out);
-    if !matches!(cursor, CursorIcon::Default) {
-        cursor_icon = cursor;
-    }
-    click_result = click_result.or(result);
+    interaction = interaction.or(titlebar_interaction);
 
     text_items.push(titlebar_texts);
 
@@ -180,7 +180,7 @@ pub fn draw(
 
                 // check if the step was clicked
                 if hovered && mouse_state.left_clicked {
-                    click_result =
+                    interaction.click =
                         ClickResult::ToggleStep(active_pattern_id, track.data.id, j as usize);
                 }
             }
@@ -205,12 +205,12 @@ pub fn draw(
         };
         track_button.draw(screen_config, color, RADIUS_4, out);
         if hovered {
-            cursor_icon = CursorIcon::Pointer;
+            interaction.cursor = CursorIcon::Pointer;
             if mouse_state.left_clicked {
-                click_result = ClickResult::ToggleTrackWindow(i);
+                interaction.click = ClickResult::ToggleTrackWindow(i);
             }
             if mouse_state.right_clicked {
-                click_result = ClickResult::OpenTrackMenu(
+                interaction.click = ClickResult::OpenTrackMenu(
                     track_button_x,
                     track_button_y,
                     active_pattern_id,
@@ -219,12 +219,12 @@ pub fn draw(
             }
         }
         if track_button.is_hovered(mouse_state.x, mouse_state.y) {
-            cursor_icon = CursorIcon::Pointer;
+            interaction.cursor = CursorIcon::Pointer;
             if mouse_state.left_clicked {
-                click_result = ClickResult::ToggleTrackWindow(i);
+                interaction.click = ClickResult::ToggleTrackWindow(i);
             }
             if mouse_state.right_clicked {
-                click_result = ClickResult::OpenTrackMenu(
+                interaction.click = ClickResult::OpenTrackMenu(
                     track_button_x,
                     track_button_y,
                     active_pattern_id,
@@ -263,7 +263,7 @@ pub fn draw(
 
         if mute_button.is_hovered(mouse_state.x, mouse_state.y) && mouse_state.left_clicked {
             track.data.is_muted = !track.data.is_muted;
-            click_result = ClickResult::ToggleTrackMute(i);
+            interaction.click = ClickResult::ToggleTrackMute(i);
         };
 
         // velocity button
@@ -317,5 +317,5 @@ pub fn draw(
         });
     }
 
-    (text_items, icons, click_result, cursor_icon)
+    (text_items, icons, interaction)
 }

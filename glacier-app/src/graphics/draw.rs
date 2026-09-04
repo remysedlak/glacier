@@ -6,7 +6,7 @@ use crate::{
         color::{LIGHT_GRAY, SURFACE},
         components::{modal, toolbar::TOOLBAR_MARGIN},
         font::measure_text_width,
-        mini_window::{playlist::grid::TIMELINE_X_ORIGIN, TITLEBAR_HEIGHT},
+        mini_window::{playlist::grid::TIMELINE_X_ORIGIN, InteractionResult, TITLEBAR_HEIGHT},
         regions::*,
         side_panel::track_tray::file_tree,
     },
@@ -63,11 +63,7 @@ impl Graphics {
         }
     }
 
-    pub fn draw(
-        &mut self,
-        mouse_state: &MouseState,
-        project_is_dirty: bool,
-    ) -> (ClickResult, CursorIcon) {
+    pub fn draw(&mut self, mouse_state: &MouseState, project_is_dirty: bool) -> InteractionResult {
         // SETUP OBJECTS
         let frame = self
             .surface
@@ -76,8 +72,10 @@ impl Graphics {
         let view = frame.texture.create_view(&TextureViewDescriptor::default());
         let mut vertices: Vec<Vertex> = Vec::new();
         self.tooltip = None;
-        let mut click_result = ClickResult::None;
-        let mut cursor_icon = CursorIcon::Default;
+        let mut interaction = InteractionResult {
+            click: ClickResult::None,
+            cursor: CursorIcon::Default,
+        };
         let screen_config = ScreenConfig {
             width: self.surface_config.width,
             height: self.surface_config.height,
@@ -175,7 +173,7 @@ impl Graphics {
                 // draw the sequencer window
                 SEQUENCER_ID if self.mini_windows[SEQUENCER_ID].is_open => {
                     let window = &self.mini_windows[SEQUENCER_ID];
-                    let (texts, icons, result, cursor) = sequencer::draw(
+                    let (texts, icons, sequencer_interaction) = sequencer::draw(
                         window,
                         &mut self.patterns,
                         &self.sequencer_scroll_offset,
@@ -194,9 +192,6 @@ impl Graphics {
                         &mut glyph_vertices,
                         &mut char_draws,
                     );
-                    if cursor != CursorIcon::Default {
-                        cursor_icon = cursor;
-                    }
                     for icon in icons {
                         push_icon_draw(
                             &self.icon_cache,
@@ -206,7 +201,7 @@ impl Graphics {
                             &mut icon_draws,
                         )
                     }
-                    click_result = click_result.or(result);
+                    interaction = interaction.or(sequencer_interaction);
                 }
                 // draw the playlist window
                 PLAYLIST_ID if self.mini_windows[PLAYLIST_ID].is_open => {
@@ -215,8 +210,7 @@ impl Graphics {
                         static_draw_region,
                         timeline_draw_region,
                         header_draw_region,
-                        result,
-                        cursor,
+                        playlist_interaction,
                     ) = playlist::draw(
                         window,
                         &self.audio_blocks,
@@ -311,16 +305,13 @@ impl Graphics {
                         )),
                     ));
 
-                    if cursor != CursorIcon::Default {
-                        cursor_icon = cursor;
-                    }
-                    click_result = click_result.or(result);
+                    interaction = interaction.or(playlist_interaction);
                     continue;
                 }
                 // draw the mixer window
                 MIXER_ID if self.mini_windows[MIXER_ID].is_open => {
                     let window = &self.mini_windows[MIXER_ID];
-                    let (texts, result, _cursor) = mixer::draw(
+                    let (texts, mixer_interaction) = mixer::draw(
                         window,
                         &self.tracks,
                         self.master_volume,
@@ -339,7 +330,7 @@ impl Graphics {
                         &mut glyph_vertices,
                         &mut char_draws,
                     );
-                    click_result = click_result.or(result);
+                    interaction = interaction.or(mixer_interaction);
                 }
                 // draw the piano roll window
                 PIANO_ROLL_ID if self.mini_windows[PIANO_ROLL_ID].is_open => {
@@ -348,8 +339,7 @@ impl Graphics {
                         static_draw_region,
                         piano_key_draw_region,
                         grid_draw_region,
-                        result,
-                        cursor,
+                        piano_interaction,
                     ) = piano_roll::window::draw(
                         window,
                         &masked_mouse,
@@ -440,10 +430,7 @@ impl Graphics {
                         Some(safe_scissor(grid_x, content_y, grid_w, content_h, sw, sh)),
                     ));
 
-                    click_result = click_result.or(result);
-                    if cursor != CursorIcon::Default {
-                        cursor_icon = cursor;
-                    }
+                    interaction = interaction.or(piano_interaction);
                     continue;
                 }
                 // draw the track details window
@@ -451,17 +438,14 @@ impl Graphics {
                     let window = &self.mini_windows[track];
                     if window.is_open {
                         if let WindowKind::TrackDetail(track) = window.window_kind {
-                            let (texts, icons, result, cursor, tooltip) = track::draw(
+                            let (texts, icons, track_interaction, tooltip) = track::draw(
                                 window,
                                 &masked_mouse,
                                 &screen_config,
                                 &self.tracks[track],
                                 &mut vertices,
                             );
-                            click_result = click_result.or(result);
-                            if !matches!(cursor, CursorIcon::Default) {
-                                cursor_icon = cursor;
-                            }
+                            interaction = interaction.or(track_interaction);
                             for icon in icons {
                                 push_icon_draw(
                                     &self.icon_cache,
@@ -519,10 +503,10 @@ impl Graphics {
                 &mut vertices,
                 selected_track_id,
             );
-            if cursor != CursorIcon::Default {
-                cursor_icon = cursor;
-            }
-            click_result = click_result.or(result);
+            interaction = interaction.or(InteractionResult {
+                click: result,
+                cursor,
+            });
             Graphics::push_text_draws(
                 &texts,
                 &self.font_cache,
@@ -594,7 +578,7 @@ impl Graphics {
             let file_tree_vert_start = vertices.len() as u32;
             let file_tree_char_start = char_draws.len();
 
-            let (icons, text_items, ft_result, ft_cursor) = file_tree::draw(
+            let (icons, text_items, result, cursor) = file_tree::draw(
                 mouse_state,
                 &screen_config,
                 &self.user_fs_location,
@@ -605,10 +589,10 @@ impl Graphics {
                 &mut vertices,
                 (screen_config.height / 2) as f32,
             );
-            click_result = click_result.or(ft_result);
-            if ft_cursor != CursorIcon::Default {
-                cursor_icon = ft_cursor;
-            }
+            interaction = interaction.or(InteractionResult {
+                click: result,
+                cursor,
+            });
             Graphics::push_text_draws(
                 &text_items,
                 &self.font_cache,
@@ -692,10 +676,10 @@ impl Graphics {
                 rename_cursor_offset,
                 &mut vertices,
             );
-            if cursor != CursorIcon::Default {
-                cursor_icon = cursor;
-            }
-            click_result = click_result.or(result);
+            interaction = interaction.or(InteractionResult {
+                click: result,
+                cursor,
+            });
             Graphics::push_text_draws(
                 &texts,
                 &self.font_cache,
@@ -717,10 +701,10 @@ impl Graphics {
         if self.show_save_modal {
             let (texts, result, cursor) =
                 modal::draw(&screen_config, &real_mouse_state, &mut vertices);
-            click_result = click_result.or(result);
-            if cursor != CursorIcon::Default {
-                cursor_icon = cursor;
-            }
+            interaction = interaction.or(InteractionResult {
+                click: result,
+                cursor,
+            });
             Graphics::push_text_draws(
                 &texts,
                 &self.font_cache,
@@ -749,10 +733,10 @@ impl Graphics {
             time_string,
             &mut vertices,
         );
-        click_result = click_result.or(result);
-        if cursor != CursorIcon::Default {
-            cursor_icon = cursor;
-        }
+        interaction = interaction.or(InteractionResult {
+            click: result,
+            cursor,
+        });
         for icon in icons {
             push_icon_draw(
                 &self.icon_cache,
@@ -790,16 +774,17 @@ impl Graphics {
         } else {
             self.project_path.clone()
         };
-        let (texts, footer_click, icons, tooltip, cursor) = footer::draw(
+        let (texts, result, icons, tooltip, cursor) = footer::draw(
             &screen_config,
             &title,
             1000.0 / self.frame_ms,
             mouse_state,
             &mut vertices,
         );
-        if cursor != CursorIcon::Default {
-            cursor_icon = cursor;
-        }
+        interaction = interaction.or(InteractionResult {
+            click: result,
+            cursor,
+        });
         self.tooltip = tooltip.or(self.tooltip.take());
         for icon in icons {
             push_icon_draw(
@@ -810,7 +795,6 @@ impl Graphics {
                 &mut icon_draws,
             );
         }
-        click_result = click_result.or(footer_click);
         Graphics::push_text_draws(
             &texts,
             &self.font_cache,
@@ -829,9 +813,9 @@ impl Graphics {
 
         // dragging cursor override
         if self.resizing_track_tray {
-            cursor_icon = CursorIcon::ColResize;
+            interaction.cursor = CursorIcon::ColResize;
         } else if self.dragging_window.is_some() || self.dragging || self.dragging_knob.is_some() {
-            cursor_icon = CursorIcon::Default;
+            interaction.cursor = CursorIcon::Default;
         }
 
         if let Some(ref path) = self.dragging_file {
@@ -882,10 +866,10 @@ impl Graphics {
                 &mut glyph_vertices,
                 &mut char_draws,
             );
-            if cursor != CursorIcon::Default {
-                cursor_icon = cursor;
-            }
-            click_result = click_result.or(result);
+            interaction = interaction.or(InteractionResult {
+                click: result,
+                cursor,
+            });
         }
         regions.push(record(
             &vertices,
@@ -1019,6 +1003,6 @@ impl Graphics {
         self.queue.submit(Some(encoder.finish()));
         frame.present();
 
-        (click_result, cursor_icon)
+        interaction
     }
 }

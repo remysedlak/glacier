@@ -1,5 +1,6 @@
 use crate::app::{click::ClickResult, MouseState};
 use crate::graphics::icons::DEFAULT_TOOLTIP_WIDTH;
+use crate::graphics::mini_window::InteractionResult;
 use crate::graphics::{
     color::{DARK_GRAY, MINI_WINDOW_BACKGROUND, WHITE},
     components::toolbar::TOOLTIP_MARGIN,
@@ -25,15 +26,16 @@ pub fn draw(
 ) -> (
     Vec<TextItem>,
     Vec<IconDraw>,
-    ClickResult,
-    CursorIcon,
+    InteractionResult,
     Option<Tooltip>,
 ) {
     // setup
     let mut text_items: Vec<TextItem> = Vec::new();
     let mut icons: Vec<IconDraw> = Vec::new();
-    let mut click_result = ClickResult::None;
-    let mut cursor_icon = CursorIcon::Default;
+    let mut interaction = InteractionResult {
+        cursor: CursorIcon::Default,
+        click: ClickResult::None,
+    };
     let mut tooltip: Option<Tooltip> = None;
     // window background
     let window_background = window.background();
@@ -45,16 +47,13 @@ pub fn draw(
     );
 
     // titlebar
-    let (titlebar_texts, result, cursor) = window.title_bar(
+    let (titlebar_texts, titlebar_interaction) = window.title_bar(
         &format!("Track: {}", track.data.name),
         screen_config,
         mouse_state,
         out,
     );
-    click_result = click_result.or(result);
-    if !matches!(cursor, CursorIcon::Default) {
-        cursor_icon = cursor;
-    }
+    interaction = interaction.or(titlebar_interaction);
     text_items.push(titlebar_texts);
 
     // draw background of wave form for track
@@ -112,7 +111,7 @@ pub fn draw(
     .draw(screen_config, DARK_GRAY, RADIUS_4, out);
 
     if open_file_background.hovered && mouse_state.left_clicked {
-        click_result = ClickResult::OpenTrackFileLocation(track.data.path.clone())
+        interaction.click = ClickResult::OpenTrackFileLocation(track.data.path.clone())
     };
 
     icons.push(IconDraw {
@@ -137,5 +136,5 @@ pub fn draw(
         }
     }
 
-    (text_items, icons, click_result, cursor_icon, tooltip)
+    (text_items, icons, interaction, tooltip)
 }
