@@ -30,10 +30,7 @@ pub fn draw(
     out: &mut Vec<Vertex>,
 ) -> (Vec<TextItem>, InteractionResult) {
     let mut text_items: Vec<TextItem> = Vec::new();
-    let mut interaction = InteractionResult {
-        click: ClickResult::None,
-        cursor: CursorIcon::Default,
-    };
+    let mut interaction = InteractionResult::default();
 
     let window_background = window.background();
     window_background.draw(screen_config, MINI_WINDOW_BACKGROUND, BOTTOM_RADIUS_16, out);

@@ -29,10 +29,7 @@ pub fn draw(
 ) -> (Vec<TextItem>, InteractionResult, IconDraw, Option<Tooltip>) {
     // setup
     let mut text_items: Vec<TextItem> = Vec::new();
-    let mut interaction = InteractionResult {
-        click: ClickResult::None,
-        cursor: CursorIcon::Default,
-    };
+    let mut interaction = InteractionResult::default();
 
     let mut tooltip = None;
 

@@ -32,10 +32,7 @@ pub fn draw(
     // setup
     let mut text_items: Vec<TextItem> = Vec::new();
     let mut icons: Vec<IconDraw> = Vec::new();
-    let mut interaction = InteractionResult {
-        cursor: CursorIcon::Default,
-        click: ClickResult::None,
-    };
+    let mut interaction = InteractionResult::default();
     let mut tooltip: Option<Tooltip> = None;
     // window background
     let window_background = window.background();

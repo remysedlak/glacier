@@ -39,10 +39,7 @@ pub fn draw(
     let mut grid_vertices: Vec<Vertex> = Vec::new();
     let grid_text_items: Vec<TextItem> = Vec::new();
 
-    let mut interaction = InteractionResult {
-        cursor: CursorIcon::Default,
-        click: ClickResult::None,
-    };
+    let mut interaction = InteractionResult::default();
 
     let playlist_background = window.background();
     playlist_background.draw(

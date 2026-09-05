@@ -27,10 +27,7 @@ pub fn draw(
     selected_track_id: Option<u32>,
 ) -> (Vec<TextItem>, InteractionResult) {
     let mut text_items: Vec<TextItem> = Vec::new();
-    let mut interaction = InteractionResult {
-        click: ClickResult::None,
-        cursor: CursorIcon::Default,
-    };
+    let mut interaction = InteractionResult::default();
 
     let track_tray = Rectangle {
         x: 0.0,

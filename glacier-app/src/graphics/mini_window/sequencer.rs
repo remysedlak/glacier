@@ -36,10 +36,7 @@ pub fn draw(
 ) -> (Vec<TextItem>, Vec<IconDraw>, InteractionResult) {
     // setup
     let mut text_items: Vec<TextItem> = Vec::new();
-    let mut interaction = InteractionResult {
-        click: ClickResult::None,
-        cursor: CursorIcon::Default,
-    };
+    let mut interaction = InteractionResult::default();
     let icons: Vec<IconDraw> = Vec::new();
 
     // window background

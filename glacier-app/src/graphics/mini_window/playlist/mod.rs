@@ -28,10 +28,8 @@ pub fn draw(
     // setup
     let mut static_vertices: Vec<Vertex> = Vec::new();
     let mut static_text_items: Vec<TextItem> = Vec::new();
-    let mut interaction = InteractionResult {
-        click: ClickResult::None,
-        cursor: CursorIcon::Default,
-    };
+    let mut interaction = InteractionResult::default();
+    
 
     // lazy implementation - TODO: add dynamic track count and step count for projects
     let step_count = 64;
@@ -70,9 +68,9 @@ pub fn draw(
     );
 
     // render
-    let mut block_click = ClickResult::None;
+
     for audio_block in audio_blocks {
-        let (click, cursor) = block::draw_audio_block(
+        let block_interaction = block::draw_audio_block(
             tracks,
             scroll_offset,
             audio_block,
@@ -84,13 +82,8 @@ pub fn draw(
             &mut timeline_vertices,
             &mut timeline_text_items,
         );
-        if !matches!(cursor, CursorIcon::Default) {
-            interaction.cursor = cursor;
-        }
-        block_click = block_click.or(click);
+        interaction = interaction.or(block_interaction)
     }
-
-    interaction.click = interaction.click.or(block_click).or(result);
 
     // draw playhead at the current beat
     playhead::draw(playhead_beat, window, scroll_offset).draw(

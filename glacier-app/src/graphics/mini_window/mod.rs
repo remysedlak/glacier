@@ -59,6 +59,14 @@ impl InteractionResult {
         }
     }
 }
+impl Default for InteractionResult {
+    fn default() -> InteractionResult {
+        InteractionResult {
+            click: ClickResult::None,
+            cursor: CursorIcon::Default,
+        }
+    }
+}
 
 #[derive(Debug)]
 /// The MiniWindow is a internal draggable window that follows painters algorithm and culls or scissor rects overflowing shapes.

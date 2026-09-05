@@ -130,10 +130,7 @@ impl ContextMenu {
         out: &mut Vec<Vertex>,
     ) -> (Vec<TextItem>, InteractionResult) {
         let mut text_items: Vec<TextItem> = Vec::new();
-        let mut interaction = InteractionResult {
-            click: ClickResult::None,
-            cursor: CursorIcon::Default,
-        };
+        let mut interaction = InteractionResult::default();
 
         // dark background
         let menu_background = self.draw_background();
@@ -206,10 +203,7 @@ impl ContextMenu {
     ) -> (Vec<TextItem>, InteractionResult) {
         let mut text_items: Vec<TextItem> = Vec::new();
 
-        let mut interaction = InteractionResult {
-            click: ClickResult::None,
-            cursor: CursorIcon::Default,
-        };
+        let mut interaction = InteractionResult::default();
 
         // dark background
         let menu_background = self.draw_background();

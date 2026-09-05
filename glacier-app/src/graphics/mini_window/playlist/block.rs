@@ -11,7 +11,7 @@ use crate::{
             playlist::grid::{
                 PLAYLIST_STEP_GAP, PLAYLIST_STEP_HEIGHT, PLAYLIST_TRACK_GAP, TIMELINE_X_ORIGIN,
             },
-            MiniWindow,
+            InteractionResult, MiniWindow,
         },
         primitives::{ScreenConfig, Vertex, PAD_16, PAD_4, PAD_64, PAD_8, RADIUS_8},
     },
@@ -30,10 +30,9 @@ pub fn draw_audio_block(
     resizing_audio_block: Option<usize>,
     timeline_vertices: &mut Vec<Vertex>,
     timeline_text_items: &mut Vec<TextItem>,
-) -> (ClickResult, CursorIcon) {
-    let mut click_result = ClickResult::None;
-    let mut cursor_icon = CursorIcon::Default;
-
+) -> InteractionResult {
+    let mut interaction = InteractionResult::default();
+    
     let (block, label) = match audio_block.block_type {
         AudioBlockType::Pattern(id) => {
             let rect = Rectangle {
@@ -74,26 +73,26 @@ pub fn draw_audio_block(
                 .unwrap_or_else(|| "?".to_string());
             (rect, label)
         }
-        _ => return (ClickResult::None, CursorIcon::Default),
+        _ => return InteractionResult::default(),
     };
 
     if block.x + block.width < window.x || block.x > window.x + window.width {
-        return (ClickResult::None, CursorIcon::Default);
+        return InteractionResult::default();
     }
     if block.y + block.height < window.y || block.y > window.y + window.height {
-        return (ClickResult::None, CursorIcon::Default);
+        return InteractionResult::default();
     }
 
     if block.is_hovered(mouse_state.x, mouse_state.y) {
-        cursor_icon = CursorIcon::Pointer;
+        interaction.cursor = CursorIcon::Pointer;
         if mouse_state.right_clicked {
-            click_result = ClickResult::DeletePlaylistAudioBlock(audio_block.id);
+            interaction.click = ClickResult::DeletePlaylistAudioBlock(audio_block.id);
         }
     }
     if block.is_hovered_right_edge(mouse_state.x, mouse_state.y) {
-        cursor_icon = CursorIcon::ColResize;
+        interaction.cursor = CursorIcon::ColResize;
         if mouse_state.left_clicked {
-            click_result = ClickResult::StartResizeEvent(audio_block.id);
+            interaction.click = ClickResult::StartResizeEvent(audio_block.id);
         }
     }
 
@@ -113,5 +112,5 @@ pub fn draw_audio_block(
         font: ROBOTO,
         color: BLACK,
     });
-    (click_result, cursor_icon)
+    interaction
 }

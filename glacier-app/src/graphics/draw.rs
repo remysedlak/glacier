@@ -72,10 +72,7 @@ impl Graphics {
         let view = frame.texture.create_view(&TextureViewDescriptor::default());
         let mut vertices: Vec<Vertex> = Vec::new();
         self.tooltip = None;
-        let mut interaction = InteractionResult {
-            click: ClickResult::None,
-            cursor: CursorIcon::Default,
-        };
+        let mut interaction = InteractionResult::default();
         let screen_config = ScreenConfig {
             width: self.surface_config.width,
             height: self.surface_config.height,

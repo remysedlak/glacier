@@ -6,7 +6,7 @@ use crate::{
         color::{BLUE, DARK_BLUE, GREEN, SURFACE, WHITE},
         font::{TextItem, ROBOTO},
         geometry::Rectangle,
-        mini_window::{playlist::toolbar, MiniWindow},
+        mini_window::{playlist::toolbar, InteractionResult, MiniWindow},
         primitives::{ScreenConfig, Vertex, NO_RADIUS, PAD_16, PAD_4, PAD_64, PAD_8},
     },
     project::{AudioBlockType, PatternData},
@@ -34,7 +34,7 @@ pub fn draw(
     Vec<TextItem>,
     Vec<Vertex>,
     Vec<TextItem>,
-    ClickResult,
+    InteractionResult,
 ) {
     let mut track_header_vertices: Vec<Vertex> = Vec::new();
     let mut track_header_text_items: Vec<TextItem> = Vec::new();
@@ -45,7 +45,7 @@ pub fn draw(
     let mut static_vertices: Vec<Vertex> = Vec::new();
     let mut static_text_items: Vec<TextItem> = Vec::new();
 
-    let mut click_result = ClickResult::None;
+    let mut interaction = InteractionResult::default();
 
     toolbar::draw();
 
@@ -106,7 +106,7 @@ pub fn draw(
             if pl_step.is_hovered(mouse_state.x, mouse_state.y) {
                 if let Some(path) = dragging_file {
                     if mouse_state.left_released {
-                        click_result = ClickResult::FSEndDragFile(path.clone(), track, step);
+                        interaction.click = ClickResult::FSEndDragFile(path.clone(), track, step);
                     }
                 } else if mouse_state.left_clicked {
                     let length = match &active_tray {
@@ -118,7 +118,7 @@ pub fn draw(
                             .unwrap_or(16),
                         _ => 1,
                     };
-                    click_result = ClickResult::AddPlaylistAudioBlock(
+                    interaction.click = ClickResult::AddPlaylistAudioBlock(
                         track,
                         step as u32,
                         length.try_into().unwrap(),
@@ -146,6 +146,6 @@ pub fn draw(
         track_header_text_items,
         timeline_vertices,
         timeline_text_items,
-        click_result,
+        interaction,
     )
 }
