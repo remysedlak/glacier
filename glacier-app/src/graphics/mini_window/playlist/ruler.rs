@@ -6,7 +6,7 @@ use crate::graphics::{
     color::WHITE,
     font::{TextItem, ROBOTO},
     mini_window::MiniWindow,
-    primitives::{ScreenConfig, PAD_16, PAD_8},
+    primitives::{ScreenConfig, PAD_16},
 };
 
 pub fn draw(
