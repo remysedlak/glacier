@@ -10,7 +10,7 @@ A project is a file for a song, saved to a `.toml` file.
 - patterns
   - sequences
   - name
-- events
+- audio_block
   - pattern or track
   - id
 

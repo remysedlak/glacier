@@ -1,0 +1,5 @@
+[book]
+title = "glacier"
+authors = ["Remy"]
+language = "en"
+description = "Architecture and internals of the Glacier DAW"
