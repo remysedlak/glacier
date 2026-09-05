@@ -3,8 +3,6 @@ name: Deploy mdBook
 on:
   push:
     branches: [main]
-    paths:
-      - 'docs/**'
 
 permissions:
   contents: read
