@@ -16,7 +16,7 @@ pub const PLAYLIST_STEP_WIDTH: f32 = 32.0;
 pub const PLAYLIST_STEP_HEIGHT: f32 = 64.0;
 pub const PLAYLIST_STEP_GAP: f32 = 35.0;
 pub const PLAYLIST_TRACK_GAP: f32 = 70.0;
-pub const TIMELINE_X_ORIGIN: f32 = 128.0;
+pub const GRID_X_ORIGIN: f32 = 128.0;
 pub const PLAYHEAD_WIDTH: f32 = 4.0;
 
 pub fn draw(
@@ -34,27 +34,26 @@ pub fn draw(
     Vec<TextItem>,
     Vec<Vertex>,
     Vec<TextItem>,
+    Vec<Vertex>,
+    Vec<TextItem>,
     InteractionResult,
 ) {
     let mut track_header_vertices: Vec<Vertex> = Vec::new();
     let mut track_header_text_items: Vec<TextItem> = Vec::new();
 
-    let mut timeline_vertices: Vec<Vertex> = Vec::new();
-    let mut timeline_text_items: Vec<TextItem> = Vec::new();
-
-    let mut static_vertices: Vec<Vertex> = Vec::new();
-    let mut static_text_items: Vec<TextItem> = Vec::new();
+    let mut grid_vertices: Vec<Vertex> = Vec::new();
+    let mut grid_text_items: Vec<TextItem> = Vec::new();
 
     let mut interaction = InteractionResult::default();
 
-    toolbar::draw();
+    let (toolbar_vertices, toolbar_text_items) = toolbar::draw(window, screen_config);
 
     // for each ui track
     for track in 0..track_count {
         let background = Rectangle {
             x: window.x + PAD_16,
             y: window.y + (track as f32 * PLAYLIST_TRACK_GAP) + PAD_64 - scroll_offset.y,
-            width: TIMELINE_X_ORIGIN - PAD_4,
+            width: GRID_X_ORIGIN - PAD_4,
             height: PLAYLIST_STEP_HEIGHT,
         };
         if background.y + background.height < window.y || background.y > window.y + window.height {
@@ -78,7 +77,7 @@ pub fn draw(
         for step in 0..step_count {
             let group = step / 4;
             let pl_step = Rectangle {
-                x: window.x + (step as f32 * PLAYLIST_STEP_GAP) + PAD_16 + TIMELINE_X_ORIGIN
+                x: window.x + (step as f32 * PLAYLIST_STEP_GAP) + PAD_16 + GRID_X_ORIGIN
                     - scroll_offset.x,
                 y: window.y + (track as f32 * PLAYLIST_TRACK_GAP) + PAD_64 - scroll_offset.y,
                 width: PLAYLIST_STEP_WIDTH,
@@ -126,26 +125,16 @@ pub fn draw(
                     );
                 }
             }
-            pl_step.draw(screen_config, color, NO_RADIUS, &mut timeline_vertices);
-
-            if step % 16 == 0 && track == 0 {
-                timeline_text_items.push(TextItem {
-                    text: format!("{group}"),
-                    x: window.x + (step as f32 * PLAYLIST_STEP_GAP) + PAD_16 + TIMELINE_X_ORIGIN
-                        - scroll_offset.x,
-                    y: window.y + PAD_8,
-                    size: 18.0,
-                    font: ROBOTO,
-                    color: WHITE,
-                });
-            }
+            pl_step.draw(screen_config, color, NO_RADIUS, &mut grid_vertices);
         }
     }
     (
+        toolbar_vertices,
+        toolbar_text_items,
         track_header_vertices,
         track_header_text_items,
-        timeline_vertices,
-        timeline_text_items,
+        grid_vertices,
+        grid_text_items,
         interaction,
     )
 }

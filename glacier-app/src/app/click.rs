@@ -81,16 +81,6 @@ pub enum ClickResult {
     // no click result
     None,
 }
-impl ClickResult {
-    /// combine click results, prioritizing the first if it's not None
-    pub fn or(self, other: ClickResult) -> ClickResult {
-        if matches!(self, ClickResult::None) {
-            other
-        } else {
-            self
-        }
-    }
-}
 
 impl App {
     pub(super) fn handle_click_result(

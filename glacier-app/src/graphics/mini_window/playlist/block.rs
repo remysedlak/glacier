@@ -9,7 +9,7 @@ use crate::{
         geometry::Rectangle,
         mini_window::{
             playlist::grid::{
-                PLAYLIST_STEP_GAP, PLAYLIST_STEP_HEIGHT, PLAYLIST_TRACK_GAP, TIMELINE_X_ORIGIN,
+                GRID_X_ORIGIN, PLAYLIST_STEP_GAP, PLAYLIST_STEP_HEIGHT, PLAYLIST_TRACK_GAP,
             },
             InteractionResult, MiniWindow,
         },
@@ -32,14 +32,14 @@ pub fn draw_audio_block(
     timeline_text_items: &mut Vec<TextItem>,
 ) -> InteractionResult {
     let mut interaction = InteractionResult::default();
-    
+
     let (block, label) = match audio_block.block_type {
         AudioBlockType::Pattern(id) => {
             let rect = Rectangle {
                 x: window.x
                     + (audio_block.start_step as f32 * PLAYLIST_STEP_GAP)
                     + PAD_16
-                    + TIMELINE_X_ORIGIN
+                    + GRID_X_ORIGIN
                     - scroll_offset.x,
                 y: window.y + (audio_block.track_id as f32 * PLAYLIST_TRACK_GAP) + PAD_64
                     - scroll_offset.y,
@@ -59,7 +59,7 @@ pub fn draw_audio_block(
                 x: window.x
                     + (audio_block.start_step as f32 * PLAYLIST_STEP_GAP)
                     + PAD_16
-                    + TIMELINE_X_ORIGIN
+                    + GRID_X_ORIGIN
                     - scroll_offset.x,
                 y: window.y + (audio_block.track_id as f32 * PLAYLIST_TRACK_GAP) + PAD_64
                     - scroll_offset.y,

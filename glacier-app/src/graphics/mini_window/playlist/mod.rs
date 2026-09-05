@@ -1,14 +1,17 @@
-use crate::app::{click::ClickResult, MouseState, ScrollOffset};
-use crate::graphics::mini_window::InteractionResult;
+use crate::app::{MouseState, ScrollOffset};
 use crate::graphics::{
-    color::*, font::TextItem, mini_window::MiniWindow, primitives::*, AudioBlockType, PathBuf,
+    color::*,
+    font::TextItem,
+    mini_window::{InteractionResult, MiniWindow},
+    primitives::*,
+    AudioBlockType, PathBuf,
 };
 use crate::project::{AudioBlock, PatternData, Track};
-use winit::window::CursorIcon;
 
 pub mod block;
 pub mod grid;
 pub mod playhead;
+mod ruler;
 mod toolbar;
 
 /// Draw the playlist Mini Window. This is where the user composes the entire song and project. Instruments can be placed here from the track tray, and patterns from the pattern track.
@@ -24,12 +27,17 @@ pub fn draw(
     resizing_audio_block: Option<usize>,
     dragging_file: Option<&PathBuf>,
     screen_config: &ScreenConfig,
-) -> (DrawRegion, DrawRegion, DrawRegion, InteractionResult) {
+) -> (
+    DrawRegion,
+    DrawRegion,
+    DrawRegion,
+    DrawRegion,
+    InteractionResult,
+) {
     // setup
     let mut static_vertices: Vec<Vertex> = Vec::new();
     let mut static_text_items: Vec<TextItem> = Vec::new();
     let mut interaction = InteractionResult::default();
-    
 
     // lazy implementation - TODO: add dynamic track count and step count for projects
     let step_count = 64;
@@ -50,11 +58,13 @@ pub fn draw(
 
     // where u place sounds
     let (
+        toolbar_vertices,
+        toolbar_text_items,
         track_header_vertices,
-        track_header_text_items,
+        mut track_header_text_items,
         mut timeline_vertices,
         mut timeline_text_items,
-        result,
+        grid_interaction,
     ) = grid::draw(
         window,
         track_count,
@@ -66,6 +76,9 @@ pub fn draw(
         active_tray,
         patterns,
     );
+    static_vertices.extend(toolbar_vertices);
+    static_text_items.extend(toolbar_text_items);
+    interaction = interaction.or(grid_interaction);
 
     // render
 
@@ -84,6 +97,9 @@ pub fn draw(
         );
         interaction = interaction.or(block_interaction)
     }
+
+    let (ruler_vertices, ruler_text_items) =
+        ruler::draw(window, screen_config, step_count, scroll_offset);
 
     // draw playhead at the current beat
     playhead::draw(playhead_beat, window, scroll_offset).draw(
@@ -106,6 +122,10 @@ pub fn draw(
         DrawRegion {
             vertices: track_header_vertices,
             text_items: track_header_text_items,
+        },
+        DrawRegion {
+            vertices: ruler_vertices,
+            text_items: ruler_text_items,
         },
         interaction,
     )

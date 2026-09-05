@@ -10,7 +10,6 @@ use crate::graphics::{
     {Rectangle, TextItem},
 };
 use crate::project::Track;
-use winit::window::CursorIcon;
 
 const TRACK_GRAPHICS_WIDTH: f32 = 200.0;
 const TRACK_GRAPHICS_HEIGHT: f32 = 128.0;

@@ -1,15 +1,12 @@
 //! Main builder draw method. paints all shapes using core draw methods and handles the app's vertex buffers.
 use super::*;
-use crate::{
-    app::click::ClickResult,
-    graphics::{
-        color::{LIGHT_GRAY, SURFACE},
-        components::{modal, toolbar::TOOLBAR_MARGIN},
-        font::measure_text_width,
-        mini_window::{playlist::grid::TIMELINE_X_ORIGIN, InteractionResult, TITLEBAR_HEIGHT},
-        regions::*,
-        side_panel::track_tray::file_tree,
-    },
+use crate::graphics::{
+    color::{LIGHT_GRAY, SURFACE},
+    components::{modal, toolbar::TOOLBAR_MARGIN},
+    font::measure_text_width,
+    mini_window::{playlist::grid::GRID_X_ORIGIN, InteractionResult, TITLEBAR_HEIGHT},
+    regions::*,
+    side_panel::track_tray::file_tree,
 };
 use std::time::Duration;
 
@@ -207,6 +204,7 @@ impl Graphics {
                         static_draw_region,
                         timeline_draw_region,
                         header_draw_region,
+                        ruler_draw_region,
                         playlist_interaction,
                     ) = playlist::draw(
                         window,
@@ -231,10 +229,11 @@ impl Graphics {
                     let win_bottom = ((window.y + window.height) as u32).min(sh);
                     let content_y = (window.y as u32 + PAD_64 as u32).min(sh);
                     let content_h = win_bottom.saturating_sub(content_y);
-                    let header_x =
-                        ((window.x + PAD_16 + TIMELINE_X_ORIGIN).max(0.0) as u32).min(sw);
+                    let header_x = ((window.x + PAD_16 + GRID_X_ORIGIN).max(0.0) as u32).min(sw);
                     let header_w = header_x.saturating_sub(wx);
                     let timeline_w = win_right.saturating_sub(header_x);
+                    let ruler_y = content_y.saturating_sub(24); // ruler height, tune to taste
+                    let ruler_h = content_y.saturating_sub(ruler_y);
 
                     let static_vert_start = vertices.len() as u32;
                     let static_char_start = char_draws.len();
@@ -260,6 +259,24 @@ impl Graphics {
                             sw,
                             sh,
                         )),
+                    ));
+                    let ruler_vert_start = vertices.len() as u32;
+                    let ruler_char_start = char_draws.len();
+                    vertices.extend(ruler_draw_region.vertices);
+                    Graphics::push_text_draws(
+                        &ruler_draw_region.text_items,
+                        &self.font_cache,
+                        &self.glyph_cache,
+                        &screen_config,
+                        &mut glyph_vertices,
+                        &mut char_draws,
+                    );
+                    regions.push(record(
+                        &vertices,
+                        &char_draws,
+                        ruler_vert_start,
+                        ruler_char_start,
+                        Some(safe_scissor(header_x, ruler_y, timeline_w, ruler_h, sw, sh)),
                     ));
 
                     let header_vert_start = vertices.len() as u32;
@@ -864,7 +881,7 @@ impl Graphics {
                 .hover_duration
                 .map_or(false, |t| t.elapsed() > Duration::from_millis(400))
             {
-                let tooltip_rectangle = Rectangle::new(tt.x, tt.y, tt.width, 24.0)
+                let _tooltip_rectangle = Rectangle::new(tt.x, tt.y, tt.width, 24.0)
                     .draw_style()
                     // .bordered(Some(BorderStyle {
                     //     color: LL_GRAY,

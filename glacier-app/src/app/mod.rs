@@ -423,7 +423,6 @@ impl ApplicationHandler<Graphics> for App {
                                     .is_hovered(self.mouse_state.x, self.mouse_state.y)
                         })
                         .copied();
-
                     // PLAYLIST SCROLLING
                     if scroll_owner == Some(PLAYLIST_ID) {
                         if self.shift_pressed {

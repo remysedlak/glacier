@@ -1,5 +1,5 @@
 //! The mixer window contains controls for all audio mixing and mastering such as volume and plugins.
-use crate::app::click::ClickResult;
+
 use crate::graphics::mini_window::InteractionResult;
 use crate::{
     app::MouseState,
@@ -14,7 +14,7 @@ use crate::{
     },
     project::Track,
 };
-use winit::window::CursorIcon;
+
 pub const SLIDER_BACKGROUND_OFFSET: f32 = PAD_16;
 pub const MIXER_ITEM_WIDTH: f32 = 50.0;
 
