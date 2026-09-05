@@ -470,7 +470,9 @@ pub fn init(
                                 let pos = (voice.position as usize) & !1;
                                 let frac = voice.position - voice.position.floor();
 
-                                if pos + 3 >= track.samples.len() {
+                                let stop =
+                                    voice.stop_at_frame.unwrap_or(track.samples.len() as f32);
+                                if pos as f32 + 3.0 >= stop.min(track.samples.len() as f32) {
                                     voice.is_playing = false;
                                 } else {
                                     voice.current_volume = glacier_dsp::smooth_toward(
@@ -635,13 +637,17 @@ pub fn init(
                             if let Some(track) =
                                 tracks.iter_mut().find(|t| t.data.id as usize == track_id)
                             {
+                                let samples_per_step =
+                                    glacier_dsp::samples_per_step(config.sample_rate as f32, bpm);
+                                let stop_at = audio_block.length as f32 * samples_per_step * 2.0;
+
                                 track.voices.push(Voice {
                                     position: 0.0,
                                     is_playing: true,
                                     playback_rate: 1.0,
                                     current_volume: 0.0,
                                     target_volume: 1.0,
-                                    stop_at_frame: None,
+                                    stop_at_frame: Some(stop_at),
                                 });
                             }
                         }
