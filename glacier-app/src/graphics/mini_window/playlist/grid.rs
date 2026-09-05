@@ -121,7 +121,7 @@ pub fn draw(
                     click_result = ClickResult::AddPlaylistAudioBlock(
                         track,
                         step as u32,
-                        length,
+                        length.try_into().unwrap(),
                         active_tray.clone(),
                     );
                 }

@@ -42,7 +42,7 @@ pub fn draw_audio_block(
                     + PAD_16
                     + TIMELINE_X_ORIGIN
                     - scroll_offset.x,
-                y: window.y + (audio_block.track as f32 * PLAYLIST_TRACK_GAP) + PAD_64
+                y: window.y + (audio_block.track_id as f32 * PLAYLIST_TRACK_GAP) + PAD_64
                     - scroll_offset.y,
                 width: PLAYLIST_STEP_GAP * audio_block.length as f32 - 2.0,
                 height: PLAYLIST_STEP_HEIGHT,
@@ -62,7 +62,7 @@ pub fn draw_audio_block(
                     + PAD_16
                     + TIMELINE_X_ORIGIN
                     - scroll_offset.x,
-                y: window.y + (audio_block.track as f32 * PLAYLIST_TRACK_GAP) + PAD_64
+                y: window.y + (audio_block.track_id as f32 * PLAYLIST_TRACK_GAP) + PAD_64
                     - scroll_offset.y,
                 width: PLAYLIST_STEP_GAP * audio_block.length as f32 - 2.0,
                 height: PLAYLIST_STEP_HEIGHT,

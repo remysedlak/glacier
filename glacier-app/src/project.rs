@@ -26,6 +26,7 @@ impl Project {
             name: name.clone(),
             bpm,
             master_volume,
+
             tracks: tracks.iter().map(|track| track.data.clone()).collect(),
             patterns: patterns.clone(),
             audio_blocks: audio_blocks.clone(),
@@ -80,7 +81,7 @@ pub enum AudioBlockType {
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct AudioBlock {
     pub id: usize,                  // uuid
-    pub track: usize,               // track id
+    pub track_id: usize,            // track id
     pub start_step: u32,            // what step does this patterns start at?
     pub length: u32,                // how long is this block? (cut/extended?)
     pub block_type: AudioBlockType, // pattern/instrument/mixing
@@ -90,17 +91,14 @@ pub struct AudioBlock {
 #[derive(Clone)]
 pub struct Track {
     pub data: TrackData,
-    pub samples: Vec<f32>,   // raw float values
-    pub is_playing: bool,    //  based on position of song
+    pub samples: Vec<f32>, // raw float values
+    pub voices: Vec<Voice>,
     pub show_velocity: bool, // sequencer.rs ui
 
     // dsp runtime
     pub rms_l: f32,
     pub rms_r: f32,
     pub peak_hold: f32,
-    pub position: f32,
-    pub playback_rate: f32,
-    pub current_volume: f32, // track loudness
 }
 
 impl Track {
@@ -109,12 +107,9 @@ impl Track {
         Track {
             samples,
             data,
-            is_playing: false,
-            current_volume: 0.0,
+            voices: vec![],
             show_velocity: false,
-            // default dsp
-            position: 0.0,
-            playback_rate: 1.0,
+
             rms_l: 0.0,
             rms_r: 0.0,
             peak_hold: 0.0,
@@ -122,8 +117,6 @@ impl Track {
     }
     pub fn mute(&mut self) {
         self.data.is_muted = !self.data.is_muted;
-        self.position = 0.0;
-        self.is_playing = false;
     }
 }
 
@@ -135,11 +128,7 @@ pub struct TrackData {
     pub path: String,
     pub is_muted: bool,
     pub channels: u16, // new — 1 = mono, 2 = stereo, from WAV header
-
-    // volume ramping
-    pub target_volume: f32,
     pub track_volume: f32,
-
     // default 60 - C5
     pub root_note: u8,
 }
@@ -220,9 +209,8 @@ pub fn spawn_track_load(path_str: String) -> Receiver<(TrackData, Vec<f32>)> {
             path: path_str,
             name,
             channels,
-            is_muted: false,
-            target_volume: 1.0,
             track_volume: 1.0,
+            is_muted: false,
             root_note: 60,
         };
         tx.send((data, samples)).ok();
@@ -293,4 +281,14 @@ pub fn is_audio_file(path: &std::path::Path) -> bool {
         path.extension().and_then(|e| e.to_str()),
         Some("wav" | "mp3" | "flac" | "aiff" | "ogg")
     )
+}
+
+#[derive(Clone)]
+pub struct Voice {
+    pub position: f32,
+    pub is_playing: bool,
+    pub playback_rate: f32,
+    pub current_volume: f32,
+    pub target_volume: f32,
+    pub stop_at_frame: Option<f32>,
 }

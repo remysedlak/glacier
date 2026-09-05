@@ -17,7 +17,7 @@ pub enum AudioCommand {
     ToggleNote(usize, u32, usize, u8), // pattern_id, track_id, step_idx, pitch
     ChangeBpm(f32),
     DeleteAudioBlock(usize),
-    CreateAudioBlock(usize, u32, usize, AudioBlockType),
+    CreateAudioBlock(usize, u32, u32, AudioBlockType),
     ResizeAudioBlock(usize, u32),
 
     // mixing
@@ -38,7 +38,7 @@ pub enum AudioCommand {
 
     // patterns
     DuplicatePattern(usize),
-    AddPattern,
+    CreatePattern,
     DeletePattern(usize),
     ClearPattern(usize),
 
@@ -238,7 +238,7 @@ pub fn init(
                             .ok();
                     }
                 }
-                AudioCommand::AddPattern => {
+                AudioCommand::CreatePattern => {
                     let new_pattern_id = patterns
                         .iter()
                         .map(|x| x.id)
@@ -290,8 +290,22 @@ pub fn init(
                     current_step = 0;
                     producer.try_push(UiCommand::PlaybackStopped).ok();
                 }
-                AudioCommand::CreateAudioBlock(track, start_step, length, block_type) => {
-                    // add new event to playlist
+                AudioCommand::CreateAudioBlock(track_id, start_step, length, block_type) => {
+                    let computed_length = match &block_type {
+                        AudioBlockType::Sample(sample_track_id) => tracks
+                            .iter()
+                            .find(|t| t.data.id == *sample_track_id as u32)
+                            .map(|track| {
+                                let samples_per_step =
+                                    glacier_dsp::samples_per_step(config.sample_rate as f32, bpm);
+                                let frames =
+                                    (track.samples.len() / track.data.channels as usize) as f32;
+                                (frames / samples_per_step).ceil() as u32
+                            })
+                            .unwrap_or(length),
+                        _ => length, // Pattern, Mixing — use whatever the UI sent
+                    };
+
                     let audio_block = AudioBlock {
                         id: audio_blocks
                             .iter()
@@ -299,9 +313,9 @@ pub fn init(
                             .max()
                             .map(|m| m + 1)
                             .unwrap_or(0),
-                        track,
+                        track_id,
                         start_step,
-                        length: length as u32,
+                        length: computed_length,
                         block_type,
                     };
                     audio_blocks.push(audio_block.clone());
@@ -449,41 +463,45 @@ pub fn init(
             sample[1] = 0.0; // right channel
 
             if is_playing {
-                // for each non-muted track currently playing in the song...
                 for track in &mut tracks {
-                    if !track.data.is_muted && track.is_playing {
-                        // if the sample has fully played, mark it as not playing anymore
-                        let pos = (track.position as usize) & !1; // align to stereo pair (even index)
-                        let frac = track.position - track.position.floor();
+                    if !track.data.is_muted {
+                        for voice in &mut track.voices {
+                            if voice.is_playing {
+                                let pos = (voice.position as usize) & !1;
+                                let frac = voice.position - voice.position.floor();
 
-                        if pos + 3 >= track.samples.len() {
-                            track.is_playing = false;
-                        } else {
-                            track.current_volume = glacier_dsp::smooth_toward(
-                                track.current_volume,
-                                track.data.target_volume,
-                                0.01,
-                            );
+                                if pos + 3 >= track.samples.len() {
+                                    voice.is_playing = false;
+                                } else {
+                                    voice.current_volume = glacier_dsp::smooth_toward(
+                                        voice.current_volume,
+                                        voice.target_volume,
+                                        0.01,
+                                    );
 
-                            // interpolate between current and next stereo pair
-                            let l = track.samples[pos]
-                                + frac * (track.samples[pos + 2] - track.samples[pos]);
-                            let r = track.samples[pos + 1]
-                                + frac * (track.samples[pos + 3] - track.samples[pos + 1]);
+                                    let l = track.samples[pos]
+                                        + frac * (track.samples[pos + 2] - track.samples[pos]);
+                                    let r = track.samples[pos + 1]
+                                        + frac * (track.samples[pos + 3] - track.samples[pos + 1]);
 
-                            let gain = track.current_volume
-                                * track.data.track_volume
-                                * shutdown_volume
-                                * master_volume;
-                            sample[0] += l * gain;
-                            sample[1] += r * gain;
+                                    let gain = voice.current_volume
+                                        * track.data.track_volume
+                                        * shutdown_volume
+                                        * master_volume;
+                                    sample[0] += l * gain;
+                                    sample[1] += r * gain;
 
-                            track.position += 2.0 * track.playback_rate;
+                                    voice.position += 2.0 * voice.playback_rate;
 
-                            track.rms_l = glacier_dsp::smooth_toward(track.rms_l, l * l, 0.01);
-                            track.rms_r = glacier_dsp::smooth_toward(track.rms_r, r * r, 0.01);
-                            track.peak_hold = track.peak_hold.max(l.abs().max(r.abs()));
+                                    track.rms_l =
+                                        glacier_dsp::smooth_toward(track.rms_l, l * l, 0.01);
+                                    track.rms_r =
+                                        glacier_dsp::smooth_toward(track.rms_r, r * r, 0.01);
+                                    track.peak_hold = track.peak_hold.max(l.abs().max(r.abs()));
+                                }
+                            }
                         }
+                        track.voices.retain(|v| v.is_playing);
                     }
                 }
             }
@@ -617,10 +635,14 @@ pub fn init(
                             if let Some(track) =
                                 tracks.iter_mut().find(|t| t.data.id as usize == track_id)
                             {
-                                track.position = 0.0;
-                                track.is_playing = true;
-                                track.data.target_volume = 1.0;
-                                track.playback_rate = 1.0;
+                                track.voices.push(Voice {
+                                    position: 0.0,
+                                    is_playing: true,
+                                    playback_rate: 1.0,
+                                    current_volume: 0.0,
+                                    target_volume: 1.0,
+                                    stop_at_frame: None,
+                                });
                             }
                         }
                     }
@@ -631,11 +653,16 @@ pub fn init(
                         .iter_mut()
                         .find(|track| track.data.id as usize == track_id)
                     {
-                        track.position = 0.0;
-                        track.is_playing = true; // step function
-                        track.data.target_volume = velocity / 127.0;
-                        track.playback_rate =
-                            glacier_dsp::semitones_to_rate(pitch, track.data.root_note)
+                        let playback_rate =
+                            glacier_dsp::semitones_to_rate(pitch, track.data.root_note);
+                        track.voices.push(Voice {
+                            position: 0.0,
+                            is_playing: true,
+                            playback_rate,
+                            current_volume: 0.0,
+                            target_volume: velocity / 127.0,
+                            stop_at_frame: None,
+                        });
                     }
                 }
             }

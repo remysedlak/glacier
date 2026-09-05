@@ -46,7 +46,7 @@ pub enum ClickResult {
     DuplicatePattern(usize),
     CreatePattern,
     ClearPattern(usize),
-    AddPlaylistAudioBlock(usize, u32, usize, AudioBlockType),
+    AddPlaylistAudioBlock(usize, u32, u32, AudioBlockType),
     OpenPatternMenu(f32, f32, usize),
     StartResizeEvent(usize),
 
@@ -245,7 +245,7 @@ impl App {
                 }
             }
             ClickResult::CreatePattern => {
-                self.producer.try_push(AudioCommand::AddPattern).ok();
+                self.producer.try_push(AudioCommand::CreatePattern).ok();
             }
             ClickResult::ToggleSequencerWindow => {
                 if let Some(win) = gfx
