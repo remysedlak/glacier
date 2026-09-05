@@ -112,12 +112,7 @@ the alternative (blocking the audio callback until the UI catches up) would risk
 audible glitch, which is worse than an occasionally-dropped UI update.
 
 ### Why lookups are all `.find()`, never `tracks[track_id]`
-Every id here (`pattern_id`, `track_id`, `audio_block_id`) is a stable identity, not
-a position in its `Vec` — see `DeleteTrack`'s `tracks.remove(track_id)`, which is the
-one exception, and *is* actually positional (it's `usize` used as an index directly
-in that one call, worth double-checking against current source if this file changes).
-Everywhere else, `.iter_mut().find(|x| x.id == id)` is the pattern, because ids can
-survive deletions elsewhere while positions can't.
+Every id here (pattern_id, track_id, audio_block_id) is a stable identity, not a position in its Vec. .iter_mut().find(|x| x.id == id) (or .iter().position(...) when the id needs to be removed by position, as in DeleteTrack) is the pattern everywhere — no arm bracket-indexes by an id-shaped value directly.
 
 ---
 
@@ -125,10 +120,7 @@ survive deletions elsewhere while positions can't.
 
 ### samples_per_step is the single unit of time
 The whole sequencer's notion of "time" reduces to one function:
-`glacier_dsp::samples_per_step(sample_rate, bpm)` — how many raw audio frames make up
-one step (a step = a beat = 1/4 of a bar in 4/4 time, per the project's convention).
-Everything else — playhead position, step-advance, sample cutoff — is this number
-multiplied or divided against a counter.
+glacier_dsp::samples_per_step(sample_rate, bpm) — how many raw audio frames make up one step (a step = a 1/16 note; four steps per beat, per the project's convention)
 
 ### sample_counter drives step-advance, once per callback
 ```rust

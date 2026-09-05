@@ -55,6 +55,24 @@ impl MouseState {
         self.scroll_y = 0.0;
         self.left_released = false;
     }
+    /// Returns a copy with position/click fields blanked so downstream
+    /// hit-tests can't register anything — used when something else
+    /// visually owns this screen area right now.
+    pub fn hidden(self, hide: bool) -> MouseState {
+        if hide {
+            MouseState {
+                x: f32::NEG_INFINITY,
+                y: f32::NEG_INFINITY,
+                left_clicked: false,
+                right_clicked: false,
+                left_double_clicked: false,
+                left_click_held: false,
+                ..self
+            }
+        } else {
+            self
+        }
+    }
 }
 
 #[derive(Clone, Copy, PartialEq)]

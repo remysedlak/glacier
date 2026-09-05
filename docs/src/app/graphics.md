@@ -1,10 +1,6 @@
 # Graphics & Rendering
 
-The graphics module is responsible for two largely separate jobs: painting
-windows and widgets to the screen in the right visual order, and resolving
-mouse input against whatever's currently on screen. This chapter covers both,
-roughly in that order — interaction (click ownership, cursor state) builds on
-concepts introduced in rendering (z-order), so rendering comes first.
+The graphics module is responsible for painting windows and widgets to the screen in the right visual order. This chapter covers the rendering pipeline: how shapes and text get drawn, in what order, and the tools built for common drawing patterns.
 
 ## Rendering Pipeline
 
@@ -105,90 +101,3 @@ routing a divider through the builder "for consistency" produces a
 > If anything downstream needs the *original* rectangle (common — many
 > toolbar buttons position a sibling off it, e.g. `bpm_down.y = bpm_up.y +
 > 18.0`), bind the `Rectangle` separately first.
-
-## Interaction Model
-
-### Window System
-Fixed windows are addressed by constant, and push order in `create_graphics`
-must match these exactly — the constants are direct indices into
-`mini_windows`, so a wrong push order silently draws the wrong content on the
-wrong geometry:
-```rust
-pub const SEQUENCER_ID: usize  = 0;
-pub const PLAYLIST_ID: usize   = 1;
-pub const MIXER_ID: usize      = 2;
-pub const PIANO_ROLL_ID: usize = 3;
-```
-Track detail windows are dynamic — pushed at runtime as
-`WindowKind::TrackDetail(track)`, with `id = mini_windows.len() - 1` after
-push and added to `z_order` immediately. A wildcard arm in the draw match
-handles every id ≥ 4.
-
-The sequencer window's height is derived, not fixed — it grows with track
-count (`window.height + TRACK_GAP * tracks.len()`), and
-`mini_windows[SEQUENCER_ID].height` must be recalculated in *every*
-`UiCommand` handler that changes `gfx.tracks`, including bulk-load paths
-like `LoadProject` — not just the incremental add/remove handlers. Missing
-this leaves the drawn background stuck at its startup height while the
-per-track rows extend past it.
-
-### InteractionResult
-Every window/component draw function hit-tests its own geometry against the
-mouse and needs to report back two things: what got clicked, and what cursor
-should show. Both are bundled into one struct rather than returned as loose
-tuple fields:
-```rust
-pub struct InteractionResult {
-    pub click: ClickResult,
-    pub cursor: CursorIcon,
-}
-```
-This exists because loose tuple fields let a real bug ship silently — 
-`mixer::draw`'s cursor field was once destructured as `_cursor` at its call
-site with no compiler warning, so a hover-cursor case for the mixer simply
-never worked, invisibly, until someone needed it.
-
-Merging two results uses a per-field `or()`, not a whole-struct fallback:
-```rust
-impl InteractionResult {
-    pub fn or(self, other: InteractionResult) -> InteractionResult {
-        InteractionResult {
-            click: if self.click != ClickResult::None { self.click } else { other.click },
-            cursor: if self.cursor != CursorIcon::Default { self.cursor } else { other.cursor },
-        }
-    }
-}
-```
-`click` and `cursor` resolve independently because they're independent
-questions — a first draft that checked only `click` and returned one side
-wholesale would drop a real hover cursor any time it was merged against a
-`click: None` result on either side, which is exactly the kind of case that
-matters (mouse hovering, nothing clicked).
-
-`InteractionResult { click: ClickResult::None, cursor: CursorIcon::Default }`
-is the identity value for `or()` — merging anything with it returns the
-other side unchanged. It's the accumulator's starting value in
-`Graphics::draw()`, and what any component should return when its own
-hit-test found nothing.
-
-**Naming convention:** inside a component's own `draw()`, the value being
-built is named `interaction`. At each call site inside `Graphics::draw()`,
-the result is bound as `<component>_interaction` — named for the actual
-source component (`pattern_interaction`, not `side_panel_interaction`, even
-though it's reached via `side_panel::pattern_tray::draw`). The running total
-stays `interaction`, reassigned via `interaction = interaction.or(x)` — never
-passed in as `&mut`, since every component recomputes its result fresh each
-frame.
-
-Manual cursor overrides (drag/resize states forcing `ColResize` or
-`Default`) write directly to `interaction.cursor` near the end of
-`Graphics::draw()`, bypassing `or()` entirely — these are unconditional
-overrides, not a component reporting a competing hit-test result, so they
-don't belong in the reduction chain.
-
-> **Known limitation:** `or()`'s priority is really "whichever call site
-> runs earlier in source order wins." Only mini-windows get real z-order-
-> aware click ownership (via `click_owner`/`blocked` masking); toolbar,
-> footer, and both trays merge in whatever order they're coded. Not
-> currently a bug — none of those overlap mini-window bounds — but worth
-> revisiting if that ever changes.

@@ -663,17 +663,6 @@ impl Graphics {
                 AudioBlockType::Pattern(id) => Some(id as u32),
                 _ => None,
             };
-            let pattern_tray_mouse = if self.context_menu.is_some() {
-                MouseState {
-                    x: f32::NEG_INFINITY,
-                    y: f32::NEG_INFINITY,
-                    left_clicked: false,
-                    right_clicked: false,
-                    ..*mouse_state
-                }
-            } else {
-                *mouse_state
-            };
             let rename_cursor_offset: Option<f32> = self.renaming.as_ref().map(|r| {
                 let font = self
                     .font_cache
@@ -685,7 +674,7 @@ impl Graphics {
                 &screen_config,
                 &self.patterns,
                 selected_pattern_id,
-                &pattern_tray_mouse,
+                &mouse_state.hidden(self.context_menu.is_some() && menu_is_hovered),
                 sequencer_is_open,
                 self.pattern_tray_width,
                 &self.renaming,
@@ -712,8 +701,11 @@ impl Graphics {
         }
 
         if self.show_save_modal {
-            let (texts, modal_interaction) =
-                modal::draw(&screen_config, &real_mouse_state, &mut vertices);
+            let (texts, modal_interaction) = modal::draw(
+                &screen_config,
+                &real_mouse_state, // bring this variable back
+                &mut vertices,
+            );
             interaction = interaction.or(modal_interaction);
             Graphics::push_text_draws(
                 &texts,

@@ -64,10 +64,7 @@ UI-side click handlers never mutate `tracks`/`patterns`/`audio_blocks`
 directly for create or delete — they only send an `AudioCommand`. The audio
 thread mints the id, mutates its own copy, and reports back with a
 confirmation `UiCommand`, which the UI applies to its own mirrored state.
-Confirmation commands are named past-tense on purpose — `TrackLoaded`,
-`TrackDeleted`, `PatternLoaded`, `PatternDeleted`, `AudioBlockLoaded`,
-`AudioBlockDeleted` — to make clear they represent something that *already
-happened* on the audio thread's authoritative copy, not a request.
+Confirmation commands are named past-tense on purpose — TrackLoaded, TrackDeleted, TrackUpdated, BpmChanged, PatternUpdated, PatternDeleted, AudioBlockLoaded, AudioBlockDeleted — to make clear they represent something that already happened on the audio thread's authoritative copy, not a request.
 
 This exists specifically to prevent two independent copies from minting or
 mutating the same conceptual thing on their own — the failure mode when

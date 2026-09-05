@@ -3,6 +3,7 @@
 - [Introduction](./intro.md)
 - [glacier-app](./app/index.md)
     - [Graphics & Rendering](./app/graphics.md)
+    - [Interactivity](./app/interactivity.md)
     - [Audio Thread & Sequencing](./app/audio.md)
     - [Projects / Scores](./app/score.md)
     - [ID System & Data Model](./app/ids.md)

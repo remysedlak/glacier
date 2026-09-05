@@ -372,20 +372,21 @@ pub fn init(
                     }
                 }
                 AudioCommand::DeleteTrack(track_id) => {
-                    // remove all references of this track_id from saved patterns
-                    let data_id = tracks[track_id].data.id;
-                    for pattern in patterns.iter_mut() {
-                        pattern.sequences.retain(|s| s.track_id != data_id);
-                    }
-                    audio_blocks.retain(|e| {
-                        if let crate::project::AudioBlockType::Sample(pid) = e.block_type {
-                            pid != data_id as usize
-                        } else {
-                            true
+                    if let Some(pos) = tracks.iter().position(|t| t.data.id == track_id as u32) {
+                        let data_id = tracks[pos].data.id;
+                        for pattern in patterns.iter_mut() {
+                            pattern.sequences.retain(|s| s.track_id != data_id);
                         }
-                    });
-                    tracks.remove(track_id);
-                    producer.try_push(UiCommand::TrackDeleted(data_id)).ok();
+                        audio_blocks.retain(|e| {
+                            if let crate::project::AudioBlockType::Sample(pid) = e.block_type {
+                                pid != data_id as usize
+                            } else {
+                                true
+                            }
+                        });
+                        tracks.remove(pos);
+                        producer.try_push(UiCommand::TrackDeleted(data_id)).ok();
+                    };
                 }
 
                 AudioCommand::LoadTrack(mut track_data, samples) => {

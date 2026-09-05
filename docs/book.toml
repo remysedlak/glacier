@@ -3,3 +3,13 @@ title = "glacier"
 authors = ["Remy"]
 language = "en"
 description = "Architecture and internals of the Glacier DAW"
+
+[preprocessor]
+
+[preprocessor.mermaid]
+command = "mdbook-mermaid"
+
+[output]
+
+[output.html]
+additional-js = ["mermaid.min.js", "mermaid-init.js"]
