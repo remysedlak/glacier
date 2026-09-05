@@ -1,6 +1,7 @@
 use crate::app::click::ClickResult;
 use crate::app::MouseState;
 use crate::graphics::icons::DEFAULT_TOOLTIP_WIDTH;
+use crate::graphics::mini_window::InteractionResult;
 use crate::graphics::{
     color::{DARK_GRAY, ORANGE, SURFACE, SURFACE_HOVER, WHITE},
     components::{
@@ -25,17 +26,14 @@ pub fn draw(
     renaming: &Option<RenameState>,
     rename_cursor_offset: Option<f32>,
     out: &mut Vec<Vertex>,
-) -> (
-    Vec<TextItem>,
-    ClickResult,
-    CursorIcon,
-    IconDraw,
-    Option<Tooltip>,
-) {
+) -> (Vec<TextItem>, InteractionResult, IconDraw, Option<Tooltip>) {
     // setup
     let mut text_items: Vec<TextItem> = Vec::new();
-    let mut click_result = ClickResult::None;
-    let mut cursor_icon = CursorIcon::Default;
+    let mut interaction = InteractionResult {
+        click: ClickResult::None,
+        cursor: CursorIcon::Default,
+    };
+
     let mut tooltip = None;
 
     // patterns tray
@@ -53,7 +51,7 @@ pub fn draw(
         .draw(screen_config, DARK_GRAY, NO_RADIUS, out);
 
     if pattern_tray.is_hovered_left_edge(mouse_state.x, mouse_state.y) {
-        cursor_icon = CursorIcon::ColResize
+        interaction.cursor = CursorIcon::ColResize
     }
 
     // title
@@ -70,9 +68,9 @@ pub fn draw(
     .draw(screen_config, DARK_GRAY, RADIUS_8, out);
 
     if add_pattern_button.hovered {
-        cursor_icon = CursorIcon::Pointer;
+        interaction.cursor = CursorIcon::Pointer;
         if mouse_state.left_clicked {
-            click_result = ClickResult::CreatePattern;
+            interaction.click = ClickResult::CreatePattern;
         }
     }
 
@@ -118,15 +116,15 @@ pub fn draw(
         // handle interaction (reuses the `hovered` computed above instead
         // of calling is_hovered a second time)
         if hovered {
-            cursor_icon = CursorIcon::Pointer;
+            interaction.cursor = CursorIcon::Pointer;
             if mouse_state.left_clicked {
-                click_result = ClickResult::SelectPattern(pattern.id);
+                interaction.click = ClickResult::SelectPattern(pattern.id);
             }
             if mouse_state.left_double_clicked && !sequencer_is_open {
-                click_result = ClickResult::ToggleSequencerWindow;
+                interaction.click = ClickResult::ToggleSequencerWindow;
             }
             if mouse_state.right_clicked {
-                click_result =
+                interaction.click =
                     ClickResult::OpenPatternMenu(pattern_button.x, pattern_button.y, pattern.id);
             }
         }
@@ -174,5 +172,5 @@ pub fn draw(
         }
     }
 
-    (text_items, click_result, cursor_icon, add_icon, tooltip)
+    (text_items, interaction, add_icon, tooltip)
 }

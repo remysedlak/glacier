@@ -494,7 +494,7 @@ impl Graphics {
             };
 
             // FIRST: TRACK TRAY
-            let (texts, result, cursor) = side_panel::track_tray::draw(
+            let (texts, track_tray_interaction) = side_panel::track_tray::draw(
                 mouse_state,
                 &screen_config,
                 self.resizing_track_tray,
@@ -503,10 +503,7 @@ impl Graphics {
                 &mut vertices,
                 selected_track_id,
             );
-            interaction = interaction.or(InteractionResult {
-                click: result,
-                cursor,
-            });
+            interaction = interaction.or(track_tray_interaction);
             Graphics::push_text_draws(
                 &texts,
                 &self.font_cache,
@@ -578,7 +575,7 @@ impl Graphics {
             let file_tree_vert_start = vertices.len() as u32;
             let file_tree_char_start = char_draws.len();
 
-            let (icons, text_items, result, cursor) = file_tree::draw(
+            let (icons, text_items, file_tree_interaction) = file_tree::draw(
                 mouse_state,
                 &screen_config,
                 &self.user_fs_location,
@@ -589,10 +586,7 @@ impl Graphics {
                 &mut vertices,
                 (screen_config.height / 2) as f32,
             );
-            interaction = interaction.or(InteractionResult {
-                click: result,
-                cursor,
-            });
+            interaction = interaction.or(file_tree_interaction);
             Graphics::push_text_draws(
                 &text_items,
                 &self.font_cache,
@@ -665,7 +659,7 @@ impl Graphics {
                     .expect("ROBOTO font missing from cache");
                 measure_text_width(font, &r.edited_name[..r.cursor], 14.0) // match pattern label's font size
             });
-            let (texts, result, cursor, icon, tooltip) = side_panel::pattern_tray::draw(
+            let (texts, pattern_interaction, icon, tooltip) = side_panel::pattern_tray::draw(
                 &screen_config,
                 &self.patterns,
                 selected_pattern_id,
@@ -676,10 +670,7 @@ impl Graphics {
                 rename_cursor_offset,
                 &mut vertices,
             );
-            interaction = interaction.or(InteractionResult {
-                click: result,
-                cursor,
-            });
+            interaction = interaction.or(pattern_interaction);
             Graphics::push_text_draws(
                 &texts,
                 &self.font_cache,
@@ -699,12 +690,9 @@ impl Graphics {
         }
 
         if self.show_save_modal {
-            let (texts, result, cursor) =
+            let (texts, modal_interaction) =
                 modal::draw(&screen_config, &real_mouse_state, &mut vertices);
-            interaction = interaction.or(InteractionResult {
-                click: result,
-                cursor,
-            });
+            interaction = interaction.or(modal_interaction);
             Graphics::push_text_draws(
                 &texts,
                 &self.font_cache,
@@ -722,7 +710,7 @@ impl Graphics {
             (total_seconds % 3600) / 60,
             total_seconds % 60
         );
-        let (texts, icons, result, cursor, tooltip) = components::toolbar::draw(
+        let (texts, icons, toolbar_interaction, tooltip) = components::toolbar::draw(
             mouse_state,
             &screen_config,
             self.bpm,
@@ -733,10 +721,7 @@ impl Graphics {
             time_string,
             &mut vertices,
         );
-        interaction = interaction.or(InteractionResult {
-            click: result,
-            cursor,
-        });
+        interaction = interaction.or(toolbar_interaction);
         for icon in icons {
             push_icon_draw(
                 &self.icon_cache,
@@ -774,17 +759,14 @@ impl Graphics {
         } else {
             self.project_path.clone()
         };
-        let (texts, result, icons, tooltip, cursor) = footer::draw(
+        let (texts, icons, tooltip, footer_interaction) = footer::draw(
             &screen_config,
             &title,
             1000.0 / self.frame_ms,
             mouse_state,
             &mut vertices,
         );
-        interaction = interaction.or(InteractionResult {
-            click: result,
-            cursor,
-        });
+        interaction = interaction.or(footer_interaction);
         self.tooltip = tooltip.or(self.tooltip.take());
         for icon in icons {
             push_icon_draw(
@@ -857,7 +839,8 @@ impl Graphics {
         let context_menu_vert_start = vertices.len() as u32;
         let context_menu_char_start = char_draws.len();
         if let Some(menu) = &self.context_menu {
-            let (texts, result, cursor) = menu.draw(&screen_config, mouse_state, &mut vertices);
+            let (texts, context_menu_interaction) =
+                menu.draw(&screen_config, mouse_state, &mut vertices);
             Graphics::push_text_draws(
                 &texts,
                 &self.font_cache,
@@ -866,10 +849,7 @@ impl Graphics {
                 &mut glyph_vertices,
                 &mut char_draws,
             );
-            interaction = interaction.or(InteractionResult {
-                click: result,
-                cursor,
-            });
+            interaction = interaction.or(context_menu_interaction);
         }
         regions.push(record(
             &vertices,

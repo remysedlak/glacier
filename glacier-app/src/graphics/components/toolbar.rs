@@ -1,6 +1,7 @@
 //! The toolbar contains easy access toggle buttons for opening windows, loading files, or view project bpm/step/time info.
 use crate::app::{click::ClickResult, MouseState};
 use crate::graphics::icons::DEFAULT_TOOLTIP_WIDTH;
+use crate::graphics::mini_window::InteractionResult;
 use crate::graphics::{
     color::*,
     components::spectrum,
@@ -51,13 +52,15 @@ pub fn draw(
 ) -> (
     Vec<TextItem>,
     Vec<IconDraw>,
-    ClickResult,
-    CursorIcon,
+    InteractionResult,
     Option<Tooltip>,
 ) {
     let mut text_items: Vec<TextItem> = Vec::new();
-    let mut click_result = ClickResult::None;
-    let mut cursor_icon = CursorIcon::Default;
+    let mut interaction = InteractionResult {
+        click: ClickResult::None,
+        cursor: CursorIcon::Default,
+    };
+
     let mut tooltip: Option<Tooltip> = None;
 
     let mut window_icons = IconRow {
@@ -96,9 +99,9 @@ pub fn draw(
         .interactive(Some(mouse_state))
         .draw(screen_config, DARK_GRAY, RADIUS_4, out);
     if bpm_up.hovered {
-        cursor_icon = CursorIcon::Pointer;
+        interaction.cursor = CursorIcon::Pointer;
         if mouse_state.left_clicked {
-            click_result = ClickResult::ChangeBpm(bpm + 1.0);
+            interaction.click = ClickResult::ChangeBpm(bpm + 1.0);
         }
     }
 
@@ -108,9 +111,9 @@ pub fn draw(
         .interactive(Some(mouse_state))
         .draw(screen_config, DARK_GRAY, RADIUS_4, out);
     if bpm_down.hovered {
-        cursor_icon = CursorIcon::Pointer;
+        interaction.cursor = CursorIcon::Pointer;
         if mouse_state.left_clicked {
-            click_result = ClickResult::ChangeBpm(bpm - 1.0);
+            interaction.click = ClickResult::ChangeBpm(bpm - 1.0);
         }
     }
 
@@ -123,7 +126,7 @@ pub fn draw(
         .bordered(Some(ICON_BORDER))
         .draw(screen_config, DARK_GRAY, RADIUS_4, out);
     if play_button.hovered && mouse_state.left_clicked {
-        click_result = ClickResult::TogglePlay;
+        interaction.click = ClickResult::TogglePlay;
     }
 
     // STOP BUTTON
@@ -133,7 +136,7 @@ pub fn draw(
         .bordered(Some(ICON_BORDER))
         .draw(screen_config, DARK_GRAY, RADIUS_4, out);
     if stop_button.hovered && mouse_state.left_clicked && active_step != 0 {
-        click_result = ClickResult::Stop;
+        interaction.click = ClickResult::Stop;
     }
 
     // TIME_INFO BACKGROUND
@@ -192,7 +195,7 @@ pub fn draw(
         .draw(screen_config, DARK_GRAY, RADIUS_4, out);
 
     if sequencer_toggle.hovered && mouse_state.left_clicked {
-        click_result = ClickResult::ToggleSequencerWindow;
+        interaction.click = ClickResult::ToggleSequencerWindow;
     }
 
     let mixer_toggle = window_icons
@@ -203,7 +206,7 @@ pub fn draw(
         .draw(screen_config, DARK_GRAY, RADIUS_4, out);
 
     if mixer_toggle.hovered && mouse_state.left_clicked {
-        click_result = ClickResult::ToggleMixerWindow;
+        interaction.click = ClickResult::ToggleMixerWindow;
     }
 
     let playlist_toggle = window_icons
@@ -213,7 +216,7 @@ pub fn draw(
         .interactive(Some(mouse_state))
         .draw(screen_config, DARK_GRAY, RADIUS_4, out);
     if playlist_toggle.hovered && mouse_state.left_clicked {
-        click_result = ClickResult::TogglePlaylistWindow;
+        interaction.click = ClickResult::TogglePlaylistWindow;
     }
 
     let piano_toggle = window_icons
@@ -224,7 +227,7 @@ pub fn draw(
         .draw(screen_config, DARK_GRAY, RADIUS_4, out);
 
     if piano_toggle.hovered && mouse_state.left_clicked {
-        click_result = ClickResult::TogglePianoRollWindow;
+        interaction.click = ClickResult::TogglePianoRollWindow;
     }
 
     let track_selection_toggle = window_icons
@@ -235,7 +238,7 @@ pub fn draw(
         .draw(screen_config, DARK_GRAY, RADIUS_4, out);
 
     if track_selection_toggle.hovered && mouse_state.left_clicked {
-        click_result = ClickResult::ToggleTrackTray;
+        interaction.click = ClickResult::ToggleTrackTray;
     }
 
     let patterns_toggle = window_icons
@@ -246,7 +249,7 @@ pub fn draw(
         .draw(screen_config, DARK_GRAY, RADIUS_4, out);
 
     if patterns_toggle.hovered && mouse_state.left_clicked {
-        click_result = ClickResult::TogglePatternTray;
+        interaction.click = ClickResult::TogglePatternTray;
     }
 
     draw_h_line(TOOLBAR_Y, TOOLBAR_THICKNESS, screen_config, out);
@@ -259,7 +262,7 @@ pub fn draw(
             .interactive(Some(mouse_state))
             .draw(screen_config, DARK_GRAY, RADIUS_4, out);
     if load_project_button.hovered && mouse_state.left_clicked {
-        click_result = ClickResult::ProjectFileDialog;
+        interaction.click = ClickResult::ProjectFileDialog;
     }
 
     // LOAD_TRACK BUTTON
@@ -270,7 +273,7 @@ pub fn draw(
             .interactive(Some(mouse_state))
             .draw(screen_config, DARK_GRAY, RADIUS_4, out);
     if load_track_button.hovered && mouse_state.left_clicked {
-        click_result = ClickResult::TrackFileDialog;
+        interaction.click = ClickResult::TrackFileDialog;
     }
 
     // build the icons
@@ -445,5 +448,5 @@ pub fn draw(
         }
     }
 
-    (text_items, icons, click_result, cursor_icon, tooltip)
+    (text_items, icons, interaction, tooltip)
 }

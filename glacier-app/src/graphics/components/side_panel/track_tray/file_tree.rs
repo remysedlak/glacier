@@ -1,5 +1,6 @@
 use crate::app::click::ClickResult;
 use crate::graphics::icons::DEFAULT_TOOLTIP_WIDTH;
+use crate::graphics::mini_window::InteractionResult;
 use crate::graphics::primitives::{NO_RADIUS, PAD_16, PAD_2, PAD_32, PAD_4, RADIUS_4};
 use crate::project::is_audio_file;
 use crate::{
@@ -26,10 +27,12 @@ pub fn draw(
     tray_width: f32,
     out: &mut Vec<Vertex>,
     divider_y: f32,
-) -> (Vec<IconDraw>, Vec<TextItem>, ClickResult, CursorIcon) {
+) -> (Vec<IconDraw>, Vec<TextItem>, InteractionResult) {
     let mut text_items: Vec<TextItem> = Vec::new();
-    let mut cursor: CursorIcon = CursorIcon::Default;
-    let mut click = ClickResult::None;
+    let mut interaction = InteractionResult {
+        click: ClickResult::None,
+        cursor: CursorIcon::Default,
+    };
 
     let mut row: f32 = 0.0;
     (
@@ -42,16 +45,14 @@ pub fn draw(
             mouse_state,
             screen_config,
             &mut text_items,
-            &mut click,
-            &mut cursor,
+            &mut interaction,
             fs_cache,
             scroll_offset,
             tray_width,
             out,
         ),
         text_items,
-        click,
-        cursor,
+        interaction,
     )
 }
 
@@ -64,8 +65,7 @@ fn draw_fs_tree(
     mouse_state: &MouseState,
     screen_config: &ScreenConfig,
     text_items: &mut Vec<TextItem>,
-    click_result: &mut ClickResult,
-    cursor_icon: &mut CursorIcon,
+    interaction: &mut InteractionResult,
     fs_cache: &HashMap<PathBuf, Vec<(PathBuf, bool)>>,
     scroll_offset: f32,
     tray_width: f32,
@@ -150,24 +150,28 @@ fn draw_fs_tree(
 
             if button.is_hovered(mouse_state.x, mouse_state.y) {
                 // show pointer for directories and cursor for files
-                *cursor_icon = if *is_dir {
+                interaction.cursor = if *is_dir {
                     CursorIcon::Pointer
                 } else {
                     CursorIcon::Default
                 };
                 if !*is_dir {
                     if is_audio_file(path) {
-                        if mouse_state.left_clicked && matches!(click_result, ClickResult::None) {
-                            *click_result = ClickResult::FsPreviewSample(path.clone());
-                        }
-                        if mouse_state.left_click_held && matches!(click_result, ClickResult::None)
+                        if mouse_state.left_clicked
+                            && matches!(interaction.click, ClickResult::None)
                         {
-                            *click_result = ClickResult::FsStartDragFile(path.clone());
+                            interaction.click = ClickResult::FsPreviewSample(path.clone());
+                        }
+                        if mouse_state.left_click_held
+                            && matches!(interaction.click, ClickResult::None)
+                        {
+                            interaction.click = ClickResult::FsStartDragFile(path.clone());
                         }
                     }
                     // non-audio files do nothing
-                } else if mouse_state.left_clicked && matches!(click_result, ClickResult::None) {
-                    *click_result = ClickResult::FsToggleDir(path.clone());
+                } else if mouse_state.left_clicked && matches!(interaction.click, ClickResult::None)
+                {
+                    interaction.click = ClickResult::FsToggleDir(path.clone());
                 }
             }
         }
@@ -187,8 +191,7 @@ fn draw_fs_tree(
                 mouse_state,
                 screen_config,
                 text_items,
-                click_result,
-                cursor_icon,
+                interaction,
                 fs_cache,
                 scroll_offset,
                 tray_width,

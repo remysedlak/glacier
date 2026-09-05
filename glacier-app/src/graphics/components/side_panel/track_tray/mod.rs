@@ -1,6 +1,7 @@
 use crate::app::click::ClickResult;
 use crate::graphics::components::toolbar::TOOLBAR_Y;
 use crate::graphics::geometry::Rectangle;
+use crate::graphics::mini_window::InteractionResult;
 use crate::project::Track;
 use crate::{
     app::MouseState,
@@ -24,10 +25,12 @@ pub fn draw(
     tray_width: f32,
     out: &mut Vec<Vertex>,
     selected_track_id: Option<u32>,
-) -> (Vec<TextItem>, ClickResult, CursorIcon) {
+) -> (Vec<TextItem>, InteractionResult) {
     let mut text_items: Vec<TextItem> = Vec::new();
-    let mut cursor_icon: CursorIcon = CursorIcon::Default;
-    let mut click_result: ClickResult = ClickResult::None;
+    let mut interaction = InteractionResult {
+        click: ClickResult::None,
+        cursor: CursorIcon::Default,
+    };
 
     let track_tray = Rectangle {
         x: 0.0,
@@ -38,7 +41,7 @@ pub fn draw(
     track_tray.draw(screen_config, SURFACE, NO_RADIUS, out);
 
     if track_tray.is_hovered_right_edge(mouse_state.x, mouse_state.y) || resizing {
-        cursor_icon = CursorIcon::ColResize;
+        interaction.cursor = CursorIcon::ColResize;
     }
 
     text_items.push(draw_title("Tracks", (track_tray.x, track_tray.y)));
@@ -61,11 +64,11 @@ pub fn draw(
 
         track_button.draw(screen_config, track_button_color, RADIUS_4, out);
         if track_button.is_hovered(mouse_state.x, mouse_state.y) {
-            cursor_icon = CursorIcon::Pointer;
+            interaction.cursor = CursorIcon::Pointer;
             if mouse_state.left_double_clicked {
-                click_result = ClickResult::ToggleTrackWindow(i);
+                interaction.click = ClickResult::ToggleTrackWindow(i);
             } else if mouse_state.left_clicked {
-                click_result = ClickResult::SelectTrackTray(track.data.id);
+                interaction.click = ClickResult::SelectTrackTray(track.data.id);
             }
         }
         let is_selected = selected_track_id == Some(track.data.id);
@@ -89,5 +92,5 @@ pub fn draw(
         });
     }
 
-    (text_items, click_result, cursor_icon)
+    (text_items, interaction)
 }

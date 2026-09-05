@@ -7,6 +7,7 @@ use crate::{
         color::{Color, DARK_GRAY, WHITE},
         font::{TextItem, ROBOTO},
         geometry::Rectangle,
+        mini_window::InteractionResult,
         primitives::{ScreenConfig, PAD_2, PAD_32, PAD_4, PAD_64, PAD_8, RADIUS_4, RADIUS_8},
         Vertex,
     },
@@ -45,7 +46,7 @@ impl ContextMenu {
         screen_config: &ScreenConfig,
         mouse_state: &MouseState,
         out: &mut Vec<Vertex>,
-    ) -> (Vec<TextItem>, ClickResult, CursorIcon) {
+    ) -> (Vec<TextItem>, InteractionResult) {
         match &self.kind {
             ContextMenuKind::PatternContext(id) => {
                 self.draw_pattern_context(screen_config, mouse_state, *id, out)
@@ -127,10 +128,12 @@ impl ContextMenu {
         mouse_state: &MouseState,
         id: usize,
         out: &mut Vec<Vertex>,
-    ) -> (Vec<TextItem>, ClickResult, CursorIcon) {
+    ) -> (Vec<TextItem>, InteractionResult) {
         let mut text_items: Vec<TextItem> = Vec::new();
-        let mut cursor_icon = CursorIcon::Default;
-        let mut click_result = ClickResult::None;
+        let mut interaction = InteractionResult {
+            click: ClickResult::None,
+            cursor: CursorIcon::Default,
+        };
 
         // dark background
         let menu_background = self.draw_background();
@@ -161,35 +164,35 @@ impl ContextMenu {
             text_items.push(self.draw_pattern_context_item_text(item as usize));
 
             if context_item_background.is_hovered(mouse_state.x, mouse_state.y) {
-                cursor_icon = CursorIcon::Pointer;
+                interaction.cursor = CursorIcon::Pointer;
                 if mouse_state.right_clicked || mouse_state.left_clicked {
                     match item {
                         0 => {
                             // rename
-                            click_result = ClickResult::StartRenamingPattern(id);
+                            interaction.click = ClickResult::StartRenamingPattern(id);
                         }
                         1 => {
                             // delete
-                            click_result = ClickResult::DeletePattern(id);
+                            interaction.click = ClickResult::DeletePattern(id);
                         }
                         2 => {
                             // duplicate
-                            click_result = ClickResult::DuplicatePattern(id);
+                            interaction.click = ClickResult::DuplicatePattern(id);
                         }
                         3 => {
                             // clear
-                            click_result = ClickResult::ClearPattern(id);
+                            interaction.click = ClickResult::ClearPattern(id);
                         }
 
                         _ => {
-                            click_result = ClickResult::CloseContextMenu;
+                            interaction.click = ClickResult::CloseContextMenu;
                         }
                     }
                 }
             }
         }
 
-        (text_items, click_result, cursor_icon)
+        (text_items, interaction)
     }
 
     /// Draw the context menu of a Track
@@ -200,10 +203,13 @@ impl ContextMenu {
         pattern_id: usize,
         track_id: usize,
         out: &mut Vec<Vertex>,
-    ) -> (Vec<TextItem>, ClickResult, CursorIcon) {
+    ) -> (Vec<TextItem>, InteractionResult) {
         let mut text_items: Vec<TextItem> = Vec::new();
-        let mut cursor_icon = CursorIcon::Default;
-        let mut click_result = ClickResult::None;
+
+        let mut interaction = InteractionResult {
+            click: ClickResult::None,
+            cursor: CursorIcon::Default,
+        };
 
         // dark background
         let menu_background = self.draw_background();
@@ -234,41 +240,42 @@ impl ContextMenu {
             text_items.push(self.draw_track_context_item_text(item as usize));
 
             if context_item_background.is_hovered(mouse_state.x, mouse_state.y) {
-                cursor_icon = CursorIcon::Pointer;
+                interaction.cursor = CursorIcon::Pointer;
 
                 match item {
                     0 => {
                         // rename
                         if mouse_state.right_clicked || mouse_state.left_clicked {
-                            click_result = ClickResult::StartRenamingTrack(track_id);
+                            interaction.click = ClickResult::StartRenamingTrack(track_id);
                         }
                     }
                     1 => {
                         // piano roll
                         if mouse_state.right_clicked || mouse_state.left_clicked {
-                            click_result = ClickResult::LoadPianoRoll(crate::app::PianoRollState {
-                                pattern_id: (pattern_id),
-                                track_id: (track_id as u32),
-                                scroll_offset: ScrollOffset::default(),
-                            });
+                            interaction.click =
+                                ClickResult::LoadPianoRoll(crate::app::PianoRollState {
+                                    pattern_id: (pattern_id),
+                                    track_id: (track_id as u32),
+                                    scroll_offset: ScrollOffset::default(),
+                                });
                         }
                     }
 
                     4 => {
                         // delete
                         if mouse_state.right_clicked || mouse_state.left_clicked {
-                            click_result = ClickResult::DeleteTrack(track_id);
+                            interaction.click = ClickResult::DeleteTrack(track_id);
                         }
                     }
                     _ => {
                         if mouse_state.right_clicked || mouse_state.left_clicked {
-                            click_result = ClickResult::CloseContextMenu;
+                            interaction.click = ClickResult::CloseContextMenu;
                         }
                     }
                 }
             }
         }
 
-        (text_items, click_result, cursor_icon)
+        (text_items, interaction)
     }
 }

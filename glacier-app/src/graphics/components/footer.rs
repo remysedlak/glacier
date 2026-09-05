@@ -7,6 +7,7 @@ use crate::{
         font::{TextItem, BODY, MONOSPACED},
         geometry::Rectangle,
         icons::{IconDraw, Tooltip},
+        mini_window::InteractionResult,
         primitives::{ScreenConfig, Vertex, NO_RADIUS, PAD_16, PAD_4, PAD_8, RADIUS_8},
     },
 };
@@ -24,17 +25,19 @@ pub fn draw(
     out: &mut Vec<Vertex>,
 ) -> (
     Vec<TextItem>,
-    ClickResult,
     Vec<IconDraw>,
     Option<Tooltip>,
-    CursorIcon,
+    InteractionResult,
 ) {
     // setup
-    let mut click_result = ClickResult::None;
+
     let mut text_items: Vec<TextItem> = Vec::new();
     let mut tooltip: Option<Tooltip> = None;
-    let mut cursor_icon = CursorIcon::Default;
     let mut icons: Vec<IconDraw> = Vec::new();
+    let mut interaction = InteractionResult {
+        click: ClickResult::None,
+        cursor: CursorIcon::Default,
+    };
 
     let footer = Rectangle {
         x: 0.0,
@@ -72,9 +75,9 @@ pub fn draw(
 
     if left_panel_button.hovered {
         tooltip = Some(left_panel_icon.tooltip.clone());
-        cursor_icon = CursorIcon::Pointer;
+        interaction.cursor = CursorIcon::Pointer;
         if mouse_state.left_clicked {
-            click_result = ClickResult::ToggleTrackTray;
+            interaction.click = ClickResult::ToggleTrackTray;
         }
     }
     icons.push(left_panel_icon);
@@ -114,9 +117,9 @@ pub fn draw(
     };
     if path_button.hovered {
         tooltip = Some(music_folder_icon.tooltip.clone());
-        cursor_icon = CursorIcon::Pointer;
+        interaction.cursor = CursorIcon::Pointer;
         if mouse_state.left_clicked {
-            click_result = ClickResult::OpenTrackFileLocation(path.to_string());
+            interaction.click = ClickResult::OpenTrackFileLocation(path.to_string());
         }
     }
     icons.push(music_folder_icon);
@@ -130,5 +133,5 @@ pub fn draw(
         color: ORANGE,
         font: MONOSPACED,
     });
-    (text_items, click_result, icons, tooltip, cursor_icon)
+    (text_items, icons, tooltip, interaction)
 }

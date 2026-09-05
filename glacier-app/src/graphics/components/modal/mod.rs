@@ -1,6 +1,7 @@
 //! Modals are popups that appear in the center of the screen, with a dim overlay behind them.
 use crate::app::click::ClickResult;
 use crate::app::MouseState;
+use crate::graphics::mini_window::InteractionResult;
 use crate::graphics::{
     color::{DARK_GRAY, SURFACE, WHITE},
     font::{TextItem, ROBOTO},
@@ -22,10 +23,12 @@ pub fn draw(
     screen_config: &ScreenConfig,
     mouse_state: &MouseState,
     out: &mut Vec<Vertex>,
-) -> (Vec<TextItem>, ClickResult, CursorIcon) {
+) -> (Vec<TextItem>, InteractionResult) {
     let mut text_items: Vec<TextItem> = Vec::new();
-    let mut click_result = ClickResult::None;
-    let mut cursor_icon = CursorIcon::Default;
+    let mut interaction = InteractionResult {
+        click: ClickResult::None,
+        cursor: CursorIcon::Default,
+    };
 
     // centered modal box
     let modal_background = Rectangle {
@@ -68,9 +71,9 @@ pub fn draw(
     .draw(screen_config, DARK_GRAY, RADIUS_4, out);
 
     if cancel_button.hovered {
-        cursor_icon = CursorIcon::Pointer;
+        interaction.cursor = CursorIcon::Pointer;
         if mouse_state.left_clicked {
-            click_result = ClickResult::ModalCancelExit;
+            interaction.click = ClickResult::ModalCancelExit;
         }
     }
 
@@ -84,9 +87,9 @@ pub fn draw(
     .interactive(Some(mouse_state))
     .draw(screen_config, DARK_GRAY, RADIUS_4, out);
     if discard_button.hovered {
-        cursor_icon = CursorIcon::Pointer;
+        interaction.cursor = CursorIcon::Pointer;
         if mouse_state.left_clicked {
-            click_result = ClickResult::ModalConfirmDiscardAndExit;
+            interaction.click = ClickResult::ModalConfirmDiscardAndExit;
         }
     }
 
@@ -101,9 +104,9 @@ pub fn draw(
     .draw(screen_config, DARK_GRAY, RADIUS_4, out);
 
     if save_button.hovered {
-        cursor_icon = CursorIcon::Pointer;
+        interaction.cursor = CursorIcon::Pointer;
         if mouse_state.left_clicked {
-            click_result = ClickResult::ModalConfirmSaveAndExit;
+            interaction.click = ClickResult::ModalConfirmSaveAndExit;
         }
     }
 
@@ -132,5 +135,5 @@ pub fn draw(
         font: ROBOTO,
     });
 
-    (text_items, click_result, cursor_icon)
+    (text_items, interaction)
 }
