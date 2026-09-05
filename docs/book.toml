@@ -8,6 +8,7 @@ description = "Architecture and internals of the Glacier DAW"
 
 [preprocessor.mermaid]
 command = "mdbook-mermaid"
+optional = true
 
 [output]
 
