@@ -17,3 +17,7 @@ Documentation is split to mirror the workspace's own structure:
   audio thread, UI state, and the sequencer/playlist/piano roll windows.
 - **[glacier-dsp](./dsp/index.md)** — the standalone signal-processing
   crate: RMS/peak/ZCR analysis, FFT, envelope following.
+
+## Download
+
+View the  **[installation guide](./install.md)** or the **[repository](https://github.com/remysedlak/glacier)** to get started!

@@ -1,6 +1,7 @@
 # Summary
 
 - [Introduction](./intro.md)
+  - [Installation](./install.md)
 - [glacier-app](./app/index.md)
     - [Graphics & Rendering](./app/graphics.md)
     - [Interactivity](./app/interactivity.md)
