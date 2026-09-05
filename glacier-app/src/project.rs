@@ -85,6 +85,7 @@ pub struct AudioBlock {
     pub start_step: u32,            // what step does this patterns start at?
     pub length: u32,                // how long is this block? (cut/extended?)
     pub block_type: AudioBlockType, // pattern/instrument/mixing
+    pub is_muted: bool,
 }
 
 /// Runtime Track object

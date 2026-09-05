@@ -3,7 +3,7 @@ use crate::graphics::{
     font::TextItem,
     geometry::{Rectangle, ICON_BORDER},
     mini_window::MiniWindow,
-    primitives::{ScreenConfig, Vertex, NO_RADIUS, PAD_16, PAD_32},
+    primitives::{ScreenConfig, Vertex, NO_RADIUS, PAD_16, PAD_32, PAD_8},
 };
 
 pub fn draw(window: &MiniWindow, screen_config: &ScreenConfig) -> (Vec<Vertex>, Vec<TextItem>) {
@@ -11,7 +11,7 @@ pub fn draw(window: &MiniWindow, screen_config: &ScreenConfig) -> (Vec<Vertex>, 
     let mut texts = vec![];
     let _ = Rectangle::new(
         window.x + PAD_16,
-        window.y + PAD_16,
+        window.y + PAD_8,
         window.width - PAD_32 * 2.0,
         PAD_16 * 2.0,
     )

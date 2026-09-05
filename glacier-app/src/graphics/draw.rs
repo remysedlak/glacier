@@ -235,6 +235,7 @@ impl Graphics {
                     let ruler_y = content_y.saturating_sub(24); // ruler height, tune to taste
                     let ruler_h = content_y.saturating_sub(ruler_y);
 
+                    // STATIC SHAPES
                     let static_vert_start = vertices.len() as u32;
                     let static_char_start = char_draws.len();
                     vertices.extend(static_draw_region.vertices);
@@ -260,6 +261,11 @@ impl Graphics {
                             sh,
                         )),
                     ));
+
+                    // RULER (MEASURES)
+                    let ruler_padding = 16.0; // tune to taste
+                    let ruler_x = (header_x as f32 - ruler_padding).max(0.0) as u32;
+                    let ruler_w = timeline_w + ruler_padding as u32;
                     let ruler_vert_start = vertices.len() as u32;
                     let ruler_char_start = char_draws.len();
                     vertices.extend(ruler_draw_region.vertices);
@@ -276,9 +282,10 @@ impl Graphics {
                         &char_draws,
                         ruler_vert_start,
                         ruler_char_start,
-                        Some(safe_scissor(header_x, ruler_y, timeline_w, ruler_h, sw, sh)),
+                        Some(safe_scissor(ruler_x, ruler_y, ruler_w, ruler_h, sw, sh)),
                     ));
 
+                    // HEADER
                     let header_vert_start = vertices.len() as u32;
                     let header_char_start = char_draws.len();
                     vertices.extend(header_draw_region.vertices);
@@ -298,6 +305,7 @@ impl Graphics {
                         Some(safe_scissor(wx, content_y, header_w, content_h, sw, sh)),
                     ));
 
+                    // TIMELINE
                     let timeline_vert_start = vertices.len() as u32;
                     let timeline_char_start = char_draws.len();
                     vertices.extend(timeline_draw_region.vertices);

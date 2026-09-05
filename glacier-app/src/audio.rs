@@ -288,6 +288,7 @@ pub fn init(
                 AudioCommand::Stop => {
                     is_playing = false;
                     current_step = 0;
+                    producer.try_push(UiCommand::PlayheadPosition(0.0)).ok();
                     producer.try_push(UiCommand::PlaybackStopped).ok();
                 }
                 AudioCommand::CreateAudioBlock(track_id, start_step, length, block_type) => {
@@ -317,6 +318,7 @@ pub fn init(
                         start_step,
                         length: computed_length,
                         block_type,
+                        is_muted: false,
                     };
                     audio_blocks.push(audio_block.clone());
                     producer
