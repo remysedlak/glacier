@@ -1,11 +1,16 @@
 //! File for handling the user's click and drag actions
 
-use crate::graphics::{
-    components::{
-        slider::{self, MIXER_THUMB_WIDTH, MIXER_TRACK_HEIGHT},
-        toolbar::TOOLBAR_Y,
+use crate::{
+    graphics::{
+        components::{
+            slider::{self, MIXER_THUMB_WIDTH, MIXER_TRACK_HEIGHT},
+            toolbar::TOOLBAR_Y,
+        },
+        mini_window::{
+            mixer::MIXER_ITEM_WIDTH, playlist::grid::PLAYLIST_STEP_GAP, TITLEBAR_HEIGHT,
+        },
     },
-    mini_window::{mixer::MIXER_ITEM_WIDTH, playlist::grid::PLAYLIST_STEP_GAP, TITLEBAR_HEIGHT},
+    project::{AudioBlockID, TrackID},
 };
 
 use super::*;
@@ -13,11 +18,11 @@ use super::*;
 pub enum DragResult {
     // mixer
     DragMasterVolumeSlider(f32),
-    DragTrackVolumeSlider(usize, f32),
+    DragTrackVolumeSlider(TrackID, f32),
     // sequencer
-    DragTrackVolumeKnob(usize, f32),
+    DragTrackVolumeKnob(TrackID, f32),
     // playlist
-    ResizeAudioBlock(usize, u32),
+    ResizeAudioBlock(AudioBlockID, u32),
 
     // tray resizing
     ResizeTrackTray,
@@ -70,11 +75,7 @@ impl Graphics {
 
         // DRAGGING KNOB
         if let Some(track_id) = self.dragging_knob {
-            if let Some(track) = self
-                .tracks
-                .iter_mut()
-                .find(|t| t.data.id as usize == track_id)
-            {
+            if let Some(track) = self.tracks.iter_mut().find(|t| t.data.id == track_id) {
                 track.data.track_volume = (track.data.track_volume - dy * 0.005).clamp(0.0, 1.0);
                 self.dragging = true;
                 return DragResult::DragTrackVolumeKnob(track_id, track.data.track_volume);
@@ -96,14 +97,10 @@ impl Graphics {
                     return DragResult::DragMasterVolumeSlider(self.master_volume);
                 }
                 Some(track_id) => {
-                    if let Some(track) = self
-                        .tracks
-                        .iter_mut()
-                        .find(|t| t.data.id as usize == track_id)
-                    {
+                    if let Some(track) = self.tracks.iter_mut().find(|t| t.data.id == track_id) {
                         track.data.track_volume =
                             1.0 - ((mouse_y - slider_y) / MIXER_TRACK_HEIGHT).clamp(0.0, 1.0);
-                        self.dragging_slider = Some(Some(track.data.id as usize));
+                        self.dragging_slider = Some(Some(track.data.id));
                         self.dragging = true;
                         return DragResult::DragTrackVolumeSlider(
                             track_id,
@@ -183,10 +180,10 @@ impl Graphics {
                 if slider_hit.is_hovered(mouse_x, mouse_y) {
                     track.data.track_volume =
                         1.0 - ((mouse_y - slider_hit.y) / MIXER_TRACK_HEIGHT).clamp(0.0, 1.0);
-                    self.dragging_slider = Some(Some(track.data.id as usize));
+                    self.dragging_slider = Some(Some(track.data.id));
                     self.dragging = true;
                     return DragResult::DragTrackVolumeSlider(
-                        track.data.id as usize,
+                        track.data.id,
                         track.data.track_volume,
                     );
                 }
@@ -201,13 +198,10 @@ impl Graphics {
                     height: KNOB_RADIUS * 2.0,
                 };
                 if knob_rect.is_hovered(mouse_x, mouse_y) {
-                    self.dragging_knob = Some(track.data.id as usize);
+                    self.dragging_knob = Some(track.data.id);
                     track.data.track_volume = (track.data.track_volume - dy * 0.01).clamp(0.0, 1.0);
                     self.dragging = true;
-                    return DragResult::DragTrackVolumeKnob(
-                        track.data.id as usize,
-                        track.data.track_volume,
-                    );
+                    return DragResult::DragTrackVolumeKnob(track.data.id, track.data.track_volume);
                 }
             }
         }

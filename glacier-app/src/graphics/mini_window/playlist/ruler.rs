@@ -1,13 +1,13 @@
 // ruler.rs
 use super::grid::{GRID_X_ORIGIN, PLAYLIST_STEP_GAP};
 use crate::app::ScrollOffset;
-use crate::graphics::color::{BLACK, GREEN, ORANGE};
+use crate::graphics::color::{BLACK, GREEN};
 use crate::graphics::font::MONOSPACED;
-use crate::graphics::geometry::{BorderStyle, Rectangle, ICON_BORDER};
-use crate::graphics::primitives::{Vertex, NO_RADIUS, PAD_64};
+use crate::graphics::geometry::{BorderStyle, Rectangle};
+use crate::graphics::primitives::{Vertex, NO_RADIUS};
 use crate::graphics::{
     color::WHITE,
-    font::{TextItem, ROBOTO},
+    font::TextItem,
     mini_window::MiniWindow,
     primitives::{ScreenConfig, PAD_16},
 };
@@ -21,7 +21,7 @@ pub fn draw(
     let mut text_items: Vec<TextItem> = vec![];
     let mut vertices: Vec<Vertex> = vec![];
 
-    let background = Rectangle::new(
+    let _background = Rectangle::new(
         window.x + PAD_16 + GRID_X_ORIGIN - 4.0,
         window.y + 44.0,
         window.width - PAD_16 - GRID_X_ORIGIN,

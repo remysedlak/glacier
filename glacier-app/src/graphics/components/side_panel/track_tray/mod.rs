@@ -2,7 +2,7 @@ use crate::app::click::ClickResult;
 use crate::graphics::components::toolbar::TOOLBAR_Y;
 use crate::graphics::geometry::Rectangle;
 use crate::graphics::mini_window::InteractionResult;
-use crate::project::Track;
+use crate::project::{Track, TrackID};
 use crate::{
     app::MouseState,
     graphics::{
@@ -24,7 +24,7 @@ pub fn draw(
     tracks: &[Track],
     tray_width: f32,
     out: &mut Vec<Vertex>,
-    selected_track_id: Option<u32>,
+    selected_track_id: Option<TrackID>,
 ) -> (Vec<TextItem>, InteractionResult) {
     let mut text_items: Vec<TextItem> = Vec::new();
     let mut interaction = InteractionResult::default();
@@ -63,7 +63,7 @@ pub fn draw(
         if track_button.is_hovered(mouse_state.x, mouse_state.y) {
             interaction.cursor = CursorIcon::Pointer;
             if mouse_state.left_double_clicked {
-                interaction.click = ClickResult::ToggleTrackWindow(i);
+                interaction.click = ClickResult::ToggleTrackWindow(TrackID(i as u32));
             } else if mouse_state.left_clicked {
                 interaction.click = ClickResult::SelectTrackTray(track.data.id);
             }

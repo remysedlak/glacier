@@ -1,12 +1,15 @@
 //! Main builder draw method. paints all shapes using core draw methods and handles the app's vertex buffers.
 use super::*;
-use crate::graphics::{
-    color::{LIGHT_GRAY, SURFACE},
-    components::{modal, toolbar::TOOLBAR_MARGIN},
-    font::measure_text_width,
-    mini_window::{playlist::grid::GRID_X_ORIGIN, InteractionResult, TITLEBAR_HEIGHT},
-    regions::*,
-    side_panel::track_tray::file_tree,
+use crate::{
+    graphics::{
+        color::{LIGHT_GRAY, SURFACE},
+        components::{modal, toolbar::TOOLBAR_MARGIN},
+        font::measure_text_width,
+        mini_window::{playlist::grid::GRID_X_ORIGIN, InteractionResult, TITLEBAR_HEIGHT},
+        regions::*,
+        side_panel::track_tray::file_tree,
+    },
+    project::{PatternID, TrackID},
 };
 use std::time::Duration;
 
@@ -459,33 +462,36 @@ impl Graphics {
                 track => {
                     let window = &self.mini_windows[track];
                     if window.is_open {
-                        if let WindowKind::TrackDetail(track) = window.window_kind {
-                            let (texts, icons, track_interaction, tooltip) = track::draw(
-                                window,
-                                &masked_mouse,
-                                &screen_config,
-                                &self.tracks[track],
-                                &mut vertices,
-                            );
-                            interaction = interaction.or(track_interaction);
-                            for icon in icons {
-                                push_icon_draw(
-                                    &self.icon_cache,
-                                    &self.device,
+                        if let WindowKind::TrackDetail(track_id) = window.window_kind {
+                            if let Some(track) = self.tracks.iter().find(|t| t.data.id == track_id)
+                            {
+                                let (texts, icons, track_interaction, tooltip) = track::draw(
+                                    window,
+                                    &masked_mouse,
                                     &screen_config,
-                                    &icon,
-                                    &mut icon_draws,
-                                )
+                                    track,
+                                    &mut vertices,
+                                );
+                                interaction = interaction.or(track_interaction);
+                                for icon in icons {
+                                    push_icon_draw(
+                                        &self.icon_cache,
+                                        &self.device,
+                                        &screen_config,
+                                        &icon,
+                                        &mut icon_draws,
+                                    )
+                                }
+                                Graphics::push_text_draws(
+                                    &texts,
+                                    &self.font_cache,
+                                    &self.glyph_cache,
+                                    &screen_config,
+                                    &mut glyph_vertices,
+                                    &mut char_draws,
+                                );
+                                self.tooltip = tooltip;
                             }
-                            Graphics::push_text_draws(
-                                &texts,
-                                &self.font_cache,
-                                &self.glyph_cache,
-                                &screen_config,
-                                &mut glyph_vertices,
-                                &mut char_draws,
-                            );
-                            self.tooltip = tooltip;
                         }
                     }
                 }
@@ -510,8 +516,8 @@ impl Graphics {
             let tray_vert_start = vertices.len() as u32;
             let tray_char_start = char_draws.len();
 
-            let selected_track_id: Option<u32> = match self.active_tray {
-                AudioBlockType::Sample(id) => Some(id as u32),
+            let selected_track_id: Option<TrackID> = match self.active_tray {
+                AudioBlockType::Sample(id) => Some(id),
                 _ => None,
             };
 
@@ -659,8 +665,8 @@ impl Graphics {
             .any(|w| matches!(w.window_kind, WindowKind::Sequencer) && w.is_open);
 
         if self.show_pattern_tray {
-            let selected_pattern_id: Option<u32> = match self.active_tray {
-                AudioBlockType::Pattern(id) => Some(id as u32),
+            let selected_pattern_id: Option<PatternID> = match self.active_tray {
+                AudioBlockType::Pattern(id) => Some(id),
                 _ => None,
             };
             let rename_cursor_offset: Option<f32> = self.renaming.as_ref().map(|r| {

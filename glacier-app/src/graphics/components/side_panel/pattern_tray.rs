@@ -13,13 +13,14 @@ use crate::graphics::{
     primitives::{RenameState, RenameTarget, ScreenConfig, PAD_32, PAD_4, PAD_64, PAD_8, RADIUS_8},
     {CursorIcon, PatternData, Rectangle, Vertex, NO_RADIUS, PAD_2},
 };
+use crate::project::PatternID;
 
 const ICON_SIZE: f32 = 20.0;
 
 pub fn draw(
     screen_config: &ScreenConfig,
     patterns: &[PatternData],
-    selected_pattern_id: Option<u32>,
+    selected_pattern_id: Option<PatternID>,
     mouse_state: &MouseState,
     sequencer_is_open: bool,
     tray_width: f32,
@@ -122,11 +123,11 @@ pub fn draw(
             }
             if mouse_state.right_clicked {
                 interaction.click =
-                    ClickResult::OpenPatternMenu(pattern_button.x, pattern_button.y, pattern.id);
+                    ClickResult::OpenPatternMenu(pattern.id, pattern_button.x, pattern_button.y);
             }
         }
 
-        if Some(pattern.id as u32) == selected_pattern_id {
+        if Some(pattern.id) == selected_pattern_id {
             let indicator = Rectangle {
                 x: pattern_button.x,
                 y: row_y,

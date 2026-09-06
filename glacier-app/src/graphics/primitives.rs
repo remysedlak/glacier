@@ -1,4 +1,7 @@
-use crate::graphics::{color::*, font::TextItem};
+use crate::{
+    graphics::{color::*, font::TextItem},
+    project::{PatternID, TrackID},
+};
 
 /// Text editing state.
 pub struct RenameState {
@@ -10,8 +13,8 @@ pub struct RenameState {
 /// What type of ui component is having text edited
 #[derive(Clone, Copy, PartialEq, Debug)]
 pub enum RenameTarget {
-    Track(usize),
-    Pattern(usize),
+    Track(TrackID),
+    Pattern(PatternID),
 }
 
 pub const PAD_64: f32 = 64.0;

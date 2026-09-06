@@ -11,6 +11,7 @@ use crate::{
         primitives::{ScreenConfig, PAD_2, PAD_32, PAD_4, PAD_64, PAD_8, RADIUS_4, RADIUS_8},
         Vertex,
     },
+    project::{PatternID, TrackID},
 };
 
 const CONTEXT_MENU_PADDING: f32 = 4.0;
@@ -19,8 +20,8 @@ const PATTERN_MENU_ITEM_COUNT: u32 = 6;
 const CONTEXT_MENU_FONT_SIZE: f32 = 14.0;
 
 pub enum ContextMenuKind {
-    PatternContext(usize),
-    TrackContext(usize, usize),
+    PatternContext(PatternID),
+    TrackContext(PatternID, TrackID),
 }
 
 pub struct ContextMenu {
@@ -126,7 +127,7 @@ impl ContextMenu {
         &self,
         screen_config: &ScreenConfig,
         mouse_state: &MouseState,
-        id: usize,
+        id: PatternID,
         out: &mut Vec<Vertex>,
     ) -> (Vec<TextItem>, InteractionResult) {
         let mut text_items: Vec<TextItem> = Vec::new();
@@ -197,8 +198,8 @@ impl ContextMenu {
         &self,
         screen_config: &ScreenConfig,
         mouse_state: &MouseState,
-        pattern_id: usize,
-        track_id: usize,
+        pattern_id: PatternID,
+        track_id: TrackID,
         out: &mut Vec<Vertex>,
     ) -> (Vec<TextItem>, InteractionResult) {
         let mut text_items: Vec<TextItem> = Vec::new();
@@ -249,7 +250,7 @@ impl ContextMenu {
                             interaction.click =
                                 ClickResult::LoadPianoRoll(crate::app::PianoRollState {
                                     pattern_id: (pattern_id),
-                                    track_id: (track_id as u32),
+                                    track_id: (track_id),
                                     scroll_offset: ScrollOffset::default(),
                                 });
                         }

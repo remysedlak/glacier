@@ -63,11 +63,15 @@ pub fn draw(
     };
     track_wave_background.draw(screen_config, DARK_GRAY, NO_RADIUS, out);
 
-    let samples_averaged: Vec<f32> = track
-        .samples
-        .chunks(2)
-        .map(|pair| (pair[0] + pair[1]) / 2.0)
-        .collect::<Vec<f32>>();
+    let samples_averaged: Vec<f32> = if track.data.channels == 1 {
+        track.samples.clone()
+    } else {
+        track
+            .samples
+            .chunks(2)
+            .map(|pair| (pair[0] + pair[1]) / 2.0)
+            .collect()
+    };
     let sample_stride = samples_averaged.len() / TRACK_GRAPHICS_WIDTH as usize;
 
     // 200 pixel columns for 200 pixel graphics

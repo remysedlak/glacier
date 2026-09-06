@@ -1,5 +1,6 @@
 //! structured objects to store song data
 use serde::{Deserialize, Serialize};
+use std::sync::mpsc::Receiver;
 
 /// Project data stores song information
 #[derive(Serialize, Deserialize, Clone)]
@@ -60,7 +61,7 @@ impl Default for Project {
             audio_blocks: vec![],
             tracks: vec![],
             patterns: vec![PatternData {
-                id: 0,
+                id: PatternID(0),
                 name: "Pattern 1".to_string(),
                 sequences: vec![],
             }],
@@ -72,16 +73,24 @@ impl Default for Project {
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 #[serde(tag = "kind", content = "id")]
 pub enum AudioBlockType {
-    Sample(usize),  // Instrument
-    Pattern(usize), // Pattern
-    Mixing,         // Automation
+    Sample(TrackID),    // Instrument
+    Pattern(PatternID), // Pattern
+    Mixing,             // Automation
 }
+
+// Newtype IDs for safety
+#[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct PatternID(pub u32);
+#[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct TrackID(pub u32);
+#[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct AudioBlockID(pub u32);
 
 /// AudioBlocks are how audio elements are timed within a playlist
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct AudioBlock {
-    pub id: usize,                  // uuid
-    pub track_id: usize,            // track id
+    pub id: AudioBlockID,
+    pub track_id: TrackID,
     pub start_step: u32,            // what step does this patterns start at?
     pub length: u32,                // how long is this block? (cut/extended?)
     pub block_type: AudioBlockType, // pattern/instrument/mixing
@@ -124,7 +133,7 @@ impl Track {
 /// Track metadata stored on disk
 #[derive(Serialize, Deserialize, Clone)]
 pub struct TrackData {
-    pub id: u32,
+    pub id: TrackID,
     pub name: String,
     pub path: String,
     pub is_muted: bool,
@@ -137,13 +146,13 @@ pub struct TrackData {
 /// Patterns store a set of sequences
 #[derive(Serialize, Deserialize, Clone)]
 pub struct PatternData {
-    pub id: usize,
+    pub id: PatternID,
     pub name: String,
     pub sequences: Vec<Sequence>,
 }
 
 impl PatternData {
-    pub fn duplicate(&self, id: usize) -> PatternData {
+    pub fn duplicate(&self, id: PatternID) -> PatternData {
         let mut new_pattern = self.clone();
         new_pattern.id = id;
         new_pattern.name = format!("{} Copy", self.name);
@@ -157,7 +166,7 @@ impl PatternData {
 /// One row of steps for an track in a pattern
 #[derive(Serialize, Deserialize, Clone)]
 pub struct Sequence {
-    pub track_id: u32,
+    pub track_id: TrackID,
     pub steps: Vec<Note>,
 }
 
@@ -194,8 +203,6 @@ pub fn get_tracks(project: &Project) -> Vec<Track> {
         .collect()
 }
 
-use std::sync::mpsc::Receiver;
-
 /// Helper method for starting a thread to handle loading a new track to the project from the file system
 pub fn spawn_track_load(path_str: String) -> Receiver<(TrackData, Vec<f32>)> {
     let (tx, rx) = std::sync::mpsc::channel();
@@ -206,7 +213,7 @@ pub fn spawn_track_load(path_str: String) -> Receiver<(TrackData, Vec<f32>)> {
             .map(|n| n.to_string_lossy().to_string())
             .unwrap_or_else(|| "unknown".to_string());
         let data = TrackData {
-            id: 0,
+            id: TrackID(0),
             path: path_str,
             name,
             channels,

@@ -11,7 +11,7 @@ use crate::graphics::{
     },
     primitives::{RenameState, RenameTarget},
 };
-use crate::project::AudioBlockType;
+use crate::project::{AudioBlockID, AudioBlockType, PatternID, TrackID};
 use rfd::FileDialog;
 use ringbuf::traits::Producer;
 use std::path::PathBuf;
@@ -22,10 +22,10 @@ use winit::event_loop::ActiveEventLoop;
 #[derive(PartialEq)]
 pub enum ClickResult {
     // sequencer
-    ToggleStep(usize, u32, usize),     // pattern_id, track_id, step_idx
-    ToggleNote(usize, u32, usize, u8), // pattern_id, track_id, step_idx, pitch
-    ToggleTrackMute(usize),
-    DeleteTrack(usize),
+    ToggleStep(PatternID, TrackID, usize), // pattern_id, track_id, step_idx
+    ToggleNote(PatternID, TrackID, usize, u8), // pattern_id, track_id, step_idx, pitch
+    ToggleTrackMute(TrackID),
+    DeleteTrack(TrackID),
     ToggleSequencerWindow,
     OpenTrackFileLocation(String),
 
@@ -37,22 +37,22 @@ pub enum ClickResult {
     TrackFileDialog,
 
     // menus
-    OpenTrackMenu(f32, f32, usize, usize),
+    OpenTrackMenu(f32, f32, PatternID, TrackID),
     CloseContextMenu,
 
     // patterns
-    DeletePlaylistAudioBlock(usize),
-    DeletePattern(usize),
-    DuplicatePattern(usize),
+    DeletePlaylistAudioBlock(AudioBlockID),
+    DeletePattern(PatternID),
+    DuplicatePattern(PatternID),
     CreatePattern,
-    ClearPattern(usize),
-    AddPlaylistAudioBlock(usize, u32, u32, AudioBlockType),
-    OpenPatternMenu(f32, f32, usize),
-    StartResizeEvent(usize),
+    ClearPattern(PatternID),
+    AddPlaylistAudioBlock(TrackID, u32, u32, AudioBlockType),
+    OpenPatternMenu(PatternID, f32, f32),
+    StartResizeEvent(AudioBlockID),
 
     // renaming
-    StartRenamingPattern(usize),
-    StartRenamingTrack(usize),
+    StartRenamingPattern(PatternID),
+    StartRenamingTrack(TrackID),
 
     // piano roll
     TogglePianoRollWindow,
@@ -61,11 +61,11 @@ pub enum ClickResult {
     // toggle ui components
     ToggleMixerWindow,
     TogglePlaylistWindow,
-    ToggleTrackWindow(usize),
+    ToggleTrackWindow(TrackID),
     TogglePatternTray,
     ToggleTrackTray,
-    SelectPattern(usize),
-    SelectTrackTray(u32),
+    SelectPattern(PatternID),
+    SelectTrackTray(TrackID),
 
     // modal controls
     ModalConfirmSaveAndExit,
@@ -76,7 +76,7 @@ pub enum ClickResult {
     FsToggleDir(PathBuf),
     FsPreviewSample(PathBuf),
     FsStartDragFile(PathBuf),
-    FSEndDragFile(PathBuf, usize, usize), // track, step
+    FSEndDragFile(PathBuf, TrackID, usize), // track, step
 
     // no click result
     None,
@@ -110,7 +110,7 @@ impl App {
             }
             ClickResult::StartRenamingTrack(id) => {
                 gfx.context_menu = None;
-                if let Some(track) = gfx.tracks.iter().find(|t| t.data.id == id as u32) {
+                if let Some(track) = gfx.tracks.iter().find(|t| t.data.id == id) {
                     gfx.renaming = Some(RenameState {
                         target: RenameTarget::Track(id),
 
@@ -120,9 +120,7 @@ impl App {
                 }
             }
             ClickResult::FsStartDragFile(path) => gfx.dragging_file = Some(path),
-            ClickResult::SelectTrackTray(id) => {
-                gfx.active_tray = AudioBlockType::Sample(id as usize)
-            }
+            ClickResult::SelectTrackTray(id) => gfx.active_tray = AudioBlockType::Sample(id),
             ClickResult::FSEndDragFile(path, track, step) => {
                 let path_str = path.to_string_lossy().to_string();
                 self.pending_drop = Some((track, step));
@@ -183,7 +181,7 @@ impl App {
                 }
             }
             ClickResult::CloseContextMenu => gfx.context_menu = None,
-            ClickResult::OpenPatternMenu(x, y, pattern_id) => {
+            ClickResult::OpenPatternMenu(pattern_id, x, y) => {
                 gfx.context_menu = Some(ContextMenu {
                     kind: ContextMenuKind::PatternContext(pattern_id),
                     x,
@@ -204,20 +202,22 @@ impl App {
                 gfx.active_pattern_id = pattern_id;
                 gfx.active_tray = AudioBlockType::Pattern(pattern_id);
             }
-            ClickResult::ToggleTrackWindow(track) => {
+            ClickResult::ToggleTrackWindow(track_id) => {
+                let Some(track) = gfx.tracks.iter().find(|t| t.data.id == track_id) else {
+                    return; // track no longer exists; nothing to open
+                };
                 gfx.piano_roll_state = Some(super::PianoRollState {
                     pattern_id: gfx.active_pattern_id,
-                    track_id: gfx.tracks[track].data.id,
+                    track_id,
                     scroll_offset: super::ScrollOffset {
                         x: 0.0,
                         y: PIANO_ROLL_DEFAULT_Y,
                     },
                 });
-
                 if let Some(pos) = gfx
                     .mini_windows
                     .iter()
-                    .position(|w| w.window_kind == WindowKind::TrackDetail(track))
+                    .position(|w| w.window_kind == WindowKind::TrackDetail(track_id))
                 {
                     gfx.mini_windows[pos].is_open = !gfx.mini_windows[pos].is_open;
                 } else {
@@ -226,9 +226,9 @@ impl App {
                         y: 128.0,
                         width: 600.0,
                         height: 500.0,
-                        title: gfx.tracks[track].data.name.clone(),
+                        title: track.data.name.clone(),
                         is_open: true,
-                        window_kind: WindowKind::TrackDetail(track),
+                        window_kind: WindowKind::TrackDetail(track_id),
                     });
                     let new_id = gfx.mini_windows.len() - 1;
                     gfx.z_order.push(new_id);

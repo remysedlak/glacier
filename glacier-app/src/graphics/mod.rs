@@ -13,7 +13,9 @@ pub mod regions;
 use crate::app::{MouseState, PianoRollState, ScrollOffset};
 use crate::config::DEFAULT_BPM;
 use crate::graphics::components::side_panel::DEFAULT_TRAY_WIDTH;
-use crate::project::{AudioBlock, AudioBlockType, PatternData, Track, TrackData};
+use crate::project::{
+    AudioBlock, AudioBlockID, AudioBlockType, PatternData, PatternID, Track, TrackData, TrackID,
+};
 use std::path::PathBuf;
 
 use color::{Color, DARK_GRAY, WHITE};
@@ -233,7 +235,7 @@ pub async fn create_graphics(window: Rc<Window>, proxy: EventLoopProxy<Graphics>
         patterns: Vec::new(),
         audio_blocks: Vec::new(),
         active_step: 0,
-        active_pattern_id: 0,
+        active_pattern_id: PatternID(0),
         bpm: DEFAULT_BPM,
         is_playing: false,
         master_volume: 0.5,
@@ -351,7 +353,7 @@ pub struct Graphics {
 
     pub mini_windows: Vec<MiniWindow>,
     num_vertices: u32,
-    pub active_pattern_id: usize,
+    pub active_pattern_id: PatternID,
     pub piano_roll_state: Option<PianoRollState>,
     pub z_order: Vec<usize>,
     pub context_menu: Option<ContextMenu>,
@@ -379,13 +381,13 @@ pub struct Graphics {
     pub sample_rate: f32,
 
     // dragging
-    pub dragging_knob: Option<usize>,   // volume knob
+    pub dragging_knob: Option<TrackID>, // volume knob
     pub dragging_window: Option<usize>, // window titlebar
     pub resizing_track_tray: bool,
     pub dragging: bool,
     pub dragging_file: Option<PathBuf>,
-    pub dragging_slider: Option<Option<usize>>,
-    pub resizing_audio_block: Option<usize>, // pattern resizing in playlist
+    pub dragging_slider: Option<Option<TrackID>>,
+    pub resizing_audio_block: Option<AudioBlockID>, // pattern resizing in playlist
     pub resize_drag_accumulator: f32,
 
     // scrolling

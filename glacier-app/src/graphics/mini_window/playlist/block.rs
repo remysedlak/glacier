@@ -15,7 +15,7 @@ use crate::{
         },
         primitives::{ScreenConfig, Vertex, PAD_16, PAD_4, PAD_64, PAD_8, RADIUS_8},
     },
-    project::{AudioBlock, AudioBlockType, PatternData, Track},
+    project::{AudioBlock, AudioBlockID, AudioBlockType, PatternData, Track},
 };
 
 /// build a rectangle and label for each item placed on the playlist, handle interactivity
@@ -27,7 +27,7 @@ pub fn draw_audio_block(
     mouse_state: &MouseState,
     screen_config: &ScreenConfig,
     patterns: &[PatternData],
-    resizing_audio_block: Option<usize>,
+    resizing_audio_block: Option<AudioBlockID>,
     timeline_vertices: &mut Vec<Vertex>,
     timeline_text_items: &mut Vec<TextItem>,
 ) -> InteractionResult {
@@ -41,7 +41,7 @@ pub fn draw_audio_block(
                     + PAD_16
                     + GRID_X_ORIGIN
                     - scroll_offset.x,
-                y: window.y + (audio_block.track_id as f32 * PLAYLIST_TRACK_GAP) + PAD_64
+                y: window.y + (audio_block.track_id.0 as f32 * PLAYLIST_TRACK_GAP) + PAD_64
                     - scroll_offset.y,
                 width: PLAYLIST_STEP_GAP * audio_block.length as f32 - 2.0,
                 height: PLAYLIST_STEP_HEIGHT,
@@ -61,14 +61,14 @@ pub fn draw_audio_block(
                     + PAD_16
                     + GRID_X_ORIGIN
                     - scroll_offset.x,
-                y: window.y + (audio_block.track_id as f32 * PLAYLIST_TRACK_GAP) + PAD_64
+                y: window.y + (audio_block.track_id.0 as f32 * PLAYLIST_TRACK_GAP) + PAD_64
                     - scroll_offset.y,
                 width: PLAYLIST_STEP_GAP * audio_block.length as f32 - 2.0,
                 height: PLAYLIST_STEP_HEIGHT,
             };
             let label = tracks
                 .iter()
-                .find(|t| t.data.id as usize == id)
+                .find(|t| t.data.id == id)
                 .map(|t| t.data.name.clone())
                 .unwrap_or_else(|| "?".to_string());
             (rect, label)

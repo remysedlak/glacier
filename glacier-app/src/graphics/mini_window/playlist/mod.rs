@@ -6,7 +6,7 @@ use crate::graphics::{
     primitives::*,
     AudioBlockType, PathBuf,
 };
-use crate::project::{AudioBlock, PatternData, Track};
+use crate::project::{AudioBlock, AudioBlockID, PatternData, Track};
 
 pub mod block;
 pub mod grid;
@@ -24,7 +24,7 @@ pub fn draw(
     active_tray: &AudioBlockType,
     scroll_offset: &ScrollOffset,
     playhead_beat: f32, // was: current_step: usize
-    resizing_audio_block: Option<usize>,
+    resizing_audio_block: Option<AudioBlockID>,
     dragging_file: Option<&PathBuf>,
     screen_config: &ScreenConfig,
 ) -> (
@@ -61,7 +61,7 @@ pub fn draw(
         toolbar_vertices,
         toolbar_text_items,
         track_header_vertices,
-        mut track_header_text_items,
+        track_header_text_items,
         mut timeline_vertices,
         mut timeline_text_items,
         grid_interaction,

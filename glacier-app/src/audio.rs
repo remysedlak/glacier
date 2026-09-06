@@ -13,17 +13,17 @@ use ringbuf::{
 /// commands retrieved from the user interface to control the audio engine
 pub enum AudioCommand {
     // composition details
-    ToggleStep(usize, u32, usize),
-    ToggleNote(usize, u32, usize, u8), // pattern_id, track_id, step_idx, pitch
+    ToggleStep(PatternID, TrackID, usize), // pattern_id, track_id, step_idx
+    ToggleNote(PatternID, TrackID, usize, u8), // pattern_id, track_id, step_idx, pitch
     ChangeBpm(f32),
-    DeleteAudioBlock(usize),
-    CreateAudioBlock(usize, u32, u32, AudioBlockType),
-    ResizeAudioBlock(usize, u32),
+    DeleteAudioBlock(AudioBlockID),
+    CreateAudioBlock(TrackID, u32, u32, AudioBlockType), // track_id, start_step, length, block_type
+    ResizeAudioBlock(AudioBlockID, u32),
 
     // mixing
     ChangeMasterVolume(f32),
-    ToggleTrackMute(usize),
-    ChangeTrackVolume(usize, f32),
+    ToggleTrackMute(TrackID),
+    ChangeTrackVolume(TrackID, f32),
 
     // control
     TogglePlay,
@@ -37,18 +37,18 @@ pub enum AudioCommand {
     SetProjectPath(String),
 
     // patterns
-    DuplicatePattern(usize),
+    DuplicatePattern(PatternID),
     CreatePattern,
-    DeletePattern(usize),
-    ClearPattern(usize),
+    DeletePattern(PatternID),
+    ClearPattern(PatternID),
 
     // renaming state
-    RenamePattern(usize, String),
-    RenameTrack(usize, String),
+    RenamePattern(PatternID, String),
+    RenameTrack(TrackID, String),
 
     // tracks
     LoadTrack(TrackData, Vec<f32>),
-    DeleteTrack(usize),
+    DeleteTrack(TrackID),
 }
 
 /// initialize the CPAL engine with project file data and return the audio stream
@@ -164,7 +164,7 @@ pub fn init(
                     }
                 }
                 AudioCommand::RenameTrack(track_id, name) => {
-                    if let Some(track) = tracks.iter_mut().find(|t| t.data.id == track_id as u32) {
+                    if let Some(track) = tracks.iter_mut().find(|t| t.data.id == track_id) {
                         track.data.name = name.clone();
                         producer
                             .try_push(UiCommand::TrackUpdated(track.data.clone()))
@@ -189,10 +189,10 @@ pub fn init(
                         let new_pattern = pattern.duplicate(
                             patterns
                                 .iter()
-                                .map(|x| x.id)
+                                .map(|x| x.id.0)
                                 .max()
-                                .map(|m| m + 1)
-                                .unwrap_or(0),
+                                .map(|m| PatternID(m + 1))
+                                .unwrap_or(PatternID(0)),
                         );
                         patterns.push(new_pattern.clone());
                         // update the ui
@@ -241,10 +241,10 @@ pub fn init(
                 AudioCommand::CreatePattern => {
                     let new_pattern_id = patterns
                         .iter()
-                        .map(|x| x.id)
+                        .map(|x| x.id.0)
                         .max()
-                        .map(|m| m + 1)
-                        .unwrap_or(0);
+                        .map(|m| PatternID(m + 1))
+                        .unwrap_or(PatternID(0));
 
                     // create name to be Nth pattern available
                     let name = format!("Pattern {}", patterns.len() + 1);
@@ -295,7 +295,7 @@ pub fn init(
                     let computed_length = match &block_type {
                         AudioBlockType::Sample(sample_track_id) => tracks
                             .iter()
-                            .find(|t| t.data.id == *sample_track_id as u32)
+                            .find(|t| t.data.id == *sample_track_id)
                             .map(|track| {
                                 let samples_per_step =
                                     glacier_dsp::samples_per_step(config.sample_rate as f32, bpm);
@@ -310,10 +310,10 @@ pub fn init(
                     let audio_block = AudioBlock {
                         id: audio_blocks
                             .iter()
-                            .map(|x| x.id)
+                            .map(|x| x.id.0)
                             .max()
-                            .map(|m| m + 1)
-                            .unwrap_or(0),
+                            .map(|m| AudioBlockID(m + 1))
+                            .unwrap_or(AudioBlockID(0)),
                         track_id,
                         start_step,
                         length: computed_length,
@@ -327,7 +327,7 @@ pub fn init(
                 }
                 AudioCommand::ChangeMasterVolume(new_volume) => master_volume = new_volume,
                 AudioCommand::ChangeTrackVolume(track_id, new_volume) => {
-                    if let Some(track) = tracks.iter_mut().find(|t| t.data.id == track_id as u32) {
+                    if let Some(track) = tracks.iter_mut().find(|t| t.data.id == track_id) {
                         track.data.track_volume = new_volume;
                         producer
                             .try_push(UiCommand::TrackUpdated(track.data.clone()))
@@ -372,14 +372,14 @@ pub fn init(
                     }
                 }
                 AudioCommand::DeleteTrack(track_id) => {
-                    if let Some(pos) = tracks.iter().position(|t| t.data.id == track_id as u32) {
+                    if let Some(pos) = tracks.iter().position(|t| t.data.id == track_id) {
                         let data_id = tracks[pos].data.id;
                         for pattern in patterns.iter_mut() {
                             pattern.sequences.retain(|s| s.track_id != data_id);
                         }
                         audio_blocks.retain(|e| {
                             if let crate::project::AudioBlockType::Sample(pid) = e.block_type {
-                                pid != data_id as usize
+                                pid != data_id
                             } else {
                                 true
                             }
@@ -393,10 +393,10 @@ pub fn init(
                     // used to be tracks.len()
                     track_data.id = tracks
                         .iter()
-                        .map(|x| x.data.id)
+                        .map(|x| x.data.id.0)
                         .max()
-                        .map(|m| m + 1)
-                        .unwrap_or(0) as u32;
+                        .map(|m| TrackID(m + 1))
+                        .unwrap_or(TrackID(0));
                     let track = Track::from_data(track_data, samples);
                     tracks.push(track.clone()); // ownership clone
                     producer.try_push(UiCommand::TrackLoaded(track)).ok();
@@ -406,7 +406,7 @@ pub fn init(
                     producer.try_push(UiCommand::BpmChanged(new_bpm)).ok();
                 }
                 AudioCommand::ToggleTrackMute(track_id) => {
-                    if let Some(track) = tracks.iter_mut().find(|t| t.data.id == track_id as u32) {
+                    if let Some(track) = tracks.iter_mut().find(|t| t.data.id == track_id) {
                         track.mute();
                         producer
                             .try_push(UiCommand::TrackUpdated(track.data.clone()))
@@ -604,7 +604,7 @@ pub fn init(
                     .ok();
 
                 // build out each note
-                let triggers: Vec<(usize, f32, u8)> = audio_blocks
+                let triggers: Vec<(TrackID, f32, u8)> = audio_blocks
                     .iter()
                     .filter_map(|e| {
                         if let AudioBlockType::Pattern(pattern_id) = e.block_type {
@@ -629,7 +629,7 @@ pub fn init(
                             })
                             .map(move |s| {
                                 let note = &s.steps[local_step];
-                                (s.track_id as usize, note.velocity, note.pitch)
+                                (s.track_id, note.velocity, note.pitch)
                             })
                     })
                     .collect();
@@ -637,9 +637,7 @@ pub fn init(
                 for audio_block in &audio_blocks {
                     if let AudioBlockType::Sample(track_id) = audio_block.block_type {
                         if current_step == audio_block.start_step as usize {
-                            if let Some(track) =
-                                tracks.iter_mut().find(|t| t.data.id as usize == track_id)
-                            {
+                            if let Some(track) = tracks.iter_mut().find(|t| t.data.id == track_id) {
                                 let samples_per_step =
                                     glacier_dsp::samples_per_step(config.sample_rate as f32, bpm);
                                 let stop_at = audio_block.length as f32 * samples_per_step * 2.0;
@@ -658,10 +656,7 @@ pub fn init(
                 }
 
                 for (track_id, velocity, pitch) in triggers {
-                    if let Some(track) = tracks
-                        .iter_mut()
-                        .find(|track| track.data.id as usize == track_id)
-                    {
+                    if let Some(track) = tracks.iter_mut().find(|track| track.data.id == track_id) {
                         let playback_rate =
                             glacier_dsp::semitones_to_rate(pitch, track.data.root_note);
                         track.voices.push(Voice {

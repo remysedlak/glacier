@@ -8,7 +8,7 @@ use crate::graphics::{
     primitives::*,
     {Rectangle, ScrollOffset, TextItem},
 };
-use crate::project::{Note, PatternData, Track};
+use crate::project::{Note, PatternData, PatternID, Track, TrackID};
 use winit::window::CursorIcon;
 
 pub const BAR_GAP: f32 = 12.0;
@@ -28,7 +28,7 @@ pub fn draw(
     patterns: &[PatternData],
     scroll_offset: &ScrollOffset,
     tracks: &mut [Track],
-    active_pattern_id: usize,
+    active_pattern_id: PatternID,
     active_step: usize,
     mouse_state: &MouseState,
     screen_config: &ScreenConfig,
@@ -56,8 +56,8 @@ pub fn draw(
     text_items.push(titlebar_texts);
 
     // collect steps values for each row
-    let steps_data: Vec<(u32, &[Note])> = patterns
-        .get(active_pattern_id)
+    let steps_data: Vec<(TrackID, &[Note])> = patterns
+        .get(active_pattern_id.0 as usize)
         .map(|p| {
             p.sequences
                 .iter()
@@ -204,28 +204,28 @@ pub fn draw(
         if hovered {
             interaction.cursor = CursorIcon::Pointer;
             if mouse_state.left_clicked {
-                interaction.click = ClickResult::ToggleTrackWindow(i);
+                interaction.click = ClickResult::ToggleTrackWindow(track.data.id);
             }
             if mouse_state.right_clicked {
                 interaction.click = ClickResult::OpenTrackMenu(
                     track_button_x,
                     track_button_y,
                     active_pattern_id,
-                    i,
+                    track.data.id,
                 );
             }
         }
         if track_button.is_hovered(mouse_state.x, mouse_state.y) {
             interaction.cursor = CursorIcon::Pointer;
             if mouse_state.left_clicked {
-                interaction.click = ClickResult::ToggleTrackWindow(i);
+                interaction.click = ClickResult::ToggleTrackWindow(track.data.id);
             }
             if mouse_state.right_clicked {
                 interaction.click = ClickResult::OpenTrackMenu(
                     track_button_x,
                     track_button_y,
                     active_pattern_id,
-                    i,
+                    track.data.id,
                 );
             }
         }
@@ -260,7 +260,7 @@ pub fn draw(
 
         if mute_button.is_hovered(mouse_state.x, mouse_state.y) && mouse_state.left_clicked {
             track.data.is_muted = !track.data.is_muted;
-            interaction.click = ClickResult::ToggleTrackMute(i);
+            interaction.click = ClickResult::ToggleTrackMute(track.data.id);
         };
 
         // velocity button

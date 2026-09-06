@@ -1,6 +1,8 @@
 //! handle all commands incoming from audio thread
 use super::{App, State};
-use crate::project::{AudioBlock, AudioBlockType, PatternData, Track};
+use crate::project::{
+    AudioBlock, AudioBlockID, AudioBlockType, PatternData, PatternID, Track, TrackID,
+};
 use crate::{
     graphics::{
         bring_to_front,
@@ -12,17 +14,17 @@ use cpal::traits::StreamTrait;
 
 /// UiCommands are used to sync the audio engine to the graphics engine
 pub enum UiCommand {
-    TrackLevel(u32, f32, f32, f32),
+    TrackLevel(TrackID, f32, f32, f32),
     TrackLoaded(Track),
-    TrackDeleted(u32),
+    TrackDeleted(TrackID),
     TrackUpdated(TrackData),
 
     BpmChanged(f32),
 
     PatternUpdated(PatternData),
-    PatternDeleted(usize),
+    PatternDeleted(PatternID),
 
-    AudioBlockDeleted(usize),
+    AudioBlockDeleted(AudioBlockID),
     AudioBlockLoaded(AudioBlock),
 
     MasterLevel(f32, f32, f32),
@@ -90,7 +92,7 @@ impl App {
                 gfx.mini_windows[SEQUENCER_ID].height = 100.0 + TRACK_GAP * gfx.tracks.len() as f32;
                 gfx.audio_blocks.retain(|e| {
                     if let AudioBlockType::Sample(id) = e.block_type {
-                        id != track_id as usize
+                        id != track_id
                     } else {
                         true
                     }
@@ -148,7 +150,7 @@ impl App {
                 gfx.master_peak = peak;
             }
             UiCommand::TrackLoaded(track) => {
-                let track_id = track.data.id as usize;
+                let track_id = track.data.id;
                 gfx.active_tray = AudioBlockType::Sample(track_id);
                 gfx.tracks.push(track);
                 let win = &mut gfx.mini_windows[SEQUENCER_ID];

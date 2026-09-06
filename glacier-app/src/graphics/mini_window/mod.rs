@@ -3,14 +3,14 @@
 use winit::window::CursorIcon;
 
 use crate::{
-    app::click::ClickResult,
-    app::MouseState,
+    app::{click::ClickResult, MouseState},
     graphics::{
         color::{DARK_GRAY, LIGHT_GRAY, WHITE},
         font::{TextItem, ROBOTO},
         geometry::Rectangle,
         primitives::{ScreenConfig, Vertex, NO_RADIUS, PAD_16, PAD_4, PAD_8},
     },
+    project::TrackID,
 };
 
 pub const TOP_RADIUS_6: [f32; 4] = [6.0, 0.0, 6.0, 0.0];
@@ -35,7 +35,7 @@ pub enum WindowKind {
     Playlist,
     Mixer,
     PianoRoll,
-    TrackDetail(usize), // which track
+    TrackDetail(TrackID), // which track
 }
 
 pub struct InteractionResult {

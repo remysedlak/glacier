@@ -9,7 +9,7 @@ use crate::{
         mini_window::{playlist::toolbar, InteractionResult, MiniWindow},
         primitives::{ScreenConfig, Vertex, NO_RADIUS, PAD_16, PAD_4, PAD_64, PAD_8},
     },
-    project::{AudioBlockType, PatternData},
+    project::{AudioBlockType, PatternData, TrackID},
 };
 
 pub const PLAYLIST_STEP_WIDTH: f32 = 32.0;
@@ -42,7 +42,7 @@ pub fn draw(
     let mut track_header_text_items: Vec<TextItem> = Vec::new();
 
     let mut grid_vertices: Vec<Vertex> = Vec::new();
-    let mut grid_text_items: Vec<TextItem> = Vec::new();
+    let grid_text_items: Vec<TextItem> = Vec::new();
 
     let mut interaction = InteractionResult::default();
 
@@ -105,7 +105,8 @@ pub fn draw(
             if pl_step.is_hovered(mouse_state.x, mouse_state.y) {
                 if let Some(path) = dragging_file {
                     if mouse_state.left_released {
-                        interaction.click = ClickResult::FSEndDragFile(path.clone(), track, step);
+                        interaction.click =
+                            ClickResult::FSEndDragFile(path.clone(), TrackID(track as u32), step);
                     }
                 } else if mouse_state.left_clicked {
                     let length = match &active_tray {
@@ -118,7 +119,7 @@ pub fn draw(
                         _ => 1,
                     };
                     interaction.click = ClickResult::AddPlaylistAudioBlock(
-                        track,
+                        TrackID(track as u32),
                         step as u32,
                         length.try_into().unwrap(),
                         active_tray.clone(),

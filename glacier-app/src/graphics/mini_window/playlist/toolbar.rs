@@ -1,5 +1,5 @@
 use crate::graphics::{
-    color::{DARK_GRAY, WHITE},
+    color::DARK_GRAY,
     font::TextItem,
     geometry::{Rectangle, ICON_BORDER},
     mini_window::MiniWindow,
@@ -8,7 +8,7 @@ use crate::graphics::{
 
 pub fn draw(window: &MiniWindow, screen_config: &ScreenConfig) -> (Vec<Vertex>, Vec<TextItem>) {
     let mut verts = vec![];
-    let mut texts = vec![];
+    let texts = vec![];
     let _ = Rectangle::new(
         window.x + PAD_16,
         window.y + PAD_8,

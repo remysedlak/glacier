@@ -7,7 +7,7 @@ use crate::graphics::{
     primitives::{RenameState, RenameTarget, PAD_32},
     {create_graphics, Graphics, Rc},
 };
-use crate::project::{spawn_track_load, AudioBlockType, TrackData};
+use crate::project::{spawn_track_load, AudioBlockType, PatternID, TrackData, TrackID};
 use cpal::Stream;
 use rfd::FileDialog;
 use ringbuf::{
@@ -88,8 +88,8 @@ impl Default for ScrollOffset {
 
 #[derive(PartialEq)]
 pub struct PianoRollState {
-    pub pattern_id: usize,
-    pub track_id: u32,
+    pub pattern_id: PatternID,
+    pub track_id: TrackID,
     pub scroll_offset: ScrollOffset,
 }
 
@@ -110,7 +110,7 @@ pub struct App {
     project_file_dialog_rx: Option<Receiver<Option<PathBuf>>>,
     track_load_rx: Option<Receiver<(TrackData, Vec<f32>)>>,
     project_save_dialog_rx: Option<Receiver<Option<PathBuf>>>,
-    pending_drop: Option<(usize, usize)>,
+    pending_drop: Option<(TrackID, usize)>,
 }
 
 enum State {
