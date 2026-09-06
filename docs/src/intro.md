@@ -5,8 +5,8 @@ audio engine, GPU-rendered UI, and sequencer, all hand-written with minimal
 dependencies. It's an active, ongoing learning project, so expect the
 architecture to keep evolving.
 
-This book exists because the project outgrew a single README a while ago —
-it's where the *why* behind the code lives, not just the *what* (that part's
+This book exists because the project outgrew a single README a while ago. 
+It's where the *why* behind the code lives, not just the *what* (that part's
 covered by generated API docs via `cargo doc`).
 
 ## Getting Started

@@ -20,7 +20,7 @@ struct WindowDrawRange {
 
 The playlist and piano roll windows have scrollable sub-regions that need
 their own scissor rects, so they populate separate `playlist_window_ranges`
-and `piano_roll_ranges` instead of the generic `window_ranges` path — the
+and `piano_roll_ranges` instead of the generic `window_ranges` path. The
 generic entry is still pushed for these two (for uniformity with the rest of
 the loop) but the render pass `continue`s past it unused.
 

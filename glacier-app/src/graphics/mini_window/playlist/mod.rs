@@ -14,6 +14,13 @@ pub mod playhead;
 mod ruler;
 mod toolbar;
 
+pub enum PlaylistCursor {
+    Select,
+    RectangleSelect,
+    Paint,
+    Mute,
+}
+
 /// Draw the playlist Mini Window. This is where the user composes the entire song and project. Instruments can be placed here from the track tray, and patterns from the pattern track.
 pub fn draw(
     window: &MiniWindow,

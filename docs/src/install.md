@@ -25,7 +25,7 @@ working directory you invoke `cargo` from, not the crate's own location.
 callback and GPU rendering are both real-time-sensitive and a debug build
 can introduce audible glitches or dropped frames.
 
-- `-- --dev` loads assets/projects/dev.toml instead of the default new-project file — useful for testing against a project that already has tracks/patterns/audio blocks in place, rather than starting from empty every run.
+- `-- --dev` loads assets/projects/dev.toml instead of the default new-project file. This is useful for testing against a project that already has tracks/patterns/audio blocks in place, rather than starting from empty every run.
 
 
 ### Issues
