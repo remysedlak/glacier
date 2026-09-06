@@ -1,4 +1,5 @@
 use crate::app::{MouseState, ScrollOffset};
+use crate::graphics::icons::IconDraw;
 use crate::graphics::{
     color::*,
     font::TextItem,
@@ -14,9 +15,9 @@ pub mod playhead;
 mod ruler;
 mod toolbar;
 
-pub enum PlaylistCursor {
+pub enum PlaylistTool {
     Select,
-    RectangleSelect,
+    Rectangle,
     Paint,
     Mute,
 }
@@ -40,6 +41,7 @@ pub fn draw(
     DrawRegion,
     DrawRegion,
     InteractionResult,
+    Vec<IconDraw>,
 ) {
     // setup
     let mut static_vertices: Vec<Vertex> = Vec::new();
@@ -67,6 +69,7 @@ pub fn draw(
     let (
         toolbar_vertices,
         toolbar_text_items,
+        toolbar_icons,
         track_header_vertices,
         track_header_text_items,
         mut timeline_vertices,
@@ -135,5 +138,6 @@ pub fn draw(
             text_items: ruler_text_items,
         },
         interaction,
+        toolbar_icons,
     )
 }

@@ -6,6 +6,7 @@ use crate::{
         color::{BLUE, DARK_BLUE, GREEN, SURFACE, WHITE},
         font::{TextItem, ROBOTO},
         geometry::Rectangle,
+        icons::IconDraw,
         mini_window::{playlist::toolbar, InteractionResult, MiniWindow},
         primitives::{ScreenConfig, Vertex, NO_RADIUS, PAD_16, PAD_4, PAD_64, PAD_8},
     },
@@ -32,6 +33,7 @@ pub fn draw(
 ) -> (
     Vec<Vertex>,
     Vec<TextItem>,
+    Vec<IconDraw>,
     Vec<Vertex>,
     Vec<TextItem>,
     Vec<Vertex>,
@@ -46,7 +48,8 @@ pub fn draw(
 
     let mut interaction = InteractionResult::default();
 
-    let (toolbar_vertices, toolbar_text_items) = toolbar::draw(window, screen_config);
+    let (toolbar_vertices, toolbar_text_items, toolbar_icons) =
+        toolbar::draw(window, screen_config, mouse_state);
 
     // for each ui track
     for track in 0..track_count {
@@ -132,6 +135,7 @@ pub fn draw(
     (
         toolbar_vertices,
         toolbar_text_items,
+        toolbar_icons,
         track_header_vertices,
         track_header_text_items,
         grid_vertices,

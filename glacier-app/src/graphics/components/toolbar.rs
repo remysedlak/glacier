@@ -27,14 +27,16 @@ pub const ICON_SIZE: f32 = 32.0;
 pub const PLAY_Y_ORIGIN: f32 = 4.0;
 pub const PLAY_X_ORIGIN: f32 = 90.0;
 
-struct IconRow {
-    x: f32,
-    y: f32,
+pub struct IconRow {
+    pub x: f32,
+    pub y: f32,
+    pub size: f32,
+    pub gap: f32,
 }
 impl IconRow {
-    fn next(&mut self) -> Rectangle {
-        let sq = Rectangle::square(self.x, self.y, ICON_SIZE);
-        self.x += ICON_GAP;
+    pub fn next(&mut self) -> Rectangle {
+        let sq = Rectangle::square(self.x, self.y, self.size);
+        self.x += self.gap;
         sq
     }
 }
@@ -63,6 +65,8 @@ pub fn draw(
     let mut window_icons = IconRow {
         x: PLAY_X_ORIGIN + WINDOW_ICONS_OFFSET,
         y: PLAY_Y_ORIGIN,
+        size: ICON_SIZE,
+        gap: ICON_GAP,
     };
 
     let toolbar_background = Rectangle {

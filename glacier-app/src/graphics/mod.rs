@@ -13,6 +13,7 @@ pub mod regions;
 use crate::app::{MouseState, PianoRollState, ScrollOffset};
 use crate::config::DEFAULT_BPM;
 use crate::graphics::components::side_panel::DEFAULT_TRAY_WIDTH;
+use crate::graphics::mini_window::playlist::PlaylistTool;
 use crate::project::{
     AudioBlock, AudioBlockID, AudioBlockType, PatternData, PatternID, Track, TrackData, TrackID,
 };
@@ -206,6 +207,7 @@ pub async fn create_graphics(window: Rc<Window>, proxy: EventLoopProxy<Graphics>
         track_tray_width: DEFAULT_TRAY_WIDTH,
         pattern_tray_width: DEFAULT_TRAY_WIDTH,
         dragging_file: None,
+        playlist_tool: PlaylistTool::Select,
 
         active_tray: AudioBlockType::Mixing, // Pattern(id) or Track(id)
         fs_cache: {
@@ -363,6 +365,7 @@ pub struct Graphics {
     pub show_track_tray: bool,
     pub show_pattern_tray: bool,
     pub show_save_modal: bool,
+    pub playlist_tool: PlaylistTool,
 
     // song
     pub project_path: String,

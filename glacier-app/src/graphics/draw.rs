@@ -209,6 +209,7 @@ impl Graphics {
                         header_draw_region,
                         ruler_draw_region,
                         playlist_interaction,
+                        playlist_icons,
                     ) = playlist::draw(
                         window,
                         &self.audio_blocks,
@@ -222,6 +223,15 @@ impl Graphics {
                         self.dragging_file.as_ref(),
                         &screen_config,
                     );
+                    for icon in playlist_icons {
+                        push_icon_draw(
+                            &self.icon_cache,
+                            &self.device,
+                            &screen_config,
+                            &icon,
+                            &mut icon_draws,
+                        )
+                    }
 
                     // shared scissor geometry — compute once, up front
                     let sw = self.surface_config.width;

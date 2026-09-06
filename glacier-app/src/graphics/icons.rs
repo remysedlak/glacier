@@ -29,6 +29,10 @@ pub const ICONS: &[(&str, u32, u32)] = &[
     ("left_sidepanel", 32, 32),
     ("bpm_up", 32, 12),
     ("bpm_down", 32, 12),
+    ("Mute", 24, 24),
+    ("PlaylistPaint", 24, 24),
+    ("PlaylistRectangle", 24, 24),
+    ("PlaylistSelect", 24, 24),
 ];
 
 /// Icon File Wrapper. path and size.
