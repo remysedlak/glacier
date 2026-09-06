@@ -116,7 +116,7 @@ impl MiniWindow {
     pub fn background(&self) -> Rectangle {
         Rectangle {
             x: self.x,
-            y: self.y,
+            y: self.y - 1.0,
             width: self.width,
             height: self.height,
         }

@@ -49,15 +49,16 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
 
         let q = abs(in.local_pos) - in.half_size + r.x;
         let dist = min(max(q.x, q.y), 0.0) + length(max(q, vec2(0.0))) - r.x;
+        let aa = fwidth(dist);
 
-        let outer_alpha = 1.0 - smoothstep(-0.001, 0.001, dist);
-        if outer_alpha < 0.001 {
+        let outer_alpha = 1.0 - smoothstep(-aa, aa, dist);
+        if outer_alpha < aa {
             discard;
         }
 
         if in.border_width > 0.0 {
             // dist <= -border_width: interior fill. dist in (-border_width, 0]: border band.
-            let border_alpha = smoothstep(-in.border_width - 0.001, -in.border_width + 0.001, dist);
+            let border_alpha = smoothstep(-in.border_width - aa, -in.border_width + aa, dist);
             let final_color = mix(in.color, in.border_color, border_alpha);
             return vec4<f32>(final_color, outer_alpha);
         }
@@ -66,8 +67,8 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     } else if in.uv.x > 1.0 {
         let actual_uv = vec2<f32>(in.uv.x - 2.0, in.uv.y);
         return textureSample(glyph_tex, glyph_sampler, actual_uv);
-    } else {
-        let alpha = textureSample(glyph_tex, glyph_sampler, in.uv).r;
-        return vec4<f32>(in.color, alpha);
-    }
+    }  else {
+       let alpha = textureSample(glyph_tex, glyph_sampler, in.uv).r;
+       return vec4<f32>(in.color, alpha);
+   }
 }

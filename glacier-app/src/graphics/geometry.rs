@@ -17,7 +17,7 @@ pub struct BorderStyle {
 
 pub const ICON_BORDER: BorderStyle = BorderStyle {
     color: LL_GRAY,
-    size: 0.75,
+    size: 1.0,
 };
 
 pub struct RectangleCtx<'a> {
