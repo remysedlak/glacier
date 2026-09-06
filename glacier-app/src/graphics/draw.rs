@@ -222,6 +222,7 @@ impl Graphics {
                         self.resizing_audio_block,
                         self.dragging_file.as_ref(),
                         &screen_config,
+                        &self.playlist_tool,
                     );
                     for icon in playlist_icons {
                         push_icon_draw(

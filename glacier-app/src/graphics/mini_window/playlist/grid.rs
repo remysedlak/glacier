@@ -7,7 +7,10 @@ use crate::{
         font::{TextItem, ROBOTO},
         geometry::Rectangle,
         icons::IconDraw,
-        mini_window::{playlist::toolbar, InteractionResult, MiniWindow},
+        mini_window::{
+            playlist::toolbar::{self, PlaylistTool},
+            InteractionResult, MiniWindow,
+        },
         primitives::{ScreenConfig, Vertex, NO_RADIUS, PAD_16, PAD_4, PAD_64, PAD_8},
     },
     project::{AudioBlockType, PatternData, TrackID},
@@ -30,6 +33,7 @@ pub fn draw(
     dragging_file: Option<&PathBuf>,
     active_tray: &AudioBlockType,
     patterns: &[PatternData],
+    playlist_tool: &PlaylistTool,
 ) -> (
     Vec<Vertex>,
     Vec<TextItem>,
@@ -48,8 +52,10 @@ pub fn draw(
 
     let mut interaction = InteractionResult::default();
 
-    let (toolbar_vertices, toolbar_text_items, toolbar_icons) =
-        toolbar::draw(window, screen_config, mouse_state);
+    let (toolbar_vertices, toolbar_text_items, toolbar_icons, toolbar_interaction) =
+        toolbar::draw(window, screen_config, mouse_state, playlist_tool);
+
+    interaction = interaction.or(toolbar_interaction);
 
     // for each ui track
     for track in 0..track_count {

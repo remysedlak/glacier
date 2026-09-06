@@ -2,6 +2,7 @@
 use super::{App, State};
 use crate::app::PianoRollState;
 use crate::audio::AudioCommand;
+use crate::graphics::mini_window::playlist::toolbar::PlaylistTool;
 use crate::graphics::{
     bring_to_front,
     context_menu::{ContextMenu, ContextMenuKind},
@@ -49,6 +50,7 @@ pub enum ClickResult {
     AddPlaylistAudioBlock(TrackID, u32, u32, AudioBlockType),
     OpenPatternMenu(PatternID, f32, f32),
     StartResizeEvent(AudioBlockID),
+    ChangePlaylistTool(PlaylistTool),
 
     // renaming
     StartRenamingPattern(PatternID),
@@ -97,6 +99,7 @@ impl App {
             ClickResult::ModalCancelExit => {
                 gfx.show_save_modal = false;
             }
+            ClickResult::ChangePlaylistTool(tool) => gfx.playlist_tool = tool,
             ClickResult::StartRenamingPattern(id) => {
                 gfx.context_menu = None;
                 if let Some(pattern) = gfx.patterns.iter().find(|p| p.id == id) {

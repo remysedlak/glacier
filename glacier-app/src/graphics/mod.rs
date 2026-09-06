@@ -13,7 +13,7 @@ pub mod regions;
 use crate::app::{MouseState, PianoRollState, ScrollOffset};
 use crate::config::DEFAULT_BPM;
 use crate::graphics::components::side_panel::DEFAULT_TRAY_WIDTH;
-use crate::graphics::mini_window::playlist::PlaylistTool;
+use crate::graphics::mini_window::playlist::toolbar::PlaylistTool;
 use crate::project::{
     AudioBlock, AudioBlockID, AudioBlockType, PatternData, PatternID, Track, TrackData, TrackID,
 };

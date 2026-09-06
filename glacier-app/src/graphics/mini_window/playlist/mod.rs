@@ -1,5 +1,6 @@
 use crate::app::{MouseState, ScrollOffset};
 use crate::graphics::icons::IconDraw;
+use crate::graphics::mini_window::playlist::toolbar::PlaylistTool;
 use crate::graphics::{
     color::*,
     font::TextItem,
@@ -12,15 +13,8 @@ use crate::project::{AudioBlock, AudioBlockID, PatternData, Track};
 pub mod block;
 pub mod grid;
 pub mod playhead;
-mod ruler;
-mod toolbar;
-
-pub enum PlaylistTool {
-    Select,
-    Rectangle,
-    Paint,
-    Mute,
-}
+pub mod ruler;
+pub mod toolbar;
 
 /// Draw the playlist Mini Window. This is where the user composes the entire song and project. Instruments can be placed here from the track tray, and patterns from the pattern track.
 pub fn draw(
@@ -35,6 +29,7 @@ pub fn draw(
     resizing_audio_block: Option<AudioBlockID>,
     dragging_file: Option<&PathBuf>,
     screen_config: &ScreenConfig,
+    playlist_tool: &PlaylistTool,
 ) -> (
     DrawRegion,
     DrawRegion,
@@ -85,6 +80,7 @@ pub fn draw(
         dragging_file,
         active_tray,
         patterns,
+        playlist_tool,
     );
     static_vertices.extend(toolbar_vertices);
     static_text_items.extend(toolbar_text_items);
