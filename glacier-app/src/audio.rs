@@ -3,7 +3,7 @@ use crate::project::*;
 use crate::UiCommand;
 use cpal::{
     traits::{DeviceTrait, HostTrait, StreamTrait},
-    {SampleFormat, Stream},
+    {SampleFormat, Stream, StreamConfig},
 };
 use ringbuf::{
     traits::{Consumer, Producer},
@@ -51,6 +51,80 @@ pub enum AudioCommand {
     DeleteTrack(TrackID),
 }
 
+/// Attempts to build a real (short-lived, immediately-dropped) output stream
+/// against `cfg` using a no-op callback, purely to discover whether the
+/// underlying driver (ALSA/hw_params, WASAPI, CoreAudio, etc.) actually
+/// accepts this exact channels+rate+format combination on THIS machine.
+/// Returns true if it does. This is the only reliable way to know — reported
+/// "supported config ranges" can include values that fail validation anyway.
+fn probes_ok(device: &cpal::Device, cfg: &StreamConfig, sample_format: SampleFormat) -> bool {
+    let err_fn = |_err| {};
+    let result = match sample_format {
+        SampleFormat::F32 => device
+            .build_output_stream(cfg, move |_: &mut [f32], _: &_| {}, err_fn, None)
+            .map(|_stream| ()),
+        SampleFormat::I16 => device
+            .build_output_stream(cfg, move |_: &mut [i16], _: &_| {}, err_fn, None)
+            .map(|_stream| ()),
+        SampleFormat::U16 => device
+            .build_output_stream(cfg, move |_: &mut [u16], _: &_| {}, err_fn, None)
+            .map(|_stream| ()),
+        _ => return false, // unsupported format, don't even try
+    };
+    result.is_ok()
+}
+
+/// Discovers a StreamConfig + SampleFormat combination that this device
+/// actually accepts, starting from cpal's reported default and falling back
+/// through common alternatives if the default fails validation. Never
+/// assumes a fixed rate/format — probes reality on whatever machine this
+/// runs on.
+fn find_working_config(
+    device: &cpal::Device,
+    default_config: &cpal::SupportedStreamConfig,
+) -> (StreamConfig, SampleFormat) {
+    let default_channels = default_config.channels();
+    let default_rate = default_config.sample_rate();
+    let default_format = default_config.sample_format();
+
+    // Try the reported default combo first.
+    let default_cfg = StreamConfig {
+        channels: default_channels,
+        sample_rate: default_rate,
+        buffer_size: cpal::BufferSize::Default,
+    };
+    if probes_ok(device, &default_cfg, default_format) {
+        return (default_cfg, default_format);
+    }
+
+    // Fall back: try common rates/formats/channel counts in order of
+    // likelihood, stopping at the first one that actually validates.
+    let candidate_rates = [default_rate, 48000, 44100, 96000, 22050];
+    let candidate_formats = [default_format, SampleFormat::F32, SampleFormat::I16];
+    let candidate_channels = [default_channels, 2, 1];
+
+    for &channels in &candidate_channels {
+        for &rate in &candidate_rates {
+            for &format in &candidate_formats {
+                let cfg = StreamConfig {
+                    channels,
+                    sample_rate: rate,
+                    buffer_size: cpal::BufferSize::Default,
+                };
+                if probes_ok(device, &cfg, format) {
+                    return (cfg, format);
+                }
+            }
+        }
+    }
+
+    panic!(
+        "No working audio output configuration found for this device. \
+         Reported default was {default_channels} channel(s), {default_rate}Hz, {default_format:?}, \
+         but none of the tested channel/rate/format combinations were accepted by the driver."
+    );
+}
+
 /// initialize the CPAL engine with project file data and return the audio stream
 pub fn init(
     mut consumer: HeapCons<AudioCommand>,
@@ -65,11 +139,15 @@ pub fn init(
     let device = host
         .default_output_device()
         .expect("no output device available");
-    let supported_config = device
+    let default_config = device
         .default_output_config()
         .expect("error getting default config");
-    let config = supported_config.config();
-    let sample_format = supported_config.sample_format();
+
+    // Probe for a config this device actually accepts — never trust the
+    // reported default blindly, since drivers can report configs that fail
+    // hw_params validation (seen on SOF/HDA laptops, among others).
+    let (stream_config, sample_format) = find_working_config(&device, &default_config);
+    let sample_rate: f32 = stream_config.sample_rate as f32;
 
     // load project file to memory
     let project = project_file
@@ -82,9 +160,9 @@ pub fn init(
     let mut patterns = project.patterns;
     let mut audio_blocks = project.audio_blocks;
 
-    // load sample rate
+    // load sample rate (the ACTUAL validated rate, not the reported default)
     producer
-        .try_push(UiCommand::SampleRateLoaded(config.sample_rate as f32))
+        .try_push(UiCommand::SampleRateLoaded(sample_rate))
         .ok();
 
     // setup bpm and volume
@@ -131,7 +209,7 @@ pub fn init(
 
     // audio callback
     // fills samples requested from CPAL audio driver
-    let sequencer_callback = move |data: &mut [f32], _: &cpal::OutputCallbackInfo| {
+    let mut fill_f32 = move |data: &mut [f32], _: &cpal::OutputCallbackInfo| {
         // parse incoming UI commands before fulfilling data callback
         while let Some(cmd) = consumer.try_pop() {
             match cmd {
@@ -298,7 +376,7 @@ pub fn init(
                             .find(|t| t.data.id == *sample_track_id)
                             .map(|track| {
                                 let samples_per_step =
-                                    glacier_dsp::samples_per_step(config.sample_rate as f32, bpm);
+                                    glacier_dsp::samples_per_step(sample_rate, bpm);
                                 let frames =
                                     (track.samples.len() / track.data.channels as usize) as f32;
                                 (frames / samples_per_step).ceil() as u32
@@ -582,7 +660,7 @@ pub fn init(
             sample_counter += data.len() as f32 / 2.0; // increment sample counter by number of samples requested : keep track of sample position
 
             // get amount of samples per step
-            let samples_per_step = glacier_dsp::samples_per_step(config.sample_rate as f32, bpm);
+            let samples_per_step = glacier_dsp::samples_per_step(sample_rate, bpm);
 
             // update UI time
             let beat = current_step as f32 + (sample_counter / samples_per_step);
@@ -639,7 +717,7 @@ pub fn init(
                         if current_step == audio_block.start_step as usize {
                             if let Some(track) = tracks.iter_mut().find(|t| t.data.id == track_id) {
                                 let samples_per_step =
-                                    glacier_dsp::samples_per_step(config.sample_rate as f32, bpm);
+                                    glacier_dsp::samples_per_step(sample_rate, bpm);
                                 let stop_at = audio_block.length as f32 * samples_per_step * 2.0;
 
                                 track.voices.push(Voice {
@@ -673,12 +751,40 @@ pub fn init(
         }
     };
 
-    // attempt to create an output stream with device config
+    // Build the real stream using whichever format the probe found working.
     let stream = match sample_format {
-        SampleFormat::F32 => device.build_output_stream(&config, sequencer_callback, err_fn, None),
-        sample_format => panic!("Unsupported sample format '{sample_format}'"),
+        SampleFormat::F32 => {
+            let cb = move |data: &mut [f32], info: &cpal::OutputCallbackInfo| {
+                fill_f32(data, info);
+            };
+            device.build_output_stream(&stream_config, cb, err_fn, None)
+        }
+        SampleFormat::I16 => {
+            let mut scratch: Vec<f32> = Vec::new();
+            let cb = move |data: &mut [i16], info: &cpal::OutputCallbackInfo| {
+                scratch.resize(data.len(), 0.0);
+                fill_f32(&mut scratch, info);
+                for (o, s) in data.iter_mut().zip(scratch.iter()) {
+                    *o = (s.clamp(-1.0, 1.0) * i16::MAX as f32) as i16;
+                }
+            };
+            device.build_output_stream(&stream_config, cb, err_fn, None)
+        }
+        SampleFormat::U16 => {
+            let mut scratch: Vec<f32> = Vec::new();
+            let cb = move |data: &mut [u16], info: &cpal::OutputCallbackInfo| {
+                scratch.resize(data.len(), 0.0);
+                fill_f32(&mut scratch, info);
+                for (o, s) in data.iter_mut().zip(scratch.iter()) {
+                    let clamped = s.clamp(-1.0, 1.0);
+                    *o = ((clamped * 0.5 + 0.5) * u16::MAX as f32) as u16;
+                }
+            };
+            device.build_output_stream(&stream_config, cb, err_fn, None)
+        }
+        other => panic!("Unsupported sample format '{other}'"),
     }
-    .expect("Failed to build the output stream.");
+    .expect("Failed to build the output stream, even after probing for a working config.");
 
     // start the output stream and return it
     stream.play().expect("Failed to play the output stream.");
