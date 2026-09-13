@@ -7,7 +7,7 @@ use crate::{
     app::MouseState,
     graphics::{
         color::*,
-        font::{TextItem, ROBOTO},
+        font::{Font::Roboto, TextItem},
         geometry::Rectangle,
         icons::IconDraw,
         ScreenConfig, Tooltip, Vertex,
@@ -125,7 +125,7 @@ fn draw_fs_tree(
                 y: button.y + PAD_4,
                 size: 10.0,
                 color: WHITE,
-                font: ROBOTO,
+                font: Roboto,
             });
 
             let icon_name = if *is_dir { "music_dir" } else { "music_file" };

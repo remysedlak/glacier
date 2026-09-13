@@ -8,7 +8,7 @@ use crate::{
     graphics::{
         color::*,
         components::side_panel::{PATTERN_TRAY_HEADER_MARGIN, PATTERN_TRAY_ITEM_GAP},
-        font::{truncate_text, TextItem, ROBOTO},
+        font::{truncate_text, Font::Roboto, TextItem},
         primitives::*,
         side_panel::{draw_title, PATTERN_TRAY_ITEM_HEIGHT},
     },
@@ -85,7 +85,7 @@ pub fn draw(
             y: PATTERN_TRAY_HEADER_MARGIN + (PATTERN_TRAY_ITEM_GAP * i as f32) + PAD_32 + PAD_2,
             size: 10.0,
             color: WHITE,
-            font: ROBOTO,
+            font: Roboto,
         });
     }
 

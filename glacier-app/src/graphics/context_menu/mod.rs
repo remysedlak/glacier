@@ -5,7 +5,7 @@ use crate::{
     app::{click::ClickResult, MouseState, ScrollOffset},
     graphics::{
         color::{Color, DARK_GRAY, WHITE},
-        font::{TextItem, ROBOTO},
+        font::{Font::Roboto, TextItem},
         geometry::Rectangle,
         mini_window::InteractionResult,
         primitives::{ScreenConfig, PAD_2, PAD_32, PAD_4, PAD_64, PAD_8, RADIUS_4, RADIUS_8},
@@ -84,7 +84,7 @@ impl ContextMenu {
             x: self.x - PAD_64 + PAD_4 + PAD_2,
             y: (self.y + (CONTEXT_MENU_ITEM_HEIGHT + PAD_4) * index as f32) + PAD_32 + PAD_2,
             color: WHITE,
-            font: ROBOTO,
+            font: Roboto,
             size: CONTEXT_MENU_FONT_SIZE,
         }
     }
@@ -103,7 +103,7 @@ impl ContextMenu {
             x: self.x - PAD_64 + PAD_4,
             y: (self.y + (CONTEXT_MENU_ITEM_HEIGHT + PAD_4) * index as f32) + PAD_32 + PAD_4,
             size: CONTEXT_MENU_FONT_SIZE,
-            font: ROBOTO,
+            font: Roboto,
             color: WHITE,
         }
     }

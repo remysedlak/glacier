@@ -5,7 +5,7 @@ use crate::graphics::mini_window::InteractionResult;
 use crate::graphics::{
     color::*,
     components::spectrum,
-    font::{TextItem, MONOSPACED, TITLE},
+    font::{Font::Mono, TextItem, TITLE},
     geometry::*,
     icons::{IconDraw, Tooltip},
     primitives::*,
@@ -91,7 +91,7 @@ pub fn draw(
         y: 10.0,
         size: TITLE,
         color: WHITE,
-        font: MONOSPACED,
+        font: Mono,
     };
 
     // BPM_UP BUTTON
@@ -173,7 +173,7 @@ pub fn draw(
         y: TOOLBAR_MARGIN + PAD_2,
         size: TITLE,
         color: ORANGE,
-        font: MONOSPACED,
+        font: Mono,
     });
     // seconds
     text_items.push(TextItem {
@@ -182,7 +182,7 @@ pub fn draw(
         y: TOOLBAR_MARGIN + PAD_2,
         size: TITLE,
         color: ORANGE,
-        font: MONOSPACED,
+        font: Mono,
     });
 
     // draw power spectrogram of audio frequency domain.

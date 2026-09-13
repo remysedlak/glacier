@@ -2,7 +2,7 @@
 
 use std::collections::HashMap;
 
-use wgpu::util::DeviceExt;
+use wgpu::{util::DeviceExt, BindGroup, BindGroupLayout, Texture};
 
 use crate::graphics::{
     icons,
@@ -68,22 +68,39 @@ impl IconDraw {
     }
 }
 
-/// Pushes icons to wgpu buffer using painting information and the icon cache
+/// Pushes an icon's quad into the shared icon vertex buffer and records
+/// its (offset, bind_group) so the render pass knows which texture to use.
 pub fn push_icon_draw<'a>(
     icon_cache: &'a HashMap<String, (wgpu::Texture, wgpu::BindGroup)>,
-    device: &wgpu::Device,
     screen_config: &ScreenConfig,
     icon: &IconDraw,
-    icon_draws: &mut Vec<(wgpu::Buffer, &'a wgpu::BindGroup)>,
+    icon_vertices: &mut Vec<Vertex>,
+    icon_draws: &mut Vec<(u64, &'a wgpu::BindGroup)>,
 ) {
     if let Some((_, bind_group)) = icon_cache.get(icon.name) {
         let verts = icons::draw_icon(icon.x, icon.y, icon.width, icon.height, screen_config);
-        let buf = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: None,
-            contents: bytemuck::cast_slice(&verts),
-            usage: wgpu::BufferUsages::VERTEX,
-        });
-        icon_draws.push((buf, bind_group));
+        let offset = (icon_vertices.len() * std::mem::size_of::<Vertex>()) as u64;
+        icon_vertices.extend_from_slice(&verts);
+        icon_draws.push((offset, bind_group));
+    }
+}
+
+pub fn load_icons(
+    icon_cache: &mut HashMap<String, (Texture, BindGroup)>,
+    device: &wgpu::Device,
+    queue: &wgpu::Queue,
+) {
+    for icon in icons::ICONS {
+        let svg_str =
+            std::fs::read_to_string(format!("assets/icons/{}x{}/{}.svg", icon.1, icon.2, icon.0))
+                .unwrap_or_else(|e| panic!("failed to load icon {}: {e}", icon.0));
+        let svg = icons::IconSvg {
+            width: icon.1 as f32,
+            height: icon.2 as f32,
+            path: svg_str,
+        };
+        let (texture, bind_group, _, _, _) = icons::rasterize_icon(&device, &queue, svg);
+        icon_cache.insert(icon.0.to_string(), (texture, bind_group));
     }
 }
 
@@ -143,7 +160,7 @@ pub fn rasterize_icon(
         min_filter: wgpu::FilterMode::Linear,
         ..Default::default()
     });
-    let bgl = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+    let bgl: BindGroupLayout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
         label: None,
         entries: &[
             wgpu::BindGroupLayoutEntry {

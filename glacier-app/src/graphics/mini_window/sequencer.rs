@@ -2,7 +2,7 @@ use crate::app::{click::ClickResult, MouseState};
 use crate::graphics::mini_window::InteractionResult;
 use crate::graphics::{
     color::*,
-    font::{truncate_text, ROBOTO},
+    font::{truncate_text, Font::Roboto},
     icons::IconDraw,
     mini_window::MiniWindow,
     primitives::*,
@@ -255,7 +255,7 @@ pub fn draw(
             y: window.y + i as f32 * TRACK_GAP + ACTIONS_Y_OFFSET + PAD_2,
             size: 14.0,
             color: BLACK,
-            font: ROBOTO,
+            font: Roboto,
         });
 
         if mute_button.is_hovered(mouse_state.x, mouse_state.y) && mouse_state.left_clicked {
@@ -287,7 +287,7 @@ pub fn draw(
             y: window.y + i as f32 * TRACK_GAP + ACTIONS_Y_OFFSET + PAD_2,
             size: 14.0,
             color: BLACK,
-            font: ROBOTO,
+            font: Roboto,
         });
         if velocity_button.is_hovered(mouse_state.x, mouse_state.y) && mouse_state.left_clicked {
             track.show_velocity = !track.show_velocity;
@@ -310,7 +310,7 @@ pub fn draw(
             y: window.y + i as f32 * TRACK_GAP + PAD_16 + PAD_4,
             size: 12.0,
             color: WHITE,
-            font: ROBOTO,
+            font: Roboto,
         });
     }
 

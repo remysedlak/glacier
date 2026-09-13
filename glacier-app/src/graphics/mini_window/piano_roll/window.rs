@@ -3,7 +3,7 @@ use crate::graphics::components::toolbar::ICON_SIZE;
 use crate::graphics::mini_window::InteractionResult;
 use crate::graphics::{
     color::*,
-    font::{TextItem, MONOSPACED},
+    font::{Font::Mono, TextItem},
     geometry::Rectangle,
     mini_window::{piano_roll::*, MiniWindow, TITLEBAR_HEIGHT},
     primitives::{
@@ -256,7 +256,7 @@ pub fn draw(
                 + PAD_8
                 - scroll.y,
             size: 10.0,
-            font: MONOSPACED,
+            font: Mono,
             color: BLACK,
         });
     } // end octave loop

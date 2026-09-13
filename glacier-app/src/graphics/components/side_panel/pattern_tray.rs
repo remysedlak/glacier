@@ -8,7 +8,7 @@ use crate::graphics::{
         side_panel::*,
         toolbar::{TOOLBAR_THICKNESS, TOOLBAR_Y},
     },
-    font::{TextItem, ROBOTO},
+    font::{Font::Roboto, TextItem},
     icons::{IconDraw, Tooltip},
     primitives::{RenameState, RenameTarget, ScreenConfig, PAD_32, PAD_4, PAD_64, PAD_8, RADIUS_8},
     {CursorIcon, PatternData, Rectangle, Vertex, NO_RADIUS, PAD_2},
@@ -154,7 +154,7 @@ pub fn draw(
             y: row_y + PAD_2,
             size: 14.0,
             color: WHITE,
-            font: ROBOTO,
+            font: Roboto,
         });
 
         if is_being_renamed {

@@ -4,7 +4,7 @@ use crate::app::MouseState;
 use crate::graphics::mini_window::InteractionResult;
 use crate::graphics::{
     color::{DARK_GRAY, SURFACE, WHITE},
-    font::{TextItem, ROBOTO},
+    font::{Font::Roboto, TextItem},
     geometry::Rectangle,
     primitives::{ScreenConfig, Vertex, PAD_16, PAD_4, PAD_8, RADIUS_4, RADIUS_8},
     CursorIcon,
@@ -42,7 +42,7 @@ pub fn draw(
         y: modal_background.y + PAD_16,
         size: 16.0,
         color: WHITE,
-        font: ROBOTO,
+        font: Roboto,
     });
 
     text_items.push(TextItem {
@@ -51,7 +51,7 @@ pub fn draw(
         y: modal_background.y + PAD_16 + 28.0,
         size: 13.0,
         color: WHITE,
-        font: ROBOTO,
+        font: Roboto,
     });
 
     // buttons sit along the bottom edge, right-aligned
@@ -113,7 +113,7 @@ pub fn draw(
         y: save_button.y + PAD_4,
         size: 14.0,
         color: WHITE,
-        font: ROBOTO,
+        font: Roboto,
     });
     text_items.push(TextItem {
         text: "Discard".to_string(),
@@ -121,7 +121,7 @@ pub fn draw(
         y: discard_button.y + PAD_4,
         size: 14.0,
         color: WHITE,
-        font: ROBOTO,
+        font: Roboto,
     });
     text_items.push(TextItem {
         text: "Cancel".to_string(),
@@ -129,7 +129,7 @@ pub fn draw(
         y: cancel_button.y + PAD_4,
         size: 14.0,
         color: WHITE,
-        font: ROBOTO,
+        font: Roboto,
     });
 
     (text_items, interaction)

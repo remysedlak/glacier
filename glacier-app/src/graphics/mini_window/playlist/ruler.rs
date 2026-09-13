@@ -2,7 +2,7 @@
 use super::grid::{GRID_X_ORIGIN, PLAYLIST_STEP_GAP};
 use crate::app::ScrollOffset;
 use crate::graphics::color::{BLACK, GREEN};
-use crate::graphics::font::MONOSPACED;
+use crate::graphics::font::Font::Mono;
 use crate::graphics::geometry::{BorderStyle, Rectangle};
 use crate::graphics::primitives::{Vertex, NO_RADIUS};
 use crate::graphics::{
@@ -42,7 +42,7 @@ pub fn draw(
                 - scroll_offset.x,
             y: window.y + 42.0,
             size: 16.0,
-            font: MONOSPACED,
+            font: Mono,
             color: GREEN,
         });
     }

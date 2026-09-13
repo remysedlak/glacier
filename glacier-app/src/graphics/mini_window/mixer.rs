@@ -6,7 +6,7 @@ use crate::{
     graphics::{
         color::*,
         components::{slider, slider::MIXER_TRACK_HEIGHT},
-        font::{BODY, MONOSPACED},
+        font::{Font::Mono, BODY},
         geometry::Rectangle,
         mini_window::MiniWindow,
         primitives::{ScreenConfig, BOTTOM_RADIUS_16, NO_RADIUS, PAD_16, PAD_32, PAD_4, PAD_8},
@@ -114,7 +114,7 @@ pub fn draw(
             x: col_x,
             y: master_slider_y + MIXER_TRACK_HEIGHT,
             size: BODY,
-            font: MONOSPACED,
+            font: Mono,
             color: LIGHT_GRAY,
         });
     };

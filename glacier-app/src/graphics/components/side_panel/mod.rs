@@ -1,7 +1,7 @@
 //! Side panels appear on the left and right side of the screen.
 use crate::graphics::{
     color::WHITE,
-    font::{TextItem, ROBOTO, TITLE},
+    font::{Font::Roboto, TextItem, TITLE},
     primitives::PAD_8,
 };
 
@@ -22,6 +22,6 @@ pub fn draw_title(title: &str, origin: (f32, f32)) -> TextItem {
         y: origin.1 + PAD_8,
         size: TITLE,
         color: WHITE,
-        font: ROBOTO,
+        font: Roboto,
     }
 }

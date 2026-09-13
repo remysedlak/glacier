@@ -4,7 +4,7 @@ use crate::{
     app::{click::ClickResult, MouseState},
     graphics::{
         color::{BLACK, ORANGE, WHITE},
-        font::{TextItem, BODY, MONOSPACED},
+        font::{Font::Mono, TextItem, BODY},
         geometry::Rectangle,
         icons::{IconDraw, Tooltip},
         mini_window::InteractionResult,
@@ -128,7 +128,7 @@ pub fn draw(
         y: screen_config.height as f32 - FOOTER_Y_HEIGHT + PAD_8,
         size: BODY,
         color: ORANGE,
-        font: MONOSPACED,
+        font: Mono,
     });
     (text_items, icons, tooltip, interaction)
 }

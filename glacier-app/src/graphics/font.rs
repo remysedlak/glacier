@@ -7,6 +7,50 @@ use crate::graphics::{
 };
 use std::collections::HashMap;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum Font {
+    Roboto,
+    Mono,
+}
+
+impl Font {
+    pub const ALL: [Font; 2] = [Font::Roboto, Font::Mono];
+
+    fn bytes(&self) -> &'static [u8] {
+        match self {
+            Font::Roboto => {
+                include_bytes!("../../../assets/fonts/Roboto-VariableFont_wdth,wght.ttf")
+            }
+            Font::Mono => include_bytes!("../../../assets/fonts/IBMPlexMono-Regular.ttf"),
+        }
+    }
+}
+
+pub fn load_fonts(
+    device: &wgpu::Device,
+    queue: &wgpu::Queue,
+) -> (HashMap<Font, fontdue::Font>, GlyphCache) {
+    let mut font_cache = HashMap::new();
+    let mut glyph_cache = GlyphCache::new();
+    for font in Font::ALL {
+        let parsed =
+            fontdue::Font::from_bytes(font.bytes(), fontdue::FontSettings::default()).unwrap();
+        // if let Some(name) = parsed.name() {
+        //     println!("test: {}", name);
+        // }
+
+        let cache = build_glyph_cache(
+            device,
+            queue,
+            &parsed,
+            &[6.0, 8.0, 10.0, 12.0, 14.0, 16.0, 18.0, 24.0, 32.0],
+        );
+        font_cache.insert(font, parsed);
+        glyph_cache.insert(font, cache);
+    }
+    (font_cache, glyph_cache)
+}
+
 /// A single rasterized glyph: its wgpu texture, the bind group used to draw
 /// it, and fontdue's layout metrics (width/height/advance) for positioning.
 #[expect(dead_code)] // wgpu texture is not used, just needs to exist
@@ -22,28 +66,27 @@ impl GlyphEntry {
 /// by (character, size). Built once at startup via `build_glyph_cache` per
 /// font; `Graphics::draw` looks glyphs up here every frame instead of
 /// rasterizing on the fly.
-pub struct GlyphCache(HashMap<String, HashMap<(char, u32), GlyphEntry>>);
+pub struct GlyphCache(HashMap<Font, HashMap<(char, u32), GlyphEntry>>);
+
 impl GlyphCache {
-    /// An empty cache with no fonts loaded yet.
     pub fn new() -> Self {
         GlyphCache(HashMap::new())
     }
-    /// Register a font's full glyph set under `name` (as produced by
-    /// `build_glyph_cache`), overwriting any existing entry for that name.
-    pub fn insert(&mut self, name: String, entry: HashMap<(char, u32), GlyphEntry>) {
-        self.0.insert(name, entry);
+
+    pub fn insert(&mut self, font: Font, entry: HashMap<(char, u32), GlyphEntry>) {
+        self.0.insert(font, entry);
     }
-    /// Look up a single rasterized glyph by font name, character, and size.
-    /// Returns `None` if the font isn't loaded or that glyph/size wasn't
-    /// pre-rasterized.
-    pub fn get(&self, font: &str, ch: char, size: u32) -> Option<&GlyphEntry> {
-        self.0.get(font)?.get(&(ch, size))
+
+    pub fn get(&self, font: Font, ch: char, size: u32) -> Option<&GlyphEntry> {
+        self.0.get(&font)?.get(&(ch, size))
     }
-    /// Any bind group in the cache — used to satisfy wgpu's requirement that
-    /// a bind group be set before issuing a draw call, even for the
-    /// non-glyph geometry pass where the actual texture doesn't matter.
     pub fn any_bind_group(&self) -> Option<&wgpu::BindGroup> {
-        Some(&self.0.values().next()?.values().next()?.1)
+        self.0
+            .values()
+            .next()?
+            .values()
+            .next()
+            .map(|entry| entry.bind_group())
     }
 }
 
@@ -63,7 +106,7 @@ pub struct TextItem {
     pub text: String,
     pub size: f32,
     pub color: Color,
-    pub font: &'static str,
+    pub font: Font,
     pub x: f32,
     pub y: f32,
 }
@@ -79,9 +122,6 @@ pub fn truncate_text(name: &str, length: usize) -> String {
     };
     track_button_text
 }
-
-pub const ROBOTO: &str = "roboto";
-pub const MONOSPACED: &str = "mono";
 
 pub const TITLE: f32 = 18.0;
 pub const BODY: f32 = 12.0;

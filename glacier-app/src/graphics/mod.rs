@@ -13,6 +13,7 @@ pub mod regions;
 use crate::app::{MouseState, PianoRollState, ScrollOffset};
 use crate::config::DEFAULT_BPM;
 use crate::graphics::components::side_panel::DEFAULT_TRAY_WIDTH;
+use crate::graphics::font::{load_fonts, Font};
 use crate::graphics::mini_window::playlist::toolbar::PlaylistTool;
 use crate::project::{
     AudioBlock, AudioBlockID, AudioBlockType, PatternData, PatternID, Track, TrackData, TrackID,
@@ -22,10 +23,7 @@ use std::path::PathBuf;
 use color::{Color, DARK_GRAY, WHITE};
 use components::{footer, side_panel};
 use context_menu::ContextMenu;
-use font::{
-    build_glyph_cache, create_bind_group_layout, GlyphCache, GlyphEntry, TextItem, MONOSPACED,
-    ROBOTO,
-};
+use font::{create_bind_group_layout, Font::Mono, Font::Roboto, GlyphCache, TextItem};
 use fontdue::layout::{CoordinateSystem, Layout, TextStyle};
 use geometry::*;
 use icons::{push_icon_draw, Tooltip};
@@ -41,7 +39,8 @@ use wgpu::{
     CommandEncoderDescriptor, DeviceDescriptor, Features, FragmentState, Instance, Limits, LoadOp,
     MemoryHints, Operations, PowerPreference, RenderPassColorAttachment, RenderPassDescriptor,
     RenderPipeline, RenderPipelineDescriptor, RequestAdapterOptions, ShaderModuleDescriptor,
-    ShaderSource, StoreOp, SurfaceConfiguration, TextureFormat, TextureViewDescriptor, VertexState,
+    ShaderSource, StoreOp, Surface, SurfaceConfiguration, TextureFormat, TextureViewDescriptor,
+    VertexState,
 };
 
 use winit::{
@@ -54,13 +53,14 @@ pub type Rc<T> = std::sync::Arc<T>;
 
 /// Initialize the graphics with default/loaded state and find driver/display info
 pub async fn create_graphics(window: Rc<Window>, proxy: EventLoopProxy<Graphics>) {
-    // Context for all other wgpu objects. Instance of wgpu.
-    let instance = Instance::default();
-    // Creates a new surface targeting a given window/canvas/surface/etc..
-    // Internally, this creates surfaces for all backends that are enabled for this WGPU instance.
-    let surface = instance.create_surface(Rc::clone(&window)).unwrap();
+    // the entry point into the graphics backend (Vulkan/Metal/DX12/GL)
+    let instance: Instance = Instance::default();
 
-    // Handle to a physical graphics and/or compute device.
+    // Surface = the paintable region wgpu is allowed to write pixels into;
+    // everything else about the window (chrome, position, events, focus) is winit's job
+    let surface: Surface = instance.create_surface(Rc::clone(&window)).unwrap();
+
+    // handle to one specific physical GPU (that the chosen backend (Vulkan/Metal/DX12/GL) can see on the machine
     let adapter = instance
         .request_adapter(&RequestAdapterOptions {
             power_preference: PowerPreference::default(),
@@ -70,8 +70,8 @@ pub async fn create_graphics(window: Rc<Window>, proxy: EventLoopProxy<Graphics>
         .await
         .expect("Could not get an adapter (GPU).");
 
-    // Requests a connection to a physical device, creating a logical device.
-    // Returns the Device together with a Queue that executes command buffers.
+    // device: handle for creating GPU-side resources
+    // queue: uploades CPU-side Vec<Vertex> data into a GPU buffer, hands recorded CommandEncoder to the GPU to execute
     let (device, queue) = adapter
         .request_device(&DeviceDescriptor {
             label: None,
@@ -83,105 +83,28 @@ pub async fn create_graphics(window: Rc<Window>, proxy: EventLoopProxy<Graphics>
         .await
         .expect("Failed to get device");
 
-    // Returns the physical size of the window’s client area
+    // Returns the physical size of the winit body
     let size = window.inner_size();
     let width = size.width.max(1);
     let height = size.height.max(1);
     let surface_config = surface.get_default_config(&adapter, width, height).unwrap();
     surface.configure(&device, &surface_config);
 
-    // vertex buffer for collecting shapes to draw each frame
-    let vertex_buffer = device.create_buffer(&wgpu::BufferDescriptor {
-        label: Some("Vertex Buffer"),
-        size: ONE_MEGABYTE * 8,
-        usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
-        mapped_at_creation: false,
-    });
-
-    // init windows ; TODO: remove hardcoded coordinates, should be dynamic based on saved state
-    let playlist_window = MiniWindow::new(
-        900.0,
-        600.0,
-        1500.0,
-        900.0,
-        "Playlist",
-        WindowKind::Playlist,
-        true,
-    );
-    let mixer_window = MiniWindow::new(
-        128.0,
-        500.0,
-        800.0,
-        400.0,
-        "Mixer",
-        WindowKind::Mixer,
-        false,
-    );
-    let piano_window = MiniWindow::new(
-        256.0,
-        700.0,
-        1092.0,
-        600.0,
-        "Piano",
-        WindowKind::PianoRoll,
-        true,
-    );
-    let sequencer_window = MiniWindow::new(
-        150.0,
-        90.0,
-        1092.0,
-        100.0,
-        "Sequencer",
-        WindowKind::Sequencer,
-        false,
-    );
-
-    let mini_windows: Vec<MiniWindow> = vec![
-        sequencer_window, // 0
-        playlist_window,  // 1
-        mixer_window,     // 2
-        piano_window,     // 3
-    ];
-
-    // fonts
-    let roboto = (
-        ROBOTO,
-        include_bytes!("../../../assets/fonts/Roboto-VariableFont_wdth,wght.ttf") as &[u8],
-    );
-    let mono = (
-        MONOSPACED,
-        include_bytes!("../../../assets/fonts/IBMPlexMono-Regular.ttf") as &[u8],
-    );
-    let mut font_cache: HashMap<String, fontdue::Font> = HashMap::new();
-    let mut glyph_cache = GlyphCache::new();
+    // The bind group layout shared by every glyph/icon texture:
+    // one filterable 2D texture (binding 0) plus one filtering sampler (binding 1).
     let bind_group_layout = create_bind_group_layout(&device);
-    for (name, bytes) in [roboto, mono] {
-        let font = fontdue::Font::from_bytes(bytes, fontdue::FontSettings::default()).unwrap();
-        let cache: HashMap<(char, u32), GlyphEntry> = build_glyph_cache(
-            &device,
-            &queue,
-            &font,
-            &[6.0, 8.0, 10.0, 12.0, 14.0, 16.0, 18.0, 24.0, 32.0],
-        );
-        font_cache.insert(name.to_string(), font);
-        glyph_cache.insert(name.to_string(), cache);
-    }
 
-    // svg icons
+    // wgsl shader and render pipeline setup
+    let render_pipeline = create_pipeline(&device, surface_config.format, &bind_group_layout);
+
+    // load TTF fonts
+    let (font_cache, glyph_cache) = load_fonts(&device, &queue);
+
+    // load SVG icons
     let mut icon_cache = HashMap::new();
-    for icon in icons::ICONS {
-        let svg_str =
-            std::fs::read_to_string(format!("assets/icons/{}x{}/{}.svg", icon.1, icon.2, icon.0))
-                .unwrap_or_else(|e| panic!("failed to load icon {}: {e}", icon.0));
-        let svg = icons::IconSvg {
-            width: icon.1 as f32,
-            height: icon.2 as f32,
-            path: svg_str,
-        };
-        let (texture, bind_group, _, _, _) = icons::rasterize_icon(&device, &queue, svg);
-        icon_cache.insert(icon.0.to_string(), (texture, bind_group));
-    }
+    icons::load_icons(&mut icon_cache, &device, &queue);
 
+    // vertex buffer for collecting text characters
     let glyph_vertex_buffer = device.create_buffer(&wgpu::BufferDescriptor {
         label: Some("Glyph Vertex Buffer"),
         size: ONE_MEGABYTE * 2,
@@ -189,10 +112,27 @@ pub async fn create_graphics(window: Rc<Window>, proxy: EventLoopProxy<Graphics>
         mapped_at_creation: false,
     });
 
-    // wgsl shader and render pipeline setup
-    let render_pipeline = create_pipeline(&device, surface_config.format, &bind_group_layout);
+    let icon_vertex_buffer = device.create_buffer(&wgpu::BufferDescriptor {
+        label: Some("Icon Vertex Buffer"),
+        size: ONE_MEGABYTE * 2,
+        usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
+        mapped_at_creation: false,
+    });
 
+    // vertex buffer for collecting shapes
+    let vertex_buffer = device.create_buffer(&wgpu::BufferDescriptor {
+        label: Some("Vertex Buffer"),
+        size: ONE_MEGABYTE * 8,
+        usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
+        mapped_at_creation: false,
+    });
+
+    // DEVELOPER
+    // @@TODO: ALLOW CUSTOM AUDIO FILE ROOT TO ACCESS DRUMKITS
     let audio_root = PathBuf::from("./assets/free-drum-samples");
+
+    // setup mini windows
+    let mini_windows: Vec<MiniWindow> = MiniWindow::default_windows();
 
     let gfx = Graphics {
         // graphics
@@ -229,6 +169,7 @@ pub async fn create_graphics(window: Rc<Window>, proxy: EventLoopProxy<Graphics>
         // shapes
         vertex_buffer,
         glyph_vertex_buffer,
+        icon_vertex_buffer,
         frame_ms: 0.0,
         num_vertices: 0,
 
@@ -336,14 +277,17 @@ pub struct Graphics {
     device: wgpu::Device,
     queue: wgpu::Queue,
     render_pipeline: RenderPipeline,
+
+    // buffers
     vertex_buffer: wgpu::Buffer,
     glyph_vertex_buffer: wgpu::Buffer,
+    icon_vertex_buffer: wgpu::Buffer,
 
     pub fs_cache: std::collections::HashMap<std::path::PathBuf, Vec<(std::path::PathBuf, bool)>>,
 
     // text
     glyph_cache: GlyphCache,
-    font_cache: HashMap<String, fontdue::Font>,
+    font_cache: HashMap<Font, fontdue::Font>,
 
     //ui
     pub expanded_dirs: std::collections::HashSet<PathBuf>,

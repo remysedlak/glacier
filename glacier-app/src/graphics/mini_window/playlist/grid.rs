@@ -4,7 +4,7 @@ use crate::{
     app::{click::ClickResult, MouseState, ScrollOffset},
     graphics::{
         color::{BLUE, DARK_BLUE, GREEN, SURFACE, WHITE},
-        font::{TextItem, ROBOTO},
+        font::{Font::Roboto, TextItem},
         geometry::Rectangle,
         icons::IconDraw,
         mini_window::{
@@ -77,7 +77,7 @@ pub fn draw(
         track_header_text_items.push(TextItem {
             text: format!("Track {}", track),
             x: window.x + PAD_16 + PAD_8,
-            font: ROBOTO,
+            font: Roboto,
             y: window.y + (track as f32 * PLAYLIST_TRACK_GAP) + PAD_64 + PAD_4 - scroll_offset.y,
             size: 18.0,
             color: WHITE,

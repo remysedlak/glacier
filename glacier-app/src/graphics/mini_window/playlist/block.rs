@@ -5,7 +5,7 @@ use crate::{
     app::{click::ClickResult, MouseState, ScrollOffset},
     graphics::{
         color::{BLACK, LIGHT_GRAY},
-        font::{TextItem, ROBOTO},
+        font::{Font::Roboto, TextItem},
         geometry::Rectangle,
         mini_window::{
             playlist::grid::{
@@ -109,7 +109,7 @@ pub fn draw_audio_block(
         x: block.x + PAD_8,
         y: block.y + PAD_4,
         size: 18.0,
-        font: ROBOTO,
+        font: Roboto,
         color: BLACK,
     });
     interaction

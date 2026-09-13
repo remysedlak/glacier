@@ -6,7 +6,7 @@ use crate::{
     app::{click::ClickResult, MouseState},
     graphics::{
         color::{DARK_GRAY, LIGHT_GRAY, WHITE},
-        font::{TextItem, ROBOTO},
+        font::{Font::Roboto, TextItem},
         geometry::Rectangle,
         primitives::{ScreenConfig, Vertex, NO_RADIUS, PAD_16, PAD_4, PAD_8},
     },
@@ -172,8 +172,54 @@ impl MiniWindow {
             y: self.y - TITLEBAR_HEIGHT + PAD_4,
             color: WHITE,
             size: 18.0,
-            font: ROBOTO,
+            font: Roboto,
         };
         (window_title, InteractionResult { click, cursor })
+    }
+    pub fn default_windows() -> Vec<MiniWindow> {
+        // init windows ; TODO: remove hardcoded coordinates, should be dynamic based on saved state
+        let playlist_window = MiniWindow::new(
+            900.0,
+            600.0,
+            1500.0,
+            900.0,
+            "Playlist",
+            WindowKind::Playlist,
+            true,
+        );
+        let mixer_window = MiniWindow::new(
+            128.0,
+            500.0,
+            800.0,
+            400.0,
+            "Mixer",
+            WindowKind::Mixer,
+            false,
+        );
+        let piano_window = MiniWindow::new(
+            256.0,
+            700.0,
+            1092.0,
+            600.0,
+            "Piano",
+            WindowKind::PianoRoll,
+            true,
+        );
+        let sequencer_window = MiniWindow::new(
+            150.0,
+            90.0,
+            1092.0,
+            100.0,
+            "Sequencer",
+            WindowKind::Sequencer,
+            false,
+        );
+
+        vec![
+            sequencer_window,
+            playlist_window,
+            mixer_window,
+            piano_window,
+        ]
     }
 }
