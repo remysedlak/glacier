@@ -46,6 +46,23 @@ pub struct MouseState {
     pub scroll_y: f32,
     pub hover_duration: Option<Instant>,
 }
+impl Default for MouseState {
+    fn default() -> Self {
+        Self {
+            x: 0.0,
+            y: 0.0,
+            left_clicked: false,
+            left_double_clicked: false,
+            right_clicked: false,
+            scroll_x: 0.0,
+            scroll_y: 0.0,
+            left_click_held: false,
+            left_released: false,
+            hover_duration: None,
+        }
+    }
+}
+
 impl MouseState {
     pub fn clear(&mut self) {
         self.left_clicked = false;
@@ -55,6 +72,7 @@ impl MouseState {
         self.scroll_y = 0.0;
         self.left_released = false;
     }
+
     /// Returns a copy with position/click fields blanked so downstream
     /// hit-tests can't register anything — used when something else
     /// visually owns this screen area right now.
@@ -144,18 +162,7 @@ impl App {
             pending_drop: None,
             config,
             right_click_held: false,
-            mouse_state: MouseState {
-                x: 0.0,
-                y: 0.0,
-                left_clicked: false,
-                left_double_clicked: false,
-                right_clicked: false,
-                scroll_x: 0.0,
-                scroll_y: 0.0,
-                left_click_held: false,
-                left_released: false,
-                hover_duration: None,
-            },
+            mouse_state: MouseState::default(),
         }
     }
 
@@ -481,10 +488,12 @@ impl ApplicationHandler<Graphics> for App {
                     }
                     // TRACK TRAY SCROLLING
                     else if self.mouse_state.x < gfx.track_tray_width
-                        && self.mouse_state.y > (gfx.surface_config.height as f32 / 2.0)
+                        && self.mouse_state.y
+                            > (gfx.render_context.surface_config.height as f32 / 2.0)
                     {
-                        let divider_y = gfx.surface_config.height as f32 / 2.0;
-                        let visible_height = gfx.surface_config.height as f32 - divider_y;
+                        let divider_y = gfx.render_context.surface_config.height as f32 / 2.0;
+                        let visible_height =
+                            gfx.render_context.surface_config.height as f32 - divider_y;
                         let total_rows = crate::project::count_fs_rows(
                             &gfx.user_fs_location,
                             &gfx.expanded_dirs,

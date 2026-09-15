@@ -37,17 +37,28 @@ fn vs_main(model: VertexInput) -> VertexOutput {
     return out;
 }
 
+struct ScreenUniform {
+    resolution: vec2<f32>, // width, height in pixels
+};
+@group(1) @binding(0) var<uniform> screen: ScreenUniform;
+
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
-    // solid-color rectangles: unified SDF path handles both rounded and
-    // square corners (radius = 0 reduces cleanly to an axis-aligned box SDF),
-    // so borders and antialiasing now apply uniformly to every rectangle
     if in.uv.x < 0.0 {
+        // hw/radius already share a width-based unit (both divided by
+        // screen width in the Rust code). hh/local_pos.y use a
+        // height-based unit instead — rescale y into the width-based
+        // unit so the isotropic SDF below is comparing like with like.
+        let aspect = screen.resolution.y / screen.resolution.x; // height/width
+        let corrected_local = vec2<f32>(in.local_pos.x, in.local_pos.y * aspect);
+        let corrected_half = vec2<f32>(in.half_size.x, in.half_size.y * aspect);
+
         var r = in.radius;
         r.x = select(r.z, r.x, in.local_pos.x > 0.0);
         r.x = select(r.y, r.x, in.local_pos.y > 0.0);
+        // radius already matches x's unit — no correction needed
 
-        let q = abs(in.local_pos) - in.half_size + r.x;
+        let q = abs(corrected_local) - corrected_half + r.x;
         let dist = min(max(q.x, q.y), 0.0) + length(max(q, vec2(0.0))) - r.x;
         let aa = fwidth(dist);
 
@@ -57,7 +68,6 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
         }
 
         if in.border_width > 0.0 {
-            // dist <= -border_width: interior fill. dist in (-border_width, 0]: border band.
             let border_alpha = smoothstep(-in.border_width - aa, -in.border_width + aa, dist);
             let final_color = mix(in.color, in.border_color, border_alpha);
             return vec4<f32>(final_color, outer_alpha);
@@ -67,8 +77,8 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     } else if in.uv.x > 1.0 {
         let actual_uv = vec2<f32>(in.uv.x - 2.0, in.uv.y);
         return textureSample(glyph_tex, glyph_sampler, actual_uv);
-    }  else {
-       let alpha = textureSample(glyph_tex, glyph_sampler, in.uv).r;
-       return vec4<f32>(in.color, alpha);
-   }
+    } else {
+        let alpha = textureSample(glyph_tex, glyph_sampler, in.uv).r;
+        return vec4<f32>(in.color, alpha);
+    }
 }

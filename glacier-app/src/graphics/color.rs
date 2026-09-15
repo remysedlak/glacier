@@ -1,4 +1,5 @@
 #[derive(Clone, Copy, Debug)]
+/// Graphics Color struct holds red, green, blue float value
 pub struct Color {
     pub r: f32,
     pub g: f32,
@@ -11,6 +12,7 @@ impl From<(f32, f32, f32)> for Color {
     }
 }
 impl Color {
+    /// Return new color to display for interactive state
     pub fn hovered(self) -> Color {
         // hand-picked overrides for colors where the generic formula
         // produces bad contrast (near-black backgrounds under white text/icons)

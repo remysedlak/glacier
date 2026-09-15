@@ -1,16 +1,22 @@
-//! structured objects to store song data
+//! Project details are stored in .toml files
 use serde::{Deserialize, Serialize};
 use std::sync::mpsc::Receiver;
 
-/// Project data stores song information
+/// Project store a song/session into memory and on file
 #[derive(Serialize, Deserialize, Clone)]
 pub struct Project {
-    pub name: String, // Name of the project
-    pub bpm: f32,     // beats per minute
+    /// Name of the project
+    pub name: String,
+    /// Beats per minute
+    pub bpm: f32,
+    /// Amplitude of master channel (0-1.0)
     pub master_volume: f32,
-    pub audio_blocks: Vec<AudioBlock>, // Instrument + time +  location
-    pub tracks: Vec<TrackData>,        // List of instruments
-    pub patterns: Vec<PatternData>,    // List of patterns
+    /// List of audio events
+    pub audio_blocks: Vec<AudioBlock>,
+    /// List of instruments
+    pub tracks: Vec<TrackData>,
+    /// List of patterns
+    pub patterns: Vec<PatternData>,
 }
 
 impl Project {
@@ -24,13 +30,12 @@ impl Project {
         audio_blocks: Vec<AudioBlock>,
     ) -> Project {
         Project {
-            name: name.clone(),
+            name,
             bpm,
             master_volume,
-
             tracks: tracks.iter().map(|track| track.data.clone()).collect(),
-            patterns: patterns.clone(),
-            audio_blocks: audio_blocks.clone(),
+            patterns,
+            audio_blocks,
         }
     }
     /// Save the project details to a location on disk
@@ -69,7 +74,7 @@ impl Default for Project {
     }
 }
 
-/// different audio elements that can be placed on the playlist timeline
+/// Different types of audio elements that can be placed on the playlist timeline
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 #[serde(tag = "kind", content = "id")]
 pub enum AudioBlockType {
@@ -78,12 +83,14 @@ pub enum AudioBlockType {
     Mixing,             // Automation
 }
 
-// Newtype IDs for safety
 #[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+/// newtype for Pattern ID
 pub struct PatternID(pub u32);
 #[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+/// newtype for Track ID
 pub struct TrackID(pub u32);
 #[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+/// newtype for AudioBlock ID
 pub struct AudioBlockID(pub u32);
 
 /// AudioBlocks are how audio elements are timed within a playlist
@@ -100,12 +107,12 @@ pub struct AudioBlock {
 /// Runtime Track object
 #[derive(Clone)]
 pub struct Track {
+    // persistent track information
     pub data: TrackData,
-    pub samples: Vec<f32>, // raw float values
+    // recreated in memory every session
+    pub samples: Vec<f32>,
     pub voices: Vec<Voice>,
-    pub show_velocity: bool, // sequencer.rs ui
-
-    // dsp runtime
+    pub show_velocity: bool,
     pub rms_l: f32,
     pub rms_r: f32,
     pub peak_hold: f32,
@@ -125,6 +132,7 @@ impl Track {
             peak_hold: 0.0,
         }
     }
+    /// Toggle the mute flag of an instrument
     pub fn mute(&mut self) {
         self.data.is_muted = !self.data.is_muted;
     }
@@ -148,6 +156,7 @@ pub struct TrackData {
 pub struct PatternData {
     pub id: PatternID,
     pub name: String,
+    // vec  = { track_id , vec { notes } }, { track_id , vec { notes } }, { track_id , vec { notes } }
     pub sequences: Vec<Sequence>,
 }
 
@@ -171,12 +180,16 @@ pub struct Sequence {
 }
 
 #[derive(Serialize, Deserialize, Clone, Copy)]
+/// One midi note
 pub struct Note {
-    pub velocity: f32, // 0.0 = off, >0.0 = on
-    pub pitch: u8,     // midi note 0-127, 60 = middle C5
+    // 0.0 = off, >0.0 = on
+    pub velocity: f32,
+    // midi note 0-127, 60 = middle C5
+    pub pitch: u8,
 }
 
 impl Note {
+    // C5
     pub const DEFAULT: Self = Self {
         velocity: 0.0,
         pitch: 60,
@@ -287,11 +300,15 @@ pub fn count_fs_rows(
 pub fn is_audio_file(path: &std::path::Path) -> bool {
     matches!(
         path.extension().and_then(|e| e.to_str()),
-        Some("wav" | "mp3" | "flac" | "aiff" | "ogg")
+        Some("wav" | "mp3" | "flac" | "aiff" | "ogg") // how can i create a constant to store supported audio files?
     )
 }
 
 #[derive(Clone)]
+/// One track note instant
+///
+/// spawned and killed
+/// TODO: figure out how voices should be managed in memory
 pub struct Voice {
     pub position: f32,
     pub is_playing: bool,

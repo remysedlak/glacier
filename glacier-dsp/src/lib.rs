@@ -55,7 +55,7 @@ pub fn rms_window(samples: &[f32]) -> f32 {
 }
 
 /// helper. returns the amount of zero crosses for one window
-/// * https://www.sciencedirect.com/topics/engineering/zero-crossing-rate
+/// * <https://www.sciencedirect.com/topics/engineering/zero-crossing-rate>
 pub fn zcr_window(samples: &[f32]) -> usize {
     let mut crosses = 0; // accumalte the square of each sample's ampltiude
     for sample in samples.windows(2) {

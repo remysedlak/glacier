@@ -1,7 +1,4 @@
 use crate::app::click::ClickResult;
-use crate::graphics::icons::DEFAULT_TOOLTIP_WIDTH;
-use crate::graphics::mini_window::InteractionResult;
-use crate::graphics::primitives::{NO_RADIUS, PAD_16, PAD_2, PAD_32, PAD_4, RADIUS_4};
 use crate::project::is_audio_file;
 use crate::{
     app::MouseState,
@@ -9,7 +6,9 @@ use crate::{
         color::*,
         font::{Font::Roboto, TextItem},
         geometry::Rectangle,
-        icons::IconDraw,
+        icons::{IconDraw, DEFAULT_TOOLTIP_WIDTH},
+        mini_window::InteractionResult,
+        primitives::{NO_RADIUS, PAD_16, PAD_2, PAD_32, PAD_4, RADIUS_4},
         ScreenConfig, Tooltip, Vertex,
     },
 };

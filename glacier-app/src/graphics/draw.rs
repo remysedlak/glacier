@@ -1,6 +1,4 @@
 //! Main builder draw method. paints all shapes using core draw methods and handles the app's vertex buffers.
-use wgpu::{SurfaceTexture, TextureView};
-
 use super::*;
 use crate::{
     graphics::{
@@ -14,6 +12,7 @@ use crate::{
     project::{PatternID, TrackID},
 };
 use std::time::Duration;
+use wgpu::{SurfaceTexture, TextureView};
 
 impl Graphics {
     /// converts TextItem into vertices.
@@ -114,13 +113,14 @@ impl Graphics {
         let mut interaction = InteractionResult::default();
 
         let frame: SurfaceTexture = self
+            .render_context
             .surface
             .get_current_texture()
             .expect("Failed to acquire next swap chain texture.");
         let view: TextureView = frame.texture.create_view(&TextureViewDescriptor::default());
         let screen_config = ScreenConfig {
-            width: self.surface_config.width,
-            height: self.surface_config.height,
+            width: self.render_context.surface_config.width,
+            height: self.render_context.surface_config.height,
         };
         self.tooltip = None;
 
@@ -225,8 +225,8 @@ impl Graphics {
                     }
                     let playlist_icon_end = icon_draws.len();
 
-                    let sw = self.surface_config.width;
-                    let sh = self.surface_config.height;
+                    let sw = self.render_context.surface_config.width;
+                    let sh = self.render_context.surface_config.height;
                     let wx = (window.x.max(0.0) as u32).min(sw);
                     let wy = ((window.y - TITLEBAR_HEIGHT).max(0.0) as u32).min(sh);
                     let win_right = ((window.x + window.width) as u32).min(sw);
@@ -251,7 +251,7 @@ impl Graphics {
                         &mut glyph_vertices,
                         &mut char_draws,
                     );
-                    regions.push(record(
+                    regions.push(RecordedRegion::record(
                         &vertices,
                         &char_draws,
                         &icon_draws,
@@ -283,7 +283,7 @@ impl Graphics {
                         &mut glyph_vertices,
                         &mut char_draws,
                     );
-                    regions.push(record(
+                    regions.push(RecordedRegion::record(
                         &vertices,
                         &char_draws,
                         &icon_draws,
@@ -305,7 +305,7 @@ impl Graphics {
                         &mut glyph_vertices,
                         &mut char_draws,
                     );
-                    regions.push(record(
+                    regions.push(RecordedRegion::record(
                         &vertices,
                         &char_draws,
                         &icon_draws,
@@ -327,7 +327,7 @@ impl Graphics {
                         &mut glyph_vertices,
                         &mut char_draws,
                     );
-                    regions.push(record(
+                    regions.push(RecordedRegion::record(
                         &vertices,
                         &char_draws,
                         &icon_draws,
@@ -416,8 +416,8 @@ impl Graphics {
                         &mut char_draws,
                     );
 
-                    let sw = self.surface_config.width;
-                    let sh = self.surface_config.height;
+                    let sw = self.render_context.surface_config.width;
+                    let sh = self.render_context.surface_config.height;
                     let wx = (window.x.max(0.0) as u32).min(sw);
                     let wy = ((window.y - TITLEBAR_HEIGHT).max(0.0) as u32).min(sh);
                     let win_right = ((window.x + window.width) as u32).min(sw);
@@ -460,7 +460,7 @@ impl Graphics {
                         },
                         scissor: Some(safe_scissor(wx, content_y, key_w, content_h, sw, sh)),
                     });
-                    regions.push(record(
+                    regions.push(RecordedRegion::record(
                         &vertices,
                         &char_draws,
                         &icon_draws,
@@ -511,7 +511,7 @@ impl Graphics {
                 }
             }
 
-            regions.push(record(
+            regions.push(RecordedRegion::record(
                 &vertices,
                 &char_draws,
                 &icon_draws,
@@ -524,8 +524,8 @@ impl Graphics {
 
         // --- track tray + file tree ---
         if self.show_track_tray {
-            let sw = self.surface_config.width;
-            let sh = self.surface_config.height;
+            let sw = self.render_context.surface_config.width;
+            let sh = self.render_context.surface_config.height;
 
             let tray_vert_start = vertices.len() as u32;
             let tray_char_start = char_draws.len();
@@ -556,7 +556,7 @@ impl Graphics {
             );
 
             let tray_bottom = sh / 2 + 2;
-            regions.push(record(
+            regions.push(RecordedRegion::record(
                 &vertices,
                 &char_draws,
                 &icon_draws,
@@ -607,7 +607,7 @@ impl Graphics {
                 &mut glyph_vertices,
                 &mut char_draws,
             );
-            regions.push(record(
+            regions.push(RecordedRegion::record(
                 &vertices,
                 &char_draws,
                 &icon_draws,
@@ -653,7 +653,7 @@ impl Graphics {
             }
 
             let divider_y = sh / 2 + (PAD_32 + PAD_16) as u32;
-            regions.push(record(
+            regions.push(RecordedRegion::record(
                 &vertices,
                 &char_draws,
                 &icon_draws,
@@ -775,7 +775,7 @@ impl Graphics {
             &mut glyph_vertices,
             &mut char_draws,
         );
-        regions.push(record(
+        regions.push(RecordedRegion::record(
             &vertices,
             &char_draws,
             &icon_draws,
@@ -820,7 +820,7 @@ impl Graphics {
             &mut glyph_vertices,
             &mut char_draws,
         );
-        regions.push(record(
+        regions.push(RecordedRegion::record(
             &vertices,
             &char_draws,
             &icon_draws,
@@ -864,7 +864,7 @@ impl Graphics {
                 &mut glyph_vertices,
                 &mut char_draws,
             );
-            regions.push(record(
+            regions.push(RecordedRegion::record(
                 &vertices,
                 &char_draws,
                 &icon_draws,
@@ -892,7 +892,7 @@ impl Graphics {
             );
             interaction = interaction.or(context_menu_interaction);
         }
-        regions.push(record(
+        regions.push(RecordedRegion::record(
             &vertices,
             &char_draws,
             &icon_draws,
@@ -934,7 +934,7 @@ impl Graphics {
                 }
             }
         }
-        regions.push(record(
+        regions.push(RecordedRegion::record(
             &vertices,
             &char_draws,
             &icon_draws,
@@ -944,21 +944,25 @@ impl Graphics {
             None,
         ));
 
-        self.queue
-            .write_buffer(&self.vertex_buffer, 0, bytemuck::cast_slice(&vertices));
-        self.queue.write_buffer(
-            &self.glyph_vertex_buffer,
+        self.render_context.queue.write_buffer(
+            &self.render_context.vertex_buffer,
+            0,
+            bytemuck::cast_slice(&vertices),
+        );
+        self.render_context.queue.write_buffer(
+            &self.render_context.glyph_vertex_buffer,
             0,
             bytemuck::cast_slice(&glyph_vertices),
         );
-        self.queue.write_buffer(
-            &self.icon_vertex_buffer,
+        self.render_context.queue.write_buffer(
+            &self.render_context.icon_vertex_buffer,
             0,
             bytemuck::cast_slice(&icon_vertices),
         );
         self.num_vertices = vertices.len() as u32;
 
         let mut encoder = self
+            .render_context
             .device
             .create_command_encoder(&CommandEncoderDescriptor { label: None });
         {
@@ -982,7 +986,8 @@ impl Graphics {
                 occlusion_query_set: None,
             });
 
-            r_pass.set_pipeline(&self.render_pipeline);
+            r_pass.set_pipeline(&self.render_context.render_pipeline);
+            r_pass.set_bind_group(1, &self.render_context.screen_bind_group, &[]);
             let any_bg = self.glyph_cache.any_bind_group().unwrap();
 
             for region in &regions {
@@ -991,27 +996,32 @@ impl Graphics {
                     None => r_pass.set_scissor_rect(
                         0,
                         0,
-                        self.surface_config.width,
-                        self.surface_config.height,
+                        self.render_context.surface_config.width,
+                        self.render_context.surface_config.height,
                     ),
                 }
                 draw_range(
                     &mut r_pass,
-                    &self.vertex_buffer,
-                    &self.glyph_vertex_buffer,
-                    &self.icon_vertex_buffer,
+                    &self.render_context.vertex_buffer,
+                    &self.render_context.glyph_vertex_buffer,
+                    &self.render_context.icon_vertex_buffer,
                     any_bg,
                     &char_draws,
                     &icon_draws,
                     &region.range,
                 );
             }
-            r_pass.set_scissor_rect(0, 0, self.surface_config.width, self.surface_config.height);
+            r_pass.set_scissor_rect(
+                0,
+                0,
+                self.render_context.surface_config.width,
+                self.render_context.surface_config.height,
+            );
             // no bulk icon-drawing pass anymore — every region now draws its own icons,
             // correctly clipped by that region's own scissor rect.
         }
 
-        self.queue.submit(Some(encoder.finish()));
+        self.render_context.queue.submit(Some(encoder.finish()));
         frame.present();
 
         interaction

@@ -2,13 +2,14 @@
 
 use std::collections::HashMap;
 
-use wgpu::{util::DeviceExt, BindGroup, BindGroupLayout, Texture};
+use wgpu::{BindGroup, BindGroupLayout, Texture};
 
 use crate::graphics::{
     icons,
     primitives::{ScreenConfig, Vertex, NO_RADIUS},
 };
 
+/// List of SVG file names to be loaded into memory
 pub const ICONS: &[(&str, u32, u32)] = &[
     ("play", 128, 128),
     ("stop", 128, 128),

@@ -64,10 +64,10 @@ impl Graphics {
         // DRAGGING WINDOW
         if let Some(i) = self.dragging_window {
             let win = &mut self.mini_windows[i];
-            let max_y = self.surface_config.height as f32 - TITLEBAR_HEIGHT;
+            let max_y = self.render_context.surface_config.height as f32 - TITLEBAR_HEIGHT;
             win.x = (win.x + dx).clamp(
                 -(win.width - 64.0),
-                self.surface_config.width as f32 - 246.0,
+                self.render_context.surface_config.width as f32 - 246.0,
             );
             win.y = (win.y + dy).clamp(TITLEBAR_HEIGHT + TOOLBAR_Y, max_y);
             return DragResult::None;
@@ -140,7 +140,7 @@ impl Graphics {
             x: self.track_tray_width - PAD_8,
             y: TOOLBAR_Y,
             width: PAD_16,
-            height: self.surface_config.height as f32,
+            height: self.render_context.surface_config.height as f32,
         };
         if tray_edge.is_hovered(mouse_x, mouse_y) {
             self.resizing_track_tray = true;
@@ -207,6 +207,7 @@ impl Graphics {
         }
 
         // WINDOW TITLE BAR
+        // [        Title       -]
         for (i, win) in self.mini_windows.iter().enumerate() {
             let titlebar = Rectangle {
                 x: win.x,
@@ -214,6 +215,7 @@ impl Graphics {
                 width: win.width,
                 height: TITLEBAR_HEIGHT,
             };
+            // TODO: stop titlebar from being dragged when we are ALREADY dragging something
             if titlebar.is_hovered(mouse_x, mouse_y) {
                 self.dragging_window = Some(i);
                 return DragResult::None;

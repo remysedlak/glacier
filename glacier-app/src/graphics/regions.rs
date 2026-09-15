@@ -6,6 +6,29 @@ pub struct RecordedRegion {
     pub range: WindowDrawRange,
     pub scissor: Option<(u32, u32, u32, u32)>,
 }
+impl RecordedRegion {
+    pub fn record(
+        vertices: &Vec<Vertex>,
+        char_draws: &Vec<(u64, &wgpu::BindGroup)>,
+        icon_draws: &Vec<(u64, &wgpu::BindGroup)>,
+        vert_start: u32,
+        char_start: usize,
+        icon_start: usize,
+        scissor: Option<(u32, u32, u32, u32)>,
+    ) -> RecordedRegion {
+        RecordedRegion {
+            range: WindowDrawRange {
+                vert_start,
+                vert_end: vertices.len() as u32,
+                char_start,
+                char_end: char_draws.len(),
+                icon_start,
+                icon_end: icon_draws.len(),
+            },
+            scissor,
+        }
+    }
+}
 
 /// Tracks the position of the global vertex/glyph/icon buffers of where a window's shapes are.
 pub struct WindowDrawRange {
@@ -107,26 +130,4 @@ pub fn draw_range(
         range.icon_start,
         range.icon_end,
     );
-}
-
-pub fn record(
-    vertices: &Vec<Vertex>,
-    char_draws: &Vec<(u64, &wgpu::BindGroup)>,
-    icon_draws: &Vec<(u64, &wgpu::BindGroup)>,
-    vert_start: u32,
-    char_start: usize,
-    icon_start: usize,
-    scissor: Option<(u32, u32, u32, u32)>,
-) -> RecordedRegion {
-    RecordedRegion {
-        range: WindowDrawRange {
-            vert_start,
-            vert_end: vertices.len() as u32,
-            char_start,
-            char_end: char_draws.len(),
-            icon_start,
-            icon_end: icon_draws.len(),
-        },
-        scissor,
-    }
 }

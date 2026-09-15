@@ -44,13 +44,11 @@ pub fn draw(
     text_items.push(draw_title("Tracks", (track_tray.x, track_tray.y)));
 
     for (i, track) in tracks.iter().enumerate() {
-        let button_x = track_tray.x + PAD_4;
         let button_y = PATTERN_TRAY_HEADER_MARGIN + (PATTERN_TRAY_ITEM_GAP * i as f32) + PAD_32;
         let track_button = Rectangle {
-            x: button_x,
             y: button_y,
-            width: track_tray.width - PAD_8,
             height: PATTERN_TRAY_ITEM_HEIGHT,
+            ..track_tray.inset_x(PAD_4)
         };
 
         let track_button_color = if track_button.is_hovered(mouse_state.x, mouse_state.y) {
@@ -71,18 +69,19 @@ pub fn draw(
         let is_selected = selected_track_id == Some(track.data.id);
         if is_selected {
             let signal = Rectangle {
-                x: button_x,
+                x: track_button.x,
                 y: button_y,
-                width: PAD_8,
+                width: 4.0,
                 height: PATTERN_TRAY_ITEM_HEIGHT,
             };
-            signal.draw(screen_config, WHITE, RADIUS_4, out);
+            signal.draw(screen_config, ORANGE, RADIUS_4, out);
         }
 
+        let text_pos = track_button.offset(PAD_8, PAD_2);
         text_items.push(TextItem {
             text: truncate_text(&track.data.name, 18),
-            x: track_button.x + PAD_4,
-            y: PATTERN_TRAY_HEADER_MARGIN + (PATTERN_TRAY_ITEM_GAP * i as f32) + PAD_32 + PAD_2,
+            x: text_pos.x,
+            y: text_pos.y,
             size: 10.0,
             color: WHITE,
             font: Roboto,

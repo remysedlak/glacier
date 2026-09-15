@@ -1,16 +1,16 @@
-//! audio engine for sequencing compositions and applying DSP
+//! An audio engine for sequencing compositions and applying DSP methods
 use crate::project::*;
 use crate::UiCommand;
 use cpal::{
     traits::{DeviceTrait, HostTrait, StreamTrait},
-    {SampleFormat, Stream, StreamConfig},
+    {SampleFormat, StreamConfig},
 };
 use ringbuf::{
     traits::{Consumer, Producer},
     HeapCons, HeapProd,
 };
 
-/// commands retrieved from the user interface to control the audio engine
+/// A command sent from the UI thread to control the audio engine
 pub enum AudioCommand {
     // composition details
     ToggleStep(PatternID, TrackID, usize), // pattern_id, track_id, step_idx
@@ -125,16 +125,16 @@ fn find_working_config(
     );
 }
 
-/// initialize the CPAL engine with project file data and return the audio stream
+/// Initializes the CPAL engine with project file data. Returns the audio stream
 pub fn init(
     mut consumer: HeapCons<AudioCommand>,
     mut producer: HeapProd<UiCommand>,
     project_file: Option<String>,
-) -> Stream {
+) -> cpal::Stream {
     // error callback
     let err_fn = |err| eprintln!("an error occurred on the output audio stream: {}", err);
 
-    // cpal setup -> host, device, config
+    // cpal setup
     let host = cpal::default_host();
     let device = host
         .default_output_device()
@@ -150,7 +150,7 @@ pub fn init(
     let sample_rate: f32 = stream_config.sample_rate as f32;
 
     // load project file to memory
-    let project = project_file
+    let project: Project = project_file
         .as_deref()
         .and_then(get_project)
         .unwrap_or_default();
@@ -548,7 +548,7 @@ pub fn init(
                     if !track.data.is_muted {
                         for voice in &mut track.voices {
                             if voice.is_playing {
-                                let pos = (voice.position as usize) & !1;
+                                let pos = align_to_frame(voice.position);
                                 let frac = voice.position - voice.position.floor();
 
                                 let stop =
@@ -588,17 +588,15 @@ pub fn init(
                     }
                 }
             }
-            // preview playback
-            let pos = (preview_position as usize) & !1;
-            if pos + 3 < preview_samples.len() {
-                let frac = preview_position - preview_position.floor();
-                let l =
-                    preview_samples[pos] + frac * (preview_samples[pos + 2] - preview_samples[pos]);
-                let r = preview_samples[pos + 1]
-                    + frac * (preview_samples[pos + 3] - preview_samples[pos + 1]);
-                sample[0] += l * master_volume;
-                sample[1] += r * master_volume;
-                preview_position += 2.0;
+
+            // preview playback at master volume (user plays a file on file tree or track window)
+            if !preview_samples.is_empty() {
+                process_preview(
+                    &mut preview_position,
+                    &preview_samples,
+                    sample,
+                    master_volume,
+                );
             }
 
             // feed the spectrum analyzer with the final mixed mono signal
@@ -789,4 +787,28 @@ pub fn init(
     // start the output stream and return it
     stream.play().expect("Failed to play the output stream.");
     stream
+}
+
+/// Process the current audio file being previewed into the audio stream
+fn process_preview(
+    preview_position: &mut f32,
+    preview_samples: &[f32],
+    sample: &mut [f32],
+    master_volume: f32,
+) {
+    let pos = align_to_frame(*preview_position);
+    if pos + 3 < preview_samples.len() {
+        let frac = *preview_position - preview_position.floor();
+        let l = preview_samples[pos] + frac * (preview_samples[pos + 2] - preview_samples[pos]);
+        let r =
+            preview_samples[pos + 1] + frac * (preview_samples[pos + 3] - preview_samples[pos + 1]);
+        sample[0] += l * master_volume;
+        sample[1] += r * master_volume;
+        *preview_position += 2.0;
+    }
+}
+
+/// even out a sample position to force stereo operations on even array
+fn align_to_frame(pos: f32) -> usize {
+    (pos as usize) & !1
 }

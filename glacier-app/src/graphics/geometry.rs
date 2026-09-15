@@ -10,16 +10,19 @@ use crate::{
 };
 
 #[derive(Copy, Clone)]
+/// Used for styling bordered rectangles
 pub struct BorderStyle {
     pub size: f32,
     pub color: Color,
 }
 
+// Default border for now.
 pub const ICON_BORDER: BorderStyle = BorderStyle {
     color: LL_GRAY,
     size: 1.0,
 };
 
+/// Helper for building rectangles
 pub struct RectangleCtx<'a> {
     rectangle: &'a Rectangle,
     interactive: Option<&'a MouseState>,
@@ -27,6 +30,7 @@ pub struct RectangleCtx<'a> {
     border: Option<BorderStyle>,
 }
 
+/// Helper for storing placed rectangle information
 pub struct DrawResponse {
     pub hovered: bool,
     pub x: f32,
@@ -36,18 +40,22 @@ pub struct DrawResponse {
 }
 
 impl<'a> RectangleCtx<'a> {
+    /// Apply BorderStyle to Rectangle context
     pub fn bordered(mut self, border_style: Option<BorderStyle>) -> RectangleCtx<'a> {
         self.border = border_style;
         self
     }
+    /// Apply interaction to Rectangle context
     pub fn interactive(mut self, mouse_state: Option<&'a MouseState>) -> RectangleCtx<'a> {
         self.interactive = mouse_state;
         self
     }
+    /// Apply disable interaction state for Rectangle context
     pub fn disabled(mut self) -> RectangleCtx<'a> {
         self.hover_effect = false;
         self
     }
+    /// Draw a Rectangle based on built RectangleCtx
     pub fn draw(
         self,
         screen_config: &ScreenConfig,
@@ -191,6 +199,34 @@ impl<'a> Rectangle {
             y,
             width: size,
             height: size,
+        }
+    }
+
+    pub fn inset(&self, amount: f32) -> Rectangle {
+        Rectangle {
+            x: self.x + amount,
+            y: self.y + amount,
+            width: self.width - amount * 2.0,
+            height: self.height - amount * 2.0,
+        }
+    }
+
+    /// Shrinks horizontally only (left + right), leaving y/height untouched.
+    pub fn inset_x(&self, amount: f32) -> Rectangle {
+        Rectangle {
+            x: self.x + amount,
+            width: self.width - amount * 2.0,
+            ..*self
+        }
+    }
+
+    /// Offsets by (dx, dy) without resizing — for positioning a smaller
+    /// element (icon, text) inside a parent rect.
+    pub fn offset(&self, dx: f32, dy: f32) -> Rectangle {
+        Rectangle {
+            x: self.x + dx,
+            y: self.y + dy,
+            ..*self
         }
     }
 }

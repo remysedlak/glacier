@@ -17,6 +17,7 @@ pub enum RenameTarget {
     Pattern(PatternID),
 }
 
+// todo: replace padding constants with padding method
 pub const PAD_64: f32 = 64.0;
 pub const PAD_32: f32 = 32.0;
 pub const PAD_16: f32 = 16.0;
@@ -24,11 +25,12 @@ pub const PAD_8: f32 = 8.0;
 pub const PAD_4: f32 = 4.0;
 pub const PAD_2: f32 = 2.0;
 
+// Hard-coded radius values
 pub const NO_RADIUS: [f32; 4] = [0.0; 4];
-// pub const TOP_RADIUS_16: [f32; 4] = [16.0, 0.0, 16.0, 0.0];
 pub const BOTTOM_RADIUS_16: [f32; 4] = [0.0, 16.0, 0.0, 16.0];
 pub const RADIUS_8: [f32; 4] = [8.0; 4];
 pub const RADIUS_4: [f32; 4] = [4.0; 4];
+
 pub const BUTTON_GAP: f32 = 24.0;
 
 pub const ONE_MEGABYTE: u64 = 1024 * 1024;
