@@ -1,14 +1,16 @@
+//! Custom color class
+
 #[derive(Clone, Copy, Debug)]
-/// Graphics Color struct holds red, green, blue float value
 pub struct Color {
     pub r: f32,
     pub g: f32,
     pub b: f32,
+    pub a: f32,
 }
-impl From<(f32, f32, f32)> for Color {
+impl From<(f32, f32, f32, f32)> for Color {
     /// Take in a rgb tuple and return a Color struct
-    fn from((r, g, b): (f32, f32, f32)) -> Self {
-        Color { r, g, b }
+    fn from((r, g, b, a): (f32, f32, f32, f32)) -> Self {
+        Color { r, g, b, a }
     }
 }
 impl Color {
@@ -32,7 +34,8 @@ impl Color {
             l + (1.0 - l) * 0.15 // smaller nudge than before — these are small icon buttons, not big flat panels
         };
         let (r, g, b) = hsl_to_rgb(h, s, l);
-        Color { r, g, b }
+        let a = self.a;
+        Color { r, g, b, a }
     }
 
     fn is(self, other: Color) -> bool {
@@ -103,51 +106,67 @@ pub const LIGHT_GRAY: Color = Color {
     r: 0.53,
     g: 0.53,
     b: 0.53,
+    a: 1.0,
 };
 
 pub const GHOST: Color = Color {
     r: 0.33,
     g: 0.33,
     b: 0.33,
+    a: 1.0,
 };
 
 pub const DARK_GRAY: Color = Color {
     r: 0.03,
     g: 0.03,
     b: 0.03,
+    a: 1.0,
+};
+
+pub const PATTERN_BLOCK: Color = Color {
+    r: 0.26,
+    g: 0.26,
+    b: 0.26,
+    a: 0.4,
 };
 
 pub const DARK_GRAY_HOVER: Color = Color {
     r: 0.05,
     g: 0.05,
     b: 0.05,
+    a: 1.0,
 };
 
 pub const BLACK: Color = Color {
     r: 0.00,
     g: 0.00,
     b: 0.00,
+    a: 1.0,
 };
 pub const WHITE: Color = Color {
     r: 1.0,
     g: 1.0,
     b: 1.0,
+    a: 1.0,
 };
 
 pub const LL_GRAY: Color = Color {
     r: 0.27,
     g: 0.27,
     b: 0.27,
+    a: 1.0,
 };
 pub const MINI_WINDOW_BACKGROUND: Color = Color {
     r: 0.1,
     g: 0.1,
     b: 0.1,
+    a: 1.0,
 };
 pub const SURFACE: Color = Color {
     r: 0.018,
     g: 0.018,
     b: 0.018,
+    a: 1.0,
 };
 
 pub const SURFACE_HOVER: Color = DARK_GRAY;
@@ -156,6 +175,7 @@ pub const C_NOTE_COLOR: Color = Color {
     r: 0.59,
     g: 0.70,
     b: 0.30,
+    a: 1.0,
 };
 
 // blues :'Color{r:}
@@ -163,25 +183,33 @@ pub const BLUE: Color = Color {
     r: 0.10,
     g: 0.15,
     b: 0.70,
+    a: 1.0,
 }; // desaturated, medium
 
 pub const DARK_BLUE: Color = Color {
     r: 0.06,
     g: 0.09,
     b: 0.45,
+    a: 1.0,
 }; // darker but not black
 
-// high contrast
-// pub const PURPLE: Color = Color { r: 0.20, g: 0.20, b: 0.99 };
+pub const NAVY: Color = Color {
+    r: 0.0,
+    g: 0.0,
+    b: 0.1,
+    a: 1.0,
+}; // darker but not black
+
 pub const ORANGE: Color = Color {
     r: 0.99,
     g: 0.1,
     b: 0.0,
+    a: 1.0,
 };
 
 pub const GREEN: Color = Color {
     r: 0.1,
     g: 0.99,
     b: 0.1,
+    a: 1.0,
 };
-// pub const GREEN_HOVER: Color = Color { r: 0.1, g: 0.79, b: 0.1 };

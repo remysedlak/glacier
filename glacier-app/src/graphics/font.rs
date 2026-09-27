@@ -118,6 +118,7 @@ impl GlyphCache {
 
 /// returns the float width in pixels of a character for a font
 pub fn cursor_x_offset(font: &fontdue::Font, text: &str, cursor: usize, size: f32) -> f32 {
+    // computes where every individual glyph should be positioned, handling all the messy details of turning characters into placed positions
     let mut layout = Layout::new(CoordinateSystem::PositiveYDown);
     layout.append(&[font], &TextStyle::new(text, size, 0));
     let glyphs = layout.glyphs();
@@ -203,7 +204,7 @@ pub fn build_glyph_cache(
             }
             let (texture, bind_group, metrics) =
                 rasterize_glyph(device, queue, font, c, size, bgl, sampler); // call #2, metrics reused below
-            print!("{:#?}", metrics);
+
             cache.insert((c, size as u32), GlyphEntry(texture, bind_group, metrics));
         }
     }
@@ -280,13 +281,13 @@ pub fn draw_glyph(
     w: f32,
     h: f32,
     screen_config: &ScreenConfig,
-    color: (f32, f32, f32),
+    color: (f32, f32, f32, f32),
 ) -> Vec<Vertex> {
     let ndc_x = 2.0 * (x / screen_config.width as f32) - 1.0;
     let ndc_y = 1.0 - (y / screen_config.height as f32) * 2.0;
     let ndc_w = (w / screen_config.width as f32) * 2.0;
     let ndc_h = (h / screen_config.height as f32) * 2.0;
-    let color = [color.0, color.1, color.2];
+    let color = [color.0, color.1, color.2, color.3];
     vec![
         Vertex {
             position: [ndc_x, ndc_y, 0.0],
@@ -296,7 +297,7 @@ pub fn draw_glyph(
             half_size: [0.0, 0.0],
             radius: NO_RADIUS,
             border_width: 0.0,
-            border_color: [0.0, 0.0, 0.0],
+            border_color: [0.0, 0.0, 0.0, 1.0],
         },
         Vertex {
             position: [ndc_x, ndc_y - ndc_h, 0.0],
@@ -306,7 +307,7 @@ pub fn draw_glyph(
             half_size: [0.0, 0.0],
             radius: NO_RADIUS,
             border_width: 0.0,
-            border_color: [0.0, 0.0, 0.0],
+            border_color: [0.0, 0.0, 0.0, 1.0],
         },
         Vertex {
             position: [ndc_x + ndc_w, ndc_y, 0.0],
@@ -316,7 +317,7 @@ pub fn draw_glyph(
             half_size: [0.0, 0.0],
             radius: NO_RADIUS,
             border_width: 0.0,
-            border_color: [0.0, 0.0, 0.0],
+            border_color: [0.0, 0.0, 0.0, 1.0],
         },
         Vertex {
             position: [ndc_x + ndc_w, ndc_y, 0.0],
@@ -326,7 +327,7 @@ pub fn draw_glyph(
             half_size: [0.0, 0.0],
             radius: NO_RADIUS,
             border_width: 0.0,
-            border_color: [0.0, 0.0, 0.0],
+            border_color: [0.0, 0.0, 0.0, 1.0],
         },
         Vertex {
             position: [ndc_x, ndc_y - ndc_h, 0.0],
@@ -336,7 +337,7 @@ pub fn draw_glyph(
             half_size: [0.0, 0.0],
             radius: NO_RADIUS,
             border_width: 0.0,
-            border_color: [0.0, 0.0, 0.0],
+            border_color: [0.0, 0.0, 0.0, 1.0],
         },
         Vertex {
             position: [ndc_x + ndc_w, ndc_y - ndc_h, 0.0],
@@ -346,7 +347,7 @@ pub fn draw_glyph(
             half_size: [0.0, 0.0],
             radius: NO_RADIUS,
             border_width: 0.0,
-            border_color: [0.0, 0.0, 0.0],
+            border_color: [0.0, 0.0, 0.0, 1.0],
         },
     ]
 }

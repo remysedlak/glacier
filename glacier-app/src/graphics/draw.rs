@@ -29,7 +29,7 @@ impl Graphics {
                 continue;
             };
             let mut layout = Layout::new(CoordinateSystem::PositiveYDown);
-            let Color { r, g, b } = text_item.color;
+            let Color { r, g, b, a } = text_item.color;
             layout.append(&[font], &TextStyle::new(&text_item.text, text_item.size, 0));
 
             for glyph in layout.glyphs() {
@@ -42,7 +42,7 @@ impl Graphics {
                         glyph.width as f32,
                         glyph.height as f32,
                         screen_config,
-                        (r, g, b),
+                        (r, g, b, a),
                     );
                     let offset = (glyph_vertices.len() * std::mem::size_of::<Vertex>()) as u64;
                     glyph_vertices.extend_from_slice(&gverts);

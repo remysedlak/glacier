@@ -19,7 +19,7 @@ pub struct BorderStyle {
 // Default border for now.
 pub const ICON_BORDER: BorderStyle = BorderStyle {
     color: LL_GRAY,
-    size: 1.0,
+    size: 0.5,
 };
 
 /// Helper for building rectangles
@@ -33,6 +33,7 @@ pub struct RectangleCtx<'a> {
 /// Helper for storing placed rectangle information
 pub struct DrawResponse {
     pub hovered: bool,
+    pub right_hovered: bool,
     pub x: f32,
     pub y: f32,
     pub width: f32,
@@ -65,11 +66,15 @@ impl<'a> RectangleCtx<'a> {
     ) -> DrawResponse {
         let mut rectangle_color = color;
         let mut hovered = false;
+        let mut right_hovered = false;
         if let Some(mouse_state) = self.interactive {
             hovered = self.rectangle.is_hovered(mouse_state.x, mouse_state.y);
             if self.hover_effect {
                 rectangle_color = if hovered { color.hovered() } else { color };
             }
+            right_hovered = self
+                .rectangle
+                .is_hovered_right_edge(mouse_state.x, mouse_state.y);
         }
 
         if let Some(border_style) = self.border {
@@ -93,6 +98,7 @@ impl<'a> RectangleCtx<'a> {
         }
         DrawResponse {
             hovered,
+            right_hovered,
             x: self.rectangle.x,
             y: self.rectangle.y,
             width: self.rectangle.width,

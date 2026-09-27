@@ -221,6 +221,16 @@ is_muted = false
 kind = "Sample"
 id = 4
 
+[[audio_blocks]]
+id = 20
+track_id = 4
+start_step = 15
+length = 1
+is_muted = false
+
+[audio_blocks.block_type]
+kind = "Mixing"
+
 [[tracks]]
 id = 0
 name = "bounce-snare-01.wav"
@@ -268,5 +278,5 @@ root_note = 60
 
 [[patterns]]
 id = 0
-name = "Pattern 1"
+name = "Pattern 1 so long"
 sequences = []

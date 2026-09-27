@@ -28,6 +28,7 @@ pub const PAD_2: f32 = 2.0;
 // Hard-coded radius values
 pub const NO_RADIUS: [f32; 4] = [0.0; 4];
 pub const BOTTOM_RADIUS_16: [f32; 4] = [0.0, 16.0, 0.0, 16.0];
+pub const TOP_RADIUS_8: [f32; 4] = [8.0, 0.0, 8.0, 0.0];
 pub const RADIUS_8: [f32; 4] = [8.0; 4];
 pub const RADIUS_4: [f32; 4] = [4.0; 4];
 
@@ -54,11 +55,11 @@ pub struct Vertex {
     pub position: [f32; 3],
     pub local_pos: [f32; 2],
     pub half_size: [f32; 2],
-    pub color: [f32; 3],
+    pub color: [f32; 4],
     pub uv: [f32; 2],
     // border
     pub border_width: f32,
-    pub border_color: [f32; 3],
+    pub border_color: [f32; 4],
     // corner radius
     pub radius: [f32; 4],
 }
@@ -86,7 +87,7 @@ impl Vertex {
             shader_location: 3,
         },
         wgpu::VertexAttribute {
-            format: wgpu::VertexFormat::Float32x3,
+            format: wgpu::VertexFormat::Float32x4,
             offset: std::mem::offset_of!(Vertex, color) as wgpu::BufferAddress,
             shader_location: 4,
         },
@@ -151,11 +152,16 @@ pub fn draw_rectangle_bordered(
     let hw = ndc_width / 2.0;
     let hh = ndc_height / 2.0;
     let ndc_border = ndc_r(border_width);
-    let bc = [border_color.r, border_color.g, border_color.b];
+    let bc = [
+        border_color.r,
+        border_color.g,
+        border_color.b,
+        border_color.a,
+    ];
 
     vertex_buffer.push(Vertex {
         position: [ndc_x, ndc_y, 0.0],
-        color: [color.r, color.g, color.b],
+        color: [color.r, color.g, color.b, color.a],
         uv: [-1.0, -1.0],
         radius,
         half_size: [hw, hh],
@@ -165,7 +171,7 @@ pub fn draw_rectangle_bordered(
     });
     vertex_buffer.push(Vertex {
         position: [ndc_x, ndc_y - ndc_height, 0.0],
-        color: [color.r, color.g, color.b],
+        color: [color.r, color.g, color.b, color.a],
         uv: [-1.0, -1.0],
         radius,
         half_size: [hw, hh],
@@ -175,7 +181,7 @@ pub fn draw_rectangle_bordered(
     });
     vertex_buffer.push(Vertex {
         position: [ndc_x + ndc_width, ndc_y, 0.0],
-        color: [color.r, color.g, color.b],
+        color: [color.r, color.g, color.b, color.a],
         uv: [-1.0, -1.0],
         radius,
         half_size: [hw, hh],
@@ -185,7 +191,7 @@ pub fn draw_rectangle_bordered(
     });
     vertex_buffer.push(Vertex {
         position: [ndc_x + ndc_width, ndc_y, 0.0],
-        color: [color.r, color.g, color.b],
+        color: [color.r, color.g, color.b, color.a],
         uv: [-1.0, -1.0],
         radius,
         half_size: [hw, hh],
@@ -195,7 +201,7 @@ pub fn draw_rectangle_bordered(
     });
     vertex_buffer.push(Vertex {
         position: [ndc_x, ndc_y - ndc_height, 0.0],
-        color: [color.r, color.g, color.b],
+        color: [color.r, color.g, color.b, color.a],
         uv: [-1.0, -1.0],
         radius,
         half_size: [hw, hh],
@@ -205,7 +211,7 @@ pub fn draw_rectangle_bordered(
     });
     vertex_buffer.push(Vertex {
         position: [ndc_x + ndc_width, ndc_y - ndc_height, 0.0],
-        color: [color.r, color.g, color.b],
+        color: [color.r, color.g, color.b, color.a],
         uv: [-1.0, -1.0],
         radius,
         half_size: [hw, hh],
@@ -260,13 +266,13 @@ pub fn draw_circle(
 
     let inert_v = |x: f32, y: f32| Vertex {
         position: to_ndc(x, y),
-        color: [color.r, color.g, color.b],
+        color: [color.r, color.g, color.b, color.a],
         uv: [-1.0, -1.0],
         radius: [0.0; 4],
         half_size: [1.0, 1.0],
         local_pos: [0.0, 0.0],
         border_width: 0.0,
-        border_color: [0.0, 0.0, 0.0],
+        border_color: [0.0, 0.0, 0.0, 1.0],
     };
 
     for k in 0..segments {
@@ -300,13 +306,13 @@ pub fn draw_knob(
 
     let v = |x: f32, y: f32| Vertex {
         position: [ncx(x), ncy(y), 0.0],
-        color: [1.0, 1.0, 1.0],
+        color: [1.0, 1.0, 1.0, 1.0],
         uv: [-1.0, -1.0],
         radius: [0.0; 4],
         half_size: [1.0, 1.0],
         local_pos: [0.0, 0.0],
         border_width: 0.0,
-        border_color: [0.0, 0.0, 0.0],
+        border_color: [0.0, 0.0, 0.0, 1.0],
     };
 
     let perp_x = -angle.sin();
@@ -340,13 +346,13 @@ pub fn draw_h_line(
 
     let v = |px: f32, py: f32| Vertex {
         position: [px, py, 0.0],
-        color: [0.0, 0.0, 0.0],
+        color: [0.0, 0.0, 0.0, 1.0],
         uv: [-1.0, -1.0],
         radius: [0.0; 4],
         half_size: [1.0, 1.0],
         local_pos: [0.0, 0.0],
         border_width: 0.0,
-        border_color: [0.0, 0.0, 0.0],
+        border_color: [0.0, 0.0, 0.0, 1.0],
     };
 
     vertex_buffer.extend([

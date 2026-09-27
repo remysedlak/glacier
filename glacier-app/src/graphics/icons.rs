@@ -220,7 +220,7 @@ pub fn draw_icon(x: f32, y: f32, w: f32, h: f32, screen_config: &ScreenConfig) -
     let ndc_w = (w / screen_config.width as f32) * 2.0;
     let ndc_h = (h / screen_config.height as f32) * 2.0;
 
-    let color = [1.0, 1.0, 1.0];
+    let color = [1.0, 1.0, 1.0, 1.0];
     vec![
         Vertex {
             position: [ndc_x, ndc_y, 0.0],
@@ -230,7 +230,7 @@ pub fn draw_icon(x: f32, y: f32, w: f32, h: f32, screen_config: &ScreenConfig) -
             half_size: [0.0, 0.0],
             radius: NO_RADIUS,
             border_width: 0.0,
-            border_color: [0.0, 0.0, 0.0],
+            border_color: [0.0, 0.0, 0.0, 1.0],
         },
         Vertex {
             position: [ndc_x, ndc_y - ndc_h, 0.0],
@@ -240,7 +240,7 @@ pub fn draw_icon(x: f32, y: f32, w: f32, h: f32, screen_config: &ScreenConfig) -
             half_size: [0.0, 0.0],
             radius: NO_RADIUS,
             border_width: 0.0,
-            border_color: [0.0, 0.0, 0.0],
+            border_color: [0.0, 0.0, 0.0, 1.0],
         },
         Vertex {
             position: [ndc_x + ndc_w, ndc_y, 0.0],
@@ -250,7 +250,7 @@ pub fn draw_icon(x: f32, y: f32, w: f32, h: f32, screen_config: &ScreenConfig) -
             half_size: [0.0, 0.0],
             radius: NO_RADIUS,
             border_width: 0.0,
-            border_color: [0.0, 0.0, 0.0],
+            border_color: [0.0, 0.0, 0.0, 1.0],
         },
         Vertex {
             position: [ndc_x + ndc_w, ndc_y, 0.0],
@@ -260,7 +260,7 @@ pub fn draw_icon(x: f32, y: f32, w: f32, h: f32, screen_config: &ScreenConfig) -
             half_size: [0.0, 0.0],
             radius: NO_RADIUS,
             border_width: 0.0,
-            border_color: [0.0, 0.0, 0.0],
+            border_color: [0.0, 0.0, 0.0, 1.0],
         },
         Vertex {
             position: [ndc_x, ndc_y - ndc_h, 0.0],
@@ -270,7 +270,7 @@ pub fn draw_icon(x: f32, y: f32, w: f32, h: f32, screen_config: &ScreenConfig) -
             half_size: [0.0, 0.0],
             radius: NO_RADIUS,
             border_width: 0.0,
-            border_color: [0.0, 0.0, 0.0],
+            border_color: [0.0, 0.0, 0.0, 1.0],
         },
         Vertex {
             position: [ndc_x + ndc_w, ndc_y - ndc_h, 0.0],
@@ -280,7 +280,7 @@ pub fn draw_icon(x: f32, y: f32, w: f32, h: f32, screen_config: &ScreenConfig) -
             half_size: [0.0, 0.0],
             radius: NO_RADIUS,
             border_width: 0.0,
-            border_color: [0.0, 0.0, 0.0],
+            border_color: [0.0, 0.0, 0.0, 1.0],
         },
     ]
 }

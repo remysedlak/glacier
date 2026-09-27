@@ -1,4 +1,6 @@
 use crate::app::{click::ClickResult, MouseState};
+use crate::graphics::geometry::ICON_BORDER;
+use crate::graphics::primitives::PAD_16;
 use crate::graphics::{
     color::{DARK_GRAY, ORANGE, SURFACE, SURFACE_HOVER, WHITE},
     components::{
@@ -60,6 +62,7 @@ pub fn draw(
     )
     .draw_style()
     .interactive(Some(mouse_state))
+    .bordered(Some(ICON_BORDER))
     .draw(screen_config, DARK_GRAY, RADIUS_8, out);
 
     if add_pattern_button.hovered {
@@ -147,7 +150,7 @@ pub fn draw(
 
         text_items.push(TextItem {
             text: pattern_label,
-            x: screen_config.width as f32 - PATTERN_TRAY_ITEM_WIDTH,
+            x: screen_config.width as f32 - PATTERN_TRAY_ITEM_WIDTH - PAD_16,
             y: row_y + PAD_2,
             size: 14.0,
             color: WHITE,

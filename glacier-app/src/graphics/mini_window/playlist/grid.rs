@@ -105,8 +105,6 @@ pub fn draw(
             let base = if group % 2 != 0 { BLUE } else { DARK_BLUE };
             let color = if dragging_file.is_some() && hovered {
                 GREEN
-            } else if hovered {
-                base.hovered()
             } else {
                 base
             };

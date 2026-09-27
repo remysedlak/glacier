@@ -3,10 +3,10 @@ struct VertexInput {
     @location(1) local_pos: vec2<f32>,
     @location(2) half_size: vec2<f32>,
     @location(3) radius: vec4<f32>,
-    @location(4) color: vec3<f32>,
+    @location(4) color: vec4<f32>,
     @location(5) uv: vec2<f32>,
     @location(6) border_width: f32,   // 0.0 = no border
-    @location(7) border_color: vec3<f32>,
+    @location(7) border_color: vec4<f32>,
 };
 
 struct VertexOutput {
@@ -14,10 +14,10 @@ struct VertexOutput {
     @location(0) local_pos: vec2<f32>,
     @location(1) half_size: vec2<f32>,
     @location(2) radius: vec4<f32>,
-    @location(3) color: vec3<f32>,
+    @location(3) color: vec4<f32>,
     @location(4) uv: vec2<f32>,
     @location(5) border_width: f32,
-    @location(6) border_color: vec3<f32>,
+    @location(6) border_color: vec4<f32>,
 };
 
 @group(0) @binding(0) var glyph_tex: texture_2d<f32>;
@@ -69,16 +69,17 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
 
         if in.border_width > 0.0 {
             let border_alpha = smoothstep(-in.border_width - aa, -in.border_width + aa, dist);
-            let final_color = mix(in.color, in.border_color, border_alpha);
-            return vec4<f32>(final_color, outer_alpha);
+            let final_color = mix(in.color.rgb, in.border_color.rgb, border_alpha);
+            let final_alpha = mix(in.color.a, in.border_color.a, border_alpha) * outer_alpha;
+            return vec4<f32>(final_color, final_alpha);
         }
 
-        return vec4<f32>(in.color, outer_alpha);
+        return vec4<f32>(in.color.rgb, outer_alpha * in.color.a);
     } else if in.uv.x > 1.0 {
         let actual_uv = vec2<f32>(in.uv.x - 2.0, in.uv.y);
         return textureSample(glyph_tex, glyph_sampler, actual_uv);
     } else {
         let alpha = textureSample(glyph_tex, glyph_sampler, in.uv).r;
-        return vec4<f32>(in.color, alpha);
+        return vec4<f32>(in.color.rgb, alpha * in.color.a);
     }
 }

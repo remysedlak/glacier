@@ -210,21 +210,12 @@ pub fn draw(
                     interaction.cursor = CursorIcon::ColResize;
                 }
 
-                let hovered = piano_roll_step.is_hovered(mouse_state.x, mouse_state.y)
-                    && !mouse_state.left_click_held;
-
                 let base = if (step_index / 4) % 2 == 0 {
                     BLUE
                 } else {
                     DARK_BLUE
                 };
-                let color = if is_active {
-                    ORANGE
-                } else if hovered {
-                    base.hovered()
-                } else {
-                    base
-                };
+                let color = if is_active { ORANGE } else { base };
 
                 // trigger note on and off
                 if piano_roll_step.is_hovered(mouse_state.x, mouse_state.y)
