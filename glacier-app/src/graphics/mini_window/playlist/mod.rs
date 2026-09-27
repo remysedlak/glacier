@@ -1,4 +1,6 @@
+use crate::app::click::ClickResult;
 use crate::app::{MouseState, ScrollOffset};
+use crate::graphics::geometry::checkbox;
 use crate::graphics::icons::IconDraw;
 use crate::graphics::mini_window::playlist::toolbar::PlaylistTool;
 use crate::graphics::{
@@ -30,6 +32,7 @@ pub fn draw(
     dragging_file: Option<&PathBuf>,
     screen_config: &ScreenConfig,
     playlist_tool: &PlaylistTool,
+    stretch_mode: bool,
 ) -> (
     DrawRegion,
     DrawRegion,
@@ -104,7 +107,7 @@ pub fn draw(
         interaction = interaction.or(block_interaction)
     }
 
-    let (ruler_vertices, ruler_text_items) =
+    let (mut ruler_vertices, ruler_text_items) =
         ruler::draw(window, screen_config, step_count, scroll_offset);
 
     // draw playhead at the current beat
@@ -114,6 +117,19 @@ pub fn draw(
         NO_RADIUS,
         &mut timeline_vertices,
     );
+
+    let checkbox = checkbox(
+        window.x + PAD_64 + PAD_32,
+        window.y + PAD_32 + PAD_8,
+        stretch_mode,
+        mouse_state,
+        screen_config,
+        &mut static_vertices,
+        &mut static_text_items,
+    );
+    if checkbox.hovered && mouse_state.left_clicked {
+        interaction.click = ClickResult::ToggleStretchMode;
+    }
 
     // return draw regions and mouse state
     (

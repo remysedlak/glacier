@@ -211,6 +211,7 @@ impl Graphics {
                         self.dragging_file.as_ref(),
                         &screen_config,
                         &self.playlist_tool,
+                        self.stretch_mode,
                     );
                     // icon_start (captured at top of this loop iteration) marks the
                     // start of playlist's icons; they all belong to the STATIC region.

@@ -269,6 +269,7 @@ pub async fn create_graphics(window: Rc<Window>, proxy: EventLoopProxy<Graphics>
         piano_roll_state: None,
 
         // ui state
+        stretch_mode: false,
         dragging_knob: None,
         mini_windows,
         dragging_window: None,
@@ -361,6 +362,7 @@ pub struct Graphics {
     font_cache: FontCache,
 
     //ui
+    pub stretch_mode: bool,
     pub expanded_dirs: std::collections::HashSet<PathBuf>,
     pub user_fs_location: PathBuf,
     pub track_tray_width: f32,

@@ -60,6 +60,7 @@ pub enum ClickResult {
     LoadPianoRoll(PianoRollState),
 
     // toggle ui components
+    ToggleStretchMode,
     ToggleMixerWindow,
     TogglePlaylistWindow,
     ToggleTrackWindow(TrackID),
@@ -95,6 +96,9 @@ impl App {
 
         match result {
             // UI EDITS
+            ClickResult::ToggleStretchMode => {
+                gfx.stretch_mode = !gfx.stretch_mode;
+            }
             ClickResult::ModalCancelExit => {
                 gfx.show_save_modal = false;
             }

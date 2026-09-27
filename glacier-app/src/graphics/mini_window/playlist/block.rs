@@ -85,22 +85,22 @@ pub fn draw_audio_block(
                 .map(|t| t.data.name.clone())
                 .unwrap_or_else(|| "?".to_string());
 
-            if let Some(t) = tracks.iter().find(|t| t.data.id == id) {
-                let waveform_rect = Rectangle {
-                    x: rect.x,
-                    y: rect.y + 24.0,
-                    width: rect.width,
-                    height: rect.height - 24.0,
-                };
-                draw_waveform(
-                    &t.samples,
-                    t.data.channels,
-                    &waveform_rect,
-                    screen_config,
-                    WHITE,
-                    timeline_vertices,
-                );
-            }
+            // if let Some(t) = tracks.iter().find(|t| t.data.id == id) {
+            //     let waveform_rect = Rectangle {
+            //         x: rect.x,
+            //         y: rect.y + 24.0,
+            //         width: rect.width,
+            //         height: rect.height - 24.0,
+            //     };
+            //     draw_waveform(
+            //         &t.samples,
+            //         t.data.channels,
+            //         &waveform_rect,
+            //         screen_config,
+            //         WHITE,
+            //         timeline_vertices,
+            //     );
+            // }
             (rect, label)
         }
         _ => return InteractionResult::default(),

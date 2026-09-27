@@ -3,8 +3,14 @@
 use crate::{
     app::MouseState,
     graphics::{
-        color::{Color, LL_GRAY},
-        primitives::{draw_rectangle, draw_rectangle_bordered, Vertex, PAD_4, PAD_8},
+        color::{Color, DARK_GRAY, LL_GRAY, WHITE},
+        font::{
+            Font::{Mono, Roboto},
+            TextItem,
+        },
+        primitives::{
+            draw_rectangle, draw_rectangle_bordered, Vertex, PAD_4, PAD_64, PAD_8, RADIUS_4,
+        },
         ScreenConfig,
     },
 };
@@ -105,6 +111,46 @@ impl<'a> RectangleCtx<'a> {
             height: self.rectangle.height,
         }
     }
+}
+//  window.x + PAD_64 + PAD_32
+//  window.y + PAD_32 + PAD_8,
+pub fn checkbox(
+    x: f32,
+    y: f32,
+    is_toggled: bool,
+    mouse_state: &MouseState,
+    screen_config: &ScreenConfig,
+    out_vertices: &mut Vec<Vertex>,
+    out_texts: &mut Vec<TextItem>,
+) -> DrawResponse {
+    let checkbox = Rectangle::new(x, y, 16.0, 16.0)
+        .draw_style()
+        .interactive(Some(mouse_state))
+        .bordered(Some(ICON_BORDER))
+        .draw(screen_config, DARK_GRAY, RADIUS_4, out_vertices);
+
+    if is_toggled {
+        let check = TextItem {
+            text: "x".to_string(),
+            color: WHITE,
+            size: 12.0,
+            font: Roboto,
+            x: checkbox.x + PAD_4,
+            y: checkbox.y,
+        };
+        out_texts.push(check);
+    }
+
+    let label = TextItem {
+        text: "stretch".to_string(),
+        size: 12.0,
+        font: Mono,
+        x: checkbox.x - PAD_64,
+        y: checkbox.y,
+        color: WHITE,
+    };
+    out_texts.push(label);
+    return checkbox;
 }
 
 /// A rectangle stores 2D position,width, and height
