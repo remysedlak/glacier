@@ -117,14 +117,21 @@ impl GlyphCache {
 }
 
 /// returns the float width in pixels of a character for a font
-pub fn measure_text_width(font: &fontdue::Font, text: &str, size: f32) -> f32 {
+pub fn cursor_x_offset(font: &fontdue::Font, text: &str, cursor: usize, size: f32) -> f32 {
     let mut layout = Layout::new(CoordinateSystem::PositiveYDown);
     layout.append(&[font], &TextStyle::new(text, size, 0));
-    layout
-        .glyphs()
-        .last()
-        .map(|g| g.x + g.width as f32)
-        .unwrap_or(0.0)
+    let glyphs = layout.glyphs();
+
+    match glyphs.get(cursor) {
+        // cursor sits before this glyph — use its actual pen-start x
+        Some(g) => g.x,
+        // cursor is at the very end — no glyph there, so use the last
+        // glyph's x + its advance (need metrics for the advance)
+        None => glyphs.last().map_or(0.0, |g| {
+            let m = font.metrics(text.chars().last().unwrap(), size);
+            g.x + m.advance_width
+        }),
+    }
 }
 
 /// A text item stores the text visual information for wgpu to later draw as vertices
@@ -196,6 +203,7 @@ pub fn build_glyph_cache(
             }
             let (texture, bind_group, metrics) =
                 rasterize_glyph(device, queue, font, c, size, bgl, sampler); // call #2, metrics reused below
+            print!("{:#?}", metrics);
             cache.insert((c, size as u32), GlyphEntry(texture, bind_group, metrics));
         }
     }

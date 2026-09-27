@@ -2,13 +2,12 @@
 use super::{App, State};
 use crate::app::PianoRollState;
 use crate::audio::AudioCommand;
-use crate::graphics::mini_window::playlist::toolbar::PlaylistTool;
 use crate::graphics::{
     bring_to_front,
-    context_menu::{ContextMenu, ContextMenuKind},
+    components::context_menu::{ContextMenu, ContextMenuKind},
     mini_window::{
-        piano_roll::PIANO_ROLL_DEFAULT_Y, MiniWindow, WindowKind, MIXER_ID, PIANO_ROLL_ID,
-        PLAYLIST_ID, SEQUENCER_ID,
+        piano_roll::PIANO_ROLL_DEFAULT_Y, playlist::toolbar::PlaylistTool, MiniWindow, WindowKind,
+        MIXER_ID, PIANO_ROLL_ID, PLAYLIST_ID, SEQUENCER_ID,
     },
     primitives::{RenameState, RenameTarget},
 };
@@ -105,7 +104,6 @@ impl App {
                 if let Some(pattern) = gfx.patterns.iter().find(|p| p.id == id) {
                     gfx.renaming = Some(RenameState {
                         target: RenameTarget::Pattern(id),
-
                         edited_name: pattern.name.clone(),
                         cursor: pattern.name.len(),
                     });

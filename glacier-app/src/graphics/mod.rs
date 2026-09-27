@@ -1,7 +1,6 @@
 /// custom graphics/UI backend connects to winit using WGPU
 pub mod color;
 pub mod components;
-pub mod context_menu;
 pub mod drag;
 pub mod draw;
 pub mod font;
@@ -19,11 +18,8 @@ use crate::project::{
     AudioBlock, AudioBlockID, AudioBlockType, PatternData, PatternID, Track, TrackData, TrackID,
 };
 use color::{Color, DARK_GRAY, WHITE};
-use components::{footer, side_panel, side_panel::DEFAULT_TRAY_WIDTH};
-use context_menu::ContextMenu;
-use font::{
-    create_bind_group_layout, load_fonts, Font, Font::Mono, Font::Roboto, GlyphCache, TextItem,
-};
+use components::{context_menu::ContextMenu, footer, side_panel, side_panel::DEFAULT_TRAY_WIDTH};
+use font::{create_bind_group_layout, load_fonts, Font::Mono, Font::Roboto, GlyphCache, TextItem};
 use fontdue::layout::{CoordinateSystem, Layout, TextStyle};
 use geometry::*;
 use icons::{push_icon_draw, Tooltip};
@@ -35,8 +31,8 @@ use mini_window::{
     track, MiniWindow, WindowKind, MIXER_ID, PIANO_ROLL_ID, PLAYLIST_ID, SEQUENCER_ID,
 };
 use primitives::*;
+use std::borrow::Cow;
 use std::path::PathBuf;
-use std::{borrow::Cow, collections::HashMap};
 
 use wgpu::{
     Adapter, CommandEncoderDescriptor, DeviceDescriptor, Features, FragmentState, Instance, Limits,

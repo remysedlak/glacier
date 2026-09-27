@@ -4,7 +4,7 @@ use crate::{
     graphics::{
         color::{LIGHT_GRAY, SURFACE},
         components::{modal, toolbar::TOOLBAR_MARGIN},
-        font::measure_text_width,
+        font::cursor_x_offset,
         mini_window::{playlist::grid::GRID_X_ORIGIN, InteractionResult, TITLEBAR_HEIGHT},
         regions::*,
         side_panel::track_tray::file_tree,
@@ -691,8 +691,9 @@ impl Graphics {
                     .font_cache
                     .get(Roboto)
                     .expect("Roboto font missing from cache");
-                measure_text_width(font, &r.edited_name[..r.cursor], 14.0)
+                cursor_x_offset(font, &r.edited_name, r.cursor, 14.0)
             });
+
             let (texts, pattern_interaction, icon, tooltip) = side_panel::pattern_tray::draw(
                 &screen_config,
                 &self.patterns,

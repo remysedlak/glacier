@@ -1,7 +1,4 @@
-use crate::app::click::ClickResult;
-use crate::app::MouseState;
-use crate::graphics::icons::DEFAULT_TOOLTIP_WIDTH;
-use crate::graphics::mini_window::InteractionResult;
+use crate::app::{click::ClickResult, MouseState};
 use crate::graphics::{
     color::{DARK_GRAY, ORANGE, SURFACE, SURFACE_HOVER, WHITE},
     components::{
@@ -9,7 +6,8 @@ use crate::graphics::{
         toolbar::{TOOLBAR_THICKNESS, TOOLBAR_Y},
     },
     font::{Font::Roboto, TextItem},
-    icons::{IconDraw, Tooltip},
+    icons::{IconDraw, Tooltip, DEFAULT_TOOLTIP_WIDTH},
+    mini_window::InteractionResult,
     primitives::{RenameState, RenameTarget, ScreenConfig, PAD_32, PAD_4, PAD_64, PAD_8, RADIUS_8},
     {CursorIcon, PatternData, Rectangle, Vertex, NO_RADIUS, PAD_2},
 };
@@ -31,7 +29,6 @@ pub fn draw(
     // setup
     let mut text_items: Vec<TextItem> = Vec::new();
     let mut interaction = InteractionResult::default();
-
     let mut tooltip = None;
 
     // patterns tray
@@ -55,7 +52,7 @@ pub fn draw(
     // title
     text_items.push(draw_title("Patterns", (pattern_tray.x, pattern_tray.y)));
 
-    // add pattern button
+    // add pattern button (+)
     let add_pattern_button = Rectangle::square(
         screen_config.width as f32 - PAD_32,
         pattern_tray.y + PAD_8,

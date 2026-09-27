@@ -1,3 +1,4 @@
+pub mod context_menu;
 pub mod footer;
 pub mod modal;
 pub mod side_panel;

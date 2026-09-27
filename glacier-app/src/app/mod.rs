@@ -373,6 +373,7 @@ impl ApplicationHandler<Graphics> for App {
                 }
 
                 if event.state.is_pressed() {
+                    // handle rename state and keyboard actions first
                     if self.handle_rename_key(&event) {
                         return;
                     }
@@ -392,7 +393,6 @@ impl ApplicationHandler<Graphics> for App {
                                     {
                                         gfx.renaming = Some(RenameState {
                                             target: RenameTarget::Pattern(id),
-
                                             edited_name: pattern.name.clone(),
                                             cursor: pattern.name.len(),
                                         });
