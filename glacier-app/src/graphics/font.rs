@@ -1,21 +1,24 @@
 //! Fonts are loaded to wgpu with fontdue
-use fontdue::layout::{CoordinateSystem, Layout, TextStyle};
-
 use crate::graphics::{
     color::Color,
     primitives::{ScreenConfig, Vertex, NO_RADIUS},
 };
+use fontdue::layout::{CoordinateSystem, Layout, TextStyle};
 use std::collections::HashMap;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+/// Font enum represents all of the possible fonts for glacier-app
 pub enum Font {
     Roboto,
     Mono,
 }
 
+pub const FONT_SIZES: [f32; 9] = [6.0, 8.0, 10.0, 12.0, 14.0, 16.0, 18.0, 24.0, 32.0];
+
 impl Font {
     pub const ALL: [Font; 2] = [Font::Roboto, Font::Mono];
 
+    // load a font file as a reference to a byte array
     fn bytes(&self) -> &'static [u8] {
         match self {
             Font::Roboto => {
@@ -26,25 +29,28 @@ impl Font {
     }
 }
 
-pub fn load_fonts(
-    device: &wgpu::Device,
-    queue: &wgpu::Queue,
-) -> (HashMap<Font, fontdue::Font>, GlyphCache) {
-    let mut font_cache = HashMap::new();
+/// loads all fonts into a font cache and glyph cache
+pub fn load_fonts(device: &wgpu::Device, queue: &wgpu::Queue) -> (FontCache, GlyphCache) {
+    // build caches
+    let mut font_cache = FontCache::new();
     let mut glyph_cache = GlyphCache::new();
+
+    // reuse bgl and sampler for all fonts/sizes
+    let bgl = create_bind_group_layout(device);
+    let sampler = device.create_sampler(&wgpu::SamplerDescriptor {
+        mag_filter: wgpu::FilterMode::Nearest,
+        min_filter: wgpu::FilterMode::Nearest,
+        ..Default::default()
+    });
+
+    // for each font,
+    // - cache the font data to FontCache
+    // - cache multiple sizes of the font bitmaps
     for font in Font::ALL {
         let parsed =
             fontdue::Font::from_bytes(font.bytes(), fontdue::FontSettings::default()).unwrap();
-        // if let Some(name) = parsed.name() {
-        //     println!("test: {}", name);
-        // }
 
-        let cache = build_glyph_cache(
-            device,
-            queue,
-            &parsed,
-            &[6.0, 8.0, 10.0, 12.0, 14.0, 16.0, 18.0, 24.0, 32.0],
-        );
+        let cache = build_glyph_cache(device, queue, &parsed, &FONT_SIZES, &bgl, &sampler);
         font_cache.insert(font, parsed);
         glyph_cache.insert(font, cache);
     }
@@ -62,6 +68,22 @@ impl GlyphEntry {
     }
 }
 
+pub struct FontCache(HashMap<Font, fontdue::Font>);
+
+impl FontCache {
+    pub fn new() -> Self {
+        FontCache(HashMap::new())
+    }
+
+    pub fn insert(&mut self, font: Font, parsed: fontdue::Font) {
+        self.0.insert(font, parsed);
+    }
+
+    pub fn get(&self, font: Font) -> Option<&fontdue::Font> {
+        self.0.get(&font)
+    }
+}
+
 /// Pre-rasterized glyphs for every loaded font, keyed by font name and then
 /// by (character, size). Built once at startup via `build_glyph_cache` per
 /// font; `Graphics::draw` looks glyphs up here every frame instead of
@@ -73,13 +95,17 @@ impl GlyphCache {
         GlyphCache(HashMap::new())
     }
 
+    // cache a font
     pub fn insert(&mut self, font: Font, entry: HashMap<(char, u32), GlyphEntry>) {
         self.0.insert(font, entry);
     }
 
+    // get a cached font
     pub fn get(&self, font: Font, ch: char, size: u32) -> Option<&GlyphEntry> {
         self.0.get(&font)?.get(&(ch, size))
     }
+
+    // return bind group
     pub fn any_bind_group(&self) -> Option<&wgpu::BindGroup> {
         self.0
             .values()
@@ -152,12 +178,14 @@ pub fn create_bind_group_layout(device: &wgpu::Device) -> wgpu::BindGroupLayout 
     })
 }
 
-/// returns the glyph cache (a hashmap of characters to bitmaps for one size)
+/// returns the glyph cache (a hashmap of characters to bitmaps for multiple size)
 pub fn build_glyph_cache(
     device: &wgpu::Device,
     queue: &wgpu::Queue,
     font: &fontdue::Font,
     sizes: &[f32],
+    bgl: &wgpu::BindGroupLayout,
+    sampler: &wgpu::Sampler,
 ) -> HashMap<(char, u32), GlyphEntry> {
     let mut cache = HashMap::new();
     for &size in sizes {
@@ -166,7 +194,8 @@ pub fn build_glyph_cache(
             if metrics.width == 0 || metrics.height == 0 {
                 continue;
             }
-            let (texture, bind_group, _, metrics) = rasterize_glyph(device, queue, font, c, size); // call #2, metrics reused below
+            let (texture, bind_group, metrics) =
+                rasterize_glyph(device, queue, font, c, size, bgl, sampler); // call #2, metrics reused below
             cache.insert((c, size as u32), GlyphEntry(texture, bind_group, metrics));
         }
     }
@@ -180,12 +209,9 @@ pub fn rasterize_glyph(
     font: &fontdue::Font,
     c: char,
     size: f32,
-) -> (
-    wgpu::Texture,
-    wgpu::BindGroup,
-    wgpu::BindGroupLayout,
-    fontdue::Metrics,
-) {
+    bgl: &wgpu::BindGroupLayout,
+    sampler: &wgpu::Sampler,
+) -> (wgpu::Texture, wgpu::BindGroup, fontdue::Metrics) {
     let (metrics, bitmap) = font.rasterize(c, size);
 
     let texture = device.create_texture(&wgpu::TextureDescriptor {
@@ -218,35 +244,10 @@ pub fn rasterize_glyph(
     );
 
     let view = texture.create_view(&wgpu::TextureViewDescriptor::default());
-    let sampler = device.create_sampler(&wgpu::SamplerDescriptor {
-        mag_filter: wgpu::FilterMode::Nearest,
-        min_filter: wgpu::FilterMode::Nearest,
-        ..Default::default()
-    });
-    let bgl = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-        label: None,
-        entries: &[
-            wgpu::BindGroupLayoutEntry {
-                binding: 0,
-                visibility: wgpu::ShaderStages::FRAGMENT,
-                ty: wgpu::BindingType::Texture {
-                    sample_type: wgpu::TextureSampleType::Float { filterable: true },
-                    view_dimension: wgpu::TextureViewDimension::D2,
-                    multisampled: false,
-                },
-                count: None,
-            },
-            wgpu::BindGroupLayoutEntry {
-                binding: 1,
-                visibility: wgpu::ShaderStages::FRAGMENT,
-                ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
-                count: None,
-            },
-        ],
-    });
+
     let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
         label: None,
-        layout: &bgl,
+        layout: bgl,
         entries: &[
             wgpu::BindGroupEntry {
                 binding: 0,
@@ -254,12 +255,12 @@ pub fn rasterize_glyph(
             },
             wgpu::BindGroupEntry {
                 binding: 1,
-                resource: wgpu::BindingResource::Sampler(&sampler),
+                resource: wgpu::BindingResource::Sampler(sampler),
             },
         ],
     });
 
-    (texture, bind_group, bgl, metrics)
+    (texture, bind_group, metrics)
 }
 
 /// Build vertices for one glyph quad at the given screen position, sized to

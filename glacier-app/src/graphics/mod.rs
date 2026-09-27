@@ -13,6 +13,8 @@ pub mod regions;
 
 use crate::app::{MouseState, PianoRollState, ScrollOffset};
 use crate::config::DEFAULT_BPM;
+use crate::graphics::font::FontCache;
+use crate::graphics::icons::IconCache;
 use crate::project::{
     AudioBlock, AudioBlockID, AudioBlockType, PatternData, PatternID, Track, TrackData, TrackID,
 };
@@ -81,21 +83,21 @@ impl RenderContext {
         // handle to one specific physical GPU (that the chosen backend (Vulkan/Metal/DX12/GL) can see on the machine
         let adapter: Adapter = instance
             .request_adapter(&RequestAdapterOptions {
-                power_preference: PowerPreference::default(),
+                power_preference: PowerPreference::HighPerformance,
                 force_fallback_adapter: false,
                 compatible_surface: Some(&surface),
             })
             .await
             .expect("Could not get an adapter (GPU).");
 
-        // device: handle for creating GPU-side resources
-        // queue: uploades CPU-side Vec<Vertex> data into a GPU buffer, hands recorded CommandEncoder to the GPU to execute
+        // device: handle for creating GPU-side resources (buffers, textures, pipelines)
+        // queue: queue.write_buffer() uploads CPU-side data (e.g. Vec<Vertex>) into a GPU buffer
+        //        queue.submit() hands a finished CommandEncoder's commands to the GPU for execution
         let (device, queue) = adapter
             .request_device(&DeviceDescriptor {
-                label: None,
+                label: Some("Daw device"),
                 required_features: Features::empty(),
-                required_limits: Limits::downlevel_webgl2_defaults()
-                    .using_resolution(adapter.limits()),
+                required_limits: Limits::default().using_resolution(adapter.limits()),
                 memory_hints: MemoryHints::Performance,
                 trace: Default::default(),
             })
@@ -200,11 +202,11 @@ pub type Rc<T> = std::sync::Arc<T>;
 /// Initialize the graphics with default/loaded state and find driver/display info
 pub async fn create_graphics(window: Rc<Window>, proxy: EventLoopProxy<Graphics>) {
     let render_context = RenderContext::init(&window).await;
-    // load TTF fonts
+    // cache TTF fonts and cache their character glyphs in multiple sizes
     let (font_cache, glyph_cache) = load_fonts(&render_context.device, &render_context.queue);
 
     // load SVG icons
-    let mut icon_cache = HashMap::new();
+    let mut icon_cache = IconCache::new();
     icons::load_icons(
         &mut icon_cache,
         &render_context.device,
@@ -311,17 +313,17 @@ fn create_pipeline(
     bind_group_layout: &wgpu::BindGroupLayout,
     screen_bind_group_layout: &wgpu::BindGroupLayout,
 ) -> wgpu::RenderPipeline {
-    // load WGSL shader
+    // load WGSL shader file
     let shader = device.create_shader_module(ShaderModuleDescriptor {
-        label: None,
+        label: Some("Main shader module"),
         source: ShaderSource::Wgsl(Cow::Borrowed(include_str!("../shader.wgsl"))),
     });
 
     device.create_render_pipeline(&RenderPipelineDescriptor {
-        label: None,
+        label: Some("Main render pipeline"),
         layout: Some(
             &device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-                label: None,
+                label: Some("Main pipeline layout"),
                 bind_group_layouts: &[bind_group_layout, screen_bind_group_layout],
                 push_constant_ranges: &[],
             }),
@@ -360,7 +362,7 @@ pub struct Graphics {
 
     // text
     glyph_cache: GlyphCache,
-    font_cache: HashMap<Font, fontdue::Font>,
+    font_cache: FontCache,
 
     //ui
     pub expanded_dirs: std::collections::HashSet<PathBuf>,
@@ -376,7 +378,7 @@ pub struct Graphics {
     pub piano_roll_state: Option<PianoRollState>,
     pub z_order: Vec<usize>,
     pub context_menu: Option<ContextMenu>,
-    icon_cache: HashMap<String, (wgpu::Texture, wgpu::BindGroup)>,
+    icon_cache: IconCache,
     pub tooltip: Option<Tooltip>,
     pub frame_ms: f32,
     pub show_track_tray: bool,

@@ -1,15 +1,13 @@
 //! Icons are loaded from svg
 
-use std::collections::HashMap;
-
-use wgpu::{BindGroup, BindGroupLayout, Texture};
-
 use crate::graphics::{
     icons,
     primitives::{ScreenConfig, Vertex, NO_RADIUS},
 };
+use std::collections::HashMap;
 
 /// List of SVG file names to be loaded into memory
+/// (svg file name, svg width, svg height)
 pub const ICONS: &[(&str, u32, u32)] = &[
     ("play", 128, 128),
     ("stop", 128, 128),
@@ -69,16 +67,23 @@ impl IconDraw {
     }
 }
 
+pub struct IconCache(HashMap<String, (wgpu::Texture, wgpu::BindGroup)>);
+impl IconCache {
+    pub fn new() -> IconCache {
+        IconCache(HashMap::new())
+    }
+}
+
 /// Pushes an icon's quad into the shared icon vertex buffer and records
 /// its (offset, bind_group) so the render pass knows which texture to use.
 pub fn push_icon_draw<'a>(
-    icon_cache: &'a HashMap<String, (wgpu::Texture, wgpu::BindGroup)>,
+    icon_cache: &'a IconCache,
     screen_config: &ScreenConfig,
     icon: &IconDraw,
     icon_vertices: &mut Vec<Vertex>,
     icon_draws: &mut Vec<(u64, &'a wgpu::BindGroup)>,
 ) {
-    if let Some((_, bind_group)) = icon_cache.get(icon.name) {
+    if let Some((_, bind_group)) = icon_cache.0.get(icon.name) {
         let verts = icons::draw_icon(icon.x, icon.y, icon.width, icon.height, screen_config);
         let offset = (icon_vertices.len() * std::mem::size_of::<Vertex>()) as u64;
         icon_vertices.extend_from_slice(&verts);
@@ -86,11 +91,15 @@ pub fn push_icon_draw<'a>(
     }
 }
 
-pub fn load_icons(
-    icon_cache: &mut HashMap<String, (Texture, BindGroup)>,
-    device: &wgpu::Device,
-    queue: &wgpu::Queue,
-) {
+pub fn load_icons(icon_cache: &mut IconCache, device: &wgpu::Device, queue: &wgpu::Queue) {
+    // create the layout once, outside the loop
+    let bgl = create_icon_bind_group_layout(device);
+    let sampler = device.create_sampler(&wgpu::SamplerDescriptor {
+        mag_filter: wgpu::FilterMode::Linear,
+        min_filter: wgpu::FilterMode::Linear,
+        ..Default::default()
+    });
+
     for icon in icons::ICONS {
         let svg_str =
             std::fs::read_to_string(format!("assets/icons/{}x{}/{}.svg", icon.1, icon.2, icon.0))
@@ -100,9 +109,35 @@ pub fn load_icons(
             height: icon.2 as f32,
             path: svg_str,
         };
-        let (texture, bind_group, _, _, _) = icons::rasterize_icon(&device, &queue, svg);
-        icon_cache.insert(icon.0.to_string(), (texture, bind_group));
+        let (texture, bind_group) = icons::rasterize_icon(device, queue, svg, &bgl, &sampler);
+        icon_cache
+            .0
+            .insert(icon.0.to_string(), (texture, bind_group));
     }
+}
+
+fn create_icon_bind_group_layout(device: &wgpu::Device) -> wgpu::BindGroupLayout {
+    device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+        label: Some("Icon BGL"),
+        entries: &[
+            wgpu::BindGroupLayoutEntry {
+                binding: 0,
+                visibility: wgpu::ShaderStages::FRAGMENT,
+                ty: wgpu::BindingType::Texture {
+                    sample_type: wgpu::TextureSampleType::Float { filterable: true },
+                    view_dimension: wgpu::TextureViewDimension::D2,
+                    multisampled: false,
+                },
+                count: None,
+            },
+            wgpu::BindGroupLayoutEntry {
+                binding: 1,
+                visibility: wgpu::ShaderStages::FRAGMENT,
+                ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
+                count: None,
+            },
+        ],
+    })
 }
 
 /// Input's an SVG path and outputs a wgpu texture and icon size information
@@ -110,13 +145,9 @@ pub fn rasterize_icon(
     device: &wgpu::Device,
     queue: &wgpu::Queue,
     icon: IconSvg,
-) -> (
-    wgpu::Texture,
-    wgpu::BindGroup,
-    wgpu::BindGroupLayout,
-    u32,
-    u32,
-) {
+    bgl: &wgpu::BindGroupLayout,
+    sampler: &wgpu::Sampler,
+) -> (wgpu::Texture, wgpu::BindGroup) {
     let tree = resvg::usvg::Tree::from_str(&icon.path, &Default::default()).unwrap();
     let mut pixmap = resvg::tiny_skia::Pixmap::new(icon.width as u32, icon.height as u32).unwrap();
     resvg::render(
@@ -156,35 +187,10 @@ pub fn rasterize_icon(
     );
 
     let view = texture.create_view(&wgpu::TextureViewDescriptor::default());
-    let sampler = device.create_sampler(&wgpu::SamplerDescriptor {
-        mag_filter: wgpu::FilterMode::Linear,
-        min_filter: wgpu::FilterMode::Linear,
-        ..Default::default()
-    });
-    let bgl: BindGroupLayout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-        label: None,
-        entries: &[
-            wgpu::BindGroupLayoutEntry {
-                binding: 0,
-                visibility: wgpu::ShaderStages::FRAGMENT,
-                ty: wgpu::BindingType::Texture {
-                    sample_type: wgpu::TextureSampleType::Float { filterable: true },
-                    view_dimension: wgpu::TextureViewDimension::D2,
-                    multisampled: false,
-                },
-                count: None,
-            },
-            wgpu::BindGroupLayoutEntry {
-                binding: 1,
-                visibility: wgpu::ShaderStages::FRAGMENT,
-                ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
-                count: None,
-            },
-        ],
-    });
+
     let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
         label: None,
-        layout: &bgl,
+        layout: bgl,
         entries: &[
             wgpu::BindGroupEntry {
                 binding: 0,
@@ -192,26 +198,28 @@ pub fn rasterize_icon(
             },
             wgpu::BindGroupEntry {
                 binding: 1,
-                resource: wgpu::BindingResource::Sampler(&sampler),
+                resource: wgpu::BindingResource::Sampler(sampler),
             },
         ],
     });
 
-    (
-        texture,
-        bind_group,
-        bgl,
-        icon.width as u32,
-        icon.height as u32,
-    )
+    (texture, bind_group)
 }
 
 /// return vector of vertices building the icon
 pub fn draw_icon(x: f32, y: f32, w: f32, h: f32, screen_config: &ScreenConfig) -> Vec<Vertex> {
+    // force each icon's quad edges to land exactly on pixel boundaries on screen
+    // instead of falling between two pixels
+    let x = x.round();
+    let y = y.round();
+    let w = w.round();
+    let h = h.round();
+
     let ndc_x = 2.0 * (x / screen_config.width as f32) - 1.0;
     let ndc_y = 1.0 - (y / screen_config.height as f32) * 2.0;
     let ndc_w = (w / screen_config.width as f32) * 2.0;
     let ndc_h = (h / screen_config.height as f32) * 2.0;
+
     let color = [1.0, 1.0, 1.0];
     vec![
         Vertex {

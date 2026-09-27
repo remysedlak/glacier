@@ -54,11 +54,13 @@ pub struct Vertex {
     pub position: [f32; 3],
     pub local_pos: [f32; 2],
     pub half_size: [f32; 2],
-    pub radius: [f32; 4],
     pub color: [f32; 3],
     pub uv: [f32; 2],
-    pub border_width: f32,      // new
-    pub border_color: [f32; 3], // new
+    // border
+    pub border_width: f32,
+    pub border_color: [f32; 3],
+    // corner radius
+    pub radius: [f32; 4],
 }
 
 impl Vertex {

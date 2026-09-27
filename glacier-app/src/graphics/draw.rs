@@ -18,14 +18,14 @@ impl Graphics {
     /// converts TextItem into vertices.
     fn push_text_draws<'a>(
         texts: &[TextItem],
-        font_cache: &HashMap<Font, fontdue::Font>,
+        font_cache: &FontCache,
         glyph_cache: &'a GlyphCache,
         screen_config: &ScreenConfig,
         glyph_vertices: &mut Vec<Vertex>,
         char_draws: &mut Vec<(u64, &'a wgpu::BindGroup)>,
     ) {
         for text_item in texts {
-            let Some(font) = font_cache.get(&text_item.font) else {
+            let Some(font) = font_cache.get(text_item.font) else {
                 continue;
             };
             let mut layout = Layout::new(CoordinateSystem::PositiveYDown);
@@ -689,7 +689,7 @@ impl Graphics {
             let rename_cursor_offset: Option<f32> = self.renaming.as_ref().map(|r| {
                 let font = self
                     .font_cache
-                    .get(&Roboto)
+                    .get(Roboto)
                     .expect("Roboto font missing from cache");
                 measure_text_width(font, &r.edited_name[..r.cursor], 14.0)
             });
@@ -961,6 +961,7 @@ impl Graphics {
         );
         self.num_vertices = vertices.len() as u32;
 
+        // Encodes a series of operations to submit to the GPU at once
         let mut encoder = self
             .render_context
             .device
@@ -1017,10 +1018,9 @@ impl Graphics {
                 self.render_context.surface_config.width,
                 self.render_context.surface_config.height,
             );
-            // no bulk icon-drawing pass anymore — every region now draws its own icons,
-            // correctly clipped by that region's own scissor rect.
         }
 
+        // Submit finished command buffer for execution.
         self.render_context.queue.submit(Some(encoder.finish()));
         frame.present();
 
