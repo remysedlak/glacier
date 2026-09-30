@@ -211,6 +211,7 @@ impl Graphics {
                         self.dragging_file.as_ref(),
                         &screen_config,
                         &self.playlist_tool,
+                        &mut self.waveform_cache,
                         self.stretch_mode,
                     );
                     // icon_start (captured at top of this loop iteration) marks the

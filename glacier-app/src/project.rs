@@ -107,10 +107,11 @@ pub struct AudioBlock {
 /// Runtime Track object
 #[derive(Clone)]
 pub struct Track {
-    // persistent track information
+    // persistent track information (serializable)
     pub data: TrackData,
     // recreated in memory every session
     pub samples: Vec<f32>,
+    pub mono_samples: Vec<f32>,
     pub voices: Vec<Voice>,
     pub show_velocity: bool,
     pub rms_l: f32,
@@ -121,12 +122,20 @@ pub struct Track {
 impl Track {
     /// build track with data at default states
     pub fn from_data(data: TrackData, samples: Vec<f32>) -> Track {
+        let mono_samples: Vec<f32> = if data.channels == 1 {
+            samples.to_vec()
+        } else {
+            samples
+                .chunks(2)
+                .map(|pair| (pair[0] + pair[1]) / 2.0)
+                .collect()
+        };
         Track {
             samples,
+            mono_samples,
             data,
             voices: vec![],
             show_velocity: false,
-
             rms_l: 0.0,
             rms_r: 0.0,
             peak_hold: 0.0,

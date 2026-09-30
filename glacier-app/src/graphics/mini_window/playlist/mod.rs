@@ -2,6 +2,7 @@ use crate::app::click::ClickResult;
 use crate::app::{MouseState, ScrollOffset};
 use crate::graphics::geometry::checkbox;
 use crate::graphics::icons::IconDraw;
+use crate::graphics::mini_window::playlist::block::WaveformCache;
 use crate::graphics::mini_window::playlist::toolbar::PlaylistTool;
 use crate::graphics::{
     color::*,
@@ -32,6 +33,7 @@ pub fn draw(
     dragging_file: Option<&PathBuf>,
     screen_config: &ScreenConfig,
     playlist_tool: &PlaylistTool,
+    waveform_cache: &mut WaveformCache,
     stretch_mode: bool,
 ) -> (
     DrawRegion,
@@ -101,6 +103,7 @@ pub fn draw(
             screen_config,
             patterns,
             resizing_audio_block,
+            waveform_cache,
             &mut timeline_vertices,
             &mut timeline_text_items,
         );

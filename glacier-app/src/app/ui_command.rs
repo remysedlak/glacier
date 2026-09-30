@@ -102,6 +102,7 @@ impl App {
             }
             UiCommand::AudioBlockDeleted(event_id) => {
                 gfx.audio_blocks.retain(|e| e.id != event_id);
+                gfx.waveform_cache.entries.remove(&event_id);
                 self.project_is_dirty = true;
             }
             UiCommand::PatternDeleted(pattern_id) => {

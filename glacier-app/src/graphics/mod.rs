@@ -12,8 +12,9 @@ pub mod regions;
 
 use crate::app::{MouseState, PianoRollState, ScrollOffset};
 use crate::config::DEFAULT_BPM;
-use crate::graphics::font::FontCache;
-use crate::graphics::icons::IconCache;
+use crate::graphics::{
+    font::FontCache, icons::IconCache, mini_window::playlist::block::WaveformCache,
+};
 use crate::project::{
     AudioBlock, AudioBlockID, AudioBlockType, PatternData, PatternID, Track, TrackData, TrackID,
 };
@@ -32,6 +33,7 @@ use mini_window::{
 };
 use primitives::*;
 use std::borrow::Cow;
+use std::collections::HashMap;
 use std::path::PathBuf;
 
 use wgpu::{
@@ -209,6 +211,10 @@ pub async fn create_graphics(window: Rc<Window>, proxy: EventLoopProxy<Graphics>
         &render_context.queue,
     );
 
+    let waveform_cache = WaveformCache {
+        entries: HashMap::new(),
+    };
+
     // DEVELOPER
     // @@TODO: ALLOW CUSTOM AUDIO FILE ROOT TO ACCESS DRUMKITS
     let audio_root = PathBuf::from("./assets/free-drum-samples");
@@ -267,6 +273,7 @@ pub async fn create_graphics(window: Rc<Window>, proxy: EventLoopProxy<Graphics>
         icon_cache,
         tooltip: None,
         piano_roll_state: None,
+        waveform_cache,
 
         // ui state
         stretch_mode: false,
@@ -369,6 +376,7 @@ pub struct Graphics {
     pub pattern_tray_width: f32,
     pub active_tray: AudioBlockType, // Pattern(id) or Track(id)
     pub renaming: Option<RenameState>,
+    pub waveform_cache: WaveformCache,
 
     pub mini_windows: Vec<MiniWindow>,
     num_vertices: u32,

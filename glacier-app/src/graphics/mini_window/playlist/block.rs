@@ -1,11 +1,10 @@
 //! draw one audio_block on the playlist
-use wgpu::Color;
 use winit::window::CursorIcon;
 
 use crate::{
     app::{click::ClickResult, MouseState, ScrollOffset},
     graphics::{
-        color::{self, NAVY, PATTERN_BLOCK, SURFACE, WHITE},
+        color::{self, PATTERN_BLOCK, SURFACE, WHITE},
         font::{Font::Roboto, TextItem},
         geometry::Rectangle,
         mini_window::{
@@ -21,6 +20,58 @@ use crate::{
     project::{AudioBlock, AudioBlockID, AudioBlockType, PatternData, Track},
 };
 
+/// hashmap to cache min/max values of audio files for waveform drawing
+pub struct WaveformCache {
+    // key: audio_block_id
+    // value: width, pairs
+    pub entries: std::collections::HashMap<AudioBlockID, (f32, Vec<(f32, f32)>)>,
+}
+
+pub fn reduce_waveform(mono_samples: &[f32], width: usize) -> Vec<(f32, f32)> {
+    if mono_samples.is_empty() {
+        return Vec::new();
+    }
+    let num_columns = width.min(mono_samples.len()).max(1);
+    let stride = (mono_samples.len() / num_columns).max(1);
+
+    (0..num_columns)
+        .filter_map(|col| {
+            let start = col * stride;
+            let end = (start + stride).min(mono_samples.len());
+            if start >= end {
+                return None;
+            }
+            let chunk = &mono_samples[start..end];
+            let max = chunk.iter().cloned().fold(f32::NEG_INFINITY, f32::max);
+            let min = chunk.iter().cloned().fold(f32::INFINITY, f32::min);
+            Some((min, max))
+        })
+        .collect()
+}
+
+// Draws a min/max reduced waveform into `rect`, scaled to fit.
+/// `channels` controls mono-down; handles samples shorter than the target width.
+pub fn draw_waveform(
+    pairs: &[(f32, f32)],
+    rect: &Rectangle,
+    screen_config: &ScreenConfig,
+    color: color::Color,
+    out: &mut Vec<Vertex>,
+) {
+    let center_y = rect.y + rect.height / 2.0;
+    let half_height = rect.height / 2.0;
+
+    for (col, (min, max)) in pairs.iter().enumerate() {
+        let pixel_line = Rectangle {
+            x: rect.x + col as f32,
+            y: center_y - (max * half_height),
+            width: 1.0,
+            height: (max - min) * half_height,
+        };
+        pixel_line.draw(screen_config, color, NO_RADIUS, out);
+    }
+}
+
 /// build a rectangle and label for each item placed on the playlist, handle interactivity
 pub fn draw_audio_block(
     tracks: &[Track],
@@ -31,6 +82,7 @@ pub fn draw_audio_block(
     screen_config: &ScreenConfig,
     patterns: &[PatternData],
     resizing_audio_block: Option<AudioBlockID>,
+    waveform_cache: &mut WaveformCache,
     timeline_vertices: &mut Vec<Vertex>,
     timeline_text_items: &mut Vec<TextItem>,
 ) -> InteractionResult {
@@ -85,22 +137,34 @@ pub fn draw_audio_block(
                 .map(|t| t.data.name.clone())
                 .unwrap_or_else(|| "?".to_string());
 
-            // if let Some(t) = tracks.iter().find(|t| t.data.id == id) {
-            //     let waveform_rect = Rectangle {
-            //         x: rect.x,
-            //         y: rect.y + 24.0,
-            //         width: rect.width,
-            //         height: rect.height - 24.0,
-            //     };
-            //     draw_waveform(
-            //         &t.samples,
-            //         t.data.channels,
-            //         &waveform_rect,
-            //         screen_config,
-            //         WHITE,
-            //         timeline_vertices,
-            //     );
-            // }
+            if let Some(t) = tracks.iter().find(|t| t.data.id == id) {
+                let waveform_rect = Rectangle {
+                    x: rect.x,
+                    y: rect.y + 24.0,
+                    width: rect.width,
+                    height: rect.height - 24.0,
+                };
+
+                let stale = match waveform_cache.entries.get(&audio_block.id) {
+                    Some((cached_width, _)) => *cached_width != waveform_rect.width,
+                    None => true,
+                };
+                if stale {
+                    let pairs = reduce_waveform(&t.mono_samples, waveform_rect.width as usize);
+                    waveform_cache
+                        .entries
+                        .insert(audio_block.id, (waveform_rect.width, pairs));
+                }
+
+                let (_, pairs) = waveform_cache.entries.get(&audio_block.id).unwrap();
+                draw_waveform(
+                    pairs,
+                    &waveform_rect,
+                    screen_config,
+                    WHITE,
+                    timeline_vertices,
+                );
+            }
             (rect, label)
         }
         _ => return InteractionResult::default(),
@@ -139,53 +203,4 @@ pub fn draw_audio_block(
         color: WHITE,
     });
     interaction
-}
-
-/// Draws a min/max reduced waveform into `rect`, scaled to fit.
-/// `channels` controls mono-down; handles samples shorter than the target width.
-pub fn draw_waveform(
-    samples: &[f32],
-    channels: u16,
-    rect: &Rectangle,
-    screen_config: &ScreenConfig,
-    color: color::Color,
-    out: &mut Vec<Vertex>,
-) {
-    if samples.is_empty() {
-        return;
-    }
-
-    let samples_averaged: Vec<f32> = if channels == 1 {
-        samples.to_vec()
-    } else {
-        samples
-            .chunks(2)
-            .map(|pair| (pair[0] + pair[1]) / 2.0)
-            .collect()
-    };
-
-    let num_columns = (rect.width as usize).min(samples_averaged.len()).max(1);
-    let stride = (samples_averaged.len() / num_columns).max(1);
-    let center_y = rect.y + rect.height / 2.0;
-    let half_height = rect.height / 2.0;
-
-    for col in 0..num_columns {
-        let start = col * stride;
-        let end = (start + stride).min(samples_averaged.len());
-        if start >= end {
-            continue;
-        }
-
-        let chunk = &samples_averaged[start..end];
-        let max = chunk.iter().cloned().fold(f32::NEG_INFINITY, f32::max);
-        let min = chunk.iter().cloned().fold(f32::INFINITY, f32::min);
-
-        let pixel_line = Rectangle {
-            x: rect.x + col as f32,
-            y: center_y - (max * half_height),
-            width: 1.0,
-            height: (max - min) * half_height,
-        };
-        pixel_line.draw(screen_config, color, NO_RADIUS, out);
-    }
 }
