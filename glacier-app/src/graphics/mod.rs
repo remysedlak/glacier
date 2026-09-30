@@ -12,6 +12,7 @@ pub mod regions;
 
 use crate::app::{MouseState, PianoRollState, ScrollOffset};
 use crate::config::DEFAULT_BPM;
+use crate::graphics::color::Palette;
 use crate::graphics::{
     font::FontCache, icons::IconCache, mini_window::playlist::block::WaveformCache,
 };
@@ -215,6 +216,9 @@ pub async fn create_graphics(window: Rc<Window>, proxy: EventLoopProxy<Graphics>
         entries: HashMap::new(),
     };
 
+    let palette = Palette::load_from_toml("./assets/theme_test.toml")
+        .expect("Error pulling color pallete from disk.");
+
     // DEVELOPER
     // @@TODO: ALLOW CUSTOM AUDIO FILE ROOT TO ACCESS DRUMKITS
     let audio_root = PathBuf::from("./assets/free-drum-samples");
@@ -268,6 +272,8 @@ pub async fn create_graphics(window: Rc<Window>, proxy: EventLoopProxy<Graphics>
         // fonts
         glyph_cache,
         font_cache,
+
+        palette,
 
         // iconography
         icon_cache,
@@ -367,6 +373,8 @@ pub struct Graphics {
     // text
     glyph_cache: GlyphCache,
     font_cache: FontCache,
+
+    palette: Palette,
 
     //ui
     pub stretch_mode: bool,

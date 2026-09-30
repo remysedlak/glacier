@@ -1,0 +1,418 @@
+# Data Types: wgpu-template
+
+  - **glacier-app/**
+    - **src/**
+      - **app/**
+        - `click.rs`
+          - **pub enum ClickResult** — Each frame, a ClickResult is returned from the draw method. If the mouse left clicked a component on a screen, then a ClickResult is returned and handled in ap…
+            - `ToggleStep(PatternID, TrackID, usize)`
+            - `ToggleNote(PatternID, TrackID, usize, u8)`
+            - `ToggleTrackMute(TrackID)`
+            - `DeleteTrack(TrackID)`
+            - `ToggleSequencerWindow`
+            - `OpenTrackFileLocation(String)`
+            - `Stop`
+            - `ChangeBpm(f32)`
+            - `TogglePlay`
+            - `ProjectFileDialog`
+            - `TrackFileDialog`
+            - `OpenTrackMenu(f32, f32, PatternID, TrackID)`
+            - `CloseContextMenu`
+            - `DeletePlaylistAudioBlock(AudioBlockID)`
+            - `DeletePattern(PatternID)`
+            - `DuplicatePattern(PatternID)`
+            - `CreatePattern`
+            - `ClearPattern(PatternID)`
+            - `AddPlaylistAudioBlock(TrackID, u32, u32, AudioBlockType)`
+            - `OpenPatternMenu(PatternID, f32, f32)`
+            - `StartResizeEvent(AudioBlockID)`
+            - `ChangePlaylistTool(PlaylistTool)`
+            - `StartRenamingPattern(PatternID)`
+            - `StartRenamingTrack(TrackID)`
+            - `TogglePianoRollWindow`
+            - `LoadPianoRoll(PianoRollState)`
+            - `ToggleMixerWindow`
+            - `TogglePlaylistWindow`
+            - `ToggleTrackWindow(TrackID)`
+            - `TogglePatternTray`
+            - `ToggleTrackTray`
+            - `SelectPattern(PatternID)`
+            - `SelectTrackTray(TrackID)`
+            - `ModalConfirmSaveAndExit`
+            - `ModalConfirmDiscardAndExit`
+            - `ModalCancelExit`
+            - `FsToggleDir(PathBuf)`
+            - `FsPreviewSample(PathBuf)`
+            - `FsStartDragFile(PathBuf)`
+            - `FSEndDragFile(PathBuf, TrackID, usize)`
+            - `None`
+        - `mod.rs`
+          - **pub struct MouseState**
+            - `pub x: f32`
+            - `pub y: f32`
+            - `pub left_clicked: bool`
+            - `pub left_double_clicked: bool`
+            - `pub left_click_held: bool`
+            - `pub right_clicked: bool`
+            - `pub left_released: bool`
+            - `pub scroll_x: f32`
+            - `pub scroll_y: f32`
+            - `pub hover_duration: Option<Instant>`
+          - **pub struct ScrollOffset**
+            - `pub x: f32`
+            - `pub y: f32`
+          - **pub struct PianoRollState**
+            - `pub pattern_id: PatternID`
+            - `pub track_id: TrackID`
+            - `pub scroll_offset: ScrollOffset`
+          - **pub struct App**
+            - `producer: HeapProd<AudioCommand>`
+            - `consumer: HeapCons<UiCommand>`
+            - `state: State`
+            - `config: UserSettings`
+            - `stream: Stream`
+            - `pending_project: Option<String>`
+            - `project_is_dirty: bool`
+            - `ctrl_pressed: bool`
+            - `pub shift_pressed: bool`
+            - `mouse_state: MouseState`
+            - `right_click_held: bool`
+            - `last_click_time: Option<std::time::Instant>`
+            - `track_file_dialog_rx: Option<Receiver<Option<PathBuf>>>`
+            - `project_file_dialog_rx: Option<Receiver<Option<PathBuf>>>`
+            - `track_load_rx: Option<Receiver<(TrackData, Vec<f32>)>>`
+            - `project_save_dialog_rx: Option<Receiver<Option<PathBuf>>>`
+            - `pending_drop: Option<(TrackID, usize)>`
+          - **enum State**
+            - `Ready(Box<Graphics>)`
+            - `Init(Option<EventLoopProxy<Graphics>>)`
+        - `ui_command.rs`
+          - **pub enum UiCommand** — UiCommands are used to sync the audio engine to the graphics engine
+            - `TrackLevel(TrackID, f32, f32, f32)`
+            - `TrackLoaded(Track)`
+            - `TrackDeleted(TrackID)`
+            - `TrackUpdated(TrackData)`
+            - `BpmChanged(f32)`
+            - `PatternUpdated(PatternData)`
+            - `PatternDeleted(PatternID)`
+            - `AudioBlockDeleted(AudioBlockID)`
+            - `AudioBlockLoaded(AudioBlock)`
+            - `MasterLevel(f32, f32, f32)`
+            - `SampleRateLoaded(f32)`
+            - `StepAdvanced(usize)`
+            - `PlayheadPosition(f32)`
+            - `SpectrumFrame(Vec<f32>)`
+            - `PlaybackStopped`
+            - `PlayToggled`
+            - `ShutdownComplete`
+            - `SaveComplete`
+            - `LoadProject { tracks: Vec<Track>, patterns: Vec<PatternData>, audio_blocks: Vec<AudioBlock>, bpm: f32, master_volume: f32, project_path: String, }`
+      - `audio.rs`
+        - **pub enum AudioCommand** — A command sent from the UI thread to control the audio engine
+          - `ToggleStep(PatternID, TrackID, usize)`
+          - `ToggleNote(PatternID, TrackID, usize, u8)`
+          - `ChangeBpm(f32)`
+          - `DeleteAudioBlock(AudioBlockID)`
+          - `CreateAudioBlock(TrackID, u32, u32, AudioBlockType)`
+          - `ResizeAudioBlock(AudioBlockID, u32)`
+          - `ChangeMasterVolume(f32)`
+          - `ToggleTrackMute(TrackID)`
+          - `ChangeTrackVolume(TrackID, f32)`
+          - `TogglePlay`
+          - `Stop`
+          - `PreviewSample(Vec<f32>)`
+          - `Shutdown`
+          - `ShutdownWithoutSaving`
+          - `SaveProject`
+          - `SetProjectPath(String)`
+          - `DuplicatePattern(PatternID)`
+          - `CreatePattern`
+          - `DeletePattern(PatternID)`
+          - `ClearPattern(PatternID)`
+          - `RenamePattern(PatternID, String)`
+          - `RenameTrack(TrackID, String)`
+          - `LoadTrack(TrackData, Vec<f32>)`
+          - `DeleteTrack(TrackID)`
+      - `config.rs`
+        - **pub struct UserSettings**
+          - `pub instrument_search_paths: Vec<String>`
+        - **struct UserSettingsVisitor**
+      - **graphics/**
+        - `clipboard.rs`
+          - **enum Clipboard**
+            - `Block(AudioBlockType, u32 )`
+            - `Notes(Vec<Note>)`
+            - `None`
+        - `color.rs`
+          - **pub struct Color** — Graphics Color struct holds red, green, blue float value
+            - `pub r: f32`
+            - `pub g: f32`
+            - `pub b: f32`
+        - **components/**
+          - `toolbar.rs`
+            - **pub struct IconRow**
+              - `pub x: f32`
+              - `pub y: f32`
+              - `pub size: f32`
+              - `pub gap: f32`
+        - **context_menu/**
+          - `mod.rs`
+            - **pub enum ContextMenuKind**
+              - `PatternContext(PatternID)`
+              - `TrackContext(PatternID, TrackID)`
+            - **pub struct ContextMenu**
+              - `pub kind: ContextMenuKind`
+              - `pub x: f32`
+              - `pub y: f32`
+              - `pub width: f32`
+        - `drag.rs`
+          - **pub enum DragResult**
+            - `DragMasterVolumeSlider(f32)`
+            - `DragTrackVolumeSlider(TrackID, f32)`
+            - `DragTrackVolumeKnob(TrackID, f32)`
+            - `ResizeAudioBlock(AudioBlockID, u32)`
+            - `ResizeTrackTray`
+            - `DraggingFile`
+            - `None`
+        - `font.rs`
+          - **pub enum Font**
+            - `Roboto`
+            - `Mono`
+          - **pub struct GlyphEntry** — A single rasterized glyph: its wgpu texture, the bind group used to draw it, and fontdue's layout metrics (width/height/advance) for positioning.
+            - `0: wgpu::Texture`
+            - `1: wgpu::BindGroup`
+            - `2: fontdue::Metrics`
+          - **pub struct GlyphCache** — Pre-rasterized glyphs for every loaded font, keyed by font name and then by (character, size). Built once at startup via `build_glyph_cache` per font; `Graphic…
+            - `0: HashMap<Font, HashMap<(char, u32), GlyphEntry>>`
+          - **pub struct TextItem** — A text item stores the text visual information for wgpu to later draw as vertices
+            - `pub text: String`
+            - `pub size: f32`
+            - `pub color: Color`
+            - `pub font: Font`
+            - `pub x: f32`
+            - `pub y: f32`
+        - `geometry.rs`
+          - **pub struct BorderStyle** — Used for styling bordered rectangles
+            - `pub size: f32`
+            - `pub color: Color`
+          - **pub struct RectangleCtx<'a>** — Helper for building rectangles
+            - `rectangle: &'a Rectangle`
+            - `interactive: Option<&'a MouseState>`
+            - `hover_effect: bool`
+            - `border: Option<BorderStyle>`
+          - **pub struct DrawResponse** — Helper for storing placed rectangle information
+            - `pub hovered: bool`
+            - `pub x: f32`
+            - `pub y: f32`
+            - `pub width: f32`
+            - `pub height: f32`
+          - **pub struct Rectangle** — A rectangle stores 2D position,width, and height
+            - `pub x: f32`
+            - `pub y: f32`
+            - `pub width: f32`
+            - `pub height: f32`
+        - `icons.rs`
+          - **pub struct IconSvg** — Icon File Wrapper. path and size.
+            - `pub width: f32`
+            - `pub height: f32`
+            - `pub path: String`
+          - **pub struct Tooltip** — A hover label anchored at (x, y); text: None means no tooltip shown.
+            - `pub text: Option<String>`
+            - `pub x: f32`
+            - `pub y: f32`
+            - `pub width: f32`
+          - **pub struct IconDraw** — Pre-loaded app Icon with Tooltip defined
+            - `pub name: &'static str`
+            - `pub x: f32`
+            - `pub y: f32`
+            - `pub width: f32`
+            - `pub height: f32`
+            - `pub tooltip: Tooltip`
+        - **mini_window/**
+          - `mod.rs`
+            - **pub enum WindowKind** — Different types of MiniWindows
+              - `Sequencer`
+              - `Playlist`
+              - `Mixer`
+              - `PianoRoll`
+              - `TrackDetail(TrackID)`
+            - **pub struct InteractionResult**
+              - `pub click: ClickResult`
+              - `pub cursor: CursorIcon`
+            - **pub struct MiniWindow** — The MiniWindow is a internal draggable window that follows painters algorithm and culls or scissor rects overflowing shapes.
+              - `pub x: f32`
+              - `pub y: f32`
+              - `pub width: f32`
+              - `pub height: f32`
+              - `pub title: String`
+              - `pub is_open: bool`
+              - `pub window_kind: WindowKind`
+          - **playlist/**
+            - `toolbar.rs`
+              - **pub enum PlaylistTool**
+                - `Select`
+                - `Rectangle`
+                - `Paint`
+                - `Mute`
+        - `mod.rs`
+          - **struct ScreenUniform**
+            - `resolution: [f32; 2]`
+          - **pub struct RenderContext**
+            - `pub surface: wgpu::Surface<'static>`
+            - `pub surface_config: SurfaceConfiguration`
+            - `pub device: wgpu::Device`
+            - `pub queue: wgpu::Queue`
+            - `pub render_pipeline: wgpu::RenderPipeline`
+            - `pub screen_uniform_buffer: wgpu::Buffer`
+            - `pub screen_bind_group: wgpu::BindGroup`
+            - `pub vertex_buffer: wgpu::Buffer`
+            - `pub glyph_vertex_buffer: wgpu::Buffer`
+            - `pub icon_vertex_buffer: wgpu::Buffer`
+          - **pub struct Graphics** — Main struct holding all graphics state, including wgpu objects, loaded fonts and icons, and UI state like open windows and dragging
+            - `pub fs_cache: std::collections::HashMap<std::path::PathBuf, Vec<(std::path::PathBuf, bool)>>`
+            - `pub render_context: RenderContext`
+            - `pub window: std::sync::Arc<Window>`
+            - `glyph_cache: GlyphCache`
+            - `font_cache: HashMap<Font, fontdue::Font>`
+            - `pub expanded_dirs: std::collections::HashSet<PathBuf>`
+            - `pub user_fs_location: PathBuf`
+            - `pub track_tray_width: f32`
+            - `pub pattern_tray_width: f32`
+            - `pub active_tray: AudioBlockType`
+            - `pub renaming: Option<RenameState>`
+            - `pub mini_windows: Vec<MiniWindow>`
+            - `num_vertices: u32`
+            - `pub active_pattern_id: PatternID`
+            - `pub piano_roll_state: Option<PianoRollState>`
+            - `pub z_order: Vec<usize>`
+            - `pub context_menu: Option<ContextMenu>`
+            - `icon_cache: HashMap<String, (wgpu::Texture, wgpu::BindGroup)>`
+            - `pub tooltip: Option<Tooltip>`
+            - `pub frame_ms: f32`
+            - `pub show_track_tray: bool`
+            - `pub show_pattern_tray: bool`
+            - `pub show_save_modal: bool`
+            - `pub playlist_tool: PlaylistTool`
+            - `pub project_path: String`
+            - `pub tracks: Vec<Track>`
+            - `pub patterns: Vec<PatternData>`
+            - `pub audio_blocks: Vec<AudioBlock>`
+            - `pub active_step: usize`
+            - `pub playhead_beat: f32`
+            - `pub bpm: f32`
+            - `pub is_playing: bool`
+            - `pub master_volume: f32`
+            - `pub master_rms_l: f32`
+            - `pub master_rms_r: f32`
+            - `pub master_peak: f32`
+            - `pub spectrum: Vec<f32>`
+            - `pub sample_rate: f32`
+            - `pub dragging_knob: Option<TrackID>`
+            - `pub dragging_window: Option<usize>`
+            - `pub resizing_track_tray: bool`
+            - `pub dragging: bool`
+            - `pub dragging_file: Option<PathBuf>`
+            - `pub dragging_slider: Option<Option<TrackID>>`
+            - `pub resizing_audio_block: Option<AudioBlockID>`
+            - `pub resize_drag_accumulator: f32`
+            - `pub playlist_scroll_offset: ScrollOffset`
+            - `pub sequencer_scroll_offset: ScrollOffset`
+            - `pub fs_scroll_offset: f32`
+        - `primitives.rs`
+          - **pub struct RenameState** — Text editing state.
+            - `pub target: RenameTarget`
+            - `pub edited_name: String`
+            - `pub cursor: usize`
+          - **pub enum RenameTarget** — What type of ui component is having text edited
+            - `Track(TrackID)`
+            - `Pattern(PatternID)`
+          - **pub struct ScreenConfig** — Stores the width and height of the user's application window
+            - `pub width: u32`
+            - `pub height: u32`
+          - **pub struct DrawRegion** — Stores the vertices and texts of one region of paint
+            - `pub vertices: Vec<Vertex>`
+            - `pub text_items: Vec<TextItem>`
+          - **pub struct Vertex** — The primitive drawing unit that builds triangles to build all shapes on the screen.
+            - `pub position: [f32; 3]`
+            - `pub local_pos: [f32; 2]`
+            - `pub half_size: [f32; 2]`
+            - `pub radius: [f32; 4]`
+            - `pub color: [f32; 3]`
+            - `pub uv: [f32; 2]`
+            - `pub border_width: f32`
+            - `pub border_color: [f32; 3]`
+        - `regions.rs`
+          - **pub struct RecordedRegion** — A recorded region tracks where vertices are in the vertex buffer and the coordinates of a scissor rectangle
+            - `pub range: WindowDrawRange`
+            - `pub scissor: Option<(u32, u32, u32, u32)>`
+          - **pub struct WindowDrawRange** — Tracks the position of the global vertex/glyph/icon buffers of where a window's shapes are.
+            - `pub vert_start: u32`
+            - `pub vert_end: u32`
+            - `pub char_start: usize`
+            - `pub char_end: usize`
+            - `pub icon_start: usize`
+            - `pub icon_end: usize`
+      - `project.rs`
+        - **pub struct Project** — Project store a song/session into memory and on file
+          - `pub name: String`
+          - `pub bpm: f32`
+          - `pub master_volume: f32`
+          - `pub audio_blocks: Vec<AudioBlock>`
+          - `pub tracks: Vec<TrackData>`
+          - `pub patterns: Vec<PatternData>`
+        - **pub enum AudioBlockType** — Different types of audio elements that can be placed on the playlist timeline
+          - `Sample(TrackID)`
+          - `Pattern(PatternID)`
+          - `Mixing`
+        - **pub struct PatternID** — newtype for Pattern ID
+          - `0: pub u32`
+        - **pub struct TrackID** — newtype for Track ID
+          - `0: pub u32`
+        - **pub struct AudioBlockID** — newtype for AudioBlock ID
+          - `0: pub u32`
+        - **pub struct AudioBlock** — AudioBlocks are how audio elements are timed within a playlist
+          - `pub id: AudioBlockID`
+          - `pub track_id: TrackID`
+          - `pub start_step: u32`
+          - `pub length: u32`
+          - `pub block_type: AudioBlockType`
+          - `pub is_muted: bool`
+        - **pub struct Track** — Runtime Track object
+          - `pub data: TrackData`
+          - `pub samples: Vec<f32>`
+          - `pub voices: Vec<Voice>`
+          - `pub show_velocity: bool`
+          - `pub rms_l: f32`
+          - `pub rms_r: f32`
+          - `pub peak_hold: f32`
+        - **pub struct TrackData** — Track metadata stored on disk
+          - `pub id: TrackID`
+          - `pub name: String`
+          - `pub path: String`
+          - `pub is_muted: bool`
+          - `pub channels: u16`
+          - `pub track_volume: f32`
+          - `pub root_note: u8`
+        - **pub struct PatternData** — Patterns store a set of sequences
+          - `pub id: PatternID`
+          - `pub name: String`
+          - `pub sequences: Vec<Sequence>`
+        - **pub struct Sequence** — One row of steps for an track in a pattern
+          - `pub track_id: TrackID`
+          - `pub steps: Vec<Note>`
+        - **pub struct Note** — One midi note
+          - `pub velocity: f32`
+          - `pub pitch: u8`
+        - **pub struct Voice** — One track note instant  spawned and killed TODO: figure out how voices should be managed in memory
+          - `pub position: f32`
+          - `pub is_playing: bool`
+          - `pub playback_rate: f32`
+          - `pub current_volume: f32`
+          - `pub target_volume: f32`
+          - `pub stop_at_frame: Option<f32>`
+  - **glacier-dsp/**
+    - **src/**
+      - `lib.rs`
+        - **pub struct SpectrumAnalyzer**
+          - `fft: Arc<dyn Fft<f32>>`
+          - `window_size: usize`

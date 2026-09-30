@@ -121,6 +121,7 @@ impl Graphics {
         let screen_config = ScreenConfig {
             width: self.render_context.surface_config.width,
             height: self.render_context.surface_config.height,
+            palette: &self.palette,
         };
         self.tooltip = None;
 

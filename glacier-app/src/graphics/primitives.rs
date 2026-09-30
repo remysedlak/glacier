@@ -37,9 +37,10 @@ pub const BUTTON_GAP: f32 = 24.0;
 pub const ONE_MEGABYTE: u64 = 1024 * 1024;
 
 /// Stores the width and height of the user's application window
-pub struct ScreenConfig {
+pub struct ScreenConfig<'a> {
     pub width: u32,
     pub height: u32,
+    pub palette: &'a Palette,
 }
 
 /// Stores the vertices and texts of one region of paint
