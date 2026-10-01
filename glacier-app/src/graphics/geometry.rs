@@ -3,7 +3,7 @@
 use crate::{
     app::MouseState,
     graphics::{
-        color::{Color, DARK_GRAY, LL_GRAY, WHITE},
+        color::{Color, Palette},
         font::{
             Font::{Mono, Roboto},
             TextItem,
@@ -23,16 +23,18 @@ pub struct BorderStyle {
 }
 
 // Default border for now.
-pub const ICON_BORDER: BorderStyle = BorderStyle {
-    color: LL_GRAY,
-    size: 0.5,
-};
+pub fn icon_border(palette: &Palette) -> BorderStyle {
+    BorderStyle {
+        color: palette.neutral.shade(3),
+        size: 0.5,
+    }
+}
 
 /// Helper for building rectangles
 pub struct RectangleCtx<'a> {
     rectangle: &'a Rectangle,
     interactive: Option<&'a MouseState>,
-    hover_effect: bool,
+    hover_color: Option<Color>,
     border: Option<BorderStyle>,
 }
 
@@ -47,6 +49,11 @@ pub struct DrawResponse {
 }
 
 impl<'a> RectangleCtx<'a> {
+    /// Set hover color
+    pub fn set_hover_color(mut self, hover_color: Color) -> RectangleCtx<'a> {
+        self.hover_color = Some(hover_color);
+        self
+    }
     /// Apply BorderStyle to Rectangle context
     pub fn bordered(mut self, border_style: Option<BorderStyle>) -> RectangleCtx<'a> {
         self.border = border_style;
@@ -57,11 +64,7 @@ impl<'a> RectangleCtx<'a> {
         self.interactive = mouse_state;
         self
     }
-    /// Apply disable interaction state for Rectangle context
-    pub fn disabled(mut self) -> RectangleCtx<'a> {
-        self.hover_effect = false;
-        self
-    }
+
     /// Draw a Rectangle based on built RectangleCtx
     pub fn draw(
         self,
@@ -75,8 +78,8 @@ impl<'a> RectangleCtx<'a> {
         let mut right_hovered = false;
         if let Some(mouse_state) = self.interactive {
             hovered = self.rectangle.is_hovered(mouse_state.x, mouse_state.y);
-            if self.hover_effect {
-                rectangle_color = if hovered { color.hovered() } else { color };
+            if let Some(h_color) = self.hover_color {
+                rectangle_color = if hovered { h_color } else { color };
             }
             right_hovered = self
                 .rectangle
@@ -126,13 +129,19 @@ pub fn checkbox(
     let checkbox = Rectangle::new(x, y, 16.0, 16.0)
         .draw_style()
         .interactive(Some(mouse_state))
-        .bordered(Some(ICON_BORDER))
-        .draw(screen_config, DARK_GRAY, RADIUS_4, out_vertices);
+        .bordered(Some(icon_border(screen_config.palette)))
+        .set_hover_color(screen_config.palette.neutral.hover(3))
+        .draw(
+            screen_config,
+            screen_config.palette.neutral.shade(3),
+            RADIUS_4,
+            out_vertices,
+        );
 
     if is_toggled {
         let check = TextItem {
             text: "x".to_string(),
-            color: WHITE,
+            color: screen_config.palette.neutral.shade(7),
             size: 12.0,
             font: Roboto,
             x: checkbox.x + PAD_4,
@@ -147,7 +156,7 @@ pub fn checkbox(
         font: Mono,
         x: checkbox.x - PAD_64,
         y: checkbox.y,
-        color: WHITE,
+        color: screen_config.palette.neutral.shade(7),
     };
     out_texts.push(label);
     return checkbox;
@@ -167,7 +176,7 @@ impl<'a> Rectangle {
             rectangle: self,
             interactive: None,
             border: None,
-            hover_effect: true,
+            hover_color: None,
         }
     }
 

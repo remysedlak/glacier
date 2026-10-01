@@ -2,7 +2,6 @@ use crate::app::{click::ClickResult, MouseState};
 use crate::graphics::icons::DEFAULT_TOOLTIP_WIDTH;
 use crate::graphics::mini_window::InteractionResult;
 use crate::graphics::{
-    color::{DARK_GRAY, MINI_WINDOW_BACKGROUND, WHITE},
     components::toolbar::TOOLTIP_MARGIN,
     icons::{IconDraw, Tooltip},
     mini_window::{MiniWindow, TITLEBAR_HEIGHT},
@@ -37,7 +36,7 @@ pub fn draw(
     let window_background = window.background();
     window_background.draw(
         screen_config,
-        MINI_WINDOW_BACKGROUND,
+        screen_config.palette.neutral.shade(4),
         [0.0, 16.0, 0.0, 16.0],
         out,
     );
@@ -61,7 +60,12 @@ pub fn draw(
         width: TRACK_GRAPHICS_WIDTH,
         height: TRACK_GRAPHICS_HEIGHT,
     };
-    track_wave_background.draw(screen_config, DARK_GRAY, NO_RADIUS, out);
+    track_wave_background.draw(
+        screen_config,
+        screen_config.palette.neutral.shade(3),
+        NO_RADIUS,
+        out,
+    );
 
     let samples_averaged: Vec<f32> = if track.data.channels == 1 {
         track.samples.clone()
@@ -94,7 +98,12 @@ pub fn draw(
             height: (max - min) * TRACK_GRAPHICS_HEIGHT_HALF,
             width: 1.0,
         };
-        pixel_line.draw(screen_config, WHITE, NO_RADIUS, out);
+        pixel_line.draw(
+            screen_config,
+            screen_config.palette.neutral.shade(7),
+            NO_RADIUS,
+            out,
+        );
     }
 
     let open_file_button_x = (window.x + window.width) - PAD_16 - TRACK_GRAPHICS_WIDTH;
@@ -108,7 +117,12 @@ pub fn draw(
     )
     .draw_style()
     .interactive(Some(mouse_state))
-    .draw(screen_config, DARK_GRAY, RADIUS_4, out);
+    .draw(
+        screen_config,
+        screen_config.palette.neutral.shade(3),
+        RADIUS_4,
+        out,
+    );
 
     if open_file_background.hovered && mouse_state.left_clicked {
         interaction.click = ClickResult::OpenTrackFileLocation(track.data.path.clone())

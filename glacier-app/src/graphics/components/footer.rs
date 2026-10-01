@@ -3,7 +3,6 @@ use winit::window::CursorIcon;
 use crate::{
     app::{click::ClickResult, MouseState},
     graphics::{
-        color::{BLACK, ORANGE, WHITE},
         font::{Font::Mono, TextItem, BODY},
         geometry::Rectangle,
         icons::{IconDraw, Tooltip},
@@ -42,7 +41,12 @@ pub fn draw(
         width: screen_config.width as f32,
         height: FOOTER_Y_HEIGHT,
     };
-    footer.draw(screen_config, BLACK, NO_RADIUS, out);
+    footer.draw(
+        screen_config,
+        screen_config.palette.neutral.shade(0),
+        NO_RADIUS,
+        out,
+    );
 
     // click button to find project file
     let left_panel_button = Rectangle::new(
@@ -53,8 +57,12 @@ pub fn draw(
     )
     .draw_style()
     .interactive(Some(mouse_state))
-    .disabled()
-    .draw(screen_config, BLACK, RADIUS_8, out);
+    .draw(
+        screen_config,
+        screen_config.palette.neutral.shade(0),
+        RADIUS_8,
+        out,
+    );
 
     let left_panel_icon = IconDraw {
         name: "left_sidepanel",
@@ -85,7 +93,12 @@ pub fn draw(
         1.0,
         footer.height - PAD_16,
     );
-    border.draw(screen_config, WHITE, NO_RADIUS, out);
+    border.draw(
+        screen_config,
+        screen_config.palette.neutral.shade(7),
+        NO_RADIUS,
+        out,
+    );
 
     // click button to find project file
     let path_button = Rectangle::new(
@@ -96,8 +109,12 @@ pub fn draw(
     )
     .draw_style()
     .interactive(Some(mouse_state))
-    .disabled()
-    .draw(screen_config, BLACK, RADIUS_8, out);
+    .draw(
+        screen_config,
+        screen_config.palette.neutral.shade(0),
+        RADIUS_8,
+        out,
+    );
 
     let music_folder_icon = IconDraw {
         name: "music_dir",
@@ -127,7 +144,7 @@ pub fn draw(
         x: screen_config.width as f32 - FPS_COUNTER_X_OFFSET,
         y: screen_config.height as f32 - FOOTER_Y_HEIGHT + PAD_8,
         size: BODY,
-        color: ORANGE,
+        color: screen_config.palette.primary.shade(5),
         font: Mono,
     });
     (text_items, icons, tooltip, interaction)

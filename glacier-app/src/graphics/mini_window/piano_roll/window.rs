@@ -44,7 +44,7 @@ pub fn draw(
     let playlist_background = window.background();
     playlist_background.draw(
         screen_config,
-        MINI_WINDOW_BACKGROUND,
+        screen_config.palette.neutral.shade(3),
         BOTTOM_RADIUS_16,
         &mut static_vertices,
     );
@@ -72,7 +72,12 @@ pub fn draw(
         width: window.width - PAD_16 - PAD_8 - PIANO_ROLL_WIDTH,
         height: 24.0,
     };
-    bottom_toolbar_background.draw(screen_config, LL_GRAY, NO_RADIUS, &mut static_vertices);
+    bottom_toolbar_background.draw(
+        screen_config,
+        screen_config.palette.neutral.shade(6),
+        NO_RADIUS,
+        &mut static_vertices,
+    );
     for icon in 0..8 {
         let icon_rect = Rectangle {
             x: window.x + SEMITONE_OFFSET_X + PIANO_ROLL_WIDTH + (icon as f32 * 36.0) + PAD_4,
@@ -81,7 +86,12 @@ pub fn draw(
             height: ICON_SIZE,
         };
         let _hovered = icon_rect.is_hovered(mouse_state.x, mouse_state.y);
-        icon_rect.draw(screen_config, DARK_GRAY, NO_RADIUS, &mut static_vertices);
+        icon_rect.draw(
+            screen_config,
+            screen_config.palette.neutral.shade(3),
+            NO_RADIUS,
+            &mut static_vertices,
+        );
     }
 
     // find the sequence for the current pattern and track, if it exists
@@ -128,8 +138,16 @@ pub fn draw(
                 // is either or both of the black or white piano key being hovered
                 let piano_hover = black_piano_key.is_hovered(mouse_state.x, mouse_state.y)
                     || white_piano_key.is_hovered(mouse_state.x, mouse_state.y);
-                let white_hover_color = if piano_hover { ORANGE } else { WHITE };
-                let black_hover_color = if piano_hover { DARK_GRAY } else { BLACK };
+                let white_hover_color = if piano_hover {
+                    screen_config.palette.primary.shade(5)
+                } else {
+                    screen_config.palette.neutral.shade(7)
+                };
+                let black_hover_color = if piano_hover {
+                    screen_config.palette.neutral.shade(3)
+                } else {
+                    screen_config.palette.neutral.shade(0)
+                };
 
                 // add both parts of the key
                 black_piano_key.draw(
@@ -163,6 +181,7 @@ pub fn draw(
                         mouse_state.x,
                         mouse_state.y,
                         semitone,
+                        screen_config,
                     ),
                     [2.0, 2.0, 2.0, 2.0],
                     &mut piano_key_vertices,
@@ -211,11 +230,15 @@ pub fn draw(
                 }
 
                 let base = if (step_index / 4) % 2 == 0 {
-                    BLUE
+                    screen_config.palette.primary.shade(3)
                 } else {
-                    DARK_BLUE
+                    screen_config.palette.primary.shade(4)
                 };
-                let color = if is_active { ORANGE } else { base };
+                let color = if is_active {
+                    screen_config.palette.primary.shade(5)
+                } else {
+                    base
+                };
 
                 // trigger note on and off
                 if piano_roll_step.is_hovered(mouse_state.x, mouse_state.y)
@@ -248,7 +271,7 @@ pub fn draw(
                 - scroll.y,
             size: 10.0,
             font: Mono,
-            color: BLACK,
+            color: screen_config.palette.neutral.shade(0),
         });
     } // end octave loop
 
@@ -260,7 +283,12 @@ pub fn draw(
         width: 4.0,
         height: 9.0 * OCTAVE_GAP,
     };
-    active_step_line.draw(screen_config, GREEN, NO_RADIUS, &mut grid_vertices);
+    active_step_line.draw(
+        screen_config,
+        screen_config.palette.primary.shade(4),
+        NO_RADIUS,
+        &mut grid_vertices,
+    );
     (
         DrawRegion {
             vertices: static_vertices,

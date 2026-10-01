@@ -4,7 +4,6 @@ use winit::window::CursorIcon;
 use crate::{
     app::{click::ClickResult, MouseState, ScrollOffset},
     graphics::{
-        color::{Color, DARK_GRAY, WHITE},
         font::{Font::Roboto, TextItem},
         geometry::Rectangle,
         mini_window::InteractionResult,
@@ -29,15 +28,6 @@ pub struct ContextMenu {
     pub x: f32,
     pub y: f32,
     pub width: f32,
-}
-
-/// Color interactivity of the items of a Context Menu (the individual MenuItem's to hover)
-fn menu_item_color(rect: &Rectangle, mx: f32, my: f32, held: bool) -> Color {
-    if rect.is_hovered(mx, my) && !held {
-        DARK_GRAY.hovered()
-    } else {
-        DARK_GRAY
-    }
 }
 
 impl ContextMenu {
@@ -71,7 +61,11 @@ impl ContextMenu {
     }
 
     /// Return text for one item of a context item for Patterns
-    pub fn draw_pattern_context_item_text(&self, index: usize) -> TextItem {
+    pub fn draw_pattern_context_item_text(
+        &self,
+        index: usize,
+        screen_config: &ScreenConfig,
+    ) -> TextItem {
         let label = match index {
             0 => "Rename",
             1 => "Delete",
@@ -83,14 +77,18 @@ impl ContextMenu {
             text: label.to_string(),
             x: self.x - PAD_64 + PAD_4 + PAD_2,
             y: (self.y + (CONTEXT_MENU_ITEM_HEIGHT + PAD_4) * index as f32) + PAD_32 + PAD_2,
-            color: WHITE,
+            color: screen_config.palette.neutral.shade(7),
             font: Roboto,
             size: CONTEXT_MENU_FONT_SIZE,
         }
     }
 
     /// Return text for one item of a context item for Tracks
-    pub fn draw_track_context_item_text(&self, index: usize) -> TextItem {
+    pub fn draw_track_context_item_text(
+        &self,
+        index: usize,
+        screen_config: &ScreenConfig,
+    ) -> TextItem {
         let label = match index {
             0 => "Rename",
             1 => "Piano Roll",
@@ -104,7 +102,7 @@ impl ContextMenu {
             y: (self.y + (CONTEXT_MENU_ITEM_HEIGHT + PAD_4) * index as f32) + PAD_32 + PAD_4,
             size: CONTEXT_MENU_FONT_SIZE,
             font: Roboto,
-            color: WHITE,
+            color: screen_config.palette.neutral.shade(7),
         }
     }
 
@@ -135,7 +133,12 @@ impl ContextMenu {
 
         // dark background
         let menu_background = self.draw_background();
-        menu_background.draw(screen_config, DARK_GRAY, RADIUS_8, out);
+        menu_background.draw(
+            screen_config,
+            screen_config.palette.neutral.shade(3),
+            RADIUS_8,
+            out,
+        );
 
         // render each item - lighter background
         let item_x = self.x - PAD_64;
@@ -146,22 +149,19 @@ impl ContextMenu {
                 width: self.width,
                 x: item_x,
                 y: (self.y + (CONTEXT_MENU_ITEM_HEIGHT + PAD_4) * item as f32) + PAD_32,
-            };
-            context_item_background.draw(
+            }
+            .draw_style()
+            .set_hover_color(screen_config.palette.neutral.shade(3))
+            .draw(
                 screen_config,
-                menu_item_color(
-                    &context_item_background,
-                    mouse_state.x,
-                    mouse_state.y,
-                    mouse_state.left_clicked,
-                ),
+                screen_config.palette.neutral.shade(4),
                 RADIUS_4,
                 out,
             );
 
-            text_items.push(self.draw_pattern_context_item_text(item as usize));
+            text_items.push(self.draw_pattern_context_item_text(item as usize, screen_config));
 
-            if context_item_background.is_hovered(mouse_state.x, mouse_state.y) {
+            if context_item_background.hovered {
                 interaction.cursor = CursorIcon::Pointer;
                 if mouse_state.right_clicked || mouse_state.left_clicked {
                     match item {
@@ -208,7 +208,12 @@ impl ContextMenu {
 
         // dark background
         let menu_background = self.draw_background();
-        menu_background.draw(screen_config, DARK_GRAY, RADIUS_8, out);
+        menu_background.draw(
+            screen_config,
+            screen_config.palette.neutral.shade(3),
+            RADIUS_8,
+            out,
+        );
 
         for item in 0..5 {
             let context_item_background = Rectangle {
@@ -216,25 +221,20 @@ impl ContextMenu {
                 width: self.width,
                 x: self.x - PAD_64,
                 y: (self.y + (CONTEXT_MENU_ITEM_HEIGHT + PAD_4) * item as f32) + PAD_32,
-            };
-
-            // background for ContextMenu item
-            context_item_background.draw(
+            }
+            .draw_style()
+            .set_hover_color(screen_config.palette.neutral.shade(3))
+            .draw(
                 screen_config,
-                menu_item_color(
-                    &context_item_background,
-                    mouse_state.x,
-                    mouse_state.y,
-                    mouse_state.left_clicked,
-                ),
+                screen_config.palette.neutral.shade(4),
                 RADIUS_4,
                 out,
             );
 
             // label for ContextMenu item
-            text_items.push(self.draw_track_context_item_text(item as usize));
+            text_items.push(self.draw_track_context_item_text(item as usize, screen_config));
 
-            if context_item_background.is_hovered(mouse_state.x, mouse_state.y) {
+            if context_item_background.hovered {
                 interaction.cursor = CursorIcon::Pointer;
 
                 match item {

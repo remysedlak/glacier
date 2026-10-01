@@ -4,7 +4,7 @@ use winit::window::CursorIcon;
 use crate::{
     app::{click::ClickResult, MouseState, ScrollOffset},
     graphics::{
-        color::{self, PATTERN_BLOCK, SURFACE, WHITE},
+        color::Color,
         font::{Font::Roboto, TextItem},
         geometry::Rectangle,
         mini_window::{
@@ -55,7 +55,7 @@ pub fn draw_waveform(
     pairs: &[(f32, f32)],
     rect: &Rectangle,
     screen_config: &ScreenConfig,
-    color: color::Color,
+    color: Color,
     out: &mut Vec<Vertex>,
 ) {
     let center_y = rect.y + rect.height / 2.0;
@@ -103,8 +103,12 @@ pub fn draw_audio_block(
             )
             .draw_style()
             .interactive(Some(mouse_state))
-            .disabled()
-            .draw(screen_config, PATTERN_BLOCK, RADIUS_8, timeline_vertices);
+            .draw(
+                screen_config,
+                screen_config.palette.neutral.shade(7),
+                RADIUS_8,
+                timeline_vertices,
+            );
 
             let label = patterns
                 .iter()
@@ -128,8 +132,12 @@ pub fn draw_audio_block(
             )
             .draw_style()
             .interactive(Some(mouse_state))
-            .disabled()
-            .draw(screen_config, PATTERN_BLOCK, RADIUS_8, timeline_vertices);
+            .draw(
+                screen_config,
+                screen_config.palette.neutral.shade(5),
+                RADIUS_8,
+                timeline_vertices,
+            );
 
             let label = tracks
                 .iter()
@@ -161,7 +169,7 @@ pub fn draw_audio_block(
                     pairs,
                     &waveform_rect,
                     screen_config,
-                    WHITE,
+                    screen_config.palette.neutral.shade(7),
                     timeline_vertices,
                 );
             }
@@ -192,7 +200,12 @@ pub fn draw_audio_block(
 
     let top_line = Rectangle::new(block.x, block.y, block.width, 24.0)
         .draw_style()
-        .draw(screen_config, SURFACE, TOP_RADIUS_8, timeline_vertices);
+        .draw(
+            screen_config,
+            screen_config.palette.neutral.shade(2),
+            TOP_RADIUS_8,
+            timeline_vertices,
+        );
 
     timeline_text_items.push(TextItem {
         text: label,
@@ -200,7 +213,7 @@ pub fn draw_audio_block(
         y: block.y + PAD_4,
         size: 12.0,
         font: Roboto,
-        color: WHITE,
+        color: screen_config.palette.neutral.shade(7),
     });
     interaction
 }

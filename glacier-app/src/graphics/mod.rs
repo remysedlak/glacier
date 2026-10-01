@@ -19,7 +19,7 @@ use crate::graphics::{
 use crate::project::{
     AudioBlock, AudioBlockID, AudioBlockType, PatternData, PatternID, Track, TrackData, TrackID,
 };
-use color::{Color, DARK_GRAY, WHITE};
+use color::Color;
 use components::{context_menu::ContextMenu, footer, side_panel, side_panel::DEFAULT_TRAY_WIDTH};
 use font::{create_bind_group_layout, load_fonts, Font::Mono, Font::Roboto, GlyphCache, TextItem};
 use fontdue::layout::{CoordinateSystem, Layout, TextStyle};
@@ -107,7 +107,10 @@ impl RenderContext {
         let size = window.inner_size();
         let width = size.width.max(1);
         let height = size.height.max(1);
-        let surface_config = surface.get_default_config(&adapter, width, height).unwrap();
+
+        let mut surface_config = surface.get_default_config(&adapter, width, height).unwrap();
+        surface_config.format = wgpu::TextureFormat::Bgra8Unorm; // drop the Srgb suffix
+        surface.configure(&device, &surface_config);
         surface.configure(&device, &surface_config);
 
         // The bind group layout shared by every glyph/icon texture:
@@ -181,6 +184,7 @@ impl RenderContext {
             usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
             mapped_at_creation: false,
         });
+
         RenderContext {
             surface,
             surface_config,
@@ -216,7 +220,7 @@ pub async fn create_graphics(window: Rc<Window>, proxy: EventLoopProxy<Graphics>
         entries: HashMap::new(),
     };
 
-    let palette = Palette::load_from_toml("./assets/theme_test.toml")
+    let palette = Palette::load_from_toml("./assets/themes/theme_test.toml")
         .expect("Error pulling color pallete from disk.");
 
     // DEVELOPER

@@ -1,8 +1,7 @@
 use crate::app::{click::ClickResult, MouseState};
-use crate::graphics::geometry::ICON_BORDER;
+use crate::graphics::geometry::icon_border;
 use crate::graphics::primitives::PAD_16;
 use crate::graphics::{
-    color::{DARK_GRAY, ORANGE, SURFACE, SURFACE_HOVER, WHITE},
     components::{
         side_panel::*,
         toolbar::{TOOLBAR_THICKNESS, TOOLBAR_Y},
@@ -40,19 +39,33 @@ pub fn draw(
         width: tray_width,
         height: screen_config.height as f32 - TOOLBAR_THICKNESS,
     };
-    pattern_tray.draw(screen_config, SURFACE, NO_RADIUS, out);
+    pattern_tray.draw(
+        screen_config,
+        screen_config.palette.neutral.shade(1),
+        NO_RADIUS,
+        out,
+    );
 
     let _w_divider = Rectangle::new(pattern_tray.x, pattern_tray.y, 1.0, pattern_tray.height)
         .draw_style()
         .interactive(Some(mouse_state))
-        .draw(screen_config, DARK_GRAY, NO_RADIUS, out);
+        .draw(
+            screen_config,
+            screen_config.palette.neutral.shade(3),
+            NO_RADIUS,
+            out,
+        );
 
     if pattern_tray.is_hovered_left_edge(mouse_state.x, mouse_state.y) {
         interaction.cursor = CursorIcon::ColResize
     }
 
     // title
-    text_items.push(draw_title("Patterns", (pattern_tray.x, pattern_tray.y)));
+    text_items.push(draw_title(
+        "Patterns",
+        (pattern_tray.x, pattern_tray.y),
+        screen_config,
+    ));
 
     // add pattern button (+)
     let add_pattern_button = Rectangle::square(
@@ -62,8 +75,13 @@ pub fn draw(
     )
     .draw_style()
     .interactive(Some(mouse_state))
-    .bordered(Some(ICON_BORDER))
-    .draw(screen_config, DARK_GRAY, RADIUS_8, out);
+    .bordered(Some(icon_border(screen_config.palette)))
+    .draw(
+        screen_config,
+        screen_config.palette.neutral.shade(3),
+        RADIUS_8,
+        out,
+    );
 
     if add_pattern_button.hovered {
         interaction.cursor = CursorIcon::Pointer;
@@ -103,7 +121,11 @@ pub fn draw(
         };
 
         let hovered = pattern_button.is_hovered(mouse_state.x, mouse_state.y);
-        let pattern_button_color = if hovered { SURFACE_HOVER } else { SURFACE };
+        let pattern_button_color = if hovered {
+            screen_config.palette.neutral.shade(3)
+        } else {
+            screen_config.palette.neutral.shade(2)
+        };
         pattern_button.draw(
             screen_config,
             pattern_button_color,
@@ -134,7 +156,12 @@ pub fn draw(
                 width: 4.0,
                 height: PATTERN_TRAY_ITEM_HEIGHT,
             };
-            indicator.draw(screen_config, ORANGE, [7.0, 7.0, 7.0, 7.0], out);
+            indicator.draw(
+                screen_config,
+                screen_config.palette.secondary.shade(5),
+                [7.0, 7.0, 7.0, 7.0],
+                out,
+            );
         }
 
         let is_being_renamed = matches!(
@@ -153,7 +180,7 @@ pub fn draw(
             x: screen_config.width as f32 - PATTERN_TRAY_ITEM_WIDTH - PAD_16,
             y: row_y + PAD_2,
             size: 14.0,
-            color: WHITE,
+            color: screen_config.palette.neutral.shade(7),
             font: Roboto,
         });
 
@@ -165,7 +192,12 @@ pub fn draw(
                     width: 1.5,
                     height: 14.0, // match font size
                 };
-                cursor_rect.draw(screen_config, WHITE, NO_RADIUS, out);
+                cursor_rect.draw(
+                    screen_config,
+                    screen_config.palette.neutral.shade(7),
+                    NO_RADIUS,
+                    out,
+                );
             }
         }
     }

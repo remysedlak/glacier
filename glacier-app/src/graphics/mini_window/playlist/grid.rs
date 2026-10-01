@@ -3,7 +3,6 @@ use std::path::PathBuf;
 use crate::{
     app::{click::ClickResult, MouseState, ScrollOffset},
     graphics::{
-        color::{BLUE, DARK_BLUE, GREEN, SURFACE, WHITE},
         font::{Font::Roboto, TextItem},
         geometry::Rectangle,
         icons::IconDraw,
@@ -70,7 +69,7 @@ pub fn draw(
         }
         background.draw(
             screen_config,
-            SURFACE,
+            screen_config.palette.neutral.shade(2),
             NO_RADIUS,
             &mut track_header_vertices,
         );
@@ -80,7 +79,7 @@ pub fn draw(
             font: Roboto,
             y: window.y + (track as f32 * PLAYLIST_TRACK_GAP) + PAD_64 + PAD_4 - scroll_offset.y,
             size: 18.0,
-            color: WHITE,
+            color: screen_config.palette.neutral.shade(7),
         });
 
         for step in 0..step_count {
@@ -102,12 +101,22 @@ pub fn draw(
             let hovered =
                 pl_step.is_hovered(mouse_state.x, mouse_state.y) && !mouse_state.left_click_held;
 
-            let base = if group % 2 != 0 { BLUE } else { DARK_BLUE };
+            let base = if group % 2 != 0 {
+                screen_config.palette.primary.shade(4)
+            } else {
+                screen_config.palette.primary.shade(3)
+            };
             let color = if dragging_file.is_some() && hovered {
-                GREEN
+                screen_config.palette.secondary.shade(5)
             } else {
                 base
             };
+            // dbg!(
+            //     screen_config.palette.primary.shade(4),
+            //     screen_config.palette.primary.shade(3)
+            // );
+
+            // panic!("oops");
 
             if pl_step.is_hovered(mouse_state.x, mouse_state.y) {
                 if let Some(path) = dragging_file {

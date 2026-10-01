@@ -3,10 +3,9 @@ use winit::window::CursorIcon;
 use crate::{
     app::{click::ClickResult, MouseState},
     graphics::{
-        color::{DARK_GRAY, ORANGE},
         components::toolbar::{IconRow, TOOLTIP_MARGIN},
         font::TextItem,
-        geometry::{DrawResponse, Rectangle, ICON_BORDER},
+        geometry::{icon_border, DrawResponse, Rectangle},
         icons::{IconDraw, Tooltip, DEFAULT_TOOLTIP_WIDTH},
         mini_window::{InteractionResult, MiniWindow},
         primitives::{ScreenConfig, Vertex, NO_RADIUS, PAD_16, PAD_32, PAD_4, RADIUS_4},
@@ -30,9 +29,9 @@ fn draw_tool_button(
     out: &mut Vec<Vertex>,
 ) -> (DrawResponse, InteractionResult) {
     let color = if tool == *active_tool {
-        ORANGE
+        screen_config.palette.secondary.shade(4)
     } else {
-        DARK_GRAY
+        screen_config.palette.neutral.shade(3)
     };
 
     let response =
@@ -70,8 +69,13 @@ pub fn draw(
         PAD_16 * 2.0,
     )
     .draw_style()
-    .bordered(Some(ICON_BORDER))
-    .draw(screen_config, DARK_GRAY, NO_RADIUS, &mut verts);
+    .bordered(Some(icon_border(screen_config.palette)))
+    .draw(
+        screen_config,
+        screen_config.palette.neutral.shade(0),
+        NO_RADIUS,
+        &mut verts,
+    );
 
     let mut window_icons = IconRow {
         x: background.x + PAD_4,

@@ -6,7 +6,6 @@ use crate::project::{Track, TrackID};
 use crate::{
     app::MouseState,
     graphics::{
-        color::*,
         components::side_panel::{PATTERN_TRAY_HEADER_MARGIN, PATTERN_TRAY_ITEM_GAP},
         font::{truncate_text, Font::Roboto, TextItem},
         primitives::*,
@@ -35,13 +34,22 @@ pub fn draw(
         width: tray_width,
         height: screen_config.height as f32 - TOOLBAR_Y,
     };
-    track_tray.draw(screen_config, SURFACE, NO_RADIUS, out);
+    track_tray.draw(
+        screen_config,
+        screen_config.palette.neutral.shade(1),
+        NO_RADIUS,
+        out,
+    );
 
     if track_tray.is_hovered_right_edge(mouse_state.x, mouse_state.y) || resizing {
         interaction.cursor = CursorIcon::ColResize;
     }
 
-    text_items.push(draw_title("Tracks", (track_tray.x, track_tray.y)));
+    text_items.push(draw_title(
+        "Tracks",
+        (track_tray.x, track_tray.y),
+        screen_config,
+    ));
 
     for (i, track) in tracks.iter().enumerate() {
         let button_y = PATTERN_TRAY_HEADER_MARGIN + (PATTERN_TRAY_ITEM_GAP * i as f32) + PAD_32;
@@ -52,9 +60,9 @@ pub fn draw(
         };
 
         let track_button_color = if track_button.is_hovered(mouse_state.x, mouse_state.y) {
-            SURFACE_HOVER
+            screen_config.palette.neutral.shade(3)
         } else {
-            SURFACE
+            screen_config.palette.neutral.shade(2)
         };
 
         track_button.draw(screen_config, track_button_color, RADIUS_4, out);
@@ -74,7 +82,12 @@ pub fn draw(
                 width: 4.0,
                 height: PATTERN_TRAY_ITEM_HEIGHT,
             };
-            signal.draw(screen_config, ORANGE, RADIUS_4, out);
+            signal.draw(
+                screen_config,
+                screen_config.palette.primary.shade(5),
+                RADIUS_4,
+                out,
+            );
         }
 
         let text_pos = track_button.offset(PAD_8, PAD_2);
@@ -83,7 +96,7 @@ pub fn draw(
             x: text_pos.x,
             y: text_pos.y,
             size: 10.0,
-            color: WHITE,
+            color: screen_config.palette.neutral.shade(7),
             font: Roboto,
         });
     }

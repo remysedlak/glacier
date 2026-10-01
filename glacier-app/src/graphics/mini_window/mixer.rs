@@ -4,7 +4,6 @@ use crate::graphics::mini_window::InteractionResult;
 use crate::{
     app::MouseState,
     graphics::{
-        color::*,
         components::{slider, slider::MIXER_TRACK_HEIGHT},
         font::{Font::Mono, BODY},
         geometry::Rectangle,
@@ -33,7 +32,12 @@ pub fn draw(
     let mut interaction = InteractionResult::default();
 
     let window_background = window.background();
-    window_background.draw(screen_config, MINI_WINDOW_BACKGROUND, BOTTOM_RADIUS_16, out);
+    window_background.draw(
+        screen_config,
+        screen_config.palette.primary.shade(3),
+        BOTTOM_RADIUS_16,
+        out,
+    );
 
     let (titlebar_texts, titlebar_interaction) =
         window.title_bar("Mixer", screen_config, mouse_state, out);
@@ -61,7 +65,12 @@ pub fn draw(
             width: MIXER_ITEM_WIDTH,
             height: col_height,
         };
-        bg.draw(screen_config, DARK_GRAY, NO_RADIUS, vertices);
+        bg.draw(
+            screen_config,
+            screen_config.palette.neutral.shade(3),
+            NO_RADIUS,
+            vertices,
+        );
 
         // meter top half
         let meter_bg = Rectangle {
@@ -70,7 +79,12 @@ pub fn draw(
             width: MIXER_ITEM_WIDTH - PAD_16,
             height: meter_area_height - PAD_32,
         };
-        meter_bg.draw(screen_config, BLACK, NO_RADIUS, vertices);
+        meter_bg.draw(
+            screen_config,
+            screen_config.palette.neutral.shade(0),
+            NO_RADIUS,
+            vertices,
+        );
 
         let bar_width = (meter_bg.width - 2.0) * 0.5; // 2px gap between
 
@@ -82,7 +96,12 @@ pub fn draw(
             width: bar_width,
             height: fill_l,
         };
-        bar_l.draw(screen_config, GREEN, NO_RADIUS, vertices);
+        bar_l.draw(
+            screen_config,
+            screen_config.palette.secondary.shade(5),
+            NO_RADIUS,
+            vertices,
+        );
 
         // right bar
         let fill_r = (meter_bg.height * rms_r.clamp(0.0, 1.0)).min(meter_bg.height);
@@ -92,7 +111,12 @@ pub fn draw(
             width: bar_width,
             height: fill_r,
         };
-        bar_r.draw(screen_config, GREEN, NO_RADIUS, vertices);
+        bar_r.draw(
+            screen_config,
+            screen_config.palette.secondary.shade(5),
+            NO_RADIUS,
+            vertices,
+        );
 
         // peak line spans full width
         let peak_y = (meter_bg.y + meter_bg.height - (meter_bg.height * peak.clamp(0.0, 1.0)))
@@ -103,7 +127,12 @@ pub fn draw(
             width: meter_bg.width,
             height: 2.0,
         };
-        peak_line.draw(screen_config, ORANGE, NO_RADIUS, vertices);
+        peak_line.draw(
+            screen_config,
+            screen_config.palette.primary.shade(5),
+            NO_RADIUS,
+            vertices,
+        );
 
         // slider bottom half
         let slider_y = slider::slider_y_origin(window.y, window.height);
@@ -115,7 +144,7 @@ pub fn draw(
             y: master_slider_y + MIXER_TRACK_HEIGHT,
             size: BODY,
             font: Mono,
-            color: LIGHT_GRAY,
+            color: screen_config.palette.primary.shade(6),
         });
     };
 
