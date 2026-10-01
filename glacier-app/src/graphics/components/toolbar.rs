@@ -75,7 +75,12 @@ pub fn draw(
         width: screen_config.width as f32,
         height: TOOLBAR_Y,
     };
-    toolbar_background.draw(screen_config, SURFACE, NO_RADIUS, out);
+    toolbar_background.draw(
+        screen_config,
+        screen_config.palette.neutral.shade(0),
+        NO_RADIUS,
+        out,
+    );
 
     let toolbar_divider = Rectangle {
         x: toolbar_background.x,
@@ -83,14 +88,19 @@ pub fn draw(
         height: 1.0,
         width: toolbar_background.width,
     };
-    toolbar_divider.draw(screen_config, DARK_GRAY, NO_RADIUS, out);
+    toolbar_divider.draw(
+        screen_config,
+        screen_config.palette.neutral.shade(3),
+        NO_RADIUS,
+        out,
+    );
 
     let bpm_counter = TextItem {
         text: bpm.to_string(),
         x: PAD_8,
         y: 10.0,
         size: TITLE,
-        color: WHITE,
+        color: screen_config.palette.neutral.shade(7),
         font: Mono,
     };
 
@@ -98,7 +108,12 @@ pub fn draw(
     let bpm_up = Rectangle::new(bpm_counter.x + 40.0, 6.0, PAD_32, 12.0)
         .draw_style()
         .interactive(Some(mouse_state))
-        .draw(screen_config, DARK_GRAY, RADIUS_4, out);
+        .draw(
+            screen_config,
+            screen_config.palette.neutral.shade(3),
+            RADIUS_4,
+            out,
+        );
     if bpm_up.hovered {
         interaction.cursor = CursorIcon::Pointer;
         if mouse_state.left_clicked {
@@ -110,7 +125,12 @@ pub fn draw(
     let bpm_down = Rectangle::new(bpm_up.x, bpm_up.y + 18.0, bpm_up.width, bpm_up.height)
         .draw_style()
         .interactive(Some(mouse_state))
-        .draw(screen_config, DARK_GRAY, RADIUS_4, out);
+        .draw(
+            screen_config,
+            screen_config.palette.neutral.shade(3),
+            RADIUS_4,
+            out,
+        );
     if bpm_down.hovered {
         interaction.cursor = CursorIcon::Pointer;
         if mouse_state.left_clicked {
@@ -124,8 +144,13 @@ pub fn draw(
     let play_button = Rectangle::square(PLAY_X_ORIGIN, PLAY_Y_ORIGIN, ICON_SIZE)
         .draw_style()
         .interactive(Some(mouse_state))
-        .bordered(Some(ICON_BORDER))
-        .draw(screen_config, DARK_GRAY, RADIUS_4, out);
+        .bordered(Some(icon_border(screen_config.palette)))
+        .draw(
+            screen_config,
+            screen_config.palette.neutral.shade(3),
+            RADIUS_4,
+            out,
+        );
     if play_button.hovered && mouse_state.left_clicked {
         interaction.click = ClickResult::TogglePlay;
     }
@@ -134,8 +159,13 @@ pub fn draw(
     let stop_button = Rectangle::square(PLAY_X_ORIGIN + ICON_GAP, PLAY_Y_ORIGIN, ICON_SIZE)
         .draw_style()
         .interactive(Some(mouse_state))
-        .bordered(Some(ICON_BORDER))
-        .draw(screen_config, DARK_GRAY, RADIUS_4, out);
+        .bordered(Some(icon_border(screen_config.palette)))
+        .draw(
+            screen_config,
+            screen_config.palette.neutral.shade(3),
+            RADIUS_4,
+            out,
+        );
     if stop_button.hovered && mouse_state.left_clicked && active_step != 0 {
         interaction.click = ClickResult::Stop;
     }
@@ -149,8 +179,13 @@ pub fn draw(
     );
     time_background
         .draw_style()
-        .bordered(Some(ICON_BORDER))
-        .draw(screen_config, BLACK, RADIUS_4, out);
+        .bordered(Some(icon_border(screen_config.palette)))
+        .draw(
+            screen_config,
+            screen_config.palette.neutral.shade(0),
+            RADIUS_4,
+            out,
+        );
 
     let step_divider_line = Rectangle {
         x: time_background.x + time_background.width - PAD_16 - PAD_8 - PAD_16,
@@ -158,7 +193,12 @@ pub fn draw(
         height: TOOLBAR_Y - PAD_16 - PAD_4,
         width: 1.0,
     };
-    step_divider_line.draw(screen_config, LL_GRAY, NO_RADIUS, out);
+    step_divider_line.draw(
+        screen_config,
+        screen_config.palette.primary.shade(5),
+        NO_RADIUS,
+        out,
+    );
 
     // ACTIVE_STEP LABEL
     let step_label = if active_step < 10 {
@@ -172,7 +212,7 @@ pub fn draw(
         x: time_background.x + time_background.width - PAD_16 - PAD_8 - PAD_4 - PAD_2,
         y: TOOLBAR_MARGIN + PAD_2,
         size: TITLE,
-        color: ORANGE,
+        color: screen_config.palette.primary.shade(5),
         font: Mono,
     });
     // seconds
@@ -181,7 +221,7 @@ pub fn draw(
         x: time_background.x + time_background.width - PAD_32 * 5.0 + PAD_8,
         y: TOOLBAR_MARGIN + PAD_2,
         size: TITLE,
-        color: ORANGE,
+        color: screen_config.palette.primary.shade(5),
         font: Mono,
     });
 
@@ -191,9 +231,14 @@ pub fn draw(
     let sequencer_toggle = window_icons
         .next()
         .draw_style()
-        .bordered(Some(ICON_BORDER))
+        .bordered(Some(icon_border(screen_config.palette)))
         .interactive(Some(mouse_state))
-        .draw(screen_config, DARK_GRAY, RADIUS_4, out);
+        .draw(
+            screen_config,
+            screen_config.palette.neutral.shade(3),
+            RADIUS_4,
+            out,
+        );
 
     if sequencer_toggle.hovered && mouse_state.left_clicked {
         interaction.click = ClickResult::ToggleSequencerWindow;
@@ -202,9 +247,14 @@ pub fn draw(
     let mixer_toggle = window_icons
         .next()
         .draw_style()
-        .bordered(Some(ICON_BORDER))
+        .bordered(Some(icon_border(screen_config.palette)))
         .interactive(Some(mouse_state))
-        .draw(screen_config, DARK_GRAY, RADIUS_4, out);
+        .draw(
+            screen_config,
+            screen_config.palette.neutral.shade(3),
+            RADIUS_4,
+            out,
+        );
 
     if mixer_toggle.hovered && mouse_state.left_clicked {
         interaction.click = ClickResult::ToggleMixerWindow;
@@ -213,9 +263,14 @@ pub fn draw(
     let playlist_toggle = window_icons
         .next()
         .draw_style()
-        .bordered(Some(ICON_BORDER))
+        .bordered(Some(icon_border(screen_config.palette)))
         .interactive(Some(mouse_state))
-        .draw(screen_config, DARK_GRAY, RADIUS_4, out);
+        .draw(
+            screen_config,
+            screen_config.palette.neutral.shade(3),
+            RADIUS_4,
+            out,
+        );
     if playlist_toggle.hovered && mouse_state.left_clicked {
         interaction.click = ClickResult::TogglePlaylistWindow;
     }
@@ -223,9 +278,14 @@ pub fn draw(
     let piano_toggle = window_icons
         .next()
         .draw_style()
-        .bordered(Some(ICON_BORDER))
+        .bordered(Some(icon_border(screen_config.palette)))
         .interactive(Some(mouse_state))
-        .draw(screen_config, DARK_GRAY, RADIUS_4, out);
+        .draw(
+            screen_config,
+            screen_config.palette.neutral.shade(3),
+            RADIUS_4,
+            out,
+        );
 
     if piano_toggle.hovered && mouse_state.left_clicked {
         interaction.click = ClickResult::TogglePianoRollWindow;
@@ -234,9 +294,14 @@ pub fn draw(
     let track_selection_toggle = window_icons
         .next()
         .draw_style()
-        .bordered(Some(ICON_BORDER))
+        .bordered(Some(icon_border(screen_config.palette)))
         .interactive(Some(mouse_state))
-        .draw(screen_config, DARK_GRAY, RADIUS_4, out);
+        .draw(
+            screen_config,
+            screen_config.palette.neutral.shade(3),
+            RADIUS_4,
+            out,
+        );
 
     if track_selection_toggle.hovered && mouse_state.left_clicked {
         interaction.click = ClickResult::ToggleTrackTray;
@@ -245,9 +310,14 @@ pub fn draw(
     let patterns_toggle = window_icons
         .next()
         .draw_style()
-        .bordered(Some(ICON_BORDER))
+        .bordered(Some(icon_border(screen_config.palette)))
         .interactive(Some(mouse_state))
-        .draw(screen_config, DARK_GRAY, RADIUS_4, out);
+        .draw(
+            screen_config,
+            screen_config.palette.neutral.shade(3),
+            RADIUS_4,
+            out,
+        );
 
     if patterns_toggle.hovered && mouse_state.left_clicked {
         interaction.click = ClickResult::TogglePatternTray;
@@ -259,9 +329,14 @@ pub fn draw(
     let load_project_button =
         Rectangle::square(screen_config.width as f32 - 40.0, TOOLBAR_MARGIN, ICON_SIZE)
             .draw_style()
-            .bordered(Some(ICON_BORDER))
+            .bordered(Some(icon_border(screen_config.palette)))
             .interactive(Some(mouse_state))
-            .draw(screen_config, DARK_GRAY, RADIUS_4, out);
+            .draw(
+                screen_config,
+                screen_config.palette.neutral.shade(3),
+                RADIUS_4,
+                out,
+            );
     if load_project_button.hovered && mouse_state.left_clicked {
         interaction.click = ClickResult::ProjectFileDialog;
     }
@@ -270,9 +345,14 @@ pub fn draw(
     let load_track_button =
         Rectangle::square(load_project_button.x - ICON_GAP, TOOLBAR_MARGIN, ICON_SIZE)
             .draw_style()
-            .bordered(Some(ICON_BORDER))
+            .bordered(Some(icon_border(screen_config.palette)))
             .interactive(Some(mouse_state))
-            .draw(screen_config, DARK_GRAY, RADIUS_4, out);
+            .draw(
+                screen_config,
+                screen_config.palette.neutral.shade(3),
+                RADIUS_4,
+                out,
+            );
     if load_track_button.hovered && mouse_state.left_clicked {
         interaction.click = ClickResult::TrackFileDialog;
     }

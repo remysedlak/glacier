@@ -3,7 +3,6 @@ use crate::app::click::ClickResult;
 use crate::app::MouseState;
 use crate::graphics::mini_window::InteractionResult;
 use crate::graphics::{
-    color::{DARK_GRAY, SURFACE, WHITE},
     font::{Font::Roboto, TextItem},
     geometry::Rectangle,
     primitives::{ScreenConfig, Vertex, PAD_16, PAD_4, PAD_8, RADIUS_4, RADIUS_8},
@@ -34,14 +33,19 @@ pub fn draw(
         height: MODAL_HEIGHT,
         width: MODAL_WIDTH,
     };
-    modal_background.draw(screen_config, SURFACE, RADIUS_8, out);
+    modal_background.draw(
+        screen_config,
+        screen_config.palette.neutral.shade(1),
+        RADIUS_8,
+        out,
+    );
 
     text_items.push(TextItem {
         text: "Save changes before closing?".to_string(),
         x: modal_background.x + PAD_16,
         y: modal_background.y + PAD_16,
         size: 16.0,
-        color: WHITE,
+        color: screen_config.palette.neutral.shade(7),
         font: Roboto,
     });
 
@@ -50,7 +54,7 @@ pub fn draw(
         x: modal_background.x + PAD_16,
         y: modal_background.y + PAD_16 + 28.0,
         size: 13.0,
-        color: WHITE,
+        color: screen_config.palette.neutral.shade(7),
         font: Roboto,
     });
 
@@ -65,7 +69,12 @@ pub fn draw(
     )
     .draw_style()
     .interactive(Some(mouse_state))
-    .draw(screen_config, DARK_GRAY, RADIUS_4, out);
+    .draw(
+        screen_config,
+        screen_config.palette.neutral.shade(2),
+        RADIUS_4,
+        out,
+    );
 
     if cancel_button.hovered {
         interaction.cursor = CursorIcon::Pointer;
@@ -82,7 +91,12 @@ pub fn draw(
     )
     .draw_style()
     .interactive(Some(mouse_state))
-    .draw(screen_config, DARK_GRAY, RADIUS_4, out);
+    .draw(
+        screen_config,
+        screen_config.palette.neutral.shade(2),
+        RADIUS_4,
+        out,
+    );
     if discard_button.hovered {
         interaction.cursor = CursorIcon::Pointer;
         if mouse_state.left_clicked {
@@ -98,7 +112,12 @@ pub fn draw(
     )
     .draw_style()
     .interactive(Some(mouse_state))
-    .draw(screen_config, DARK_GRAY, RADIUS_4, out);
+    .draw(
+        screen_config,
+        screen_config.palette.neutral.shade(2),
+        RADIUS_4,
+        out,
+    );
 
     if save_button.hovered {
         interaction.cursor = CursorIcon::Pointer;
@@ -112,7 +131,7 @@ pub fn draw(
         x: save_button.x + PAD_8,
         y: save_button.y + PAD_4,
         size: 14.0,
-        color: WHITE,
+        color: screen_config.palette.neutral.shade(7),
         font: Roboto,
     });
     text_items.push(TextItem {
@@ -120,7 +139,7 @@ pub fn draw(
         x: discard_button.x + PAD_8,
         y: discard_button.y + PAD_4,
         size: 14.0,
-        color: WHITE,
+        color: screen_config.palette.neutral.shade(7),
         font: Roboto,
     });
     text_items.push(TextItem {
@@ -128,7 +147,7 @@ pub fn draw(
         x: cancel_button.x + PAD_8,
         y: cancel_button.y + PAD_4,
         size: 14.0,
-        color: WHITE,
+        color: screen_config.palette.neutral.shade(7),
         font: Roboto,
     });
 

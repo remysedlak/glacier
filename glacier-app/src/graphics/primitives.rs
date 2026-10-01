@@ -37,9 +37,10 @@ pub const BUTTON_GAP: f32 = 24.0;
 pub const ONE_MEGABYTE: u64 = 1024 * 1024;
 
 /// Stores the width and height of the user's application window
-pub struct ScreenConfig {
+pub struct ScreenConfig<'a> {
     pub width: u32,
     pub height: u32,
+    pub palette: &'a Palette,
 }
 
 /// Stores the vertices and texts of one region of paint
@@ -241,7 +242,7 @@ pub fn draw_rectangle(
         color,
         corner_radius,
         0.0,
-        BLACK,
+        screen_config.palette.neutral.shade(0),
         vertex_buffer,
     );
 }
@@ -293,7 +294,15 @@ pub fn draw_knob(
     vertex_buffer: &mut Vec<Vertex>,
 ) {
     let radius = 10.0_f32;
-    draw_circle(cx, cy, radius, 32, screen_config, LL_GRAY, vertex_buffer);
+    draw_circle(
+        cx,
+        cy,
+        radius,
+        32,
+        screen_config,
+        screen_config.palette.neutral.shade(4),
+        vertex_buffer,
+    );
 
     let ncx = |x: f32| 2.0 * (x / screen_config.width as f32) - 1.0;
     let ncy = |y: f32| 1.0 - (y / screen_config.height as f32) * 2.0;

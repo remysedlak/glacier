@@ -3,7 +3,6 @@ use crate::project::is_audio_file;
 use crate::{
     app::MouseState,
     graphics::{
-        color::*,
         font::{Font::Roboto, TextItem},
         geometry::Rectangle,
         icons::{IconDraw, DEFAULT_TOOLTIP_WIDTH},
@@ -112,9 +111,9 @@ fn draw_fs_tree(
                 y,
             };
             let color = if button.is_hovered(mouse_state.x, mouse_state.y) {
-                DARK_GRAY
+                screen_config.palette.neutral.hover(1)
             } else {
-                SURFACE
+                screen_config.palette.neutral.shade(1)
             };
             button.draw(screen_config, color, RADIUS_4, out);
 
@@ -123,7 +122,7 @@ fn draw_fs_tree(
                 x: button.x + PAD_4 + 16.0,
                 y: button.y + PAD_4,
                 size: 10.0,
-                color: WHITE,
+                color: screen_config.palette.neutral.shade(7),
                 font: Roboto,
             });
 
@@ -206,7 +205,12 @@ fn draw_fs_tree(
                     width: 1.0,
                     height: line_bottom - line_top - 2.0,
                 }
-                .draw(screen_config, DARK_GRAY, NO_RADIUS, out);
+                .draw(
+                    screen_config,
+                    screen_config.palette.neutral.shade(3),
+                    NO_RADIUS,
+                    out,
+                );
             }
         }
     }

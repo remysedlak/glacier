@@ -1,8 +1,9 @@
 //! Side panels appear on the left and right side of the screen.
+use resvg::usvg::BlendMode::Screen;
+
 use crate::graphics::{
-    color::WHITE,
     font::{Font::Roboto, TextItem, TITLE},
-    primitives::PAD_8,
+    primitives::{ScreenConfig, PAD_8},
 };
 
 pub mod pattern_tray;
@@ -15,13 +16,13 @@ pub const PATTERN_TRAY_HEADER_MARGIN: f32 = 64.0;
 pub const PATTERN_TRAY_ITEM_GAP: f32 = 32.0;
 
 /// draw the title of the tray. (Imagine the H1 of component)
-pub fn draw_title(title: &str, origin: (f32, f32)) -> TextItem {
+pub fn draw_title(title: &str, origin: (f32, f32), screen_config: &ScreenConfig) -> TextItem {
     TextItem {
         text: title.to_string(),
         x: origin.0 + PAD_8,
         y: origin.1 + PAD_8,
         size: TITLE,
-        color: WHITE,
+        color: screen_config.palette.neutral.shade(7),
         font: Roboto,
     }
 }

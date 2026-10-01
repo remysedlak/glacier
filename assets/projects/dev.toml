@@ -13,105 +13,6 @@ is_muted = false
 kind = "Mixing"
 
 [[audio_blocks]]
-id = 1
-track_id = 3
-start_step = 4
-length = 3
-is_muted = false
-
-[audio_blocks.block_type]
-kind = "Sample"
-id = 0
-
-[[audio_blocks]]
-id = 2
-track_id = 3
-start_step = 8
-length = 3
-is_muted = false
-
-[audio_blocks.block_type]
-kind = "Sample"
-id = 0
-
-[[audio_blocks]]
-id = 3
-track_id = 3
-start_step = 12
-length = 3
-is_muted = false
-
-[audio_blocks.block_type]
-kind = "Sample"
-id = 0
-
-[[audio_blocks]]
-id = 4
-track_id = 3
-start_step = 0
-length = 3
-is_muted = false
-
-[audio_blocks.block_type]
-kind = "Sample"
-id = 0
-
-[[audio_blocks]]
-id = 5
-track_id = 4
-start_step = 4
-length = 12
-is_muted = false
-
-[audio_blocks.block_type]
-kind = "Sample"
-id = 1
-
-[[audio_blocks]]
-id = 6
-track_id = 5
-start_step = 12
-length = 3
-is_muted = false
-
-[audio_blocks.block_type]
-kind = "Sample"
-id = 1
-
-[[audio_blocks]]
-id = 7
-track_id = 1
-start_step = 6
-length = 7
-is_muted = false
-
-[audio_blocks.block_type]
-kind = "Sample"
-id = 2
-
-[[audio_blocks]]
-id = 8
-track_id = 2
-start_step = 10
-length = 2
-is_muted = false
-
-[audio_blocks.block_type]
-kind = "Sample"
-id = 3
-
-[[audio_blocks]]
-id = 9
-track_id = 2
-start_step = 14
-length = 2
-is_muted = false
-
-[audio_blocks.block_type]
-kind = "Sample"
-id = 3
-
-[[audio_blocks]]
 id = 10
 track_id = 0
 start_step = 0
@@ -231,6 +132,59 @@ is_muted = false
 [audio_blocks.block_type]
 kind = "Mixing"
 
+[[audio_blocks]]
+id = 21
+track_id = 3
+start_step = 13
+length = 1
+is_muted = false
+
+[audio_blocks.block_type]
+kind = "Mixing"
+
+[[audio_blocks]]
+id = 22
+track_id = 3
+start_step = 8
+length = 1
+is_muted = false
+
+[audio_blocks.block_type]
+kind = "Mixing"
+
+[[audio_blocks]]
+id = 23
+track_id = 7
+start_step = 0
+length = 17
+is_muted = false
+
+[audio_blocks.block_type]
+kind = "Sample"
+id = 5
+
+[[audio_blocks]]
+id = 24
+track_id = 6
+start_step = 0
+length = 2
+is_muted = false
+
+[audio_blocks.block_type]
+kind = "Sample"
+id = 6
+
+[[audio_blocks]]
+id = 25
+track_id = 8
+start_step = 0
+length = 17
+is_muted = false
+
+[audio_blocks.block_type]
+kind = "Sample"
+id = 7
+
 [[tracks]]
 id = 0
 name = "bounce-snare-01.wav"
@@ -276,7 +230,1654 @@ channels = 1
 track_volume = 1.0
 root_note = 60
 
+[[tracks]]
+id = 5
+name = "clap-01.wav"
+path = "./assets/free-drum-samples/drum-samples/02-bounce/claps/clap-01.wav"
+is_muted = false
+channels = 1
+track_volume = 1.0
+root_note = 60
+
+[[tracks]]
+id = 6
+name = "hi-hat-closed-01.wav"
+path = "./assets/free-drum-samples/drum-samples/02-bounce/hi-hats/hi-hat-closed-01.wav"
+is_muted = false
+channels = 1
+track_volume = 1.0
+root_note = 60
+
+[[tracks]]
+id = 7
+name = "fx-cymbal.wav"
+path = "./assets/free-drum-samples/drum-samples/02-bounce/fx/fx-cymbal.wav"
+is_muted = false
+channels = 1
+track_volume = 1.0
+root_note = 60
+
 [[patterns]]
 id = 0
 name = "Pattern 1 so long"
 sequences = []
+
+[[patterns]]
+id = 1
+name = "Pattern 2"
+
+[[patterns.sequences]]
+track_id = 0
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences]]
+track_id = 1
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences]]
+track_id = 2
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences]]
+track_id = 3
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences]]
+track_id = 4
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences]]
+track_id = 5
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences]]
+track_id = 6
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences]]
+track_id = 7
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns]]
+id = 2
+name = "Pattern 3"
+
+[[patterns.sequences]]
+track_id = 0
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences]]
+track_id = 1
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences]]
+track_id = 2
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences]]
+track_id = 3
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences]]
+track_id = 4
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences]]
+track_id = 5
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences]]
+track_id = 6
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences]]
+track_id = 7
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns]]
+id = 3
+name = "Pattern 4"
+
+[[patterns.sequences]]
+track_id = 0
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences]]
+track_id = 1
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences]]
+track_id = 2
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences]]
+track_id = 3
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences]]
+track_id = 4
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences]]
+track_id = 5
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences]]
+track_id = 6
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences]]
+track_id = 7
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60

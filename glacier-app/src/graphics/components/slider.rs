@@ -1,5 +1,4 @@
 //! file for drawing track sliders for volume control
-use crate::graphics::color::{BLACK, LIGHT_GRAY};
 use crate::graphics::{Rectangle, ScreenConfig, Vertex, NO_RADIUS};
 
 pub const MIXER_TRACK_HEIGHT: f32 = 164.0;
@@ -33,7 +32,12 @@ pub fn draw(
         width: MIXER_TRACK_WIDTH,
         height: MIXER_TRACK_HEIGHT,
     };
-    track.draw(screen_config, BLACK, NO_RADIUS, out);
+    track.draw(
+        screen_config,
+        screen_config.palette.neutral.shade(0),
+        NO_RADIUS,
+        out,
+    );
 
     // THUMB (movable)
     let thumb = Rectangle {
@@ -42,5 +46,10 @@ pub fn draw(
         width: MIXER_THUMB_WIDTH,
         height: THUMB_HEIGHT,
     };
-    thumb.draw(screen_config, LIGHT_GRAY, NO_RADIUS, out);
+    thumb.draw(
+        screen_config,
+        screen_config.palette.neutral.shade(6),
+        NO_RADIUS,
+        out,
+    );
 }

@@ -2,7 +2,6 @@
 use super::*;
 use crate::{
     graphics::{
-        color::{LIGHT_GRAY, SURFACE},
         components::{modal, toolbar::TOOLBAR_MARGIN},
         font::cursor_x_offset,
         mini_window::{playlist::grid::GRID_X_ORIGIN, InteractionResult, TITLEBAR_HEIGHT},
@@ -121,6 +120,7 @@ impl Graphics {
         let screen_config = ScreenConfig {
             width: self.render_context.surface_config.width,
             height: self.render_context.surface_config.height,
+            palette: &self.palette,
         };
         self.tooltip = None;
 
@@ -585,24 +585,43 @@ impl Graphics {
                 width: self.track_tray_width,
                 height: screen_config.height as f32 - (screen_config.height / 2) as f32,
             }
-            .draw(&screen_config, SURFACE, NO_RADIUS, &mut vertices);
+            .draw(
+                &screen_config,
+                screen_config.palette.neutral.shade(1),
+                NO_RADIUS,
+                &mut vertices,
+            );
             let w_divider = Rectangle {
                 x: PAD_2,
                 y: (screen_config.height / 2) as f32,
                 width: self.track_tray_width - PAD_4,
                 height: 1.0,
             };
-            w_divider.draw(&screen_config, DARK_GRAY, RADIUS_4, &mut vertices);
+            w_divider.draw(
+                &screen_config,
+                screen_config.palette.neutral.shade(3),
+                RADIUS_4,
+                &mut vertices,
+            );
             let h_divider = Rectangle {
                 x: self.track_tray_width - 1.0,
                 y: TOOLBAR_MARGIN,
                 width: 1.0,
                 height: screen_config.height as f32 - TOOLBAR_MARGIN,
             };
-            h_divider.draw(&screen_config, DARK_GRAY, NO_RADIUS, &mut vertices);
+            h_divider.draw(
+                &screen_config,
+                screen_config.palette.neutral.shade(3),
+                NO_RADIUS,
+                &mut vertices,
+            );
             use crate::graphics::side_panel::draw_title;
             Graphics::push_text_draws(
-                &[draw_title("File Tree", (w_divider.x - 2.0, w_divider.y))],
+                &[draw_title(
+                    "File Tree",
+                    (w_divider.x - 2.0, w_divider.y),
+                    &screen_config,
+                )],
                 &self.font_cache,
                 &self.glyph_cache,
                 &screen_config,
@@ -851,7 +870,12 @@ impl Graphics {
                 width: 128.0,
                 height: 32.0,
             };
-            ghost.draw(&screen_config, LIGHT_GRAY, RADIUS_4, &mut vertices);
+            ghost.draw(
+                &screen_config,
+                screen_config.palette.neutral.shade(6),
+                RADIUS_4,
+                &mut vertices,
+            );
             Graphics::push_text_draws(
                 &[TextItem {
                     text: name.to_string(),
@@ -859,7 +883,7 @@ impl Graphics {
                     y: ghost.y + PAD_4,
                     size: 10.0,
                     font: Roboto,
-                    color: DARK_GRAY,
+                    color: screen_config.palette.neutral.shade(3),
                 }],
                 &self.font_cache,
                 &self.glyph_cache,
@@ -916,7 +940,12 @@ impl Graphics {
             {
                 let _tooltip_rectangle = Rectangle::new(tt.x, tt.y, tt.width, 24.0)
                     .draw_style()
-                    .draw(&screen_config, DARK_GRAY, RADIUS_8, &mut vertices);
+                    .draw(
+                        &screen_config,
+                        screen_config.palette.neutral.shade(3),
+                        RADIUS_8,
+                        &mut vertices,
+                    );
                 if let Some(text) = &tt.text {
                     let tooltip_text = [TextItem {
                         text: text.to_string(),
@@ -924,7 +953,7 @@ impl Graphics {
                         y: tt.y + PAD_2,
                         size: 14.0,
                         font: Mono,
-                        color: WHITE,
+                        color: screen_config.palette.neutral.shade(7),
                     }];
                     Graphics::push_text_draws(
                         &tooltip_text,

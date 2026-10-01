@@ -1,7 +1,6 @@
 use crate::app::{click::ClickResult, MouseState};
 use crate::graphics::mini_window::InteractionResult;
 use crate::graphics::{
-    color::*,
     font::{truncate_text, Font::Roboto},
     icons::IconDraw,
     mini_window::MiniWindow,
@@ -46,7 +45,12 @@ pub fn draw(
         width: window.width,
         height: window.height,
     };
-    window_background.draw(screen_config, MINI_WINDOW_BACKGROUND, BOTTOM_RADIUS_16, out);
+    window_background.draw(
+        screen_config,
+        screen_config.palette.neutral.shade(4),
+        BOTTOM_RADIUS_16,
+        out,
+    );
 
     // titlebar
     let (titlebar_texts, titlebar_interaction) =
@@ -103,14 +107,24 @@ pub fn draw(
                     width: SEQUENCER_STEP_WIDTH,
                     height: SEQUENCER_STEP_HEIGHT,
                 };
-                background.draw(screen_config, DARK_GRAY, NO_RADIUS, out);
+                background.draw(
+                    screen_config,
+                    screen_config.palette.neutral.shade(3),
+                    NO_RADIUS,
+                    out,
+                );
                 let bar = Rectangle {
                     x: step_x,
                     y: y + SEQUENCER_STEP_HEIGHT - filled_height,
                     width: SEQUENCER_STEP_WIDTH,
                     height: filled_height,
                 };
-                bar.draw(screen_config, BLUE, NO_RADIUS, out);
+                bar.draw(
+                    screen_config,
+                    screen_config.palette.secondary.shade(4),
+                    NO_RADIUS,
+                    out,
+                );
             }
         }
         // steps view
@@ -157,21 +171,25 @@ pub fn draw(
                 let hovered = step_button.is_hovered(mouse_state.x, mouse_state.y); // cache it!
                 let mut step_color = if j == active_step as u32 {
                     if hovered {
-                        BLUE.hovered()
+                        screen_config.palette.primary.shade(5)
                     } else {
-                        BLUE
+                        screen_config.palette.primary.shade(4)
                     }
                 } else if hovered && is_active {
-                    DARK_GRAY
+                    screen_config.palette.neutral.shade(3)
                 } else if hovered {
-                    LL_GRAY
+                    screen_config.palette.neutral.shade(6)
                 } else if is_active {
-                    BLACK
+                    screen_config.palette.neutral.shade(0)
                 } else {
-                    WHITE
+                    screen_config.palette.neutral.shade(7)
                 };
                 if is_ghost {
-                    step_color = if hovered { LL_GRAY } else { GHOST };
+                    step_color = if hovered {
+                        screen_config.palette.neutral.shade(3)
+                    } else {
+                        screen_config.palette.neutral.shade(4)
+                    };
                 }
                 step_button.draw(screen_config, step_color, RADIUS_4, out);
 
@@ -196,9 +214,9 @@ pub fn draw(
         let hovered = track_button.is_hovered(mouse_state.x, mouse_state.y);
         let color_hovered = hovered && !mouse_state.left_click_held;
         let color = if color_hovered {
-            SURFACE_HOVER
+            screen_config.palette.neutral.shade(3)
         } else {
-            SURFACE
+            screen_config.palette.neutral.shade(2)
         };
         track_button.draw(screen_config, color, RADIUS_4, out);
         if hovered {
@@ -242,11 +260,15 @@ pub fn draw(
         let hovered =
             mute_button.is_hovered(mouse_state.x, mouse_state.y) && !mouse_state.left_click_held;
         let base = if track.data.is_muted {
-            ORANGE
+            screen_config.palette.primary.shade(5)
         } else {
-            LIGHT_GRAY
+            screen_config.palette.primary.shade(6)
         };
-        let mute_button_color = if hovered { base.hovered() } else { base };
+        let mute_button_color = if hovered {
+            screen_config.palette.primary.shade(7)
+        } else {
+            base
+        };
         mute_button.draw(screen_config, mute_button_color, RADIUS_4, out);
 
         text_items.push(TextItem {
@@ -254,7 +276,7 @@ pub fn draw(
             x: window.x + PAD_8 + PAD_4,
             y: window.y + i as f32 * TRACK_GAP + ACTIONS_Y_OFFSET + PAD_2,
             size: 14.0,
-            color: BLACK,
+            color: screen_config.palette.neutral.shade(0),
             font: Roboto,
         });
 
@@ -274,11 +296,15 @@ pub fn draw(
         let hovered = velocity_button.is_hovered(mouse_state.x, mouse_state.y)
             && !mouse_state.left_click_held;
         let base = if track.show_velocity {
-            ORANGE
+            screen_config.palette.primary.shade(5)
         } else {
-            LIGHT_GRAY
+            screen_config.palette.primary.shade(6)
         };
-        let velocity_button_color = if hovered { base.hovered() } else { base };
+        let velocity_button_color = if hovered {
+            screen_config.palette.primary.shade(7)
+        } else {
+            base
+        };
         velocity_button.draw(screen_config, velocity_button_color, RADIUS_4, out);
 
         text_items.push(TextItem {
@@ -286,7 +312,7 @@ pub fn draw(
             x: PAD_16 + window.x + 32.0 + PAD_4,
             y: window.y + i as f32 * TRACK_GAP + ACTIONS_Y_OFFSET + PAD_2,
             size: 14.0,
-            color: BLACK,
+            color: screen_config.palette.neutral.shade(0),
             font: Roboto,
         });
         if velocity_button.is_hovered(mouse_state.x, mouse_state.y) && mouse_state.left_clicked {
@@ -309,7 +335,7 @@ pub fn draw(
             x: window.x + PAD_16,
             y: window.y + i as f32 * TRACK_GAP + PAD_16 + PAD_4,
             size: 12.0,
-            color: WHITE,
+            color: screen_config.palette.neutral.shade(7),
             font: Roboto,
         });
     }

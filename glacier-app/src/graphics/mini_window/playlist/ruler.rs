@@ -1,12 +1,10 @@
 // ruler.rs
 use super::grid::{GRID_X_ORIGIN, PLAYLIST_STEP_GAP};
 use crate::app::ScrollOffset;
-use crate::graphics::color::{BLACK, GREEN};
 use crate::graphics::font::Font::Mono;
 use crate::graphics::geometry::{BorderStyle, Rectangle};
 use crate::graphics::primitives::{Vertex, NO_RADIUS};
 use crate::graphics::{
-    color::WHITE,
     font::TextItem,
     mini_window::MiniWindow,
     primitives::{ScreenConfig, PAD_16},
@@ -30,9 +28,14 @@ pub fn draw(
     .draw_style()
     .bordered(Some(BorderStyle {
         size: 1.0,
-        color: WHITE,
+        color: screen_config.palette.neutral.shade(7),
     }))
-    .draw(screen_config, BLACK, NO_RADIUS, &mut vertices);
+    .draw(
+        screen_config,
+        screen_config.palette.neutral.shade(0),
+        NO_RADIUS,
+        &mut vertices,
+    );
 
     for step in (0..step_count).step_by(16) {
         let group = step / 4;
@@ -43,7 +46,7 @@ pub fn draw(
             y: window.y + 42.0,
             size: 16.0,
             font: Mono,
-            color: GREEN,
+            color: screen_config.palette.secondary.shade(4),
         });
     }
 

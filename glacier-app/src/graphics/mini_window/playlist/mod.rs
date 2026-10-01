@@ -5,7 +5,6 @@ use crate::graphics::icons::IconDraw;
 use crate::graphics::mini_window::playlist::block::WaveformCache;
 use crate::graphics::mini_window::playlist::toolbar::PlaylistTool;
 use crate::graphics::{
-    color::*,
     font::TextItem,
     mini_window::{InteractionResult, MiniWindow},
     primitives::*,
@@ -55,7 +54,7 @@ pub fn draw(
     let playlist_background = window.background();
     playlist_background.draw(
         screen_config,
-        MINI_WINDOW_BACKGROUND,
+        screen_config.palette.neutral.shade(3),
         [0.0, 16.0, 0.0, 16.0],
         &mut static_vertices,
     );
@@ -116,7 +115,7 @@ pub fn draw(
     // draw playhead at the current beat
     playhead::draw(playhead_beat, window, scroll_offset).draw(
         screen_config,
-        ORANGE,
+        screen_config.palette.secondary.shade(5),
         NO_RADIUS,
         &mut timeline_vertices,
     );

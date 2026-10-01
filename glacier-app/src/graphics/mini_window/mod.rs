@@ -5,7 +5,6 @@ use winit::window::CursorIcon;
 use crate::{
     app::{click::ClickResult, MouseState},
     graphics::{
-        color::{DARK_GRAY, LIGHT_GRAY, WHITE},
         font::{Font::Roboto, TextItem},
         geometry::Rectangle,
         primitives::{ScreenConfig, Vertex, NO_RADIUS, PAD_16, PAD_4, PAD_8},
@@ -140,7 +139,12 @@ impl MiniWindow {
             width: self.width,
             height: TITLEBAR_HEIGHT,
         };
-        title_bar_background.draw(screen_config, DARK_GRAY, TOP_RADIUS_6, out);
+        title_bar_background.draw(
+            screen_config,
+            screen_config.palette.neutral.shade(2),
+            TOP_RADIUS_6,
+            out,
+        );
 
         // add button for closing the window
         let close_window_button = Rectangle::new(
@@ -151,7 +155,12 @@ impl MiniWindow {
         )
         .draw_style()
         .interactive(Some(mouse_state))
-        .draw(screen_config, LIGHT_GRAY, NO_RADIUS, out);
+        .draw(
+            screen_config,
+            screen_config.palette.neutral.shade(5),
+            NO_RADIUS,
+            out,
+        );
 
         if close_window_button.hovered {
             cursor = CursorIcon::Pointer;
@@ -170,7 +179,7 @@ impl MiniWindow {
             text: title.to_string(),
             x: self.center_title_x(title),
             y: self.y - TITLEBAR_HEIGHT + PAD_4,
-            color: WHITE,
+            color: screen_config.palette.neutral.shade(7),
             size: 18.0,
             font: Roboto,
         };

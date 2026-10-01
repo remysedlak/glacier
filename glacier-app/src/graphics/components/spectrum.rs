@@ -1,8 +1,7 @@
 //! Draws the power spectrum of the mixed audio signal as a log-scaled bar chart.
 use crate::graphics::{
-    color::{BLACK, ORANGE},
     components::toolbar::{ICON_SIZE, PLAY_Y_ORIGIN},
-    geometry::ICON_BORDER,
+    geometry::icon_border,
     Rectangle, ScreenConfig, Vertex, NO_RADIUS, RADIUS_4,
 };
 
@@ -24,8 +23,13 @@ pub fn draw(
         ICON_SIZE,
     )
     .draw_style()
-    .bordered(Some(ICON_BORDER))
-    .draw(screen_config, BLACK, RADIUS_4, out);
+    .bordered(Some(icon_border(screen_config.palette)))
+    .draw(
+        screen_config,
+        screen_config.palette.neutral.shade(0),
+        RADIUS_4,
+        out,
+    );
 
     let max_freq = sample_rate / 2.0; // Nyquist
 
@@ -59,7 +63,12 @@ pub fn draw(
             width: 1.0,
             height: bar_height,
         };
-        bar.draw(screen_config, ORANGE, NO_RADIUS, out);
+        bar.draw(
+            screen_config,
+            screen_config.palette.primary.shade(5),
+            NO_RADIUS,
+            out,
+        );
     }
 }
 
