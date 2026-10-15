@@ -72,7 +72,7 @@ pub fn draw(
     .bordered(Some(icon_border(screen_config.palette)))
     .draw(
         screen_config,
-        screen_config.palette.neutral.shade(0),
+        screen_config.palette.neutral.shade(1),
         NO_RADIUS,
         &mut verts,
     );

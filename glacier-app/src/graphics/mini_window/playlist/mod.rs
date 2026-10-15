@@ -1,12 +1,13 @@
 use crate::app::click::ClickResult;
 use crate::app::{MouseState, ScrollOffset};
-use crate::graphics::geometry::checkbox;
-use crate::graphics::icons::IconDraw;
-use crate::graphics::mini_window::playlist::block::WaveformCache;
-use crate::graphics::mini_window::playlist::toolbar::PlaylistTool;
 use crate::graphics::{
     font::TextItem,
-    mini_window::{InteractionResult, MiniWindow},
+    geometry::checkbox,
+    icons::IconDraw,
+    mini_window::{
+        playlist::{block::WaveformCache, toolbar::PlaylistTool},
+        InteractionResult, MiniWindow,
+    },
     primitives::*,
     AudioBlockType, PathBuf,
 };

@@ -111,7 +111,6 @@ impl RenderContext {
         let mut surface_config = surface.get_default_config(&adapter, width, height).unwrap();
         surface_config.format = wgpu::TextureFormat::Bgra8Unorm; // drop the Srgb suffix
         surface.configure(&device, &surface_config);
-        surface.configure(&device, &surface_config);
 
         // The bind group layout shared by every glyph/icon texture:
         // one filterable 2D texture (binding 0) plus one filtering sampler (binding 1).
