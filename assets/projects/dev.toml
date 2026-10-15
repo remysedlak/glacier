@@ -14,17 +14,6 @@ kind = "Sample"
 id = 0
 
 [[audio_blocks]]
-id = 1
-track_id = 0
-start_step = 4
-length = 3
-is_muted = false
-
-[audio_blocks.block_type]
-kind = "Sample"
-id = 0
-
-[[audio_blocks]]
 id = 2
 track_id = 0
 start_step = 8
@@ -45,17 +34,6 @@ is_muted = false
 [audio_blocks.block_type]
 kind = "Sample"
 id = 0
-
-[[audio_blocks]]
-id = 4
-track_id = 1
-start_step = 4
-length = 5
-is_muted = false
-
-[audio_blocks.block_type]
-kind = "Sample"
-id = 1
 
 [[audio_blocks]]
 id = 5
@@ -167,6 +145,28 @@ is_muted = false
 kind = "Sample"
 id = 3
 
+[[audio_blocks]]
+id = 18
+track_id = 4
+start_step = 0
+length = 5
+is_muted = false
+
+[audio_blocks.block_type]
+kind = "Sample"
+id = 8
+
+[[audio_blocks]]
+id = 19
+track_id = 4
+start_step = 6
+length = 5
+is_muted = false
+
+[audio_blocks.block_type]
+kind = "Sample"
+id = 8
+
 [[tracks]]
 id = 0
 name = "hard-kick-03.wav"
@@ -198,6 +198,51 @@ root_note = 60
 id = 3
 name = "ch.wav"
 path = "./assets/free-drum-samples/drum-samples/01-hard-trap/hi-hats/ch.wav"
+is_muted = false
+channels = 1
+track_volume = 1.0
+root_note = 60
+
+[[tracks]]
+id = 4
+name = "808-bass-dist.wav"
+path = "./assets/free-drum-samples/drum-samples/01-hard-trap/808s/808-bass-dist.wav"
+is_muted = false
+channels = 1
+track_volume = 1.0
+root_note = 60
+
+[[tracks]]
+id = 5
+name = "hard-kick-02.wav"
+path = "./assets/free-drum-samples/drum-samples/01-hard-trap/kicks/hard-kick-02.wav"
+is_muted = false
+channels = 1
+track_volume = 1.0
+root_note = 60
+
+[[tracks]]
+id = 6
+name = "open-hat-01.wav"
+path = "./assets/free-drum-samples/drum-samples/02-bounce/open-hats/open-hat-01.wav"
+is_muted = false
+channels = 1
+track_volume = 1.0
+root_note = 60
+
+[[tracks]]
+id = 7
+name = "cp.wav"
+path = "./assets/free-drum-samples/drum-samples/02-bounce/claps/cp.wav"
+is_muted = false
+channels = 1
+track_volume = 1.0
+root_note = 60
+
+[[tracks]]
+id = 8
+name = "perc-high-tom.wav"
+path = "./assets/free-drum-samples/drum-samples/03-soulful-vintage/percs/perc-high-tom.wav"
 is_muted = false
 channels = 1
 track_volume = 1.0

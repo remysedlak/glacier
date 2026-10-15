@@ -32,12 +32,16 @@ pub fn reduce_waveform(mono_samples: &[f32], width: usize) -> Vec<(f32, f32)> {
         return Vec::new();
     }
     let num_columns = width.min(mono_samples.len()).max(1);
-    let stride = (mono_samples.len() / num_columns).max(1);
+    let len = mono_samples.len();
 
     (0..num_columns)
         .filter_map(|col| {
-            let start = col * stride;
-            let end = (start + stride).min(mono_samples.len());
+            let start = (col * len) / num_columns;
+            let end = if col + 1 == num_columns {
+                len
+            } else {
+                ((col + 1) * len) / num_columns
+            };
             if start >= end {
                 return None;
             }
@@ -62,11 +66,14 @@ pub fn draw_waveform(
     let half_height = rect.height / 2.0;
 
     for (col, (min, max)) in pairs.iter().enumerate() {
+        let height = ((max - min) * half_height).max(1.0);
+        let y = center_y - (max * half_height);
+
         let pixel_line = Rectangle {
             x: rect.x + col as f32,
-            y: center_y - (max * half_height),
+            y,
             width: 1.0,
-            height: (max - min) * half_height,
+            height,
         };
         pixel_line.draw(screen_config, color, NO_RADIUS, out);
     }
