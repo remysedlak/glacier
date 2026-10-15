@@ -8,7 +8,7 @@ use std::collections::HashMap;
 
 /// List of SVG file names to be loaded into memory
 /// (svg file name, svg width, svg height)
-pub const ICONS: &[(&str, u32, u32)] = &[
+pub const ICON_SOURCES: &[(&str, u32, u32)] = &[
     ("play", 128, 128),
     ("stop", 128, 128),
     ("pause", 128, 128),
@@ -26,6 +26,33 @@ pub const ICONS: &[(&str, u32, u32)] = &[
     ("music_file", 32, 32),
     ("add", 32, 32),
     ("left_sidepanel", 32, 32),
+    ("bpm_up", 32, 12),
+    ("bpm_down", 32, 12),
+    ("Mute", 24, 24),
+    ("PlaylistPaint", 24, 24),
+    ("PlaylistRectangle", 24, 24),
+    ("PlaylistSelect", 24, 24),
+];
+
+pub const ICON_SIZES: &[(&str, u32, u32)] = &[
+    ("play", 32, 32),
+    ("stop", 32, 32),
+    ("pause", 32, 32),
+    ("mixer", 32, 32),
+    ("sequencer", 32, 32),
+    ("settings", 32, 32),
+    ("playlist", 32, 32),
+    ("track", 32, 32),
+    ("project", 32, 32),
+    ("piano", 32, 32),
+    ("track_tray", 32, 32),
+    ("pattern_tray", 32, 32),
+    ("file", 32, 32),
+    ("music_dir", 20, 20),
+    ("music_dir", 16, 16),
+    ("music_file", 16, 16),
+    ("add", 20, 20),
+    ("left_sidepanel", 20, 20),
     ("bpm_up", 32, 12),
     ("bpm_down", 32, 12),
     ("Mute", 24, 24),
@@ -67,7 +94,8 @@ impl IconDraw {
     }
 }
 
-pub struct IconCache(HashMap<String, (wgpu::Texture, wgpu::BindGroup)>);
+/// stores cache of icon at sizes needed
+pub struct IconCache(HashMap<(String, u32, u32), (wgpu::Texture, wgpu::BindGroup)>);
 impl IconCache {
     pub fn new() -> IconCache {
         IconCache(HashMap::new())
@@ -83,7 +111,11 @@ pub fn push_icon_draw<'a>(
     icon_vertices: &mut Vec<Vertex>,
     icon_draws: &mut Vec<(u64, &'a wgpu::BindGroup)>,
 ) {
-    if let Some((_, bind_group)) = icon_cache.0.get(icon.name) {
+    if let Some((_, bind_group)) =
+        icon_cache
+            .0
+            .get(&(icon.name.to_string(), icon.width as u32, icon.height as u32))
+    {
         let verts = icons::draw_icon(icon.x, icon.y, icon.width, icon.height, screen_config);
         let offset = (icon_vertices.len() * std::mem::size_of::<Vertex>()) as u64;
         icon_vertices.extend_from_slice(&verts);
@@ -91,8 +123,8 @@ pub fn push_icon_draw<'a>(
     }
 }
 
+/// pre-rasterize all SVG files to bitmaps of all sizes needed
 pub fn load_icons(icon_cache: &mut IconCache, device: &wgpu::Device, queue: &wgpu::Queue) {
-    // create the layout once, outside the loop
     let bgl = create_icon_bind_group_layout(device);
     let sampler = device.create_sampler(&wgpu::SamplerDescriptor {
         mag_filter: wgpu::FilterMode::Linear,
@@ -100,19 +132,21 @@ pub fn load_icons(icon_cache: &mut IconCache, device: &wgpu::Device, queue: &wgp
         ..Default::default()
     });
 
-    for icon in icons::ICONS {
+    for (name, target_w, target_h) in icons::ICON_SIZES {
+        let (_, src_w, src_h) = icons::ICON_SOURCES.iter().find(|s| s.0 == *name).unwrap();
         let svg_str =
-            std::fs::read_to_string(format!("assets/icons/{}x{}/{}.svg", icon.1, icon.2, icon.0))
-                .unwrap_or_else(|e| panic!("failed to load icon {}: {e}", icon.0));
+            std::fs::read_to_string(format!("assets/icons/{}x{}/{}.svg", src_w, src_h, name))
+                .unwrap_or_else(|e| panic!("failed to load icon {name}: {e}"));
         let svg = icons::IconSvg {
-            width: icon.1 as f32,
-            height: icon.2 as f32,
+            width: *target_w as f32,
+            height: *target_h as f32,
             path: svg_str,
         };
         let (texture, bind_group) = icons::rasterize_icon(device, queue, svg, &bgl, &sampler);
-        icon_cache
-            .0
-            .insert(icon.0.to_string(), (texture, bind_group));
+        icon_cache.0.insert(
+            (name.to_string(), *target_w, *target_h),
+            (texture, bind_group),
+        );
     }
 }
 
@@ -140,6 +174,26 @@ fn create_icon_bind_group_layout(device: &wgpu::Device) -> wgpu::BindGroupLayout
     })
 }
 
+/// tiny_skia's Pixmap stores premultiplied RGBA (RGB channels pre-scaled by
+/// alpha). Our render pipeline's blend state expects straight (non-
+/// premultiplied) alpha, same as the glyph/geometry quads. Divide RGB back
+/// out by alpha so the two conventions agree once this hits the GPU blend
+/// equation.
+fn unpremultiply(bytes: &[u8]) -> Vec<u8> {
+    let mut out = Vec::with_capacity(bytes.len());
+    for px in bytes.chunks_exact(4) {
+        let (r, g, b, a) = (px[0], px[1], px[2], px[3]);
+        if a == 0 {
+            out.extend_from_slice(&[0, 0, 0, 0]);
+        } else {
+            let a_f = a as f32;
+            let unmul = |c: u8| ((c as f32 * 255.0) / a_f).round().clamp(0.0, 255.0) as u8;
+            out.extend_from_slice(&[unmul(r), unmul(g), unmul(b), a]);
+        }
+    }
+    out
+}
+
 /// Input's an SVG path and outputs a wgpu texture and icon size information
 pub fn rasterize_icon(
     device: &wgpu::Device,
@@ -150,12 +204,14 @@ pub fn rasterize_icon(
 ) -> (wgpu::Texture, wgpu::BindGroup) {
     let tree = resvg::usvg::Tree::from_str(&icon.path, &Default::default()).unwrap();
     let mut pixmap = resvg::tiny_skia::Pixmap::new(icon.width as u32, icon.height as u32).unwrap();
-    resvg::render(
-        &tree,
-        resvg::tiny_skia::Transform::default(),
-        &mut pixmap.as_mut(),
+    let tree_size = tree.size(); // usvg::Size — .width(), .height()
+    let transform = resvg::tiny_skia::Transform::from_scale(
+        icon.width / tree_size.width(),
+        icon.height / tree_size.height(),
     );
-    let rgba_bytes = pixmap.data();
+    resvg::render(&tree, transform, &mut pixmap.as_mut());
+
+    let rgba_bytes = unpremultiply(pixmap.data());
 
     let texture = device.create_texture(&wgpu::TextureDescriptor {
         label: None,
@@ -173,7 +229,7 @@ pub fn rasterize_icon(
     });
     queue.write_texture(
         texture.as_image_copy(),
-        rgba_bytes,
+        &rgba_bytes,
         wgpu::TexelCopyBufferLayout {
             offset: 0,
             bytes_per_row: Some(icon.width as u32 * 4),
