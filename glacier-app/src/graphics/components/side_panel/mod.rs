@@ -1,5 +1,4 @@
 //! Side panels appear on the left and right side of the screen.
-use resvg::usvg::BlendMode::Screen;
 
 use crate::graphics::{
     font::{Font::Roboto, TextItem, TITLE},

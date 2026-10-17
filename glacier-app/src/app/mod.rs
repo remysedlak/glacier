@@ -1,5 +1,5 @@
 //! main state logic for audio and ui decoupling threads
-use crate::audio::AudioCommand;
+use crate::audio::audio_command::AudioCommand;
 use crate::config::UserSettings;
 use crate::graphics::{
     drag::DragResult,

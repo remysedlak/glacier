@@ -51,7 +51,7 @@ pub enum UiCommand {
 
 impl App {
     pub(super) fn handle_ui_command(&mut self, cmd: UiCommand, should_exit: &mut bool) {
-        use crate::audio::AudioCommand;
+        use crate::audio::audio_command::AudioCommand;
         use ringbuf::traits::{Producer, Split};
         use ringbuf::HeapRb;
 

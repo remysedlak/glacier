@@ -3,7 +3,6 @@ use crate::app::{click::ClickResult, MouseState};
 use crate::graphics::icons::DEFAULT_TOOLTIP_WIDTH;
 use crate::graphics::mini_window::InteractionResult;
 use crate::graphics::{
-    color::*,
     components::spectrum,
     font::{Font::Mono, TextItem, TITLE},
     geometry::*,

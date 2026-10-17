@@ -110,7 +110,7 @@ pub fn draw(
         interaction = interaction.or(block_interaction)
     }
 
-    let (mut ruler_vertices, ruler_text_items) =
+    let (ruler_vertices, ruler_text_items) =
         ruler::draw(window, screen_config, step_count, scroll_offset);
 
     // draw playhead at the current beat

@@ -1,7 +1,7 @@
 //! handle all mouse click interactivity
 use super::{App, State};
 use crate::app::PianoRollState;
-use crate::audio::AudioCommand;
+use crate::audio::audio_command::AudioCommand;
 use crate::graphics::{
     bring_to_front,
     components::context_menu::{ContextMenu, ContextMenuKind},

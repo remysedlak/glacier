@@ -2,7 +2,6 @@ use crate::app::{click::ClickResult, MouseState, PianoRollState, ScrollOffset};
 use crate::graphics::components::toolbar::ICON_SIZE;
 use crate::graphics::mini_window::InteractionResult;
 use crate::graphics::{
-    color::*,
     font::{Font::Mono, TextItem},
     geometry::Rectangle,
     mini_window::{piano_roll::*, MiniWindow, TITLEBAR_HEIGHT},

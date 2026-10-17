@@ -12,14 +12,13 @@ pub mod regions;
 
 use crate::app::{MouseState, PianoRollState, ScrollOffset};
 use crate::config::DEFAULT_BPM;
-use crate::graphics::color::Palette;
 use crate::graphics::{
     font::FontCache, icons::IconCache, mini_window::playlist::block::WaveformCache,
 };
 use crate::project::{
     AudioBlock, AudioBlockID, AudioBlockType, PatternData, PatternID, Track, TrackData, TrackID,
 };
-use color::Color;
+use color::{Color, Palette};
 use components::{context_menu::ContextMenu, footer, side_panel, side_panel::DEFAULT_TRAY_WIDTH};
 use font::{create_bind_group_layout, load_fonts, Font::Mono, Font::Roboto, GlyphCache, TextItem};
 use fontdue::layout::{CoordinateSystem, Layout, TextStyle};
@@ -77,7 +76,7 @@ impl RenderContext {
 
         // Surface = the paintable region wgpu is allowed to write pixels into;
         // everything else about the window (chrome, position, events, focus) is winit's job
-        let surface: Surface = instance.create_surface(Rc::clone(&window)).unwrap();
+        let surface: Surface = instance.create_surface(Rc::clone(window)).unwrap();
 
         // handle to one specific physical GPU (that the chosen backend (Vulkan/Metal/DX12/GL) can see on the machine
         let adapter: Adapter = instance
@@ -109,6 +108,7 @@ impl RenderContext {
         let height = size.height.max(1);
 
         let mut surface_config = surface.get_default_config(&adapter, width, height).unwrap();
+
         surface_config.format = wgpu::TextureFormat::Bgra8Unorm; // drop the Srgb suffix
         surface.configure(&device, &surface_config);
 

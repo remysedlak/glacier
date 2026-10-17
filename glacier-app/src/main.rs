@@ -8,7 +8,7 @@ pub mod project;
 
 use crate::{
     app::{App, UiCommand},
-    audio::AudioCommand,
+    audio::audio_command::AudioCommand,
     graphics::Graphics,
 };
 use ringbuf::{traits::Split, HeapRb};

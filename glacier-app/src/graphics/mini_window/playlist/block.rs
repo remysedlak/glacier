@@ -88,7 +88,7 @@ pub fn draw_audio_block(
     mouse_state: &MouseState,
     screen_config: &ScreenConfig,
     patterns: &[PatternData],
-    resizing_audio_block: Option<AudioBlockID>,
+    _resizing_audio_block: Option<AudioBlockID>,
     waveform_cache: &mut WaveformCache,
     timeline_vertices: &mut Vec<Vertex>,
     timeline_text_items: &mut Vec<TextItem>,
@@ -205,7 +205,7 @@ pub fn draw_audio_block(
         }
     }
 
-    let top_line = Rectangle::new(block.x, block.y, block.width, 24.0)
+    let _top_line = Rectangle::new(block.x, block.y, block.width, 24.0)
         .draw_style()
         .draw(
             screen_config,

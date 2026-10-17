@@ -1,5 +1,5 @@
 use super::{App, State};
-use crate::audio::AudioCommand;
+use crate::audio::audio_command::AudioCommand;
 use crate::graphics::primitives::RenameTarget;
 use ringbuf::traits::Producer;
 use winit::event::KeyEvent;
