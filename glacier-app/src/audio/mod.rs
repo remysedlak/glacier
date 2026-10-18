@@ -1,7 +1,10 @@
 //! An audio engine for sequencing compositions and applying DSP methods
+
 use crate::audio::{
     audio_command::{handle_command, AudioCommand},
     device::find_working_config,
+    metering::{push_meter_updates, push_spectrum_frame},
+    mixing::mix_voice,
 };
 use crate::project::*;
 use crate::UiCommand;
@@ -10,17 +13,20 @@ use cpal::{
     SampleFormat,
 };
 use glacier_dsp::{
-    align_to_frame, flush_denormal, frame_advance, frame_lookahead, hann_window, interpolate,
-    magnitude_to_db, samples_per_step, semitones_to_rate, smooth_toward, soft_clip,
-    window_compensation, SpectrumAnalyzer,
+    align_to_frame, flush_denormal, frame_advance, frame_lookahead, interpolate, samples_per_step,
+    semitones_to_rate, smooth_toward, soft_clip, SpectrumAnalyzer,
 };
 use ringbuf::{
     traits::{Consumer, Producer},
     HeapCons, HeapProd,
 };
 
+const SPECTRUM_WINDOW: usize = 2048;
+
 pub mod audio_command;
 pub mod device;
+pub mod metering;
+pub mod mixing;
 
 /// audio logic shared between audio engine and audio commands
 pub struct EngineState {
@@ -88,7 +94,6 @@ pub fn init(
 
     // store samples for spectrum math over multiple audio callbacks
     let mut spectrum_buffer: Vec<f32> = Vec::with_capacity(2048);
-    const SPECTRUM_WINDOW: usize = 2048;
 
     let spectrum_analyzer = SpectrumAnalyzer::new(SPECTRUM_WINDOW);
 
@@ -171,48 +176,13 @@ pub fn init(
 
                         for i in 0..track.voice_pool.active_indices().len() {
                             let voice = track.voice_pool.active_indices()[i]; // short-lived borrow, ends immediately
-                            let channels = track.data.channels;
-                            let pos = if channels == 1 {
-                                track.voice_pool.positions[voice] as usize
-                            } else {
-                                align_to_frame(track.voice_pool.positions[voice])
-                            };
-                            let lookahead = frame_lookahead(channels);
-                            let stop = track.voice_pool.stop_at_frames[voice]
-                                .unwrap_or(track.samples.len() as f32);
-                            if pos + lookahead >= stop.min(track.samples.len() as f32) as usize {
-                                track.voice_pool.active[voice] = false;
-                            } else {
-                                track.voice_pool.current_volumes[voice] =
-                                    flush_denormal(smooth_toward(
-                                        track.voice_pool.current_volumes[voice],
-                                        track.voice_pool.target_volumes[voice],
-                                        0.01,
-                                    ));
-
-                                let (l, r) = interpolate(
-                                    &track.samples,
-                                    track.voice_pool.positions[voice],
-                                    track.data.channels,
-                                );
-
-                                let gain = track.voice_pool.current_volumes[voice]
-                                    * track.data.track_volume
-                                    * shutdown_volume
-                                    * engine_state.master_volume;
-                                sample[0] += l * gain;
-                                sample[1] += r * gain;
-
-                                let advance = frame_advance(channels);
-                                track.voice_pool.positions[voice] +=
-                                    advance * track.voice_pool.rates[voice];
-
-                                track.rms_l =
-                                    flush_denormal(smooth_toward(track.rms_l, l * l, 0.01));
-                                track.rms_r =
-                                    flush_denormal(smooth_toward(track.rms_r, r * r, 0.01));
-                                track.peak_hold = track.peak_hold.max(l.abs().max(r.abs()));
-                            }
+                            mix_voice(
+                                track,
+                                voice,
+                                shutdown_volume,
+                                engine_state.master_volume,
+                                sample,
+                            );
                         }
                     }
                 }
@@ -243,62 +213,17 @@ pub fn init(
         }
 
         // update the meter data
-        meter_counter += data.len() / 2;
-        if meter_counter >= 1024 {
-            meter_counter = 0;
-            engine_state
-                .audio_producer
-                .try_push(UiCommand::MasterLevel(
-                    master_rms_l.sqrt(),
-                    master_rms_r.sqrt(),
-                    master_peak,
-                ))
-                .ok();
-            master_peak = 0.0;
-            for track in &mut engine_state.tracks {
-                engine_state
-                    .audio_producer
-                    .try_push(UiCommand::TrackLevel(
-                        track.data.id,
-                        track.rms_l.sqrt(),
-                        track.rms_r.sqrt(),
-                        track.peak_hold,
-                    ))
-                    .ok();
-                track.peak_hold = 0.0;
-            }
-        } // exit sample mixing
+        push_meter_updates(
+            &mut engine_state,
+            &mut meter_counter,
+            master_rms_l,
+            master_rms_r,
+            &mut master_peak,
+            data.len() / 2,
+        );
 
         // when the spectrum buffer is full, push fourier compute to ui
-        if spectrum_buffer.len() >= SPECTRUM_WINDOW {
-            let window = hann_window(SPECTRUM_WINDOW);
-            let compensation = window_compensation(&window);
-
-            engine_state.windowed.clear();
-            engine_state.windowed.extend(
-                spectrum_buffer
-                    .iter()
-                    .zip(window.iter())
-                    .map(|(x, w)| x * w),
-            );
-
-            let magnitudes = spectrum_analyzer.process(&engine_state.windowed);
-            engine_state.db.clear();
-            engine_state.db.extend(
-                magnitudes
-                    .iter()
-                    .map(|m| magnitude_to_db(*m, SPECTRUM_WINDOW, compensation)),
-            );
-
-            engine_state
-                .audio_producer
-                .try_push(UiCommand::SpectrumFrame(std::mem::take(
-                    &mut engine_state.db,
-                )))
-                .ok();
-
-            spectrum_buffer.clear();
-        }
+        push_spectrum_frame(&mut engine_state, &spectrum_analyzer, &mut spectrum_buffer);
 
         if engine_state.is_playing {
             sample_counter += data.len() as f32 / 2.0; // increment sample counter by number of samples requested : keep track of sample position

@@ -2,6 +2,9 @@
 use serde::{Deserialize, Serialize};
 use std::sync::mpsc::Receiver;
 
+const SUPPORTED_AUDIO_EXTENSIONS: &[&str] = &["wav", "mp3", "flac", "aiff", "ogg"];
+pub const MAX_VOICES_PER_TRACK: usize = 64;
+
 /// Project store a song/session into memory and on file
 #[derive(Serialize, Deserialize, Clone)]
 pub struct Project {
@@ -310,15 +313,13 @@ pub fn count_fs_rows(
 
 /// Returns true if a file path is a playable music file
 pub fn is_audio_file(path: &std::path::Path) -> bool {
-    matches!(
-        path.extension().and_then(|e| e.to_str()),
-        Some("wav" | "mp3" | "flac" | "aiff" | "ogg") // how can i create a constant to store supported audio files?
-    )
+    path.extension()
+        .and_then(|e| e.to_str())
+        .is_some_and(|ext| SUPPORTED_AUDIO_EXTENSIONS.contains(&ext))
 }
 
-pub const MAX_VOICES_PER_TRACK: usize = 64;
-
-/// Voice Pool, fixed amount of voices, SoA layout for SIMD capability
+/// Fixed-capacity, Struct-of-Arrays voice pool for one track.
+/// Column-major layout — intended to support future SIMD processing, not yet implemented.
 #[derive(Clone)]
 pub struct VoicePool {
     pub positions: [f32; MAX_VOICES_PER_TRACK],
