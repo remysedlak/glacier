@@ -5,3 +5,4 @@ edition = "2024"
 
 [dependencies]
 rustfft = "6"
+wide = "0.7"
