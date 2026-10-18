@@ -138,7 +138,7 @@ pub fn draw(
                         TrackID(track as u32),
                         step as u32,
                         length.try_into().unwrap(),
-                        active_tray.clone(),
+                        *active_tray,
                     );
                 }
             }

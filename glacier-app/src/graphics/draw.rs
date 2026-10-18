@@ -161,7 +161,7 @@ impl Graphics {
                     let window = &self.mini_windows[SEQUENCER_ID];
                     let (texts, icons, sequencer_interaction) = sequencer::draw(
                         window,
-                        &mut self.patterns,
+                        &self.patterns,
                         &self.sequencer_scroll_offset,
                         &mut self.tracks,
                         self.active_pattern_id,
@@ -936,7 +936,7 @@ impl Graphics {
         if let Some(tt) = &self.tooltip {
             if mouse_state
                 .hover_duration
-                .map_or(false, |t| t.elapsed() > Duration::from_millis(400))
+                .is_some_and(|t| t.elapsed() > Duration::from_millis(400))
             {
                 let _tooltip_rectangle = Rectangle::new(tt.x, tt.y, tt.width, 24.0)
                     .draw_style()

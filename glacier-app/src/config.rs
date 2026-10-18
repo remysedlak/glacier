@@ -8,16 +8,9 @@ use std::fmt;
 // todo: save as config variable
 pub const DEFAULT_BPM: f32 = 120.0;
 
+#[derive(Default)]
 pub struct UserSettings {
     pub instrument_search_paths: Vec<String>,
-}
-
-impl Default for UserSettings {
-    fn default() -> Self {
-        Self {
-            instrument_search_paths: Vec::new(),
-        }
-    }
 }
 
 impl Serialize for UserSettings {

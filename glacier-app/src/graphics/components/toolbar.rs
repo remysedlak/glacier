@@ -33,7 +33,7 @@ pub struct IconRow {
     pub gap: f32,
 }
 impl IconRow {
-    pub fn next(&mut self) -> Rectangle {
+    pub fn next_icon(&mut self) -> Rectangle {
         let sq = Rectangle::square(self.x, self.y, self.size);
         self.x += self.gap;
         sq
@@ -46,7 +46,7 @@ pub fn draw(
     bpm: f32,
     is_playing: bool,
     active_step: usize,
-    spectrum: &Vec<f32>,
+    spectrum: &[f32],
     sample_rate: f32,
     seconds: String,
     out: &mut Vec<Vertex>,
@@ -225,10 +225,10 @@ pub fn draw(
     });
 
     // draw power spectrogram of audio frequency domain.
-    spectrum::draw(screen_config, &spectrum, sample_rate, 2048, out);
+    spectrum::draw(screen_config, spectrum, sample_rate, 2048, out);
 
     let sequencer_toggle = window_icons
-        .next()
+        .next_icon()
         .draw_style()
         .bordered(Some(icon_border(screen_config.palette)))
         .interactive(Some(mouse_state))
@@ -244,7 +244,7 @@ pub fn draw(
     }
 
     let mixer_toggle = window_icons
-        .next()
+        .next_icon()
         .draw_style()
         .bordered(Some(icon_border(screen_config.palette)))
         .interactive(Some(mouse_state))
@@ -260,7 +260,7 @@ pub fn draw(
     }
 
     let playlist_toggle = window_icons
-        .next()
+        .next_icon()
         .draw_style()
         .bordered(Some(icon_border(screen_config.palette)))
         .interactive(Some(mouse_state))
@@ -275,7 +275,7 @@ pub fn draw(
     }
 
     let piano_toggle = window_icons
-        .next()
+        .next_icon()
         .draw_style()
         .bordered(Some(icon_border(screen_config.palette)))
         .interactive(Some(mouse_state))
@@ -291,7 +291,7 @@ pub fn draw(
     }
 
     let track_selection_toggle = window_icons
-        .next()
+        .next_icon()
         .draw_style()
         .bordered(Some(icon_border(screen_config.palette)))
         .interactive(Some(mouse_state))
@@ -307,7 +307,7 @@ pub fn draw(
     }
 
     let patterns_toggle = window_icons
-        .next()
+        .next_icon()
         .draw_style()
         .bordered(Some(icon_border(screen_config.palette)))
         .interactive(Some(mouse_state))

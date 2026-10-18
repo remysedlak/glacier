@@ -101,6 +101,11 @@ impl IconCache {
         IconCache(HashMap::new())
     }
 }
+impl Default for IconCache {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 /// Pushes an icon's quad into the shared icon vertex buffer and records
 /// its (offset, bind_group) so the render pass knows which texture to use.
@@ -181,7 +186,7 @@ fn create_icon_bind_group_layout(device: &wgpu::Device) -> wgpu::BindGroupLayout
 /// equation.
 fn unpremultiply(bytes: &[u8]) -> Vec<u8> {
     let mut out = Vec::with_capacity(bytes.len());
-    for px in bytes.chunks_exact(4) {
+    for px in bytes.as_chunks::<4>().0 {
         let (r, g, b, a) = (px[0], px[1], px[2], px[3]);
         if a == 0 {
             out.extend_from_slice(&[0, 0, 0, 0]);

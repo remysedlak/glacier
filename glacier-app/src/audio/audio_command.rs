@@ -429,7 +429,7 @@ pub fn handle_command(cmd: AudioCommand, engine_state: &mut EngineState) {
                 .audio_producer
                 .try_push(UiCommand::SaveComplete)
                 .ok();
-            println!("saved to {}", &engine_state.project_path);
+            println!("saved to {}", engine_state.project_path);
         }
         AudioCommand::Shutdown => {
             let project = Project::new(

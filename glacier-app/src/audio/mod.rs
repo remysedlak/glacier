@@ -96,7 +96,7 @@ pub fn init(
         is_playing: false,
         is_shutting_down: false,
         project_name: project.name.clone(),
-        project_path: project_file.unwrap_or_else(|| Project::default_project_file()),
+        project_path: project_file.unwrap_or_else(Project::default_project_file),
         preview_samples: Vec::new(),
         sample_rate: stream_config.sample_rate as f32,
         current_step: project

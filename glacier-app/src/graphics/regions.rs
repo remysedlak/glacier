@@ -8,9 +8,9 @@ pub struct RecordedRegion {
 }
 impl RecordedRegion {
     pub fn record(
-        vertices: &Vec<Vertex>,
-        char_draws: &Vec<(u64, &wgpu::BindGroup)>,
-        icon_draws: &Vec<(u64, &wgpu::BindGroup)>,
+        vertices: &[Vertex],
+        char_draws: &[(u64, &wgpu::BindGroup)],
+        icon_draws: &[(u64, &wgpu::BindGroup)],
         vert_start: u32,
         char_start: usize,
         icon_start: usize,

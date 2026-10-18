@@ -84,6 +84,12 @@ impl FontCache {
     }
 }
 
+impl Default for FontCache {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 /// Pre-rasterized glyphs for every loaded font, keyed by font name and then
 /// by (character, size). Built once at startup via `build_glyph_cache` per
 /// font; `Graphics::draw` looks glyphs up here every frame instead of
@@ -113,6 +119,11 @@ impl GlyphCache {
             .values()
             .next()
             .map(|entry| entry.bind_group())
+    }
+}
+impl Default for GlyphCache {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

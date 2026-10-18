@@ -98,7 +98,7 @@ pub fn draw(
         let (response, tool_interaction) = draw_tool_button(
             tool,
             active_tool,
-            window_icons.next(),
+            window_icons.next_icon(),
             mouse_state,
             screen_config,
             &mut verts,
@@ -120,5 +120,5 @@ pub fn draw(
         });
     }
 
-    return (verts, texts, icons, interaction);
+    (verts, texts, icons, interaction)
 }

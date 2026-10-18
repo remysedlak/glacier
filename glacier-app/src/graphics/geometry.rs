@@ -159,7 +159,7 @@ pub fn checkbox(
         color: screen_config.palette.neutral.shade(7),
     };
     out_texts.push(label);
-    return checkbox;
+    checkbox
 }
 
 /// A rectangle stores 2D position,width, and height

@@ -327,10 +327,7 @@ impl App {
                 // request audio thread to create audio block
                 self.producer
                     .try_push(AudioCommand::CreateAudioBlock(
-                        track,
-                        start_step,
-                        length,
-                        block_type.clone(),
+                        track, start_step, length, block_type,
                     ))
                     .ok();
             }
