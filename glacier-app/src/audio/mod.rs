@@ -160,45 +160,46 @@ pub fn init(
             if engine_state.is_playing {
                 for track in &mut engine_state.tracks {
                     if !track.data.is_muted {
-                        for voice in &mut track.voices {
-                            if voice.is_playing {
-                                let pos = align_to_frame(voice.position);
-                                let frac = voice.position - voice.position.floor();
+                        track.voice_pool.refresh_active_indices(); // needed once per track per callback
 
-                                let stop =
-                                    voice.stop_at_frame.unwrap_or(track.samples.len() as f32);
-                                if pos as f32 + 3.0 >= stop.min(track.samples.len() as f32) {
-                                    voice.is_playing = false;
-                                } else {
-                                    voice.current_volume = glacier_dsp::smooth_toward(
-                                        voice.current_volume,
-                                        voice.target_volume,
+                        for i in 0..track.voice_pool.active_indices().len() {
+                            let voice = track.voice_pool.active_indices()[i]; // short-lived borrow, ends immediately
+                            let pos = align_to_frame(track.voice_pool.positions[voice]);
+                            let frac = track.voice_pool.positions[voice]
+                                - track.voice_pool.positions[voice].floor();
+
+                            let stop = track.voice_pool.stop_at_frames[voice]
+                                .unwrap_or(track.samples.len() as f32);
+                            if pos as f32 + 3.0 >= stop.min(track.samples.len() as f32) {
+                                track.voice_pool.active[voice] = false;
+                            } else {
+                                track.voice_pool.current_volumes[voice] =
+                                    glacier_dsp::smooth_toward(
+                                        track.voice_pool.current_volumes[voice],
+                                        track.voice_pool.target_volumes[voice],
                                         0.01,
                                     );
 
-                                    let l = track.samples[pos]
-                                        + frac * (track.samples[pos + 2] - track.samples[pos]);
-                                    let r = track.samples[pos + 1]
-                                        + frac * (track.samples[pos + 3] - track.samples[pos + 1]);
+                                let l = track.samples[pos]
+                                    + frac * (track.samples[pos + 2] - track.samples[pos]);
+                                let r = track.samples[pos + 1]
+                                    + frac * (track.samples[pos + 3] - track.samples[pos + 1]);
 
-                                    let gain = voice.current_volume
-                                        * track.data.track_volume
-                                        * shutdown_volume
-                                        * engine_state.master_volume;
-                                    sample[0] += l * gain;
-                                    sample[1] += r * gain;
+                                let gain = track.voice_pool.current_volumes[voice]
+                                    * track.data.track_volume
+                                    * shutdown_volume
+                                    * engine_state.master_volume;
+                                sample[0] += l * gain;
+                                sample[1] += r * gain;
 
-                                    voice.position += 2.0 * voice.playback_rate;
+                                track.voice_pool.positions[voice] +=
+                                    2.0 * track.voice_pool.rates[voice];
 
-                                    track.rms_l =
-                                        glacier_dsp::smooth_toward(track.rms_l, l * l, 0.01);
-                                    track.rms_r =
-                                        glacier_dsp::smooth_toward(track.rms_r, r * r, 0.01);
-                                    track.peak_hold = track.peak_hold.max(l.abs().max(r.abs()));
-                                }
+                                track.rms_l = glacier_dsp::smooth_toward(track.rms_l, l * l, 0.01);
+                                track.rms_r = glacier_dsp::smooth_toward(track.rms_r, r * r, 0.01);
+                                track.peak_hold = track.peak_hold.max(l.abs().max(r.abs()));
                             }
                         }
-                        track.voices.retain(|v| v.is_playing);
                     }
                 }
             }
@@ -362,14 +363,7 @@ pub fn init(
                                 );
                                 let stop_at = audio_block.length as f32 * samples_per_step * 2.0;
 
-                                track.voices.push(Voice {
-                                    position: 0.0,
-                                    is_playing: true,
-                                    playback_rate: 1.0,
-                                    current_volume: 0.0,
-                                    target_volume: 1.0,
-                                    stop_at_frame: Some(stop_at),
-                                });
+                                track.voice_pool.spawn(0.0, 1.0, 0.0, 1.0, Some(stop_at));
                             }
                         }
                     }
@@ -383,14 +377,9 @@ pub fn init(
                     {
                         let playback_rate =
                             glacier_dsp::semitones_to_rate(pitch, track.data.root_note);
-                        track.voices.push(Voice {
-                            position: 0.0,
-                            is_playing: true,
-                            playback_rate,
-                            current_volume: 0.0,
-                            target_volume: velocity / 127.0,
-                            stop_at_frame: None,
-                        });
+                        track
+                            .voice_pool
+                            .spawn(0.0, playback_rate, 0.0, velocity / 127.0, None);
                     }
                 }
             }

@@ -167,6 +167,91 @@ is_muted = false
 kind = "Sample"
 id = 8
 
+[[audio_blocks]]
+id = 20
+track_id = 3
+start_step = 0
+length = 1
+is_muted = false
+
+[audio_blocks.block_type]
+kind = "Mixing"
+
+[[audio_blocks]]
+id = 21
+track_id = 2
+start_step = 1
+length = 1
+is_muted = false
+
+[audio_blocks.block_type]
+kind = "Mixing"
+
+[[audio_blocks]]
+id = 22
+track_id = 3
+start_step = 0
+length = 1
+is_muted = false
+
+[audio_blocks.block_type]
+kind = "Mixing"
+
+[[audio_blocks]]
+id = 23
+track_id = 2
+start_step = 1
+length = 2
+is_muted = false
+
+[audio_blocks.block_type]
+kind = "Sample"
+id = 3
+
+[[audio_blocks]]
+id = 24
+track_id = 2
+start_step = 3
+length = 2
+is_muted = false
+
+[audio_blocks.block_type]
+kind = "Sample"
+id = 3
+
+[[audio_blocks]]
+id = 25
+track_id = 2
+start_step = 5
+length = 2
+is_muted = false
+
+[audio_blocks.block_type]
+kind = "Sample"
+id = 3
+
+[[audio_blocks]]
+id = 26
+track_id = 5
+start_step = 4
+length = 11
+is_muted = false
+
+[audio_blocks.block_type]
+kind = "Sample"
+id = 7
+
+[[audio_blocks]]
+id = 28
+track_id = 8
+start_step = 5
+length = 6
+is_muted = false
+
+[audio_blocks.block_type]
+kind = "Sample"
+id = 7
+
 [[tracks]]
 id = 0
 name = "hard-kick-03.wav"

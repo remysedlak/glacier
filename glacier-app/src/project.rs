@@ -112,7 +112,7 @@ pub struct Track {
     // recreated in memory every session
     pub samples: Vec<f32>,
     pub mono_samples: Vec<f32>,
-    pub voices: Vec<Voice>,
+    pub voice_pool: VoicePool,
     pub show_velocity: bool,
     pub rms_l: f32,
     pub rms_r: f32,
@@ -134,7 +134,7 @@ impl Track {
             samples,
             mono_samples,
             data,
-            voices: vec![],
+            voice_pool: VoicePool::default(),
             show_velocity: false,
             rms_l: 0.0,
             rms_r: 0.0,
@@ -313,16 +313,76 @@ pub fn is_audio_file(path: &std::path::Path) -> bool {
     )
 }
 
+pub const MAX_VOICES_PER_TRACK: usize = 64;
+
+/// Voice Pool, fixed amount of voices, SoA layout for SIMD capability
 #[derive(Clone)]
-/// One track note instant
-///
-/// spawned and killed
-/// TODO: figure out how voices should be managed in memory
-pub struct Voice {
-    pub position: f32,
-    pub is_playing: bool,
-    pub playback_rate: f32,
-    pub current_volume: f32,
-    pub target_volume: f32,
-    pub stop_at_frame: Option<f32>,
+pub struct VoicePool {
+    pub positions: [f32; MAX_VOICES_PER_TRACK],
+    pub rates: [f32; MAX_VOICES_PER_TRACK],
+    pub current_volumes: [f32; MAX_VOICES_PER_TRACK],
+    pub target_volumes: [f32; MAX_VOICES_PER_TRACK],
+    pub stop_at_frames: [Option<f32>; MAX_VOICES_PER_TRACK],
+    pub active: [bool; MAX_VOICES_PER_TRACK],
+    pub age: [u32; MAX_VOICES_PER_TRACK],
+    active_scratch: Vec<usize>,
+    voice_age_counter: u32,
+}
+
+impl Default for VoicePool {
+    fn default() -> Self {
+        VoicePool {
+            positions: [0.0; MAX_VOICES_PER_TRACK],
+            rates: [0.0; MAX_VOICES_PER_TRACK],
+            current_volumes: [0.0; MAX_VOICES_PER_TRACK],
+            target_volumes: [0.0; MAX_VOICES_PER_TRACK],
+            stop_at_frames: [None; MAX_VOICES_PER_TRACK],
+            active: [false; MAX_VOICES_PER_TRACK],
+            age: [0; MAX_VOICES_PER_TRACK],
+            active_scratch: Vec::new(),
+            voice_age_counter: 0,
+        }
+    }
+}
+
+impl VoicePool {
+    /// Refill the scratch buffer with indices of currently-active voices.
+    /// Call once per callback/buffer before iterating — not once per sample.
+    pub fn refresh_active_indices(&mut self) {
+        self.active_scratch.clear();
+        self.active_scratch
+            .extend((0..MAX_VOICES_PER_TRACK).filter(|&i| self.active[i]));
+    }
+
+    pub fn active_indices(&self) -> &[usize] {
+        &self.active_scratch
+    }
+
+    /// Finds a free slot, or steals the oldest active one if the pool is full.
+    pub fn spawn(
+        &mut self,
+        position: f32,
+        rate: f32,
+        current_volume: f32,
+        target_volume: f32,
+        stop_at_frame: Option<f32>,
+    ) -> usize {
+        let slot = (0..MAX_VOICES_PER_TRACK)
+            .find(|&i| !self.active[i])
+            .unwrap_or_else(|| {
+                (0..MAX_VOICES_PER_TRACK)
+                    .min_by_key(|&i| self.age[i])
+                    .unwrap()
+            });
+
+        self.positions[slot] = position;
+        self.rates[slot] = rate;
+        self.current_volumes[slot] = current_volume;
+        self.target_volumes[slot] = target_volume;
+        self.stop_at_frames[slot] = stop_at_frame;
+        self.active[slot] = true;
+        self.voice_age_counter += 1;
+        self.age[slot] = self.voice_age_counter;
+        slot
+    }
 }
