@@ -104,6 +104,11 @@ pub fn flush_denormal(x: f32) -> f32 {
     if x.abs() < 1e-15 { 0.0 } else { x }
 }
 
+/// Normalizes audio samples from clipping past [-1,1]
+pub fn soft_clip(x: f32) -> f32 {
+    x.tanh()
+}
+
 /// Convert one raw FFT magnitude into dB, correcting for FFT size and
 /// (optionally) the amplitude loss from a window function.
 ///

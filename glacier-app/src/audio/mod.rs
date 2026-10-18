@@ -11,7 +11,7 @@ use cpal::{
 };
 use glacier_dsp::{
     flush_denormal, hann_window, magnitude_to_db, samples_per_step, semitones_to_rate,
-    smooth_toward, window_compensation, SpectrumAnalyzer,
+    smooth_toward, soft_clip, window_compensation, SpectrumAnalyzer,
 };
 use ringbuf::{
     traits::{Consumer, Producer},
@@ -219,6 +219,10 @@ pub fn init(
                     engine_state.master_volume,
                 );
             }
+
+            // limit the final mixed signal before anything reads it
+            sample[0] = soft_clip(sample[0]);
+            sample[1] = soft_clip(sample[1]);
 
             // feed the spectrum analyzer with the final mixed mono signal
             spectrum_buffer.push((sample[0] + sample[1]) * 0.5);
