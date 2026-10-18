@@ -73,6 +73,13 @@ pub fn init(
     // hw_params validation (seen on SOF/HDA laptops, among others).
     let (stream_config, sample_format) = find_working_config(&device, &default_config);
 
+    let output_channels = stream_config.channels as usize;
+    assert!(
+        output_channels >= 2,
+        "Glacier requires a stereo-or-better output device; got {} channel(s)",
+        output_channels
+    );
+
     // load project file to memory
     let project: Project = project_file
         .as_deref()
@@ -97,6 +104,8 @@ pub fn init(
 
     let spectrum_analyzer = SpectrumAnalyzer::new(SPECTRUM_WINDOW);
 
+    let max_triggers = project.patterns.iter().map(|p| p.sequences.len()).sum();
+
     let mut engine_state = EngineState {
         patterns: project.patterns,
         tracks,
@@ -116,15 +125,19 @@ pub fn init(
             .iter()
             .map(|e| e.start_step + e.length)
             .max()
-            .unwrap_or(16) as usize
+            .unwrap_or(16)
+            .max(1) as usize
             - 1,
         preview_position: 0.0,
 
         // information to not be reallocated during callback
-        triggers: Vec::new(),
+        triggers: Vec::with_capacity(max_triggers),
         db: Vec::new(),
         windowed: Vec::new(),
     };
+
+    const FADE_TIME_SECS: f32 = 0.2; // or whatever duration you want
+    let fade_decrement = 1.0 / (FADE_TIME_SECS * engine_state.sample_rate);
 
     // load sample rate (the ACTUAL validated rate, not the reported default)
     engine_state
@@ -153,21 +166,30 @@ pub fn init(
         }
 
         // for each sample requested, mix in the appropriate track samples
-        for sample in data.chunks_mut(2) {
+        for sample in data.chunks_mut(output_channels) {
             // fade audio off during app shutdown
             if engine_state.is_shutting_down {
-                shutdown_volume -= 0.0001;
+                shutdown_volume -= fade_decrement;
                 if shutdown_volume <= 0.0 {
                     engine_state
                         .audio_producer
                         .try_push(UiCommand::ShutdownComplete)
                         .ok();
+                    engine_state.is_shutting_down = false;
+                    shutdown_volume = 1.0; // reset for safety, in case shutdown is ever re-triggered
                 }
             }
 
             // Zero out the sample. Fill it if the song currently is_playing.
             sample[0] = 0.0; // left channel
             sample[1] = 0.0; // right channel
+
+            // Output beyond stereo (channels 2+) is intentionally silent.
+            // Glacier mixes internally in stereo only.
+            // Real multichannel routing is a future feature, not implemented here.
+            for ch in 2..output_channels {
+                sample[ch] = 0.0;
+            }
 
             if engine_state.is_playing {
                 for track in &mut engine_state.tracks {
@@ -194,6 +216,7 @@ pub fn init(
                     &mut engine_state.preview_position,
                     &engine_state.preview_samples,
                     sample,
+                    shutdown_volume,
                     engine_state.master_volume,
                     engine_state.preview_channels,
                 );
@@ -219,14 +242,14 @@ pub fn init(
             master_rms_l,
             master_rms_r,
             &mut master_peak,
-            data.len() / 2,
+            data.len() / output_channels,
         );
 
         // when the spectrum buffer is full, push fourier compute to ui
         push_spectrum_frame(&mut engine_state, &spectrum_analyzer, &mut spectrum_buffer);
 
         if engine_state.is_playing {
-            sample_counter += data.len() as f32 / 2.0; // increment sample counter by number of samples requested : keep track of sample position
+            sample_counter += data.len() as f32 / output_channels as f32; // increment sample counter by number of samples requested : keep track of sample position
 
             // get amount of samples per step
             let step_duration: f32 = samples_per_step(engine_state.sample_rate, engine_state.bpm);
@@ -247,7 +270,8 @@ pub fn init(
                     .iter()
                     .map(|e| e.start_step + e.length)
                     .max()
-                    .unwrap_or(16) as usize;
+                    .unwrap_or(16)
+                    .max(1) as usize;
                 engine_state.current_step = (engine_state.current_step + 1) % total_steps;
 
                 engine_state
@@ -342,7 +366,7 @@ pub fn init(
                 scratch.resize(data.len(), 0.0);
                 fill_f32(&mut scratch, info);
                 for (o, s) in data.iter_mut().zip(scratch.iter()) {
-                    *o = (s.clamp(-1.0, 1.0) * i16::MAX as f32) as i16;
+                    *o = (s.clamp(-1.0, 1.0) * i16::MAX as f32).round() as i16;
                 }
             };
             device.build_output_stream(&stream_config, cb, err_fn, None)
@@ -354,7 +378,7 @@ pub fn init(
                 fill_f32(&mut scratch, info);
                 for (o, s) in data.iter_mut().zip(scratch.iter()) {
                     let clamped = s.clamp(-1.0, 1.0);
-                    *o = ((clamped * 0.5 + 0.5) * u16::MAX as f32) as u16;
+                    *o = ((clamped * 0.5 + 0.5) * u16::MAX as f32).round() as u16;
                 }
             };
             device.build_output_stream(&stream_config, cb, err_fn, None)
@@ -373,6 +397,7 @@ fn process_preview(
     preview_position: &mut f32,
     preview_samples: &[f32],
     sample: &mut [f32],
+    shutdown_volume: f32,
     master_volume: f32,
     channels: u16,
 ) {
@@ -384,8 +409,8 @@ fn process_preview(
     let lookahead = frame_lookahead(channels);
     if pos + lookahead < preview_samples.len() {
         let (l, r) = interpolate(preview_samples, *preview_position, channels);
-        sample[0] += l * master_volume;
-        sample[1] += r * master_volume;
+        sample[0] += l * shutdown_volume * master_volume;
+        sample[1] += r * shutdown_volume * master_volume;
         *preview_position += frame_advance(channels);
     }
 }
