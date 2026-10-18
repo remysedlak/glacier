@@ -165,7 +165,12 @@ pub fn draw_audio_block(
                     None => true,
                 };
                 if stale {
-                    let pairs = reduce_waveform(&t.mono_samples, waveform_rect.width as usize);
+                    let waveform_source: &[f32] = if t.data.channels == 1 {
+                        &t.samples
+                    } else {
+                        &t.mono_samples
+                    };
+                    let pairs = reduce_waveform(waveform_source, waveform_rect.width as usize);
                     waveform_cache
                         .entries
                         .insert(audio_block.id, (waveform_rect.width, pairs));

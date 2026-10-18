@@ -297,9 +297,10 @@ impl App {
             }
             // play a 5 second sample of the audio clip
             ClickResult::FsPreviewSample(track_path) => {
-                let preview = crate::project::path_to_preview(&track_path.to_string_lossy(), 5);
+                let (preview, channels) =
+                    crate::project::path_to_preview(&track_path.to_string_lossy(), 5);
                 self.producer
-                    .try_push(AudioCommand::PreviewSample(preview))
+                    .try_push(AudioCommand::PreviewSample(preview, channels))
                     .ok();
             }
             ClickResult::ChangeBpm(bpm) => {

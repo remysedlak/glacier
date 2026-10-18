@@ -27,7 +27,7 @@ pub enum AudioCommand {
     // control
     TogglePlay,
     Stop,
-    PreviewSample(Vec<f32>),
+    PreviewSample(Vec<f32>, u16),
 
     // project state
     Shutdown,
@@ -107,8 +107,9 @@ pub fn handle_command(cmd: AudioCommand, engine_state: &mut EngineState) {
                     .ok();
             }
         }
-        AudioCommand::PreviewSample(samples) => {
+        AudioCommand::PreviewSample(samples, channels) => {
             engine_state.preview_samples = samples;
+            engine_state.preview_channels = channels;
             engine_state.preview_position = 0.0;
         }
         AudioCommand::SetProjectPath(new_path) => engine_state.project_path = new_path,

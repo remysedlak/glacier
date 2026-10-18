@@ -10,8 +10,9 @@ use cpal::{
     SampleFormat,
 };
 use glacier_dsp::{
-    flush_denormal, hann_window, magnitude_to_db, samples_per_step, semitones_to_rate,
-    smooth_toward, soft_clip, window_compensation, SpectrumAnalyzer,
+    align_to_frame, flush_denormal, frame_advance, frame_lookahead, hann_window, interpolate,
+    magnitude_to_db, samples_per_step, semitones_to_rate, smooth_toward, soft_clip,
+    window_compensation, SpectrumAnalyzer,
 };
 use ringbuf::{
     traits::{Consumer, Producer},
@@ -34,6 +35,7 @@ pub struct EngineState {
     project_name: String,
     project_path: String,
     preview_samples: Vec<f32>,
+    preview_channels: u16,
     preview_position: f32,
     sample_rate: f32,
     current_step: usize,
@@ -102,6 +104,7 @@ pub fn init(
         project_name: project.name.clone(),
         project_path: project_file.unwrap_or_else(Project::default_project_file),
         preview_samples: Vec::new(),
+        preview_channels: 2,
         sample_rate: stream_config.sample_rate as f32,
         current_step: project
             .audio_blocks
@@ -168,13 +171,16 @@ pub fn init(
 
                         for i in 0..track.voice_pool.active_indices().len() {
                             let voice = track.voice_pool.active_indices()[i]; // short-lived borrow, ends immediately
-                            let pos = align_to_frame(track.voice_pool.positions[voice]);
-                            let frac = track.voice_pool.positions[voice]
-                                - track.voice_pool.positions[voice].floor();
-
+                            let channels = track.data.channels;
+                            let pos = if channels == 1 {
+                                track.voice_pool.positions[voice] as usize
+                            } else {
+                                align_to_frame(track.voice_pool.positions[voice])
+                            };
+                            let lookahead = frame_lookahead(channels);
                             let stop = track.voice_pool.stop_at_frames[voice]
                                 .unwrap_or(track.samples.len() as f32);
-                            if pos as f32 + 3.0 >= stop.min(track.samples.len() as f32) {
+                            if pos + lookahead >= stop.min(track.samples.len() as f32) as usize {
                                 track.voice_pool.active[voice] = false;
                             } else {
                                 track.voice_pool.current_volumes[voice] =
@@ -184,10 +190,11 @@ pub fn init(
                                         0.01,
                                     ));
 
-                                let l = track.samples[pos]
-                                    + frac * (track.samples[pos + 2] - track.samples[pos]);
-                                let r = track.samples[pos + 1]
-                                    + frac * (track.samples[pos + 3] - track.samples[pos + 1]);
+                                let (l, r) = interpolate(
+                                    &track.samples,
+                                    track.voice_pool.positions[voice],
+                                    track.data.channels,
+                                );
 
                                 let gain = track.voice_pool.current_volumes[voice]
                                     * track.data.track_volume
@@ -196,8 +203,9 @@ pub fn init(
                                 sample[0] += l * gain;
                                 sample[1] += r * gain;
 
+                                let advance = frame_advance(channels);
                                 track.voice_pool.positions[voice] +=
-                                    2.0 * track.voice_pool.rates[voice];
+                                    advance * track.voice_pool.rates[voice];
 
                                 track.rms_l =
                                     flush_denormal(smooth_toward(track.rms_l, l * l, 0.01));
@@ -217,6 +225,7 @@ pub fn init(
                     &engine_state.preview_samples,
                     sample,
                     engine_state.master_volume,
+                    engine_state.preview_channels,
                 );
             }
 
@@ -368,7 +377,9 @@ pub fn init(
                             {
                                 let step_duration: f32 =
                                     samples_per_step(engine_state.sample_rate, engine_state.bpm);
-                                let stop_at = audio_block.length as f32 * step_duration * 2.0;
+                                let stop_at = audio_block.length as f32
+                                    * frame_advance(track.data.channels)
+                                    * step_duration;
 
                                 track.voice_pool.spawn(0.0, 1.0, 0.0, 1.0, Some(stop_at));
                             }
@@ -438,20 +449,18 @@ fn process_preview(
     preview_samples: &[f32],
     sample: &mut [f32],
     master_volume: f32,
+    channels: u16,
 ) {
-    let pos = align_to_frame(*preview_position);
-    if pos + 3 < preview_samples.len() {
-        let frac = *preview_position - preview_position.floor();
-        let l = preview_samples[pos] + frac * (preview_samples[pos + 2] - preview_samples[pos]);
-        let r =
-            preview_samples[pos + 1] + frac * (preview_samples[pos + 3] - preview_samples[pos + 1]);
+    let pos = if channels == 1 {
+        *preview_position as usize
+    } else {
+        align_to_frame(*preview_position)
+    };
+    let lookahead = frame_lookahead(channels);
+    if pos + lookahead < preview_samples.len() {
+        let (l, r) = interpolate(preview_samples, *preview_position, channels);
         sample[0] += l * master_volume;
         sample[1] += r * master_volume;
-        *preview_position += 2.0;
+        *preview_position += frame_advance(channels);
     }
-}
-
-/// even out a sample position to force stereo operations on even array
-fn align_to_frame(pos: f32) -> usize {
-    (pos as usize) & !1
 }

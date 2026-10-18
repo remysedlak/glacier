@@ -123,7 +123,7 @@ impl Track {
     /// build track with data at default states
     pub fn from_data(data: TrackData, samples: Vec<f32>) -> Track {
         let mono_samples: Vec<f32> = if data.channels == 1 {
-            samples.to_vec()
+            Vec::new()
         } else {
             samples
                 .chunks(2)
@@ -268,23 +268,26 @@ pub fn path_to_vector(track_path: &str) -> (Vec<f32>, u16) {
 }
 
 /// Return preview clip of a track's audio data from file path
-pub fn path_to_preview(track_path: &str, seconds: usize) -> Vec<f32> {
+pub fn path_to_preview(track_path: &str, seconds: usize) -> (Vec<f32>, u16) {
     let mut reader = match hound::WavReader::open(track_path) {
         Ok(r) => r,
         Err(e) => {
             eprintln!("Failed to load {}: {}", track_path, e);
-            return Vec::new();
+            return (Vec::new(), 2);
         }
     };
     let spec = reader.spec();
     let divisor = 1 << (spec.bits_per_sample - 1);
     let max_samples = spec.sample_rate as usize * spec.channels as usize * seconds;
-    reader
+    let channels = spec.channels;
+    let preview = reader
         .samples::<i32>()
         .filter_map(|s| s.ok())
         .take(max_samples)
         .map(|s| s as f32 / divisor as f32)
-        .collect()
+        .collect();
+
+    (preview, channels)
 }
 
 /// return how many file system rows are in a Path
