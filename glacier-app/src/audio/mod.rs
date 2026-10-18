@@ -1,7 +1,8 @@
 //! An audio engine for sequencing compositions and applying DSP methods
-use crate::audio::audio_command::handle_command;
-use crate::audio::audio_command::AudioCommand;
-use crate::audio::device::find_working_config;
+use crate::audio::{
+    audio_command::{handle_command, AudioCommand},
+    device::find_working_config,
+};
 use crate::project::*;
 use crate::UiCommand;
 use cpal::{
@@ -32,6 +33,9 @@ pub struct EngineState {
     preview_position: f32,
     sample_rate: f32,
     current_step: usize,
+    triggers: Vec<(TrackID, f32, u8)>,
+    db: Vec<f32>,
+    windowed: Vec<f32>,
 }
 
 /// Initializes the CPAL engine with project file data. Returns the audio stream
@@ -103,6 +107,11 @@ pub fn init(
             .unwrap_or(16) as usize
             - 1,
         preview_position: 0.0,
+
+        // information to not be reallocated during callback
+        triggers: Vec::new(),
+        db: Vec::new(),
+        windowed: Vec::new(),
     };
 
     // load sample rate (the ACTUAL validated rate, not the reported default)
@@ -194,7 +203,7 @@ pub fn init(
                 }
             }
 
-            // preview playback at master volume (user plays a file on file tree or track window)
+            // preview playback at master volume (user clicks a file on file tree or track window)
             if !engine_state.preview_samples.is_empty() {
                 process_preview(
                     &mut engine_state.preview_position,
@@ -238,29 +247,36 @@ pub fn init(
                     .ok();
                 track.peak_hold = 0.0;
             }
-        }
+        } // exit sample mixing
 
         // when the spectrum buffer is full, push fourier compute to ui
         if spectrum_buffer.len() >= SPECTRUM_WINDOW {
             let window = glacier_dsp::hann_window(SPECTRUM_WINDOW);
             let compensation = glacier_dsp::window_compensation(&window);
 
-            let windowed: Vec<f32> = spectrum_buffer
-                .iter()
-                .zip(window.iter())
-                .map(|(x, w)| x * w)
-                .collect();
+            engine_state.windowed.clear();
+            engine_state.windowed.extend(
+                spectrum_buffer
+                    .iter()
+                    .zip(window.iter())
+                    .map(|(x, w)| x * w),
+            );
 
-            let magnitudes = spectrum_analyzer.process(&windowed);
-            let db: Vec<f32> = magnitudes
-                .iter()
-                .map(|m| glacier_dsp::magnitude_to_db(*m, SPECTRUM_WINDOW, compensation))
-                .collect();
+            let magnitudes = spectrum_analyzer.process(&engine_state.windowed);
+            engine_state.db.clear();
+            engine_state.db.extend(
+                magnitudes
+                    .iter()
+                    .map(|m| glacier_dsp::magnitude_to_db(*m, SPECTRUM_WINDOW, compensation)),
+            );
 
             engine_state
                 .audio_producer
-                .try_push(UiCommand::SpectrumFrame(db))
+                .try_push(UiCommand::SpectrumFrame(std::mem::take(
+                    &mut engine_state.db,
+                )))
                 .ok();
+
             spectrum_buffer.clear();
         }
 
@@ -296,37 +312,41 @@ pub fn init(
                     .ok();
 
                 // build out each note
-                let triggers: Vec<(TrackID, f32, u8)> = engine_state
-                    .audio_blocks
-                    .iter()
-                    .filter_map(|e| {
-                        if let AudioBlockType::Pattern(pattern_id) = e.block_type {
-                            if engine_state.current_step >= e.start_step as usize
-                                && engine_state.current_step < (e.start_step + e.length) as usize
-                            {
-                                let local_step = engine_state.current_step - e.start_step as usize;
-                                return engine_state
-                                    .patterns
-                                    .iter()
-                                    .find(|p| p.id == pattern_id)
-                                    .map(|p| (p, local_step));
+                engine_state.triggers.clear();
+                engine_state.triggers.extend(
+                    engine_state
+                        .audio_blocks
+                        .iter()
+                        .filter_map(|e| {
+                            if let AudioBlockType::Pattern(pattern_id) = e.block_type {
+                                if engine_state.current_step >= e.start_step as usize
+                                    && engine_state.current_step
+                                        < (e.start_step + e.length) as usize
+                                {
+                                    let local_step =
+                                        engine_state.current_step - e.start_step as usize;
+                                    return engine_state
+                                        .patterns
+                                        .iter()
+                                        .find(|p| p.id == pattern_id)
+                                        .map(|p| (p, local_step));
+                                }
                             }
-                        }
 
-                        None
-                    })
-                    .flat_map(|(p, local_step)| {
-                        p.sequences
-                            .iter()
-                            .filter(move |s| {
-                                local_step < s.steps.len() && s.steps[local_step].velocity > 0.0
-                            })
-                            .map(move |s| {
-                                let note = &s.steps[local_step];
-                                (s.track_id, note.velocity, note.pitch)
-                            })
-                    })
-                    .collect();
+                            None
+                        })
+                        .flat_map(|(p, local_step)| {
+                            p.sequences
+                                .iter()
+                                .filter(move |s| {
+                                    local_step < s.steps.len() && s.steps[local_step].velocity > 0.0
+                                })
+                                .map(move |s| {
+                                    let note = &s.steps[local_step];
+                                    (s.track_id, note.velocity, note.pitch)
+                                })
+                        }),
+                );
 
                 for audio_block in &engine_state.audio_blocks {
                     if let AudioBlockType::Sample(track_id) = audio_block.block_type {
@@ -355,7 +375,7 @@ pub fn init(
                     }
                 }
 
-                for (track_id, velocity, pitch) in triggers {
+                for &(track_id, velocity, pitch) in &engine_state.triggers {
                     if let Some(track) = engine_state
                         .tracks
                         .iter_mut()
