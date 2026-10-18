@@ -98,6 +98,12 @@ pub fn window_compensation(window: &[f32]) -> f32 {
     }
 }
 
+/// Flush a near-zero value to exact zero, avoiding denormal float performance penalties
+/// in decay-style computations (e.g. after smooth_toward approaching 0.0).
+pub fn flush_denormal(x: f32) -> f32 {
+    if x.abs() < 1e-15 { 0.0 } else { x }
+}
+
 /// Convert one raw FFT magnitude into dB, correcting for FFT size and
 /// (optionally) the amplitude loss from a window function.
 ///

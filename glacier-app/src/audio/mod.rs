@@ -9,6 +9,10 @@ use cpal::{
     traits::{DeviceTrait, HostTrait, StreamTrait},
     SampleFormat,
 };
+use glacier_dsp::{
+    flush_denormal, hann_window, magnitude_to_db, samples_per_step, semitones_to_rate,
+    smooth_toward, window_compensation, SpectrumAnalyzer,
+};
 use ringbuf::{
     traits::{Consumer, Producer},
     HeapCons, HeapProd,
@@ -84,7 +88,7 @@ pub fn init(
     let mut spectrum_buffer: Vec<f32> = Vec::with_capacity(2048);
     const SPECTRUM_WINDOW: usize = 2048;
 
-    let spectrum_analyzer = glacier_dsp::SpectrumAnalyzer::new(SPECTRUM_WINDOW);
+    let spectrum_analyzer = SpectrumAnalyzer::new(SPECTRUM_WINDOW);
 
     let mut engine_state = EngineState {
         patterns: project.patterns,
@@ -174,11 +178,11 @@ pub fn init(
                                 track.voice_pool.active[voice] = false;
                             } else {
                                 track.voice_pool.current_volumes[voice] =
-                                    glacier_dsp::smooth_toward(
+                                    flush_denormal(smooth_toward(
                                         track.voice_pool.current_volumes[voice],
                                         track.voice_pool.target_volumes[voice],
                                         0.01,
-                                    );
+                                    ));
 
                                 let l = track.samples[pos]
                                     + frac * (track.samples[pos + 2] - track.samples[pos]);
@@ -195,8 +199,10 @@ pub fn init(
                                 track.voice_pool.positions[voice] +=
                                     2.0 * track.voice_pool.rates[voice];
 
-                                track.rms_l = glacier_dsp::smooth_toward(track.rms_l, l * l, 0.01);
-                                track.rms_r = glacier_dsp::smooth_toward(track.rms_r, r * r, 0.01);
+                                track.rms_l =
+                                    flush_denormal(smooth_toward(track.rms_l, l * l, 0.01));
+                                track.rms_r =
+                                    flush_denormal(smooth_toward(track.rms_r, r * r, 0.01));
                                 track.peak_hold = track.peak_hold.max(l.abs().max(r.abs()));
                             }
                         }
@@ -218,8 +224,8 @@ pub fn init(
             spectrum_buffer.push((sample[0] + sample[1]) * 0.5);
 
             // update master meter info
-            master_rms_l = glacier_dsp::smooth_toward(master_rms_l, sample[0] * sample[0], 0.01);
-            master_rms_r = glacier_dsp::smooth_toward(master_rms_r, sample[1] * sample[1], 0.01);
+            master_rms_l = flush_denormal(smooth_toward(master_rms_l, sample[0] * sample[0], 0.01));
+            master_rms_r = flush_denormal(smooth_toward(master_rms_r, sample[1] * sample[1], 0.01));
             master_peak = master_peak.max(sample[0].abs().max(sample[1].abs()));
         }
 
@@ -252,8 +258,8 @@ pub fn init(
 
         // when the spectrum buffer is full, push fourier compute to ui
         if spectrum_buffer.len() >= SPECTRUM_WINDOW {
-            let window = glacier_dsp::hann_window(SPECTRUM_WINDOW);
-            let compensation = glacier_dsp::window_compensation(&window);
+            let window = hann_window(SPECTRUM_WINDOW);
+            let compensation = window_compensation(&window);
 
             engine_state.windowed.clear();
             engine_state.windowed.extend(
@@ -268,7 +274,7 @@ pub fn init(
             engine_state.db.extend(
                 magnitudes
                     .iter()
-                    .map(|m| glacier_dsp::magnitude_to_db(*m, SPECTRUM_WINDOW, compensation)),
+                    .map(|m| magnitude_to_db(*m, SPECTRUM_WINDOW, compensation)),
             );
 
             engine_state
@@ -285,18 +291,17 @@ pub fn init(
             sample_counter += data.len() as f32 / 2.0; // increment sample counter by number of samples requested : keep track of sample position
 
             // get amount of samples per step
-            let samples_per_step =
-                glacier_dsp::samples_per_step(engine_state.sample_rate, engine_state.bpm);
+            let step_duration: f32 = samples_per_step(engine_state.sample_rate, engine_state.bpm);
 
             // update UI time
-            let beat = engine_state.current_step as f32 + (sample_counter / samples_per_step);
+            let beat = engine_state.current_step as f32 + (sample_counter / step_duration);
             engine_state
                 .audio_producer
                 .try_push(UiCommand::PlayheadPosition(beat))
                 .ok();
 
             // increment the step if enough samples have passed
-            if sample_counter >= samples_per_step {
+            if sample_counter >= step_duration {
                 sample_counter = 0.0;
 
                 let total_steps = engine_state
@@ -357,11 +362,9 @@ pub fn init(
                                 .iter_mut()
                                 .find(|t| t.data.id == track_id)
                             {
-                                let samples_per_step = glacier_dsp::samples_per_step(
-                                    engine_state.sample_rate,
-                                    engine_state.bpm,
-                                );
-                                let stop_at = audio_block.length as f32 * samples_per_step * 2.0;
+                                let step_duration: f32 =
+                                    samples_per_step(engine_state.sample_rate, engine_state.bpm);
+                                let stop_at = audio_block.length as f32 * step_duration * 2.0;
 
                                 track.voice_pool.spawn(0.0, 1.0, 0.0, 1.0, Some(stop_at));
                             }
@@ -375,8 +378,7 @@ pub fn init(
                         .iter_mut()
                         .find(|track| track.data.id == track_id)
                     {
-                        let playback_rate =
-                            glacier_dsp::semitones_to_rate(pitch, track.data.root_note);
+                        let playback_rate = semitones_to_rate(pitch, track.data.root_note);
                         track
                             .voice_pool
                             .spawn(0.0, playback_rate, 0.0, velocity / 127.0, None);
