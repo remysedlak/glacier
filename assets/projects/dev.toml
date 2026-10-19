@@ -173,7 +173,7 @@ name = "bounce-kick-03.wav"
 path = "./assets/free-drum-samples/drum-samples/02-bounce/kicks/bounce-kick-03.wav"
 is_muted = false
 channels = 1
-track_volume = 1.0
+track_volume = 0.10599618
 root_note = 60
 
 [[tracks]]
@@ -182,7 +182,7 @@ name = "perc-low-tom.wav"
 path = "./assets/free-drum-samples/drum-samples/02-bounce/percs/perc-low-tom.wav"
 is_muted = false
 channels = 1
-track_volume = 1.0
+track_volume = 0.0
 root_note = 60
 
 [[patterns]]

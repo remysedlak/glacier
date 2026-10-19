@@ -37,6 +37,7 @@ pub enum WindowKind {
     TrackDetail(TrackID), // which track
 }
 
+#[derive(Debug)]
 pub struct InteractionResult {
     pub click: ClickResult,
     pub cursor: CursorIcon,

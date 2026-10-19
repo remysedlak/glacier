@@ -12,7 +12,7 @@ use crate::{
     },
 };
 
-#[derive(PartialEq)]
+#[derive(PartialEq, Debug)]
 pub enum PlaylistTool {
     Select,
     Rectangle,

@@ -16,6 +16,7 @@ use crate::{
 const CONTEXT_MENU_PADDING: f32 = 4.0;
 const CONTEXT_MENU_ITEM_HEIGHT: f32 = 24.0;
 const PATTERN_MENU_ITEM_COUNT: u32 = 6;
+const TRACK_MENU_ITEM_COUNT: u32 = 6;
 const CONTEXT_MENU_FONT_SIZE: f32 = 14.0;
 
 pub enum ContextMenuKind {
@@ -151,6 +152,7 @@ impl ContextMenu {
                 y: (self.y + (CONTEXT_MENU_ITEM_HEIGHT + PAD_4) * item as f32) + PAD_32,
             }
             .draw_style()
+            .interactive(Some(mouse_state))
             .set_hover_color(screen_config.palette.neutral.shade(3))
             .draw(
                 screen_config,
@@ -215,7 +217,7 @@ impl ContextMenu {
             out,
         );
 
-        for item in 0..5 {
+        for item in 0..TRACK_MENU_ITEM_COUNT {
             let context_item_background = Rectangle {
                 height: CONTEXT_MENU_ITEM_HEIGHT,
                 width: self.width,
@@ -223,7 +225,8 @@ impl ContextMenu {
                 y: (self.y + (CONTEXT_MENU_ITEM_HEIGHT + PAD_4) * item as f32) + PAD_32,
             }
             .draw_style()
-            .set_hover_color(screen_config.palette.neutral.shade(3))
+            .set_hover_color(screen_config.palette.neutral.shade(2))
+            .interactive(Some(mouse_state))
             .draw(
                 screen_config,
                 screen_config.palette.neutral.shade(4),

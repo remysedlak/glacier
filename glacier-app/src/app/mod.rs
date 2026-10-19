@@ -94,7 +94,7 @@ impl MouseState {
     }
 }
 
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Clone, Copy, PartialEq, Debug)]
 pub struct ScrollOffset {
     pub x: f32,
     pub y: f32,
@@ -105,7 +105,7 @@ impl Default for ScrollOffset {
     }
 }
 
-#[derive(PartialEq)]
+#[derive(PartialEq, Debug)]
 pub struct PianoRollState {
     pub pattern_id: PatternID,
     pub track_id: TrackID,

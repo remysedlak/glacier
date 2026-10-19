@@ -9,7 +9,7 @@ use crate::graphics::{
         InteractionResult, MiniWindow,
     },
     primitives::*,
-    AudioBlockType, PathBuf,
+    PathBuf,
 };
 use crate::project::{AudioBlock, AudioBlockID, PatternData, Track};
 

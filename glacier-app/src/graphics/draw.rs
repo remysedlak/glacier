@@ -73,6 +73,10 @@ impl Graphics {
             .as_ref()
             .map(|m| m.is_hovered(mouse_state.x, mouse_state.y))
             .unwrap_or(false);
+        // eprintln!(
+        //     "menu_is_hovered = {}, mouse = ({}, {})",
+        //     menu_is_hovered, mouse_state.x, mouse_state.y
+        // );
 
         if mouse_state.left_clicked && !menu_is_hovered {
             let z_order = self.z_order.clone();
@@ -488,6 +492,7 @@ impl Graphics {
                                     track,
                                     &mut vertices,
                                 );
+
                                 interaction = interaction.or(track_interaction);
                                 for icon in icons {
                                     push_icon_draw(
@@ -902,13 +907,14 @@ impl Graphics {
             ));
         };
 
-        // --- context menu ---
+        // context menu
         let context_menu_vert_start = vertices.len() as u32;
         let context_menu_char_start = char_draws.len();
         let context_menu_icon_start = icon_draws.len();
         if let Some(menu) = &self.context_menu {
             let (texts, context_menu_interaction) =
                 menu.draw(&screen_config, mouse_state, &mut vertices);
+
             Graphics::push_text_draws(
                 &texts,
                 &self.font_cache,

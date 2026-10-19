@@ -20,7 +20,7 @@ use std::thread;
 use winit::event_loop::ActiveEventLoop;
 
 /// Each frame, a ClickResult is returned from the draw method. If the mouse left clicked a component on a screen, then a ClickResult is returned and handled in app.rs.
-#[derive(PartialEq)]
+#[derive(PartialEq, Debug)]
 pub enum ClickResult {
     // sequencer
     ToggleStep(PatternID, TrackID, usize), // pattern_id, track_id, step_idx
