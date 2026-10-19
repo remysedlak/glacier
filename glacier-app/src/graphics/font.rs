@@ -13,6 +13,7 @@ pub enum Font {
     Mono,
 }
 
+// text sizes added as needed
 pub const FONT_SIZES: [f32; 9] = [6.0, 8.0, 10.0, 12.0, 14.0, 16.0, 18.0, 24.0, 32.0];
 
 impl Font {

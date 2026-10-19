@@ -19,6 +19,7 @@ use std::path::PathBuf;
 use std::sync::mpsc::{Receiver, TryRecvError};
 use std::thread;
 use std::time::Instant;
+use winit::window::Icon;
 use winit::{
     application::ApplicationHandler,
     dpi::PhysicalSize,
@@ -316,14 +317,30 @@ impl App {
     }
 }
 
+fn load_icon() -> Icon {
+    let bytes = include_bytes!("../../../assets/glacier_png.png");
+    let image = image::load_from_memory(bytes)
+        .expect("failed to decode icon")
+        .into_rgba8();
+    let (width, height) = image.dimensions();
+    let rgba = image.into_raw();
+    Icon::from_rgba(rgba, width, height).expect("failed to create icon")
+}
+
+use winit::platform::wayland::WindowAttributesExtWayland;
 impl ApplicationHandler<Graphics> for App {
+    /// typically fires once at start for OS
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
         if let State::Init(proxy) = &mut self.state {
             if let Some(proxy) = proxy.take() {
                 let mut win_attr = Window::default_attributes();
+                let icon = load_icon();
                 win_attr = win_attr
                     .with_inner_size(winit::dpi::LogicalSize::new(1800, 1200))
-                    .with_title("Glacier");
+                    .with_window_icon(Some(icon)) // windows icon (wayland attaches icon at .desktop, mac uses embeded .icns )
+                    .with_title("Glacier") // window decoration title, cross-platform, already confirmed working
+                    .with_name("Glacier", ""); // wayland app_id / taskbar label
+
                 let window = Rc::new(
                     event_loop
                         .create_window(win_attr)
