@@ -7,6 +7,9 @@ and `glacier-dsp` (the signal-processing library it depends on).
 - [Rust](https://www.rust-lang.org/tools/install) (stable toolchain)
 - A working audio output device (Glacier uses `cpal` for audio I/O)
 
+Tested on Linux and Windows. On Linux, you'll need ALSA dev headers and a
+Vulkan driver installed if they aren't already.
+
 ### Clone
 ```bash
 git clone git@github.com:remysedlak/glacier.git
