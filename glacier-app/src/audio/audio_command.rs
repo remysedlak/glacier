@@ -15,9 +15,12 @@ pub enum AudioCommand {
     ToggleStep(PatternID, TrackID, usize), // pattern_id, track_id, step_idx
     ToggleNote(PatternID, TrackID, usize, u8), // pattern_id, track_id, step_idx, pitch
     ChangeBpm(f32),
+
+    // audio blocks
     DeleteAudioBlock(AudioBlockID),
-    CreateAudioBlock(TrackID, u32, u32, AudioBlockType), // track_id, start_step, length, block_type
+    CreateAudioBlock(u32, u32, u32, AudioBlockType), // track, start_step, length, block_type
     ResizeAudioBlock(AudioBlockID, u32),
+    DuplicateAudioBlock(AudioBlockID, u32, u32),
 
     // mixing
     ChangeMasterVolume(f32),
@@ -122,6 +125,30 @@ pub fn handle_command(cmd: AudioCommand, engine_state: &mut EngineState) {
                 audio_block.length = new_length;
             }
         }
+        AudioCommand::DuplicateAudioBlock(block_id, track, step) => {
+            if let Some(block) = engine_state
+                .audio_blocks
+                .iter()
+                .find(|b| b.id == block_id)
+                .cloned()
+            {
+                let new_block = block.duplicate(
+                    crate::project::next_id(
+                        engine_state.audio_blocks.iter().map(|x| x.id.0),
+                        AudioBlockID,
+                    ),
+                    track,
+                    step,
+                );
+
+                engine_state.audio_blocks.push(new_block.clone());
+                // update the ui
+                engine_state
+                    .audio_producer
+                    .try_push(UiCommand::AudioBlockLoaded(new_block))
+                    .ok();
+            }
+        }
         AudioCommand::DuplicatePattern(pattern_id) => {
             if let Some(pattern) = engine_state
                 .patterns
@@ -129,15 +156,11 @@ pub fn handle_command(cmd: AudioCommand, engine_state: &mut EngineState) {
                 .find(|p| p.id == pattern_id)
                 .cloned()
             {
-                let new_pattern = pattern.duplicate(
-                    engine_state
-                        .patterns
-                        .iter()
-                        .map(|x| x.id.0)
-                        .max()
-                        .map(|m| PatternID(m + 1))
-                        .unwrap_or(PatternID(0)),
-                );
+                let new_pattern = pattern.duplicate(crate::project::next_id(
+                    engine_state.patterns.iter().map(|x| x.id.0),
+                    PatternID,
+                ));
+
                 engine_state.patterns.push(new_pattern.clone());
                 // update the ui
                 engine_state
@@ -189,13 +212,9 @@ pub fn handle_command(cmd: AudioCommand, engine_state: &mut EngineState) {
             }
         }
         AudioCommand::CreatePattern => {
-            let new_pattern_id = engine_state
-                .patterns
-                .iter()
-                .map(|x| x.id.0)
-                .max()
-                .map(|m| PatternID(m + 1))
-                .unwrap_or(PatternID(0));
+            // get new id
+            let new_pattern_id =
+                crate::project::next_id(engine_state.patterns.iter().map(|x| x.id.0), PatternID);
 
             // create name to be Nth pattern available
             let name = format!("Pattern {}", engine_state.patterns.len() + 1);
@@ -254,7 +273,7 @@ pub fn handle_command(cmd: AudioCommand, engine_state: &mut EngineState) {
                 .try_push(UiCommand::PlaybackStopped)
                 .ok();
         }
-        AudioCommand::CreateAudioBlock(track_id, start_step, length, block_type) => {
+        AudioCommand::CreateAudioBlock(track, start_step, length, block_type) => {
             let computed_length = match &block_type {
                 AudioBlockType::Sample(sample_track_id) => engine_state
                     .tracks
@@ -273,14 +292,11 @@ pub fn handle_command(cmd: AudioCommand, engine_state: &mut EngineState) {
             };
 
             let audio_block = AudioBlock {
-                id: engine_state
-                    .audio_blocks
-                    .iter()
-                    .map(|x| x.id.0)
-                    .max()
-                    .map(|m| AudioBlockID(m + 1))
-                    .unwrap_or(AudioBlockID(0)),
-                track_id,
+                id: crate::project::next_id(
+                    engine_state.audio_blocks.iter().map(|x| x.id.0),
+                    AudioBlockID,
+                ),
+                track,
                 start_step,
                 length: computed_length,
                 block_type,
@@ -374,14 +390,10 @@ pub fn handle_command(cmd: AudioCommand, engine_state: &mut EngineState) {
         }
 
         AudioCommand::LoadTrack(mut track_data, samples) => {
-            // used to be tracks.len()
-            track_data.id = engine_state
-                .tracks
-                .iter()
-                .map(|x| x.data.id.0)
-                .max()
-                .map(|m| TrackID(m + 1))
-                .unwrap_or(TrackID(0));
+            // get new id
+            track_data.id =
+                crate::project::next_id(engine_state.tracks.iter().map(|x| x.data.id.0), TrackID);
+
             let track = Track::from_data(track_data, samples);
             engine_state.tracks.push(track.clone()); // ownership clone
             engine_state

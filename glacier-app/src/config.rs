@@ -1,4 +1,4 @@
-//! user configs store long term ui preferences & customizations
+//! User configurations store long-term app preferences and UI customizations
 
 use serde::de::{self, Deserializer, MapAccess, Visitor};
 use serde::ser::{SerializeStruct, Serializer};

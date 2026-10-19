@@ -204,7 +204,7 @@ impl Graphics {
                         &self.patterns,
                         &self.tracks,
                         &masked_mouse,
-                        &self.active_tray,
+                        self.playlist_action,
                         &self.playlist_scroll_offset,
                         self.playhead_beat,
                         self.resizing_audio_block,
@@ -533,8 +533,8 @@ impl Graphics {
             let tray_char_start = char_draws.len();
             let tray_icon_start = icon_draws.len();
 
-            let selected_track_id: Option<TrackID> = match self.active_tray {
-                AudioBlockType::Sample(id) => Some(id),
+            let selected_track_id: Option<TrackID> = match self.playlist_action {
+                PlaylistAction::PlaceFresh(AudioBlockType::Sample(id)) => Some(id),
                 _ => None,
             };
 
@@ -703,8 +703,8 @@ impl Graphics {
             .any(|w| matches!(w.window_kind, WindowKind::Sequencer) && w.is_open);
 
         if self.show_pattern_tray {
-            let selected_pattern_id: Option<PatternID> = match self.active_tray {
-                AudioBlockType::Pattern(id) => Some(id),
+            let selected_pattern_id: Option<PatternID> = match self.playlist_action {
+                PlaylistAction::PlaceFresh(AudioBlockType::Pattern(id)) => Some(id),
                 _ => None,
             };
             let rename_cursor_offset: Option<f32> = self.renaming.as_ref().map(|r| {

@@ -50,6 +50,13 @@ use winit::{
     window::{CursorIcon, Window},
 };
 
+#[derive(Clone, Copy, PartialEq, Debug)]
+pub enum PlaylistAction {
+    PlaceFresh(AudioBlockType),
+    PlaceCopy(AudioBlockID),
+    None,
+}
+
 #[repr(C)]
 #[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
 struct ScreenUniform {
@@ -239,8 +246,8 @@ pub async fn create_graphics(window: Rc<Window>, proxy: EventLoopProxy<Graphics>
         pattern_tray_width: DEFAULT_TRAY_WIDTH,
         dragging_file: None,
         playlist_tool: PlaylistTool::Select,
+        playlist_action: PlaylistAction::None, // replaces active_tray + active_audio_block
 
-        active_tray: AudioBlockType::Mixing, // Pattern(id) or Track(id)
         fs_cache: {
             let mut cache = std::collections::HashMap::new();
             let root = audio_root.clone();
@@ -265,6 +272,8 @@ pub async fn create_graphics(window: Rc<Window>, proxy: EventLoopProxy<Graphics>
         tracks: Vec::new(),
         patterns: Vec::new(),
         audio_blocks: Vec::new(),
+
+        // chosen items
         active_step: 0,
         active_pattern_id: PatternID(0),
         bpm: DEFAULT_BPM,
@@ -377,6 +386,7 @@ pub struct Graphics {
     glyph_cache: GlyphCache,
     font_cache: FontCache,
 
+    // color palette to draw app with
     palette: Palette,
 
     //ui
@@ -385,7 +395,6 @@ pub struct Graphics {
     pub user_fs_location: PathBuf,
     pub track_tray_width: f32,
     pub pattern_tray_width: f32,
-    pub active_tray: AudioBlockType, // Pattern(id) or Track(id)
     pub renaming: Option<RenameState>,
     pub waveform_cache: WaveformCache,
 
@@ -402,6 +411,7 @@ pub struct Graphics {
     pub show_pattern_tray: bool,
     pub show_save_modal: bool,
     pub playlist_tool: PlaylistTool,
+    pub playlist_action: PlaylistAction, // replaces active_tray + active_audio_block
 
     // song
     pub project_path: String,

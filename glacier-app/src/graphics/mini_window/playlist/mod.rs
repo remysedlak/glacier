@@ -1,5 +1,5 @@
-use crate::app::click::ClickResult;
-use crate::app::{MouseState, ScrollOffset};
+use crate::app::{click::ClickResult, MouseState, ScrollOffset};
+use crate::graphics::PlaylistAction;
 use crate::graphics::{
     font::TextItem,
     geometry::checkbox,
@@ -26,7 +26,7 @@ pub fn draw(
     patterns: &[PatternData],
     tracks: &[Track],
     mouse_state: &MouseState,
-    active_tray: &AudioBlockType,
+    playlist_draw: PlaylistAction,
     scroll_offset: &ScrollOffset,
     playhead_beat: f32, // was: current_step: usize
     resizing_audio_block: Option<AudioBlockID>,
@@ -83,13 +83,14 @@ pub fn draw(
         mouse_state,
         scroll_offset,
         dragging_file,
-        active_tray,
+        playlist_draw,
         patterns,
         playlist_tool,
     );
     static_vertices.extend(toolbar_vertices);
     static_text_items.extend(toolbar_text_items);
-    interaction = interaction.or(grid_interaction);
+    // NOTE: grid_interaction is merged LAST now, after blocks — see below.
+    // Do not merge it here.
 
     // render
 
@@ -109,6 +110,9 @@ pub fn draw(
         );
         interaction = interaction.or(block_interaction)
     }
+
+    // grid only claims the click if no block already did (block > grid priority)
+    interaction = interaction.or(grid_interaction);
 
     let (ruler_vertices, ruler_text_items) =
         ruler::draw(window, screen_config, step_count, scroll_offset);

@@ -1,5 +1,6 @@
 //! handle all commands incoming from audio thread
 use super::{App, State};
+use crate::graphics::PlaylistAction;
 use crate::project::{
     AudioBlock, AudioBlockID, AudioBlockType, PatternData, PatternID, Track, TrackID,
 };
@@ -152,7 +153,7 @@ impl App {
             }
             UiCommand::TrackLoaded(track) => {
                 let track_id = track.data.id;
-                gfx.active_tray = AudioBlockType::Sample(track_id);
+                gfx.playlist_action = PlaylistAction::PlaceFresh(AudioBlockType::Sample(track_id));
                 gfx.tracks.push(track);
                 let win = &mut gfx.mini_windows[SEQUENCER_ID];
                 win.height = 100.0 + TRACK_GAP * gfx.tracks.len() as f32;

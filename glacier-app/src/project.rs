@@ -77,6 +77,10 @@ impl Default for Project {
     }
 }
 
+pub fn next_id<T>(ids: impl Iterator<Item = u32>, wrap: impl Fn(u32) -> T) -> T {
+    ids.max().map(|m| wrap(m + 1)).unwrap_or(wrap(0))
+}
+
 /// Different types of audio elements that can be placed on the playlist timeline
 #[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq)]
 #[serde(tag = "kind", content = "id")]
@@ -100,11 +104,22 @@ pub struct AudioBlockID(pub u32);
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct AudioBlock {
     pub id: AudioBlockID,
-    pub track_id: TrackID,
+    pub track: u32,
     pub start_step: u32,            // what step does this patterns start at?
     pub length: u32,                // how long is this block? (cut/extended?)
     pub block_type: AudioBlockType, // pattern/instrument/mixing
     pub is_muted: bool,
+}
+
+impl AudioBlock {
+    pub fn duplicate(&self, id: AudioBlockID, track: u32, step: u32) -> AudioBlock {
+        let mut new_block = self.clone();
+        new_block.id = id;
+        new_block.track = track;
+        new_block.start_step = step;
+        // new_block.name = format!("{} Copy", self.name);
+        new_block
+    }
 }
 
 /// Runtime Track object

@@ -1,6 +1,7 @@
 //! main state logic for audio and ui decoupling threads
 use crate::audio::audio_command::AudioCommand;
 use crate::config::UserSettings;
+use crate::graphics::PlaylistAction;
 use crate::graphics::{
     drag::DragResult,
     mini_window::{PIANO_ROLL_ID, PLAYLIST_ID, SEQUENCER_ID},
@@ -128,7 +129,7 @@ pub struct App {
     project_file_dialog_rx: Option<Receiver<Option<PathBuf>>>,
     track_load_rx: Option<Receiver<(TrackData, Vec<f32>)>>,
     project_save_dialog_rx: Option<Receiver<Option<PathBuf>>>,
-    pending_drop: Option<(TrackID, usize)>,
+    pending_drop: Option<(u32, usize)>,
 }
 
 enum State {
@@ -388,7 +389,9 @@ impl ApplicationHandler<Graphics> for App {
                                 self.shift_pressed = true;
                             }
                             PhysicalKey::Code(KeyCode::F2) => {
-                                if let AudioBlockType::Pattern(id) = gfx.active_tray {
+                                if let PlaylistAction::PlaceFresh(AudioBlockType::Pattern(id)) =
+                                    gfx.playlist_action
+                                {
                                     if let Some(pattern) = gfx.patterns.iter().find(|p| p.id == id)
                                     {
                                         gfx.renaming = Some(RenameState {

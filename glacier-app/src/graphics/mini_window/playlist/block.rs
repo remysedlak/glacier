@@ -103,7 +103,7 @@ pub fn draw_audio_block(
                     + PAD_16
                     + GRID_X_ORIGIN
                     - scroll_offset.x,
-                window.y + (audio_block.track_id.0 as f32 * PLAYLIST_TRACK_GAP) + PAD_64
+                window.y + (audio_block.track as f32 * PLAYLIST_TRACK_GAP) + PAD_64
                     - scroll_offset.y,
                 PLAYLIST_STEP_GAP * audio_block.length as f32 - 2.0,
                 PLAYLIST_STEP_HEIGHT,
@@ -132,7 +132,7 @@ pub fn draw_audio_block(
                     + PAD_16
                     + GRID_X_ORIGIN
                     - scroll_offset.x,
-                window.y + (audio_block.track_id.0 as f32 * PLAYLIST_TRACK_GAP) + PAD_64
+                window.y + (audio_block.track as f32 * PLAYLIST_TRACK_GAP) + PAD_64
                     - scroll_offset.y,
                 PLAYLIST_STEP_GAP * audio_block.length as f32 - 2.0,
                 PLAYLIST_STEP_HEIGHT,
@@ -201,6 +201,8 @@ pub fn draw_audio_block(
         interaction.cursor = CursorIcon::Pointer;
         if mouse_state.right_clicked {
             interaction.click = ClickResult::DeletePlaylistAudioBlock(audio_block.id);
+        } else if mouse_state.left_clicked {
+            interaction.click = ClickResult::SelectAudioBlockToCopy(audio_block.id);
         }
     }
     if block.right_hovered {

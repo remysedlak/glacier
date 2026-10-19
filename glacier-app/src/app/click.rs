@@ -2,6 +2,7 @@
 use super::{App, State};
 use crate::app::PianoRollState;
 use crate::audio::audio_command::AudioCommand;
+use crate::graphics::PlaylistAction;
 use crate::graphics::{
     bring_to_front,
     components::context_menu::{ContextMenu, ContextMenuKind},
@@ -46,7 +47,7 @@ pub enum ClickResult {
     DuplicatePattern(PatternID),
     CreatePattern,
     ClearPattern(PatternID),
-    AddPlaylistAudioBlock(TrackID, u32, u32, AudioBlockType),
+    AddPlaylistAudioBlock(u32, u32, u32, AudioBlockType),
     OpenPatternMenu(PatternID, f32, f32),
     StartResizeEvent(AudioBlockID),
     ChangePlaylistTool(PlaylistTool),
@@ -68,6 +69,8 @@ pub enum ClickResult {
     ToggleTrackTray,
     SelectPattern(PatternID),
     SelectTrackTray(TrackID),
+    SelectAudioBlockToCopy(AudioBlockID),
+    DuplicatePlaylistAudioBlock(AudioBlockID, u32, u32),
 
     // modal controls
     ModalConfirmSaveAndExit,
@@ -78,7 +81,7 @@ pub enum ClickResult {
     FsToggleDir(PathBuf),
     FsPreviewSample(PathBuf),
     FsStartDragFile(PathBuf),
-    FSEndDragFile(PathBuf, TrackID, usize), // track, step
+    FSEndDragFile(PathBuf, u32, usize), // track, step
 
     // no click result
     None,
@@ -96,6 +99,12 @@ impl App {
 
         match result {
             // UI EDITS
+            ClickResult::DuplicatePlaylistAudioBlock(block_id, track, step) => {
+                self.producer
+                    .try_push(AudioCommand::DuplicateAudioBlock(block_id, track, step))
+                    .ok();
+            }
+
             ClickResult::ToggleStretchMode => {
                 gfx.stretch_mode = !gfx.stretch_mode;
             }
@@ -125,7 +134,18 @@ impl App {
                 }
             }
             ClickResult::FsStartDragFile(path) => gfx.dragging_file = Some(path),
-            ClickResult::SelectTrackTray(id) => gfx.active_tray = AudioBlockType::Sample(id),
+            ClickResult::SelectAudioBlockToCopy(block_id) => {
+                gfx.playlist_action = PlaylistAction::PlaceCopy(block_id);
+            }
+            ClickResult::SelectTrackTray(id) => {
+                eprintln!("set playlist_action: PlaceFresh(Sample({:?}))", id);
+                gfx.playlist_action = PlaylistAction::PlaceFresh(AudioBlockType::Sample(id));
+            }
+            ClickResult::SelectPattern(pattern_id) => {
+                gfx.active_pattern_id = pattern_id;
+                gfx.playlist_action =
+                    PlaylistAction::PlaceFresh(AudioBlockType::Pattern(pattern_id));
+            }
             ClickResult::FSEndDragFile(path, track, step) => {
                 let path_str = path.to_string_lossy().to_string();
                 self.pending_drop = Some((track, step));
@@ -203,10 +223,6 @@ impl App {
                 });
             }
 
-            ClickResult::SelectPattern(pattern_id) => {
-                gfx.active_pattern_id = pattern_id;
-                gfx.active_tray = AudioBlockType::Pattern(pattern_id);
-            }
             ClickResult::ToggleTrackWindow(track_id) => {
                 let Some(track) = gfx.tracks.iter().find(|t| t.data.id == track_id) else {
                     return; // track no longer exists; nothing to open

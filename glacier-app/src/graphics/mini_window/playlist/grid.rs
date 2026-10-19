@@ -11,8 +11,9 @@ use crate::{
             InteractionResult, MiniWindow,
         },
         primitives::{ScreenConfig, Vertex, NO_RADIUS, PAD_16, PAD_4, PAD_64, PAD_8},
+        PlaylistAction,
     },
-    project::{AudioBlockType, PatternData, TrackID},
+    project::{AudioBlockType, PatternData},
 };
 
 pub const PLAYLIST_STEP_WIDTH: f32 = 32.0;
@@ -30,7 +31,7 @@ pub fn draw(
     mouse_state: &MouseState,
     scroll_offset: &ScrollOffset,
     dragging_file: Option<&PathBuf>,
-    active_tray: &AudioBlockType,
+    playlist_draw: PlaylistAction,
     patterns: &[PatternData],
     playlist_tool: &PlaylistTool,
 ) -> (
@@ -122,26 +123,40 @@ pub fn draw(
                 if let Some(path) = dragging_file {
                     if mouse_state.left_released {
                         interaction.click =
-                            ClickResult::FSEndDragFile(path.clone(), TrackID(track as u32), step);
+                            ClickResult::FSEndDragFile(path.clone(), track as u32, step);
                     }
                 } else if mouse_state.left_clicked {
-                    let length = match &active_tray {
-                        AudioBlockType::Pattern(id) => patterns
-                            .iter()
-                            .find(|p| p.id == *id)
-                            .and_then(|p| p.sequences.first())
-                            .map(|s| s.steps.len())
-                            .unwrap_or(16),
-                        _ => 1,
-                    };
-                    interaction.click = ClickResult::AddPlaylistAudioBlock(
-                        TrackID(track as u32),
-                        step as u32,
-                        length.try_into().unwrap(),
-                        *active_tray,
-                    );
+                    eprintln!("grid click, playlist_draw = {:?}", playlist_draw);
+                    match playlist_draw {
+                        PlaylistAction::PlaceCopy(source_id) => {
+                            interaction.click = ClickResult::DuplicatePlaylistAudioBlock(
+                                source_id,
+                                track as u32,
+                                step as u32,
+                            );
+                        }
+                        PlaylistAction::PlaceFresh(block_type) => {
+                            let length = match block_type {
+                                AudioBlockType::Pattern(id) => patterns
+                                    .iter()
+                                    .find(|p| p.id == id)
+                                    .and_then(|p| p.sequences.first())
+                                    .map(|s| s.steps.len())
+                                    .unwrap_or(16),
+                                _ => 1,
+                            };
+                            interaction.click = ClickResult::AddPlaylistAudioBlock(
+                                track as u32,
+                                step as u32,
+                                length.try_into().unwrap(),
+                                block_type,
+                            );
+                        }
+                        PlaylistAction::None => {}
+                    }
                 }
             }
+
             pl_step.draw(screen_config, color, NO_RADIUS, &mut grid_vertices);
         }
     }

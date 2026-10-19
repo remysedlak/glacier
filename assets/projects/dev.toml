@@ -3,32 +3,10 @@ bpm = 120.0
 master_volume = 1.0
 
 [[audio_blocks]]
-id = 0
-track_id = 0
-start_step = 0
-length = 3
-is_muted = false
-
-[audio_blocks.block_type]
-kind = "Sample"
-id = 0
-
-[[audio_blocks]]
-id = 2
-track_id = 0
+id = 4
+track = 3
 start_step = 8
-length = 3
-is_muted = false
-
-[audio_blocks.block_type]
-kind = "Sample"
-id = 0
-
-[[audio_blocks]]
-id = 3
-track_id = 0
-start_step = 12
-length = 4
+length = 2
 is_muted = false
 
 [audio_blocks.block_type]
@@ -37,299 +15,162 @@ id = 0
 
 [[audio_blocks]]
 id = 5
-track_id = 1
-start_step = 12
-length = 3
-is_muted = false
-
-[audio_blocks.block_type]
-kind = "Sample"
-id = 1
-
-[[audio_blocks]]
-id = 6
-track_id = 2
-start_step = 10
-length = 5
-is_muted = false
-
-[audio_blocks.block_type]
-kind = "Sample"
-id = 2
-
-[[audio_blocks]]
-id = 7
-track_id = 3
-start_step = 0
-length = 2
-is_muted = false
-
-[audio_blocks.block_type]
-kind = "Sample"
-id = 3
-
-[[audio_blocks]]
-id = 8
-track_id = 3
+track = 3
 start_step = 4
 length = 2
 is_muted = false
 
 [audio_blocks.block_type]
 kind = "Sample"
-id = 3
+id = 0
 
 [[audio_blocks]]
-id = 9
-track_id = 3
-start_step = 8
+id = 6
+track = 3
+start_step = 0
 length = 2
 is_muted = false
 
 [audio_blocks.block_type]
 kind = "Sample"
-id = 3
+id = 0
 
 [[audio_blocks]]
-id = 10
-track_id = 3
+id = 7
+track = 3
+start_step = 12
+length = 2
+is_muted = false
+
+[audio_blocks.block_type]
+kind = "Sample"
+id = 0
+
+[[audio_blocks]]
+id = 8
+track = 1
 start_step = 2
 length = 2
 is_muted = false
 
 [audio_blocks.block_type]
 kind = "Sample"
-id = 3
+id = 0
 
 [[audio_blocks]]
-id = 11
-track_id = 3
+id = 9
+track = 1
 start_step = 6
 length = 2
 is_muted = false
 
 [audio_blocks.block_type]
 kind = "Sample"
-id = 3
+id = 0
 
 [[audio_blocks]]
-id = 12
-track_id = 3
+id = 10
+track = 1
 start_step = 10
 length = 2
 is_muted = false
 
 [audio_blocks.block_type]
 kind = "Sample"
-id = 3
+id = 0
 
 [[audio_blocks]]
-id = 13
-track_id = 3
-start_step = 12
-length = 2
-is_muted = false
-
-[audio_blocks.block_type]
-kind = "Sample"
-id = 3
-
-[[audio_blocks]]
-id = 14
-track_id = 3
-start_step = 14
-length = 2
-is_muted = false
-
-[audio_blocks.block_type]
-kind = "Sample"
-id = 3
-
-[[audio_blocks]]
-id = 18
-track_id = 4
-start_step = 0
-length = 5
-is_muted = false
-
-[audio_blocks.block_type]
-kind = "Sample"
-id = 8
-
-[[audio_blocks]]
-id = 19
-track_id = 4
-start_step = 6
-length = 5
-is_muted = false
-
-[audio_blocks.block_type]
-kind = "Sample"
-id = 8
-
-[[audio_blocks]]
-id = 20
-track_id = 3
-start_step = 0
-length = 1
-is_muted = false
-
-[audio_blocks.block_type]
-kind = "Mixing"
-
-[[audio_blocks]]
-id = 21
-track_id = 2
-start_step = 1
-length = 1
-is_muted = false
-
-[audio_blocks.block_type]
-kind = "Mixing"
-
-[[audio_blocks]]
-id = 22
-track_id = 3
-start_step = 0
-length = 1
-is_muted = false
-
-[audio_blocks.block_type]
-kind = "Mixing"
-
-[[audio_blocks]]
-id = 23
-track_id = 2
-start_step = 1
-length = 2
-is_muted = false
-
-[audio_blocks.block_type]
-kind = "Sample"
-id = 3
-
-[[audio_blocks]]
-id = 24
-track_id = 2
-start_step = 3
-length = 2
-is_muted = false
-
-[audio_blocks.block_type]
-kind = "Sample"
-id = 3
-
-[[audio_blocks]]
-id = 25
-track_id = 2
-start_step = 5
-length = 2
-is_muted = false
-
-[audio_blocks.block_type]
-kind = "Sample"
-id = 3
-
-[[audio_blocks]]
-id = 26
-track_id = 5
-start_step = 4
-length = 11
-is_muted = false
-
-[audio_blocks.block_type]
-kind = "Sample"
-id = 7
-
-[[audio_blocks]]
-id = 28
-track_id = 8
-start_step = 5
-length = 6
-is_muted = false
-
-[audio_blocks.block_type]
-kind = "Sample"
-id = 7
-
-[[audio_blocks]]
-id = 29
-track_id = 2
-start_step = 5
-length = 1
-is_muted = false
-
-[audio_blocks.block_type]
-kind = "Mixing"
-
-[[audio_blocks]]
-id = 30
-track_id = 2
-start_step = 7
-length = 1
-is_muted = false
-
-[audio_blocks.block_type]
-kind = "Mixing"
-
-[[audio_blocks]]
-id = 31
-track_id = 6
-start_step = 6
-length = 1
-is_muted = false
-
-[audio_blocks.block_type]
-kind = "Mixing"
-
-[[audio_blocks]]
-id = 32
-track_id = 6
-start_step = 7
-length = 2
-is_muted = false
-
-[audio_blocks.block_type]
-kind = "Sample"
-id = 3
-
-[[audio_blocks]]
-id = 33
-track_id = 6
-start_step = 9
-length = 2
-is_muted = false
-
-[audio_blocks.block_type]
-kind = "Sample"
-id = 3
-
-[[audio_blocks]]
-id = 34
-track_id = 6
-start_step = 11
-length = 2
-is_muted = false
-
-[audio_blocks.block_type]
-kind = "Sample"
-id = 3
-
-[[audio_blocks]]
-id = 35
-track_id = 6
+id = 11
+track = 1
 start_step = 13
 length = 2
 is_muted = false
 
 [audio_blocks.block_type]
 kind = "Sample"
-id = 3
+id = 0
+
+[[audio_blocks]]
+id = 12
+track = 0
+start_step = 0
+length = 13
+is_muted = false
+
+[audio_blocks.block_type]
+kind = "Sample"
+id = 0
+
+[[audio_blocks]]
+id = 14
+track = 5
+start_step = 12
+length = 3
+is_muted = false
+
+[audio_blocks.block_type]
+kind = "Sample"
+id = 1
+
+[[audio_blocks]]
+id = 15
+track = 5
+start_step = 4
+length = 3
+is_muted = false
+
+[audio_blocks.block_type]
+kind = "Sample"
+id = 1
+
+[[audio_blocks]]
+id = 16
+track = 2
+start_step = 0
+length = 16
+is_muted = false
+
+[audio_blocks.block_type]
+kind = "Pattern"
+id = 0
+
+[[audio_blocks]]
+id = 17
+track = 4
+start_step = 0
+length = 16
+is_muted = false
+
+[audio_blocks.block_type]
+kind = "Pattern"
+id = 0
+
+[[audio_blocks]]
+id = 18
+track = 1
+start_step = 0
+length = 2
+is_muted = false
+
+[audio_blocks.block_type]
+kind = "Sample"
+id = 0
+
+[[audio_blocks]]
+id = 19
+track = 1
+start_step = 5
+length = 2
+is_muted = false
+
+[audio_blocks.block_type]
+kind = "Sample"
+id = 0
 
 [[tracks]]
 id = 0
-name = "hard-kick-03.wav"
-path = "./assets/free-drum-samples/drum-samples/01-hard-trap/kicks/hard-kick-03.wav"
+name = "bounce-kick-03.wav"
+path = "./assets/free-drum-samples/drum-samples/02-bounce/kicks/bounce-kick-03.wav"
 is_muted = false
 channels = 1
 track_volume = 1.0
@@ -337,71 +178,8 @@ root_note = 60
 
 [[tracks]]
 id = 1
-name = "hard-snare-02.wav"
-path = "./assets/free-drum-samples/drum-samples/01-hard-trap/snares/hard-snare-02.wav"
-is_muted = false
-channels = 1
-track_volume = 1.0
-root_note = 60
-
-[[tracks]]
-id = 2
 name = "perc-low-tom.wav"
-path = "./assets/free-drum-samples/drum-samples/01-hard-trap/percs/perc-low-tom.wav"
-is_muted = false
-channels = 1
-track_volume = 1.0
-root_note = 60
-
-[[tracks]]
-id = 3
-name = "ch.wav"
-path = "./assets/free-drum-samples/drum-samples/01-hard-trap/hi-hats/ch.wav"
-is_muted = false
-channels = 1
-track_volume = 1.0
-root_note = 60
-
-[[tracks]]
-id = 4
-name = "808-bass-dist.wav"
-path = "./assets/free-drum-samples/drum-samples/01-hard-trap/808s/808-bass-dist.wav"
-is_muted = false
-channels = 1
-track_volume = 1.0
-root_note = 60
-
-[[tracks]]
-id = 5
-name = "hard-kick-02.wav"
-path = "./assets/free-drum-samples/drum-samples/01-hard-trap/kicks/hard-kick-02.wav"
-is_muted = false
-channels = 1
-track_volume = 1.0
-root_note = 60
-
-[[tracks]]
-id = 6
-name = "open-hat-01.wav"
-path = "./assets/free-drum-samples/drum-samples/02-bounce/open-hats/open-hat-01.wav"
-is_muted = false
-channels = 1
-track_volume = 1.0
-root_note = 60
-
-[[tracks]]
-id = 7
-name = "cp.wav"
-path = "./assets/free-drum-samples/drum-samples/02-bounce/claps/cp.wav"
-is_muted = false
-channels = 1
-track_volume = 1.0
-root_note = 60
-
-[[tracks]]
-id = 8
-name = "perc-high-tom.wav"
-path = "./assets/free-drum-samples/drum-samples/03-soulful-vintage/percs/perc-high-tom.wav"
+path = "./assets/free-drum-samples/drum-samples/02-bounce/percs/perc-low-tom.wav"
 is_muted = false
 channels = 1
 track_volume = 1.0
