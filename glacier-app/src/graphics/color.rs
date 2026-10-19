@@ -21,13 +21,13 @@ impl Palette {
         }
     }
 
-    /// load a pallete from a file on disk
+    /// Load a precomputed color palette from a file on disk
     pub fn load_from_toml(file_path: &str) -> Option<Palette> {
         let text = std::fs::read_to_string(file_path).ok()?;
         toml::from_str(&text).ok()
     }
 
-    /// Save the pallete to a location on disk
+    /// Save the computed pallete to a location on disk
     pub fn save_to_toml(&self, file_path: &str) {
         let path = std::path::Path::new(file_path);
         if let Some(parent) = path.parent() {
@@ -42,21 +42,25 @@ impl Palette {
 }
 
 #[derive(Serialize, Deserialize, Clone)]
+/// 8 shades computed for one Color
 pub struct ColorRamp {
     shades: [Color; 8], // index 0 = darkest ... 9 = lightest
 }
 
 impl ColorRamp {
+    /// Return the hover shade
     pub fn hover(&self, i: usize) -> Color {
         self.shades[(i + 1).min(self.shades.len() - 1)]
     }
 
+    /// Create a color ramp for one color
     pub fn new(color: Color) -> ColorRamp {
+        // create srgb and oklch model of color
         let srgb = Srgb::new(color.r, color.g, color.b);
         let oklch: Oklch = srgb.into_color();
 
+        // Create 8 shades of the color, converted to oklch/srgb and back to rgba
         const L_STEPS: [f32; 8] = [0.09, 0.20, 0.33, 0.45, 0.58, 0.70, 0.83, 0.95];
-
         let mut shades = [color; 8];
         for i in 0..8 {
             let l = L_STEPS[i];
@@ -74,14 +78,14 @@ impl ColorRamp {
         ColorRamp { shades }
     }
 
+    /// Get ColorRamp shade by index
     pub fn shade(&self, i: usize) -> Color {
         self.shades[i]
     }
 }
 
-// old code below this line
-
 #[derive(Serialize, Deserialize, Clone, Copy, Debug)]
+/// Color stored in RGBA: red, green, blue, alpha
 pub struct Color {
     pub r: f32,
     pub g: f32,

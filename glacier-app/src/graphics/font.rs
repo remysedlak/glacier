@@ -68,6 +68,7 @@ impl GlyphEntry {
     }
 }
 
+/// Store a cache of Font enums mapped to rendered fonts
 pub struct FontCache(HashMap<Font, fontdue::Font>);
 
 impl FontCache {
