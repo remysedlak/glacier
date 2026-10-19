@@ -273,7 +273,6 @@ pub async fn create_graphics(window: Rc<Window>, proxy: EventLoopProxy<Graphics>
         patterns: Vec::new(),
         audio_blocks: Vec::new(),
 
-        // chosen items
         active_step: 0,
         active_pattern_id: PatternID(0),
         bpm: DEFAULT_BPM,
@@ -285,6 +284,7 @@ pub async fn create_graphics(window: Rc<Window>, proxy: EventLoopProxy<Graphics>
         glyph_cache,
         font_cache,
 
+        // color palette
         palette,
 
         // iconography
@@ -378,56 +378,56 @@ fn create_pipeline(
 
 /// Main struct holding all graphics state, including wgpu objects, loaded fonts and icons, and UI state like open windows and dragging
 pub struct Graphics {
-    pub fs_cache: std::collections::HashMap<std::path::PathBuf, Vec<(std::path::PathBuf, bool)>>,
+    // gui
     pub render_context: RenderContext,
     pub window: std::sync::Arc<Window>,
+    num_vertices: u32,
+    pub frame_ms: f32,       // FPS
+    pub z_order: Vec<usize>, // painters algorithm
 
-    // text
-    glyph_cache: GlyphCache,
-    font_cache: FontCache,
-
-    // color palette to draw app with
-    palette: Palette,
-
-    //ui
+    // ui
     pub stretch_mode: bool,
-    pub expanded_dirs: std::collections::HashSet<PathBuf>,
-    pub user_fs_location: PathBuf,
     pub track_tray_width: f32,
     pub pattern_tray_width: f32,
-    pub renaming: Option<RenameState>,
-    pub waveform_cache: WaveformCache,
-
+    icon_cache: IconCache,
+    glyph_cache: GlyphCache,
+    font_cache: FontCache,
+    palette: Palette,
+    pub playlist_tool: PlaylistTool,
+    pub playlist_action: PlaylistAction, // replaces active_tray + active_audio_block
     pub mini_windows: Vec<MiniWindow>,
-    num_vertices: u32,
     pub active_pattern_id: PatternID,
     pub piano_roll_state: Option<PianoRollState>,
-    pub z_order: Vec<usize>,
-    pub context_menu: Option<ContextMenu>,
-    icon_cache: IconCache,
-    pub tooltip: Option<Tooltip>,
-    pub frame_ms: f32,
+
+    // filesystem
+    pub fs_cache: std::collections::HashMap<std::path::PathBuf, Vec<(std::path::PathBuf, bool)>>,
+    pub expanded_dirs: std::collections::HashSet<PathBuf>,
+    pub user_fs_location: PathBuf,
+
+    // conditional rendering
     pub show_track_tray: bool,
     pub show_pattern_tray: bool,
     pub show_save_modal: bool,
-    pub playlist_tool: PlaylistTool,
-    pub playlist_action: PlaylistAction, // replaces active_tray + active_audio_block
+    pub tooltip: Option<Tooltip>,
+    pub context_menu: Option<ContextMenu>,
+    pub renaming: Option<RenameState>,
 
     // song
+    pub waveform_cache: WaveformCache,
     pub project_path: String,
     pub tracks: Vec<Track>,
     pub patterns: Vec<PatternData>,
     pub audio_blocks: Vec<AudioBlock>,
     pub active_step: usize,
     pub playhead_beat: f32,
-    pub bpm: f32,
+    pub sample_rate: f32,
     pub is_playing: bool,
     pub master_volume: f32,
     pub master_rms_l: f32,
     pub master_rms_r: f32,
     pub master_peak: f32,
+    pub bpm: f32,
     pub spectrum: Vec<f32>,
-    pub sample_rate: f32,
 
     // dragging
     pub dragging_knob: Option<TrackID>, // volume knob
