@@ -300,7 +300,7 @@ pub fn draw_knob(
         radius,
         32,
         screen_config,
-        screen_config.palette.neutral.shade(4),
+        screen_config.palette.neutral.shade(3),
         vertex_buffer,
     );
 
