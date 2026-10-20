@@ -1,5 +1,6 @@
 use glacier_dsp::{
-    align_to_frame, flush_denormal, frame_advance, frame_lookahead, interpolate, smooth_toward,
+    envelope::{flush_denormal, smooth_toward},
+    resample::{align_to_frame, frame_advance, frame_lookahead, interpolate},
 };
 
 use crate::project::Track;

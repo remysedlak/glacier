@@ -12,9 +12,12 @@ use cpal::{
     traits::{DeviceTrait, HostTrait, StreamTrait},
     SampleFormat,
 };
+
 use glacier_dsp::{
-    align_to_frame, flush_denormal, frame_advance, frame_lookahead, interpolate, samples_per_step,
-    semitones_to_rate, smooth_toward, soft_clip, SpectrumAnalyzer,
+    envelope::{flush_denormal, smooth_toward},
+    resample::{align_to_frame, frame_advance, frame_lookahead, interpolate},
+    spectral::SpectrumAnalyzer,
+    utils::{samples_per_step, semitones_to_rate, soft_clip},
 };
 use ringbuf::{
     traits::{Consumer, Producer},

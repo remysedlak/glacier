@@ -1,4 +1,6 @@
 //! Draws the power spectrum of the mixed audio signal as a log-scaled bar chart.
+use glacier_dsp::spectral::freq_to_bin;
+
 use crate::graphics::{
     components::toolbar::{ICON_SIZE, PLAY_Y_ORIGIN},
     geometry::icon_border,
@@ -41,8 +43,8 @@ pub fn draw(
         let freq_start = log_position_to_freq(ratio_start, MIN_FREQ, max_freq);
         let freq_end = log_position_to_freq(ratio_end, MIN_FREQ, max_freq);
 
-        let bin_start = glacier_dsp::freq_to_bin(freq_start, sample_rate, window_size);
-        let bin_end = glacier_dsp::freq_to_bin(freq_end, sample_rate, window_size)
+        let bin_start = freq_to_bin(freq_start, sample_rate, window_size);
+        let bin_end = freq_to_bin(freq_end, sample_rate, window_size)
             .max(bin_start + 1)
             .min(spectrum_db.len());
 

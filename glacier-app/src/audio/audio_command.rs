@@ -7,6 +7,7 @@ use crate::{
     },
 };
 
+use glacier_dsp::utils::samples_per_step;
 use ringbuf::traits::Producer;
 
 /// A command sent from the UI thread to control the audio engine
@@ -280,10 +281,8 @@ pub fn handle_command(cmd: AudioCommand, engine_state: &mut EngineState) {
                     .iter()
                     .find(|t| t.data.id == *sample_track_id)
                     .map(|track| {
-                        let samples_per_step = glacier_dsp::samples_per_step(
-                            engine_state.sample_rate,
-                            engine_state.bpm,
-                        );
+                        let samples_per_step =
+                            samples_per_step(engine_state.sample_rate, engine_state.bpm);
                         let frames = (track.samples.len() / track.data.channels as usize) as f32;
                         (frames / samples_per_step).ceil() as u32
                     })

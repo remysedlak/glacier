@@ -2,7 +2,11 @@ use crate::{
     app::UiCommand,
     audio::{EngineState, SPECTRUM_WINDOW},
 };
-use glacier_dsp::{hann_window, magnitude_to_db, window_compensation, SpectrumAnalyzer};
+
+use glacier_dsp::{
+    spectral::{hann_window, magnitude_to_db, SpectrumAnalyzer},
+    window::window_compensation,
+};
 use ringbuf::traits::Producer;
 
 pub fn push_meter_updates(
@@ -43,18 +47,25 @@ pub fn push_meter_updates(
     }
 }
 
+/// Update the UI spectrum analyzer with new frame data
 pub fn push_spectrum_frame(
     engine_state: &mut EngineState,
     spectrum_analyzer: &SpectrumAnalyzer,
     spectrum_buffer: &mut Vec<f32>,
 ) {
+    // A spectrum analysis (FFT) needs a fixed-size block of samples
     if spectrum_buffer.len() < SPECTRUM_WINDOW {
         return;
     }
 
+    // apply hann window and compensate
     let window = hann_window(SPECTRUM_WINDOW);
+
+    // compensation is a correction factor that scales the result back up to compensate for that energy loss
+    // ...otherwise dB readings would all read artificially quiet.
     let compensation = window_compensation(&window);
 
+    // Applies the window: multiplies each sample by its corresponding window coefficient
     engine_state.windowed.clear();
     engine_state.windowed.extend(
         spectrum_buffer
@@ -63,7 +74,10 @@ pub fn push_spectrum_frame(
             .map(|(x, w)| x * w),
     );
 
+    // This is where the actual FFT happens
     let magnitudes = spectrum_analyzer.process(&engine_state.windowed);
+
+    // Converts magnitude to dB
     engine_state.db.clear();
     engine_state.db.extend(
         magnitudes
@@ -71,6 +85,7 @@ pub fn push_spectrum_frame(
             .map(|m| magnitude_to_db(*m, SPECTRUM_WINDOW, compensation)),
     );
 
+    // the full Vec gets handed off to the ringbuf, not dropped synchronously on the audio thread
     engine_state
         .audio_producer
         .try_push(UiCommand::SpectrumFrame(std::mem::take(
@@ -78,5 +93,6 @@ pub fn push_spectrum_frame(
         )))
         .ok();
 
+    // clear audio engine's spectrum db buffer
     spectrum_buffer.clear();
 }
