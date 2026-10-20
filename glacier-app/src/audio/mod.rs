@@ -358,7 +358,7 @@ pub fn init(
             let cb = move |data: &mut [f32], info: &cpal::OutputCallbackInfo| {
                 fill_f32(data, info);
             };
-            device.build_output_stream(&stream_config, cb, err_fn, None)
+            device.build_output_stream(stream_config, cb, err_fn, None)
         }
         SampleFormat::I16 => {
             let mut scratch: Vec<f32> = Vec::new();
@@ -369,7 +369,7 @@ pub fn init(
                     *o = (s.clamp(-1.0, 1.0) * i16::MAX as f32).round() as i16;
                 }
             };
-            device.build_output_stream(&stream_config, cb, err_fn, None)
+            device.build_output_stream(stream_config, cb, err_fn, None)
         }
         SampleFormat::U16 => {
             let mut scratch: Vec<f32> = Vec::new();
@@ -381,7 +381,7 @@ pub fn init(
                     *o = ((clamped * 0.5 + 0.5) * u16::MAX as f32).round() as u16;
                 }
             };
-            device.build_output_stream(&stream_config, cb, err_fn, None)
+            device.build_output_stream(stream_config, cb, err_fn, None)
         }
         other => panic!("Unsupported sample format '{other}'"),
     }

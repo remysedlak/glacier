@@ -1,100 +1,12 @@
 name = "New Project"
 bpm = 120.0
-master_volume = 1.0
-
-[[audio_blocks]]
-id = 4
-track = 3
-start_step = 8
-length = 2
-is_muted = false
-
-[audio_blocks.block_type]
-kind = "Sample"
-id = 0
-
-[[audio_blocks]]
-id = 5
-track = 3
-start_step = 4
-length = 2
-is_muted = false
-
-[audio_blocks.block_type]
-kind = "Sample"
-id = 0
+master_volume = 0.9617235
 
 [[audio_blocks]]
 id = 6
 track = 3
 start_step = 0
-length = 2
-is_muted = false
-
-[audio_blocks.block_type]
-kind = "Sample"
-id = 0
-
-[[audio_blocks]]
-id = 7
-track = 3
-start_step = 12
-length = 2
-is_muted = false
-
-[audio_blocks.block_type]
-kind = "Sample"
-id = 0
-
-[[audio_blocks]]
-id = 8
-track = 1
-start_step = 2
-length = 2
-is_muted = false
-
-[audio_blocks.block_type]
-kind = "Sample"
-id = 0
-
-[[audio_blocks]]
-id = 9
-track = 1
-start_step = 6
-length = 2
-is_muted = false
-
-[audio_blocks.block_type]
-kind = "Sample"
-id = 0
-
-[[audio_blocks]]
-id = 10
-track = 1
-start_step = 10
-length = 2
-is_muted = false
-
-[audio_blocks.block_type]
-kind = "Sample"
-id = 0
-
-[[audio_blocks]]
-id = 11
-track = 1
-start_step = 13
-length = 2
-is_muted = false
-
-[audio_blocks.block_type]
-kind = "Sample"
-id = 0
-
-[[audio_blocks]]
-id = 12
-track = 0
-start_step = 0
-length = 13
+length = 4
 is_muted = false
 
 [audio_blocks.block_type]
@@ -124,17 +36,6 @@ kind = "Sample"
 id = 1
 
 [[audio_blocks]]
-id = 16
-track = 2
-start_step = 0
-length = 16
-is_muted = false
-
-[audio_blocks.block_type]
-kind = "Pattern"
-id = 0
-
-[[audio_blocks]]
 id = 17
 track = 4
 start_step = 0
@@ -146,10 +47,21 @@ kind = "Pattern"
 id = 0
 
 [[audio_blocks]]
-id = 18
-track = 1
-start_step = 0
-length = 2
+id = 20
+track = 4
+start_step = 16
+length = 16
+is_muted = false
+
+[audio_blocks.block_type]
+kind = "Pattern"
+id = 0
+
+[[audio_blocks]]
+id = 21
+track = 3
+start_step = 4
+length = 4
 is_muted = false
 
 [audio_blocks.block_type]
@@ -157,15 +69,279 @@ kind = "Sample"
 id = 0
 
 [[audio_blocks]]
-id = 19
-track = 1
-start_step = 5
-length = 2
+id = 22
+track = 3
+start_step = 8
+length = 4
 is_muted = false
 
 [audio_blocks.block_type]
 kind = "Sample"
 id = 0
+
+[[audio_blocks]]
+id = 23
+track = 3
+start_step = 12
+length = 4
+is_muted = false
+
+[audio_blocks.block_type]
+kind = "Sample"
+id = 0
+
+[[audio_blocks]]
+id = 24
+track = 3
+start_step = 16
+length = 4
+is_muted = false
+
+[audio_blocks.block_type]
+kind = "Sample"
+id = 0
+
+[[audio_blocks]]
+id = 25
+track = 3
+start_step = 20
+length = 4
+is_muted = false
+
+[audio_blocks.block_type]
+kind = "Sample"
+id = 0
+
+[[audio_blocks]]
+id = 26
+track = 3
+start_step = 24
+length = 4
+is_muted = false
+
+[audio_blocks.block_type]
+kind = "Sample"
+id = 0
+
+[[audio_blocks]]
+id = 27
+track = 3
+start_step = 28
+length = 4
+is_muted = false
+
+[audio_blocks.block_type]
+kind = "Sample"
+id = 0
+
+[[audio_blocks]]
+id = 28
+track = 5
+start_step = 20
+length = 3
+is_muted = false
+
+[audio_blocks.block_type]
+kind = "Sample"
+id = 1
+
+[[audio_blocks]]
+id = 29
+track = 5
+start_step = 28
+length = 3
+is_muted = false
+
+[audio_blocks.block_type]
+kind = "Sample"
+id = 1
+
+[[audio_blocks]]
+id = 30
+track = 2
+start_step = 10
+length = 17
+is_muted = false
+
+[audio_blocks.block_type]
+kind = "Sample"
+id = 3
+
+[[audio_blocks]]
+id = 31
+track = 7
+start_step = 0
+length = 2
+is_muted = false
+
+[audio_blocks.block_type]
+kind = "Sample"
+id = 4
+
+[[audio_blocks]]
+id = 32
+track = 7
+start_step = 3
+length = 2
+is_muted = false
+
+[audio_blocks.block_type]
+kind = "Sample"
+id = 4
+
+[[audio_blocks]]
+id = 33
+track = 7
+start_step = 6
+length = 2
+is_muted = false
+
+[audio_blocks.block_type]
+kind = "Sample"
+id = 4
+
+[[audio_blocks]]
+id = 34
+track = 7
+start_step = 9
+length = 2
+is_muted = false
+
+[audio_blocks.block_type]
+kind = "Sample"
+id = 4
+
+[[audio_blocks]]
+id = 35
+track = 7
+start_step = 12
+length = 2
+is_muted = false
+
+[audio_blocks.block_type]
+kind = "Sample"
+id = 4
+
+[[audio_blocks]]
+id = 38
+track = 7
+start_step = 16
+length = 2
+is_muted = false
+
+[audio_blocks.block_type]
+kind = "Sample"
+id = 4
+
+[[audio_blocks]]
+id = 40
+track = 7
+start_step = 20
+length = 2
+is_muted = false
+
+[audio_blocks.block_type]
+kind = "Sample"
+id = 4
+
+[[audio_blocks]]
+id = 41
+track = 7
+start_step = 23
+length = 2
+is_muted = false
+
+[audio_blocks.block_type]
+kind = "Sample"
+id = 4
+
+[[audio_blocks]]
+id = 42
+track = 7
+start_step = 26
+length = 2
+is_muted = false
+
+[audio_blocks.block_type]
+kind = "Sample"
+id = 4
+
+[[audio_blocks]]
+id = 43
+track = 7
+start_step = 30
+length = 2
+is_muted = false
+
+[audio_blocks.block_type]
+kind = "Sample"
+id = 4
+
+[[audio_blocks]]
+id = 44
+track = 1
+start_step = 6
+length = 2
+is_muted = false
+
+[audio_blocks.block_type]
+kind = "Sample"
+id = 5
+
+[[audio_blocks]]
+id = 45
+track = 1
+start_step = 22
+length = 2
+is_muted = false
+
+[audio_blocks.block_type]
+kind = "Sample"
+id = 5
+
+[[audio_blocks]]
+id = 46
+track = 8
+start_step = 4
+length = 6
+is_muted = false
+
+[audio_blocks.block_type]
+kind = "Sample"
+id = 6
+
+[[audio_blocks]]
+id = 48
+track = 8
+start_step = 20
+length = 6
+is_muted = false
+
+[audio_blocks.block_type]
+kind = "Sample"
+id = 6
+
+[[audio_blocks]]
+id = 50
+track = 8
+start_step = 14
+length = 2
+is_muted = false
+
+[audio_blocks.block_type]
+kind = "Sample"
+id = 6
+
+[[audio_blocks]]
+id = 51
+track = 8
+start_step = 30
+length = 2
+is_muted = false
+
+[audio_blocks.block_type]
+kind = "Sample"
+id = 6
 
 [[tracks]]
 id = 0
@@ -173,7 +349,7 @@ name = "bounce-kick-03.wav"
 path = "./assets/free-drum-samples/drum-samples/02-bounce/kicks/bounce-kick-03.wav"
 is_muted = false
 channels = 1
-track_volume = 0.10599618
+track_volume = 0.8943169
 root_note = 60
 
 [[tracks]]
@@ -182,10 +358,101 @@ name = "perc-low-tom.wav"
 path = "./assets/free-drum-samples/drum-samples/02-bounce/percs/perc-low-tom.wav"
 is_muted = false
 channels = 1
-track_volume = 0.0
+track_volume = 0.9478373
+root_note = 60
+
+[[tracks]]
+id = 2
+name = "perc-high-tom.wav"
+path = "./assets/free-drum-samples/drum-samples/02-bounce/percs/perc-high-tom.wav"
+is_muted = false
+channels = 1
+track_volume = 1.0
+root_note = 60
+
+[[tracks]]
+id = 3
+name = "cp.wav"
+path = "./assets/free-drum-samples/drum-samples/02-bounce/claps/cp.wav"
+is_muted = false
+channels = 1
+track_volume = 1.0
+root_note = 60
+
+[[tracks]]
+id = 4
+name = "hi-hat-closed-01.wav"
+path = "./assets/free-drum-samples/drum-samples/02-bounce/hi-hats/hi-hat-closed-01.wav"
+is_muted = false
+channels = 1
+track_volume = 0.84741807
+root_note = 60
+
+[[tracks]]
+id = 5
+name = "vintage-clap-01.wav"
+path = "./assets/free-drum-samples/drum-samples/03-soulful-vintage/claps/vintage-clap-01.wav"
+is_muted = false
+channels = 1
+track_volume = 1.0
+root_note = 60
+
+[[tracks]]
+id = 6
+name = "fx-cymbal.wav"
+path = "./assets/free-drum-samples/drum-samples/03-soulful-vintage/fx/fx-cymbal.wav"
+is_muted = false
+channels = 1
+track_volume = 1.0
 root_note = 60
 
 [[patterns]]
 id = 0
 name = "Pattern 1"
-sequences = []
+
+[[patterns.sequences]]
+track_id = 2
+
+[[patterns.sequences.steps]]
+velocity = 95.0
+pitch = 83
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 95.0
+pitch = 84
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 0.0
+pitch = 60
+
+[[patterns.sequences.steps]]
+velocity = 95.0
+pitch = 105

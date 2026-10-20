@@ -7,7 +7,7 @@ use cpal::{SampleFormat, StreamConfig};
 /// accepts this exact channels+rate+format combination on THIS machine.
 /// Returns true if it does. This is the only reliable way to know — reported
 /// "supported config ranges" can include values that fail validation anyway.
-fn probes_ok(device: &cpal::Device, cfg: &StreamConfig, sample_format: SampleFormat) -> bool {
+fn probes_ok(device: &cpal::Device, cfg: StreamConfig, sample_format: SampleFormat) -> bool {
     let err_fn = |_err| {};
     let result = match sample_format {
         SampleFormat::F32 => device
@@ -43,7 +43,7 @@ pub fn find_working_config(
         sample_rate: default_rate,
         buffer_size: cpal::BufferSize::Default,
     };
-    if probes_ok(device, &default_cfg, default_format) {
+    if probes_ok(device, default_cfg, default_format) {
         return (default_cfg, default_format);
     }
 
@@ -61,7 +61,7 @@ pub fn find_working_config(
                     sample_rate: rate,
                     buffer_size: cpal::BufferSize::Default,
                 };
-                if probes_ok(device, &cfg, format) {
+                if probes_ok(device, cfg, format) {
                     return (cfg, format);
                 }
             }

@@ -11,7 +11,7 @@ wgpu = { version = "25" }
 fontdue = "0.9"
 pollster = {version ="0.4.0"}
 bytemuck = { version = "1.24", features = [ "derive" ] }
-cpal = "0.17.3"
+cpal = { version = "0.18", features = ["realtime-dbus"] }
 hound = "3.5.1"
 ringbuf = "0.4.8"
 serde = { version = "1", features = ["derive"] }
@@ -20,6 +20,6 @@ rfd = "0.17.2"
 resvg = "0.44"
 showfile = "0.1.1"
 dirs = "6.0.0"
-glacier-dsp = { path = "../glacier-dsp" }
+glacier_dsp = { path = "../glacier-dsp" }
 palette = "0.7.7"
 image = "0.25.10"
