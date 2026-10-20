@@ -231,7 +231,7 @@ pub async fn create_graphics(window: Rc<Window>, proxy: EventLoopProxy<Graphics>
 
     // DEVELOPER
     // @@TODO: ALLOW CUSTOM AUDIO FILE ROOT TO ACCESS DRUMKITS
-    let audio_root = PathBuf::from("./assets/free-drum-samples");
+    let audio_root = PathBuf::from("./assets/sounds");
 
     // setup mini windows
     let mini_windows: Vec<MiniWindow> = MiniWindow::default_windows();

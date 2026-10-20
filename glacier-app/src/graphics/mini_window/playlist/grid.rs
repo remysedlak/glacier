@@ -126,7 +126,6 @@ pub fn draw(
                             ClickResult::FSEndDragFile(path.clone(), track as u32, step);
                     }
                 } else if mouse_state.left_clicked {
-                    eprintln!("grid click, playlist_draw = {:?}", playlist_draw);
                     match playlist_draw {
                         PlaylistAction::PlaceCopy(source_id) => {
                             interaction.click = ClickResult::DuplicatePlaylistAudioBlock(
