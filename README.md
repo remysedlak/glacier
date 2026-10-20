@@ -9,34 +9,32 @@ Glacier is a working DAW with real rough edges. Expect some UI/interaction bugs 
 ## getting started
 Glacier is a Cargo workspace with two crates: `glacier-app` (the application) and `glacier-dsp` (DSP utilities).
 
+**Linux build dependency:** cpal's ALSA backend requires the ALSA development headers to build:
+```bash
+# Debian/Ubuntu
+sudo apt install libasound2-dev
+
+# Fedora
+sudo dnf install alsa-lib-devel
+```
+No additional system packages are required on Windows or macOS.
+
 ```bash
 git clone https://github.com/remysedlak/glacier.git
 cd glacier
 cargo run --release
 ```
 
+**Always use `--release`** — debug builds can be slow enough that per-sample DSP math misses the audio callback deadline, producing audible glitches and `buffer underrun/overrun` errors that don't occur in release. This isn't a bug, it's debug-build overhead.
+
 Requires a working audio output device (via CPAL) and a Vulkan/Metal/DX12-capable GPU (via wgpu).
 
 To open an existing project, click the project icon and pick a `.toml` project file (see `assets/projects/` for an example). A blank default project loads on first run.
 
 ## features
-- step sequencer with per-pattern sequences, MIDI velocity, and velocity bar view per track
-- piano roll — place and edit notes per track per pattern, scrollable note grid and fixed key column
-- load .wav tracks at runtime, add/delete tracks dynamically
-- variable step counts per track
-- multiple patterns, switchable from the UI, with duplicate support
-- playlist view — arrange patterns across a timeline with x/y scroll and scissor clipping per region
-- mixer window with master volume slider
-- per-track volume knobs and mute controls
-- draggable, z-ordered mini-windows with correct click and hover ownership across overlapping windows
-- track detail windows per track
-- right-click context menus on patterns and tracks
-- SVG icon pipeline — toolbar icons rasterized via resvg, tooltip system on hover
-- custom text rendering via fontdue — glyph cache, textured quads, painter's algorithm interleaving
-- multiple font support (variable + monospace)
-- play/pause, stop, BPM control, keyboard shortcuts (space, ctrl+s)
-- cursor icon feedback on all interactive elements
-- project save/load via TOML
-- footer status bar showing project path and FPS
+Step sequencer, piano roll, multi-pattern playlist arrangement, mixer with per-track volume/mute, and a fully custom-rendered UI (own windowing, text rendering, and icon pipeline on raw wgpu — no GUI framework). Runtime .wav loading, TOML project save/load.
+
+Full feature list and architecture docs: https://glacier.remy.rs
+
 ## stack
 wgpu · winit · CPAL · fontdue · ringbuf · hound · serde/toml · rfd · resvg · dirs · showfile · log/env_logger
