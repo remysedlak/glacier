@@ -199,12 +199,20 @@ pub fn draw_audio_block(
 
     if block.hovered {
         interaction.cursor = CursorIcon::Pointer;
+        // delete audio block
         if mouse_state.right_clicked {
             interaction.click = ClickResult::DeletePlaylistAudioBlock(audio_block.id);
+            // select audio block
+        } else if mouse_state.left_double_clicked {
+            if let AudioBlockType::Pattern(pattern_id) = audio_block.block_type {
+                interaction.click = ClickResult::OpenSequencerForPattern(pattern_id)
+            }
         } else if mouse_state.left_clicked {
             interaction.click = ClickResult::SelectAudioBlockToCopy(audio_block.id);
+            // open pattern when double clicked
         }
     }
+    // hover and click right edge to shorten or elongate a block; TODO: make click drag less sensitive and easier to start
     if block.right_hovered {
         interaction.cursor = CursorIcon::ColResize;
         if mouse_state.left_clicked {

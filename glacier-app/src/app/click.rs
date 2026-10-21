@@ -42,6 +42,7 @@ pub enum ClickResult {
     CloseContextMenu,
 
     // patterns
+    //
     DeletePlaylistAudioBlock(AudioBlockID),
     DeletePattern(PatternID),
     DuplicatePattern(PatternID),
@@ -49,6 +50,7 @@ pub enum ClickResult {
     ClearPattern(PatternID),
     AddPlaylistAudioBlock(u32, u32, u32, AudioBlockType),
     OpenPatternMenu(PatternID, f32, f32),
+    OpenSequencerForPattern(PatternID),
     StartResizeEvent(AudioBlockID),
     ChangePlaylistTool(PlaylistTool),
 
@@ -98,6 +100,17 @@ impl App {
         };
 
         match result {
+            ClickResult::OpenSequencerForPattern(pattern_id) => {
+                gfx.active_pattern_id = pattern_id;
+                if let Some(win) = gfx
+                    .mini_windows
+                    .iter_mut()
+                    .find(|w| matches!(w.window_kind, WindowKind::Sequencer))
+                {
+                    bring_to_front(&mut gfx.z_order, SEQUENCER_ID);
+                    win.is_open = true;
+                }
+            }
             // UI EDITS
             ClickResult::DuplicatePlaylistAudioBlock(block_id, track, step) => {
                 self.producer
