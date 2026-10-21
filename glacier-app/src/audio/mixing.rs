@@ -1,9 +1,8 @@
+use crate::project::Track;
 use glacier_dsp::{
     envelope::{flush_denormal, smooth_toward},
     resample::{align_to_frame, frame_advance, frame_lookahead, interpolate},
 };
-
-use crate::project::Track;
 
 pub fn mix_voice(
     track: &mut Track,

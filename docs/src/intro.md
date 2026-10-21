@@ -2,7 +2,7 @@
 
 Glacier is a digital audio workstation (DAW) built from scratch in Rust —
 audio engine, GPU-rendered UI, and sequencer, all hand-written with minimal
-dependencies. It's an active, ongoing learning project, so expect the
+dependencies. Available on all platforms (Linux too). It's an active, ongoing learning project, so expect the
 architecture to keep evolving.
 
 This book exists because the project outgrew a single README a while ago. 

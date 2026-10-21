@@ -145,6 +145,17 @@ is_muted = false
 kind = "Pattern"
 id = 0
 
+[[audio_blocks]]
+id = 13
+track = 6
+start_step = 0
+length = 15
+is_muted = false
+
+[audio_blocks.block_type]
+kind = "Sample"
+id = 13
+
 [[tracks]]
 id = 7
 name = "hard-kick-03.wav"
@@ -196,6 +207,15 @@ name = "624945__gmortizwavs__key-fx-2887-10.wav"
 path = "./assets/sounds/624945__gmortizwavs__key-fx-2887-10.wav"
 is_muted = false
 channels = 2
+track_volume = 1.0
+root_note = 60
+
+[[tracks]]
+id = 13
+name = "fx-cymbal.wav"
+path = "./assets/sounds/free-drum-samples/drum-samples/01-hard-trap/fx/fx-cymbal.wav"
+is_muted = false
+channels = 1
 track_volume = 1.0
 root_note = 60
 

@@ -168,6 +168,16 @@ pub fn init(
             handle_command(cmd, &mut engine_state);
         }
 
+        // refresh each track's active-voice index cache once per callback —
+        // NOT once per sample (see VoicePool::refresh_active_indices docs)
+        if engine_state.is_playing {
+            for track in &mut engine_state.tracks {
+                if !track.data.is_muted {
+                    track.voice_pool.refresh_active_indices();
+                }
+            }
+        }
+
         // for each sample requested, mix in the appropriate track samples
         for sample in data.chunks_mut(output_channels) {
             // fade audio off during app shutdown
@@ -197,8 +207,6 @@ pub fn init(
             if engine_state.is_playing {
                 for track in &mut engine_state.tracks {
                     if !track.data.is_muted {
-                        track.voice_pool.refresh_active_indices(); // needed once per track per callback
-
                         for i in 0..track.voice_pool.active_indices().len() {
                             let voice = track.voice_pool.active_indices()[i]; // short-lived borrow, ends immediately
                             mix_voice(

@@ -14,7 +14,7 @@ use crate::{
 use ringbuf::{traits::Split, HeapRb};
 use winit::event_loop::{ControlFlow, EventLoop};
 
-const BUFFER_SIZE: usize = 64;
+const RING_BUFFER_CAPACITY: usize = 64;
 
 /// Main method to start application
 pub fn main() {
@@ -32,8 +32,9 @@ pub fn main() {
     };
 
     // Create heap allocated ring buffers for thread communication
-    let (audio_producer, audio_consumer) = HeapRb::<AudioCommand>::new(BUFFER_SIZE).split();
-    let (ui_producer, ui_consumer) = HeapRb::<UiCommand>::new(BUFFER_SIZE).split();
+    let (audio_producer, audio_consumer) =
+        HeapRb::<AudioCommand>::new(RING_BUFFER_CAPACITY).split();
+    let (ui_producer, ui_consumer) = HeapRb::<UiCommand>::new(RING_BUFFER_CAPACITY).split();
 
     // Start building a new event loop, with a Graphics user event
     let event_loop = EventLoop::<Graphics>::with_user_event().build().unwrap();
