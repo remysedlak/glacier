@@ -16,8 +16,9 @@ use cpal::{
 use glacier_dsp::{
     envelope::{flush_denormal, smooth_toward},
     resample::{align_to_frame, frame_advance, frame_lookahead, interpolate},
-    spectral::SpectrumAnalyzer,
+    spectral::{hann_window, SpectrumAnalyzer},
     utils::{samples_per_step, semitones_to_rate, soft_clip},
+    window::window_compensation,
 };
 use ringbuf::{
     traits::{Consumer, Producer},
@@ -40,9 +41,6 @@ pub struct EngineState {
     bpm: f32,
     master_volume: f32,
     is_playing: bool,
-    is_shutting_down: bool,
-    project_name: String,
-    project_path: String,
     preview_samples: Vec<f32>,
     preview_channels: u16,
     preview_position: f32,
@@ -59,7 +57,6 @@ impl EngineState {
         project: Project,
         tracks: Vec<Track>,
         producer: HeapProd<UiCommand>,
-        project_path: String,
         sample_rate: f32,
     ) -> Self {
         let max_triggers = project.patterns.iter().map(|p| p.sequences.len()).sum();
@@ -72,9 +69,6 @@ impl EngineState {
             master_volume: project.master_volume,
             bpm: project.bpm,
             is_playing: false,
-            is_shutting_down: false,
-            project_name: project.name.clone(),
-            project_path,
             preview_samples: Vec::new(),
             preview_channels: 2,
             sample_rate,
@@ -97,7 +91,6 @@ impl EngineState {
 
 /// State that persists between invocations of the CPAL output callback.
 struct AudioCallbackState {
-    shutdown_volume: f32,
     sample_counter: f32,
     meter_counter: usize,
     master_rms_l: f32,
@@ -105,12 +98,15 @@ struct AudioCallbackState {
     master_peak: f32,
     spectrum_buffer: Vec<f32>,
     spectrum_analyzer: SpectrumAnalyzer,
+    hann_window: Vec<f32>,
+    window_compensation: f32,
 }
 
 impl AudioCallbackState {
     fn new() -> Self {
+        let hann_window = hann_window(SPECTRUM_WINDOW);
+        let window_compensation = window_compensation(&hann_window);
         Self {
-            shutdown_volume: 1.0,
             sample_counter: 0.0,
             meter_counter: 0,
             master_rms_l: 0.0,
@@ -118,6 +114,8 @@ impl AudioCallbackState {
             master_peak: 0.0,
             spectrum_buffer: Vec::with_capacity(SPECTRUM_WINDOW),
             spectrum_analyzer: SpectrumAnalyzer::new(SPECTRUM_WINDOW),
+            hann_window,
+            window_compensation,
         }
     }
 }
@@ -128,8 +126,7 @@ pub fn init(
     producer: HeapProd<UiCommand>,
     project: Project,
     tracks: Vec<Track>,
-    project_path: String,
-) -> cpal::Stream {
+) -> (cpal::Stream, f32) {
     // error callback
     let err_fn = |err| eprintln!("an error occurred on the output audio stream: {}", err);
 
@@ -156,39 +153,13 @@ pub fn init(
 
     let mut callback_state = AudioCallbackState::new();
 
-    let mut engine_state = EngineState::from_project(
-        project,
-        tracks,
-        producer,
-        project_path,
-        stream_config.sample_rate as f32,
-    );
-
-    const FADE_TIME_SECS: f32 = 0.2; // or whatever duration you want
-    let fade_decrement = 1.0 / (FADE_TIME_SECS * engine_state.sample_rate);
-
-    // load sample rate (the ACTUAL validated rate, not the reported default)
-    engine_state
-        .audio_producer
-        .try_push(UiCommand::SampleRateLoaded(engine_state.sample_rate))
-        .ok();
-
-    engine_state
-        .audio_producer
-        .try_push(UiCommand::LoadProject {
-            tracks: engine_state.tracks.clone(),
-            patterns: engine_state.patterns.clone(),
-            audio_blocks: engine_state.audio_blocks.clone(),
-            bpm: engine_state.bpm,
-            master_volume: engine_state.master_volume,
-            project_path: engine_state.project_path.clone(),
-        })
-        .ok();
+    let mut engine_state =
+        EngineState::from_project(project, tracks, producer, stream_config.sample_rate as f32);
 
     // audio callback
     // fills samples requested from CPAL audio driver
     let mut fill_f32 = move |data: &mut [f32], _: &cpal::OutputCallbackInfo| {
-        // parse incoming UI commands before fulfilling data callback
+        // Apply queued commands before rendering the next audio block.
         while let Some(cmd) = consumer.try_pop() {
             handle_command(cmd, &mut engine_state);
         }
@@ -205,19 +176,6 @@ pub fn init(
 
         // for each sample requested, mix in the appropriate track samples
         for sample in data.chunks_mut(output_channels) {
-            // fade audio off during app shutdown
-            if engine_state.is_shutting_down {
-                callback_state.shutdown_volume -= fade_decrement;
-                if callback_state.shutdown_volume <= 0.0 {
-                    engine_state
-                        .audio_producer
-                        .try_push(UiCommand::ShutdownComplete)
-                        .ok();
-                    engine_state.is_shutting_down = false;
-                    callback_state.shutdown_volume = 1.0; // reset in case shutdown is re-triggered
-                }
-            }
-
             // Zero out the sample. Fill it if the song currently is_playing.
             sample[0] = 0.0; // left channel
             sample[1] = 0.0; // right channel
@@ -234,13 +192,7 @@ pub fn init(
                     if !track.data.is_muted {
                         for i in 0..track.voice_pool.active_indices().len() {
                             let voice = track.voice_pool.active_indices()[i]; // short-lived borrow, ends immediately
-                            mix_voice(
-                                track,
-                                voice,
-                                callback_state.shutdown_volume,
-                                engine_state.master_volume,
-                                sample,
-                            );
+                            mix_voice(track, voice, engine_state.master_volume, sample);
                         }
                     }
                 }
@@ -252,7 +204,6 @@ pub fn init(
                     &mut engine_state.preview_position,
                     &engine_state.preview_samples,
                     sample,
-                    callback_state.shutdown_volume,
                     engine_state.master_volume,
                     engine_state.preview_channels,
                 );
@@ -297,6 +248,8 @@ pub fn init(
         push_spectrum_frame(
             &mut engine_state,
             &callback_state.spectrum_analyzer,
+            &callback_state.hann_window,
+            callback_state.window_compensation,
             &mut callback_state.spectrum_buffer,
         );
 
@@ -442,7 +395,7 @@ pub fn init(
 
     // start the output stream and return it
     stream.play().expect("Failed to play the output stream.");
-    stream
+    (stream, stream_config.sample_rate as f32)
 }
 
 /// Process the current audio file being previewed into the audio stream
@@ -450,7 +403,6 @@ fn process_preview(
     preview_position: &mut f32,
     preview_samples: &[f32],
     sample: &mut [f32],
-    shutdown_volume: f32,
     master_volume: f32,
     channels: u16,
 ) {
@@ -462,8 +414,8 @@ fn process_preview(
     let lookahead = frame_lookahead(channels);
     if pos + lookahead < preview_samples.len() {
         let (l, r) = interpolate(preview_samples, *preview_position, channels);
-        sample[0] += l * shutdown_volume * master_volume;
-        sample[1] += r * shutdown_volume * master_volume;
+        sample[0] += l * master_volume;
+        sample[1] += r * master_volume;
         *preview_position += frame_advance(channels);
     }
 }

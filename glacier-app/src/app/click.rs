@@ -12,9 +12,10 @@ use crate::graphics::{
     },
     primitives::{RenameState, RenameTarget},
 };
-use crate::project::{AudioBlockID, AudioBlockType, PatternID, TrackID};
+use crate::project::{
+    next_id, AudioBlockID, AudioBlockType, Note, PatternData, PatternID, Sequence, TrackID,
+};
 use rfd::FileDialog;
-use ringbuf::traits::Producer;
 use std::path::PathBuf;
 use std::thread;
 use winit::event_loop::ActiveEventLoop;
@@ -93,7 +94,7 @@ impl App {
     pub(super) fn handle_click_result(
         &mut self,
         result: ClickResult,
-        _event_loop: &ActiveEventLoop,
+        event_loop: &ActiveEventLoop,
     ) {
         let State::Ready(gfx) = &mut self.state else {
             return;
@@ -113,9 +114,19 @@ impl App {
             }
             // UI EDITS
             ClickResult::DuplicatePlaylistAudioBlock(block_id, track, step) => {
-                self.producer
-                    .try_push(AudioCommand::DuplicateAudioBlock(block_id, track, step))
-                    .ok();
+                if let Some(block) = gfx.audio_blocks.iter().find(|b| b.id == block_id).cloned() {
+                    let duplicate = block.duplicate(
+                        next_id(gfx.audio_blocks.iter().map(|b| b.id.0), AudioBlockID),
+                        track,
+                        step,
+                    );
+                    gfx.audio_blocks.push(duplicate.clone());
+                    self.producer
+                        .try_push(AudioCommand::CreateAudioBlock(duplicate))
+                        .ok();
+                    self.project_is_dirty = true;
+                    self.project_revision += 1;
+                }
             }
 
             ClickResult::ToggleStretchMode => {
@@ -269,7 +280,24 @@ impl App {
                 }
             }
             ClickResult::CreatePattern => {
-                self.producer.try_push(AudioCommand::CreatePattern).ok();
+                let pattern = PatternData {
+                    id: next_id(gfx.patterns.iter().map(|p| p.id.0), PatternID),
+                    name: format!("Pattern {}", gfx.patterns.len() + 1),
+                    sequences: gfx
+                        .tracks
+                        .iter()
+                        .map(|track| Sequence {
+                            track_id: track.data.id,
+                            steps: vec![Note::DEFAULT; 16],
+                        })
+                        .collect(),
+                };
+                gfx.patterns.push(pattern.clone());
+                self.producer
+                    .try_push(AudioCommand::CreatePattern(pattern))
+                    .ok();
+                self.project_is_dirty = true;
+                self.project_revision += 1;
             }
             ClickResult::ToggleSequencerWindow => {
                 if let Some(win) = gfx
@@ -309,6 +337,13 @@ impl App {
             }
             // AUDIO PING
             ClickResult::ClearPattern(pattern_id) => {
+                if let Some(pattern) = gfx.patterns.iter_mut().find(|p| p.id == pattern_id) {
+                    for sequence in &mut pattern.sequences {
+                        sequence.steps.fill(Note::DEFAULT);
+                    }
+                    self.project_is_dirty = true;
+                    self.project_revision += 1;
+                }
                 self.producer
                     .try_push(AudioCommand::ClearPattern(pattern_id))
                     .ok();
@@ -316,13 +351,14 @@ impl App {
             }
             ClickResult::ModalConfirmSaveAndExit => {
                 gfx.show_save_modal = false;
-                self.producer.try_push(AudioCommand::Shutdown).ok();
+                self.is_closing = true;
+                self.close_save_submitted = false;
             }
             ClickResult::ModalConfirmDiscardAndExit => {
                 gfx.show_save_modal = false;
-                self.producer
-                    .try_push(AudioCommand::ShutdownWithoutSaving)
-                    .ok();
+                crate::config::save(&self.config);
+                self.pause_audio_stream();
+                event_loop.exit();
             }
             // play a 5 second sample of the audio clip
             ClickResult::FsPreviewSample(track_path) => {
@@ -333,15 +369,61 @@ impl App {
                     .ok();
             }
             ClickResult::ChangeBpm(bpm) => {
+                gfx.bpm = bpm;
                 self.producer.try_push(AudioCommand::ChangeBpm(bpm)).ok();
+                self.project_is_dirty = true;
+                self.project_revision += 1;
             }
             ClickResult::DuplicatePattern(pattern_id) => {
-                self.producer
-                    .try_push(AudioCommand::DuplicatePattern(pattern_id))
-                    .ok();
+                if let Some(pattern) = gfx.patterns.iter().find(|p| p.id == pattern_id).cloned() {
+                    let duplicate =
+                        pattern.duplicate(next_id(gfx.patterns.iter().map(|p| p.id.0), PatternID));
+                    gfx.patterns.push(duplicate.clone());
+                    self.producer
+                        .try_push(AudioCommand::CreatePattern(duplicate))
+                        .ok();
+                    self.project_is_dirty = true;
+                    self.project_revision += 1;
+                }
                 gfx.context_menu = None;
             }
             ClickResult::ToggleNote(pattern_id, track_id, step_idx, pitch) => {
+                if let Some(pattern) = gfx.patterns.iter_mut().find(|p| p.id == pattern_id) {
+                    if let Some(sequence) = pattern
+                        .sequences
+                        .iter_mut()
+                        .find(|sequence| sequence.track_id == track_id)
+                    {
+                        if step_idx >= sequence.steps.len() {
+                            sequence.steps.resize(step_idx + 1, Note::DEFAULT);
+                        }
+                        let note = &mut sequence.steps[step_idx];
+                        *note = if note.velocity > 0.0 && note.pitch == pitch {
+                            Note::DEFAULT
+                        } else {
+                            Note {
+                                velocity: 95.0,
+                                pitch,
+                            }
+                        };
+                        while sequence
+                            .steps
+                            .last()
+                            .is_some_and(|note| note.velocity == 0.0)
+                        {
+                            sequence.steps.pop();
+                        }
+                    } else {
+                        let mut steps = vec![Note::DEFAULT; step_idx + 1];
+                        steps[step_idx] = Note {
+                            velocity: 95.0,
+                            pitch,
+                        };
+                        pattern.sequences.push(Sequence { track_id, steps });
+                    }
+                    self.project_is_dirty = true;
+                    self.project_revision += 1;
+                }
                 self.producer
                     .try_push(AudioCommand::ToggleNote(
                         pattern_id, track_id, step_idx, pitch,
@@ -349,40 +431,135 @@ impl App {
                     .ok();
             }
             ClickResult::DeletePlaylistAudioBlock(id) => {
+                gfx.audio_blocks.retain(|block| block.id != id);
+                gfx.waveform_cache.entries.remove(&id);
                 self.producer
                     .try_push(AudioCommand::DeleteAudioBlock(id))
                     .ok();
+                self.project_is_dirty = true;
+                self.project_revision += 1;
             }
             ClickResult::AddPlaylistAudioBlock(track, start_step, length, block_type) => {
+                let audio_block =
+                    super::make_audio_block(gfx, track, start_step, length, block_type);
+                gfx.audio_blocks.push(audio_block.clone());
                 // request audio thread to create audio block
                 self.producer
-                    .try_push(AudioCommand::CreateAudioBlock(
-                        track, start_step, length, block_type,
-                    ))
+                    .try_push(AudioCommand::CreateAudioBlock(audio_block))
                     .ok();
+                self.project_is_dirty = true;
+                self.project_revision += 1;
             }
             ClickResult::DeletePattern(pattern_id) => {
+                gfx.patterns.retain(|pattern| pattern.id != pattern_id);
+                let removed_ids: Vec<_> = gfx
+                    .audio_blocks
+                    .iter()
+                    .filter(|block| block.block_type == AudioBlockType::Pattern(pattern_id))
+                    .map(|block| block.id)
+                    .collect();
+                gfx.audio_blocks
+                    .retain(|block| block.block_type != AudioBlockType::Pattern(pattern_id));
+                for id in removed_ids {
+                    gfx.waveform_cache.entries.remove(&id);
+                }
+                gfx.context_menu = None;
                 self.producer
                     .try_push(AudioCommand::DeletePattern(pattern_id))
                     .ok();
+                self.project_is_dirty = true;
+                self.project_revision += 1;
             }
             ClickResult::ToggleStep(pattern_id, track_id, step) => {
+                if let Some(pattern) = gfx.patterns.iter_mut().find(|p| p.id == pattern_id) {
+                    if let Some(sequence) = pattern
+                        .sequences
+                        .iter_mut()
+                        .find(|sequence| sequence.track_id == track_id)
+                    {
+                        if step >= sequence.steps.len() {
+                            sequence.steps.resize(step + 1, Note::DEFAULT);
+                        }
+                        sequence.steps[step] = if sequence.steps[step].velocity > 0.0 {
+                            Note::DEFAULT
+                        } else {
+                            Note {
+                                velocity: 95.0,
+                                pitch: 60,
+                            }
+                        };
+                        while sequence
+                            .steps
+                            .last()
+                            .is_some_and(|note| note.velocity == 0.0)
+                        {
+                            sequence.steps.pop();
+                        }
+                    } else {
+                        let mut sequence = Sequence {
+                            track_id,
+                            steps: vec![Note::DEFAULT; step + 1],
+                        };
+                        sequence.steps[step] = Note {
+                            velocity: 95.0,
+                            pitch: 60,
+                        };
+                        pattern.sequences.push(sequence);
+                    }
+                    self.project_is_dirty = true;
+                    self.project_revision += 1;
+                }
                 self.producer
                     .try_push(AudioCommand::ToggleStep(pattern_id, track_id, step))
                     .ok();
             }
             ClickResult::Stop => {
+                gfx.is_playing = false;
+                gfx.active_step = 0;
                 self.producer.try_push(AudioCommand::Stop).ok();
             }
             ClickResult::ToggleTrackMute(track_id) => {
+                // The sequencer interaction already changed the app-owned track
+                // value while producing this click result. Only mirror the edit
+                // to audio here; toggling gfx again would undo the UI mutation.
+                self.project_is_dirty = true;
+                self.project_revision += 1;
                 self.producer
                     .try_push(AudioCommand::ToggleTrackMute(track_id))
                     .ok();
             }
             ClickResult::TogglePlay => {
+                // Reflect the requested state immediately. The audio status
+                // acknowledgement can be dropped if its bounded UI ring is full.
+                gfx.is_playing = !gfx.is_playing;
                 self.producer.try_push(AudioCommand::TogglePlay).ok();
             }
             ClickResult::DeleteTrack(track_id) => {
+                if let Some(position) = gfx.tracks.iter().position(|t| t.data.id == track_id) {
+                    gfx.tracks.remove(position);
+                    for pattern in &mut gfx.patterns {
+                        pattern
+                            .sequences
+                            .retain(|sequence| sequence.track_id != track_id);
+                    }
+                    let removed_ids: Vec<_> = gfx
+                        .audio_blocks
+                        .iter()
+                        .filter(|block| block.block_type == AudioBlockType::Sample(track_id))
+                        .map(|block| block.id)
+                        .collect();
+                    gfx.audio_blocks
+                        .retain(|block| block.block_type != AudioBlockType::Sample(track_id));
+                    for id in removed_ids {
+                        gfx.waveform_cache.entries.remove(&id);
+                    }
+                    gfx.context_menu = None;
+                    gfx.mini_windows[SEQUENCER_ID].height = 100.0
+                        + crate::graphics::mini_window::sequencer::TRACK_GAP
+                            * gfx.tracks.len() as f32;
+                    self.project_is_dirty = true;
+                    self.project_revision += 1;
+                }
                 self.producer
                     .try_push(AudioCommand::DeleteTrack(track_id))
                     .ok();

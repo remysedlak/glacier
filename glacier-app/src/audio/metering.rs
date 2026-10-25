@@ -3,10 +3,7 @@ use crate::{
     audio::{EngineState, SPECTRUM_WINDOW},
 };
 
-use glacier_dsp::{
-    spectral::{hann_window, magnitude_to_db, SpectrumAnalyzer},
-    window::window_compensation,
-};
+use glacier_dsp::spectral::{magnitude_to_db, SpectrumAnalyzer};
 use ringbuf::traits::Producer;
 
 pub fn push_meter_updates(
@@ -51,6 +48,8 @@ pub fn push_meter_updates(
 pub fn push_spectrum_frame(
     engine_state: &mut EngineState,
     spectrum_analyzer: &SpectrumAnalyzer,
+    hann_window: &[f32],
+    compensation: f32,
     spectrum_buffer: &mut Vec<f32>,
 ) {
     // A spectrum analysis (FFT) needs a fixed-size block of samples
@@ -58,19 +57,12 @@ pub fn push_spectrum_frame(
         return;
     }
 
-    // apply hann window and compensate
-    let window = hann_window(SPECTRUM_WINDOW);
-
-    // compensation is a correction factor that scales the result back up to compensate for that energy loss
-    // ...otherwise dB readings would all read artificially quiet.
-    let compensation = window_compensation(&window);
-
     // Applies the window: multiplies each sample by its corresponding window coefficient
     engine_state.windowed.clear();
     engine_state.windowed.extend(
         spectrum_buffer
             .iter()
-            .zip(window.iter())
+            .zip(hann_window.iter())
             .map(|(x, w)| x * w),
     );
 

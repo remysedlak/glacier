@@ -4,13 +4,7 @@ use glacier_dsp::{
     resample::{align_to_frame, frame_advance, frame_lookahead, interpolate},
 };
 
-pub fn mix_voice(
-    track: &mut Track,
-    voice: usize,
-    shutdown_volume: f32,
-    master_volume: f32,
-    sample: &mut [f32],
-) {
+pub fn mix_voice(track: &mut Track, voice: usize, master_volume: f32, sample: &mut [f32]) {
     let channels = track.data.channels;
     let pos = if channels == 1 {
         track.voice_pool.positions[voice] as usize
@@ -32,10 +26,7 @@ pub fn mix_voice(
     ));
 
     let (l, r) = interpolate(&track.samples, track.voice_pool.positions[voice], channels);
-    let gain = track.voice_pool.current_volumes[voice]
-        * track.data.track_volume
-        * shutdown_volume
-        * master_volume;
+    let gain = track.voice_pool.current_volumes[voice] * track.data.track_volume * master_volume;
     sample[0] += l * gain;
     sample[1] += r * gain;
 

@@ -1,20 +1,24 @@
 //! main state logic for audio and ui decoupling threads
 use crate::audio::audio_command::AudioCommand;
 use crate::config::UserSettings;
-use crate::graphics::PlaylistAction;
 use crate::graphics::{
+    bring_to_front,
     drag::DragResult,
     mini_window::{PIANO_ROLL_ID, PLAYLIST_ID, SEQUENCER_ID},
     primitives::{RenameState, RenameTarget, PAD_32},
-    {create_graphics, Graphics, Rc},
+    PlaylistAction, {create_graphics, Graphics, Rc},
 };
-use crate::project::{spawn_track_load, AudioBlockType, PatternID, TrackData, TrackID};
-use cpal::Stream;
+use crate::project::{
+    next_id, spawn_track_load, AudioBlock, AudioBlockID, AudioBlockType, PatternID, Project,
+    ProjectSaveJob, ProjectSaveWorker, SavePurpose, Track, TrackID,
+};
+use cpal::{traits::StreamTrait, Stream};
 use rfd::FileDialog;
 use ringbuf::{
     traits::{Consumer, Producer},
     {HeapCons, HeapProd},
 };
+use std::collections::{HashSet, VecDeque};
 use std::path::PathBuf;
 use std::sync::mpsc::{Receiver, TryRecvError};
 use std::thread;
@@ -114,13 +118,23 @@ pub struct PianoRollState {
 }
 
 pub struct App {
-    producer: HeapProd<AudioCommand>,
+    producer: AudioCommandSender,
     consumer: HeapCons<UiCommand>,
     state: State,
     config: UserSettings,
-    stream: Stream,
+    stream: Option<Stream>,
+    audio_consumer: Option<HeapCons<AudioCommand>>,
+    ui_producer: Option<HeapProd<UiCommand>>,
+    project_load_rx: Option<Receiver<Result<crate::project::ProjectLoadResult, String>>>,
+    save_worker: ProjectSaveWorker,
+    project_name: String,
     pending_project: Option<String>,
+    close_requested: bool,
+    is_closing: bool,
+    close_save_submitted: bool,
+    regular_saves_in_flight: HashSet<(String, u64)>,
     project_is_dirty: bool,
+    project_revision: u64,
     ctrl_pressed: bool,
     pub shift_pressed: bool,
     mouse_state: MouseState,
@@ -128,9 +142,54 @@ pub struct App {
     last_click_time: Option<std::time::Instant>,
     track_file_dialog_rx: Option<Receiver<Option<PathBuf>>>,
     project_file_dialog_rx: Option<Receiver<Option<PathBuf>>>,
-    track_load_rx: Option<Receiver<(TrackData, Vec<f32>)>>,
+    track_load_rx: Option<Receiver<Track>>,
     project_save_dialog_rx: Option<Receiver<Option<PathBuf>>>,
     pending_drop: Option<(u32, usize)>,
+}
+
+/// UI-side sender that retains commands when the audio ring buffer is full.
+/// Commands stay ordered and are retried on subsequent app events/draws.
+pub(crate) struct AudioCommandSender {
+    ring: HeapProd<AudioCommand>,
+    pending: VecDeque<AudioCommand>,
+}
+
+impl AudioCommandSender {
+    fn new(ring: HeapProd<AudioCommand>) -> Self {
+        Self {
+            ring,
+            pending: VecDeque::new(),
+        }
+    }
+
+    pub(crate) fn try_push(&mut self, command: AudioCommand) -> Result<(), AudioCommand> {
+        if !self.pending.is_empty() {
+            self.pending.push_back(command);
+            return Ok(());
+        }
+
+        match self.ring.try_push(command) {
+            Ok(()) => Ok(()),
+            Err(command) => {
+                self.pending.push_back(command);
+                Ok(())
+            }
+        }
+    }
+
+    pub(crate) fn flush_pending(&mut self) {
+        while let Some(command) = self.pending.pop_front() {
+            if let Err(command) = self.ring.try_push(command) {
+                self.pending.push_front(command);
+                break;
+            }
+        }
+    }
+
+    fn replace_ring(&mut self, ring: HeapProd<AudioCommand>) {
+        self.pending.clear();
+        self.ring = ring;
+    }
 }
 
 enum State {
@@ -149,19 +208,28 @@ impl App {
         config: UserSettings,
         project_file: Option<String>,
     ) -> Self {
-        let project = crate::project::load_project(project_file.as_deref());
-        let tracks = crate::project::get_tracks(&project);
+        let save_worker = ProjectSaveWorker::new();
         let project_path =
             project_file.unwrap_or_else(crate::project::Project::default_project_file);
-        let stream = crate::audio::init(audio_consumer, ui_producer, project, tracks, project_path);
+        let project_load_rx = Some(crate::project::spawn_project_load(project_path, true));
 
         Self {
-            producer,
+            producer: AudioCommandSender::new(producer),
             consumer,
             state: State::Init(Some(event_loop.create_proxy())),
-            stream,
+            stream: None,
+            audio_consumer: Some(audio_consumer),
+            ui_producer: Some(ui_producer),
+            project_load_rx,
+            save_worker,
+            project_name: String::new(),
             pending_project: None,
+            close_requested: false,
+            is_closing: false,
+            close_save_submitted: false,
+            regular_saves_in_flight: HashSet::new(),
             project_is_dirty: false,
+            project_revision: 0,
             ctrl_pressed: false,
             shift_pressed: false,
             track_file_dialog_rx: None,
@@ -178,9 +246,63 @@ impl App {
 
     /// if the state is ready, draw each frame and handle it's click results
     fn draw(&mut self, event_loop: &ActiveEventLoop) {
-        let mut should_exit = false;
+        self.producer.flush_pending();
 
         if !matches!(self.state, State::Ready(_)) {
+            return;
+        }
+
+        if let Some(result) = self
+            .project_load_rx
+            .as_ref()
+            .and_then(|rx| match rx.try_recv() {
+                Ok(result) => Some(Some(result)),
+                Err(TryRecvError::Disconnected) => Some(None),
+                Err(TryRecvError::Empty) => None,
+            })
+        {
+            self.project_load_rx = None;
+            if let Some(Ok(loaded)) = result {
+                self.project_name = loaded.project.name.clone();
+                let (audio_consumer, ui_producer) =
+                    if let (Some(audio_consumer), Some(ui_producer)) =
+                        (self.audio_consumer.take(), self.ui_producer.take())
+                    {
+                        (audio_consumer, ui_producer)
+                    } else {
+                        use ringbuf::traits::Split;
+                        use ringbuf::HeapRb;
+                        self.shutdown_audio_stream();
+                        let (audio_prod, audio_consumer) = HeapRb::<AudioCommand>::new(256).split();
+                        let (ui_producer, ui_consumer) = HeapRb::<UiCommand>::new(256).split();
+                        self.producer.replace_ring(audio_prod);
+                        self.consumer = ui_consumer;
+                        (audio_consumer, ui_producer)
+                    };
+                let (stream, sample_rate) = crate::audio::init(
+                    audio_consumer,
+                    ui_producer,
+                    loaded.project.clone(),
+                    loaded.tracks.clone(),
+                );
+                self.stream = Some(stream);
+                if let State::Ready(gfx) = &mut self.state {
+                    apply_loaded_project(gfx, loaded);
+                    gfx.sample_rate = sample_rate;
+                }
+                self.project_is_dirty = false;
+                self.project_revision = 0;
+            } else if let Some(Err(error)) = result {
+                log::error!("failed to load project: {error}");
+            }
+        }
+
+        // Do not accept project edits until the initial or replacement project is
+        // installed. Keep polling the worker via redraw events while it loads.
+        if self.project_load_rx.is_some() || self.stream.is_none() {
+            if let State::Ready(gfx) = &mut self.state {
+                gfx.request_redraw();
+            }
             return;
         }
 
@@ -192,7 +314,6 @@ impl App {
                     Ok(Some(path)) => {
                         let path_str = path.to_string_lossy().to_string();
                         self.track_load_rx = Some(spawn_track_load(path_str));
-                        self.project_is_dirty = true;
                         self.track_file_dialog_rx = None;
                     }
                     Ok(None) => self.track_file_dialog_rx = None,
@@ -204,9 +325,33 @@ impl App {
             if let Some(rx) = &self.project_file_dialog_rx {
                 match rx.try_recv() {
                     Ok(Some(path)) => {
-                        gfx.is_playing = false;
-                        self.pending_project = Some(path.to_string_lossy().to_string());
-                        self.producer.try_push(AudioCommand::SaveProject).ok();
+                        let path = path.to_string_lossy().to_string();
+                        // The pending track belongs to the current project. A
+                        // project switch intentionally discards that unfinished
+                        // import instead of attaching it to the next project.
+                        self.track_load_rx = None;
+                        self.pending_drop = None;
+                        if self.project_is_dirty {
+                            let start_switch_save = self.pending_project.is_none();
+                            self.pending_project = Some(path);
+                            if start_switch_save {
+                                let save_key = (gfx.project_path.clone(), self.project_revision);
+                                if !self.regular_saves_in_flight.contains(&save_key) {
+                                    submit_project_save(
+                                        &self.save_worker,
+                                        &mut self.regular_saves_in_flight,
+                                        &self.project_name,
+                                        gfx,
+                                        SavePurpose::ProjectSwitch,
+                                        self.project_revision,
+                                        None,
+                                    );
+                                }
+                            }
+                        } else {
+                            self.project_load_rx =
+                                Some(crate::project::spawn_project_load(path, false));
+                        }
                         self.project_file_dialog_rx = None;
                     }
                     Ok(None) => self.project_file_dialog_rx = None,
@@ -218,11 +363,17 @@ impl App {
                 match rx.try_recv() {
                     Ok(Some(path)) => {
                         let path_str = path.to_string_lossy().to_string();
-                        gfx.project_path = path_str.clone();
-                        self.producer
-                            .try_push(AudioCommand::SetProjectPath(path_str))
-                            .ok();
-                        self.producer.try_push(AudioCommand::SaveProject).ok();
+                        if self.pending_project.is_none() {
+                            submit_project_save(
+                                &self.save_worker,
+                                &mut self.regular_saves_in_flight,
+                                &self.project_name,
+                                gfx,
+                                SavePurpose::Regular,
+                                self.project_revision,
+                                Some(&path_str),
+                            );
+                        }
                         self.project_save_dialog_rx = None;
                     }
                     Ok(None) => self.project_save_dialog_rx = None,
@@ -234,14 +385,80 @@ impl App {
 
         // --- drain audio -> ui commands: needs &mut self, so gfx must NOT be held ---
         while let Some(cmd) = self.consumer.try_pop() {
-            self.handle_ui_command(cmd, &mut should_exit);
+            self.handle_ui_command(cmd);
+        }
+
+        loop {
+            match self.save_worker.try_result() {
+                Ok(result) => self.handle_save_result(result, event_loop),
+                Err(TryRecvError::Empty | TryRecvError::Disconnected) => break,
+            }
+        }
+
+        self.poll_track_load();
+
+        if self.close_requested {
+            if self.track_load_rx.is_some() {
+                if let State::Ready(gfx) = &mut self.state {
+                    gfx.request_redraw();
+                }
+                return;
+            }
+            self.close_requested = false;
+            if self.project_is_dirty {
+                if let State::Ready(gfx) = &mut self.state {
+                    gfx.show_save_modal = true;
+                    gfx.request_redraw();
+                }
+            } else {
+                crate::config::save(&self.config);
+                self.pause_audio_stream();
+                event_loop.exit();
+                return;
+            }
+        }
+
+        if self.is_closing {
+            if self.track_load_rx.is_some() {
+                if let State::Ready(gfx) = &mut self.state {
+                    gfx.request_redraw();
+                }
+                return;
+            }
+            if !self.close_save_submitted {
+                self.close_save_submitted = true;
+                if !self.project_is_dirty {
+                    crate::config::save(&self.config);
+                    self.pause_audio_stream();
+                    event_loop.exit();
+                    return;
+                }
+                if let State::Ready(gfx) = &self.state {
+                    let save_key = (gfx.project_path.clone(), self.project_revision);
+                    if !self.regular_saves_in_flight.contains(&save_key) {
+                        submit_project_save(
+                            &self.save_worker,
+                            &mut self.regular_saves_in_flight,
+                            &self.project_name,
+                            gfx,
+                            SavePurpose::Close,
+                            self.project_revision,
+                            None,
+                        );
+                    }
+                }
+            }
+            if let State::Ready(gfx) = &mut self.state {
+                gfx.request_redraw();
+            }
+            return;
         }
 
         // --- draw the frame: fresh gfx borrow, scoped tightly ---
         let (result, icon);
         {
             let State::Ready(gfx) = &mut self.state else {
-                unreachable!("checked State::Ready above")
+                return;
             };
 
             let start = std::time::Instant::now();
@@ -287,20 +504,6 @@ impl App {
             }
         } // <- gfx borrow ends here
 
-        // if the track is done loading into memory, send it to the audio thread.
-        if let Some(rx) = &self.track_load_rx {
-            match rx.try_recv() {
-                Ok((data, samples)) => {
-                    self.producer
-                        .try_push(AudioCommand::LoadTrack(data, samples))
-                        .ok();
-                    self.track_load_rx = None;
-                }
-                Err(TryRecvError::Empty) => {}
-                Err(TryRecvError::Disconnected) => self.track_load_rx = None,
-            }
-        }
-
         // --- handle click result: needs &mut self, so gfx must NOT be held ---
         self.handle_click_result(result, event_loop);
 
@@ -310,17 +513,72 @@ impl App {
         if let State::Ready(gfx) = &mut self.state {
             gfx.request_redraw();
         }
-
-        if should_exit {
-            self.state = State::Init(None);
-            event_loop.exit();
-        }
     }
 
     /// Response to user resizing the main window
     fn resized(&mut self, size: PhysicalSize<u32>) {
         if let State::Ready(gfx) = &mut self.state {
             gfx.resize(size);
+        }
+    }
+
+    fn poll_track_load(&mut self) {
+        let loaded_track = self
+            .track_load_rx
+            .as_ref()
+            .and_then(|rx| match rx.try_recv() {
+                Ok(loaded) => Some(Some(loaded)),
+                Err(TryRecvError::Disconnected) => Some(None),
+                Err(TryRecvError::Empty) => None,
+            });
+        if let Some(loaded_track) = loaded_track {
+            self.track_load_rx = None;
+            if let Some(mut track) = loaded_track {
+                if let State::Ready(gfx) = &mut self.state {
+                    track.data.id =
+                        next_id(gfx.tracks.iter().map(|loaded| loaded.data.id.0), TrackID);
+                    let track_id = track.data.id;
+                    gfx.tracks.push(track.clone());
+                    gfx.mini_windows[SEQUENCER_ID].height = 100.0
+                        + crate::graphics::mini_window::sequencer::TRACK_GAP
+                            * gfx.tracks.len() as f32;
+                    gfx.playlist_action =
+                        PlaylistAction::PlaceFresh(AudioBlockType::Sample(track_id));
+                    self.producer.try_push(AudioCommand::LoadTrack(track)).ok();
+                    let pending_drop = self.pending_drop.take();
+                    if let Some((playlist_track, step)) = pending_drop {
+                        let audio_block = make_audio_block(
+                            gfx,
+                            playlist_track,
+                            step as u32,
+                            1,
+                            AudioBlockType::Sample(track_id),
+                        );
+                        gfx.audio_blocks.push(audio_block.clone());
+                        self.producer
+                            .try_push(AudioCommand::CreateAudioBlock(audio_block))
+                            .ok();
+                    } else {
+                        gfx.mini_windows[SEQUENCER_ID].is_open = true;
+                        bring_to_front(&mut gfx.z_order, SEQUENCER_ID);
+                    }
+                    self.project_is_dirty = true;
+                    self.project_revision += 1;
+                }
+            }
+        }
+    }
+
+    pub fn shutdown_audio_stream(&mut self) {
+        if let Some(stream) = self.stream.take() {
+            let _ = stream.pause();
+            drop(stream);
+        }
+    }
+
+    pub(super) fn pause_audio_stream(&self) {
+        if let Some(stream) = &self.stream {
+            let _ = stream.pause();
         }
     }
 }
@@ -360,8 +618,17 @@ impl ApplicationHandler<Graphics> for App {
     }
 
     fn user_event(&mut self, _event_loop: &ActiveEventLoop, graphics: Graphics) {
+        let graphics = graphics;
         graphics.request_redraw();
         self.state = State::Ready(Box::new(graphics));
+    }
+
+    fn exiting(&mut self, _event_loop: &ActiveEventLoop) {
+        // Destroy native audio and graphics resources while winit's event loop
+        // is still alive. In particular, some window/surface backends depend on
+        // the event loop's platform state during destruction.
+        self.shutdown_audio_stream();
+        self.state = State::Init(None);
     }
 
     fn window_event(
@@ -370,15 +637,33 @@ impl ApplicationHandler<Graphics> for App {
         _window_id: WindowId,
         event: WindowEvent,
     ) {
+        if (self.close_requested || self.is_closing)
+            && !matches!(
+                event,
+                WindowEvent::CloseRequested | WindowEvent::RedrawRequested
+            )
+        {
+            return;
+        }
         match event {
             // User clicks the (x) button on the app [soft shutdown]
             WindowEvent::CloseRequested => {
+                if self.is_closing || self.close_requested {
+                    return;
+                }
+                if self.stream.is_none() {
+                    crate::config::save(&self.config);
+                    event_loop.exit();
+                    return;
+                }
+                // Cancel an in-flight project switch and close the currently open
+                // project. Dropping the receiver makes the worker discard its result.
+                if self.project_load_rx.is_some() {
+                    self.project_load_rx = None;
+                    self.pending_project = None;
+                }
+                self.close_requested = true;
                 if let State::Ready(gfx) = &mut self.state {
-                    if self.project_is_dirty {
-                        gfx.show_save_modal = true;
-                    } else {
-                        self.producer.try_push(AudioCommand::Shutdown).ok();
-                    }
                     gfx.request_redraw();
                 }
             }
@@ -388,6 +673,9 @@ impl ApplicationHandler<Graphics> for App {
             WindowEvent::RedrawRequested => self.draw(event_loop),
             // manage keyboard presses
             WindowEvent::KeyboardInput { event, .. } => {
+                if self.project_load_rx.is_some() || self.stream.is_none() {
+                    return;
+                }
                 if !event.state.is_pressed() {
                     match event.physical_key {
                         PhysicalKey::Code(KeyCode::ControlLeft) => self.ctrl_pressed = false,
@@ -406,8 +694,9 @@ impl ApplicationHandler<Graphics> for App {
                     if let State::Ready(gfx) = &mut self.state {
                         match event.physical_key {
                             PhysicalKey::Code(KeyCode::Space) => {
-                                self.producer.try_push(AudioCommand::TogglePlay).ok();
                                 gfx.is_playing = !gfx.is_playing;
+                                gfx.request_redraw();
+                                self.producer.try_push(AudioCommand::TogglePlay).ok();
                             }
                             PhysicalKey::Code(KeyCode::ControlLeft) => self.ctrl_pressed = true,
                             PhysicalKey::Code(KeyCode::ShiftLeft | KeyCode::ShiftRight) => {
@@ -427,10 +716,12 @@ impl ApplicationHandler<Graphics> for App {
                                     }
                                 }
                             }
-                            PhysicalKey::Code(KeyCode::KeyS) if self.ctrl_pressed => {
-                                if gfx.project_path
-                                    == crate::project::Project::default_project_file()
-                                {
+                            PhysicalKey::Code(KeyCode::KeyS)
+                                if self.ctrl_pressed
+                                    && self.pending_project.is_none()
+                                    && (self.project_is_dirty || project_needs_save_as(gfx)) =>
+                            {
+                                if project_needs_save_as(gfx) {
                                     if self.project_save_dialog_rx.is_none() {
                                         let (tx, rx) =
                                             std::sync::mpsc::channel::<Option<PathBuf>>();
@@ -444,7 +735,15 @@ impl ApplicationHandler<Graphics> for App {
                                         });
                                     }
                                 } else {
-                                    self.producer.try_push(AudioCommand::SaveProject).ok();
+                                    submit_project_save(
+                                        &self.save_worker,
+                                        &mut self.regular_saves_in_flight,
+                                        &self.project_name,
+                                        gfx,
+                                        SavePurpose::Regular,
+                                        self.project_revision,
+                                        None,
+                                    );
                                 }
                             }
                             _ => {}
@@ -604,24 +903,32 @@ impl ApplicationHandler<Graphics> for App {
                                 self.producer
                                     .try_push(AudioCommand::ChangeMasterVolume(new_volume))
                                     .ok();
+                                self.project_is_dirty = true;
+                                self.project_revision += 1;
                                 gfx.request_redraw();
                             }
                             DragResult::DragTrackVolumeKnob(track_id, new_volume) => {
                                 self.producer
                                     .try_push(AudioCommand::ChangeTrackVolume(track_id, new_volume))
                                     .ok();
+                                self.project_is_dirty = true;
+                                self.project_revision += 1;
                                 gfx.request_redraw();
                             }
                             DragResult::DragTrackVolumeSlider(track_id, new_volume) => {
                                 self.producer
                                     .try_push(AudioCommand::ChangeTrackVolume(track_id, new_volume))
                                     .ok();
+                                self.project_is_dirty = true;
+                                self.project_revision += 1;
                                 gfx.request_redraw();
                             }
                             DragResult::ResizeAudioBlock(event_id, amount) => {
                                 self.producer
                                     .try_push(AudioCommand::ResizeAudioBlock(event_id, amount))
                                     .ok();
+                                self.project_is_dirty = true;
+                                self.project_revision += 1;
                             }
                         }
                     } else {
@@ -631,5 +938,102 @@ impl ApplicationHandler<Graphics> for App {
             }
             _ => {}
         }
+        self.producer.flush_pending();
+    }
+}
+
+pub(super) fn submit_project_save(
+    worker: &ProjectSaveWorker,
+    regular_saves_in_flight: &mut HashSet<(String, u64)>,
+    project_name: &str,
+    gfx: &Graphics,
+    purpose: SavePurpose,
+    revision: u64,
+    path_override: Option<&str>,
+) {
+    let project = Project::new(
+        project_name.to_owned(),
+        gfx.bpm,
+        gfx.master_volume,
+        &gfx.tracks,
+        gfx.patterns.clone(),
+        gfx.audio_blocks.clone(),
+    );
+    let path = path_override.unwrap_or(&gfx.project_path).to_owned();
+    if purpose == SavePurpose::Regular {
+        let key = (path.clone(), revision);
+        if regular_saves_in_flight.contains(&key) {
+            return;
+        }
+        regular_saves_in_flight.insert(key);
+    }
+    let job = ProjectSaveJob {
+        project,
+        path: path.clone(),
+        purpose,
+        revision,
+    };
+    if let Err(error) = worker.submit(job) {
+        if purpose == SavePurpose::Regular {
+            regular_saves_in_flight.remove(&(path, revision));
+        }
+        log::error!("could not queue project save: {error}");
+    }
+}
+
+/// A project without an existing destination needs Save As. This covers the
+/// empty path used by a new project, the default starter path, and a new
+/// project path before its first save.
+fn project_needs_save_as(gfx: &Graphics) -> bool {
+    gfx.project_path.is_empty()
+        || gfx.project_path == crate::project::Project::default_project_file()
+        || !std::path::Path::new(&gfx.project_path).exists()
+}
+
+pub(super) fn apply_loaded_project(gfx: &mut Graphics, loaded: crate::project::ProjectLoadResult) {
+    gfx.is_playing = false;
+    gfx.active_step = 0;
+    gfx.playhead_beat = 0.0;
+    gfx.tracks = loaded.tracks;
+    gfx.patterns = loaded.project.patterns;
+    gfx.audio_blocks = loaded.project.audio_blocks;
+    gfx.bpm = loaded.project.bpm;
+    gfx.master_volume = loaded.project.master_volume;
+    gfx.project_path = loaded.path;
+    gfx.mini_windows[SEQUENCER_ID].height =
+        100.0 + crate::graphics::mini_window::sequencer::TRACK_GAP * gfx.tracks.len() as f32;
+}
+
+pub(super) fn make_audio_block(
+    gfx: &Graphics,
+    track: u32,
+    start_step: u32,
+    length: u32,
+    block_type: AudioBlockType,
+) -> AudioBlock {
+    let length = match block_type {
+        AudioBlockType::Sample(sample_track_id) => gfx
+            .tracks
+            .iter()
+            .find(|track| track.data.id == sample_track_id)
+            .map(|loaded_track| {
+                let step_frames = glacier_dsp::utils::samples_per_step(gfx.sample_rate, gfx.bpm);
+                let frames =
+                    (loaded_track.samples.len() / loaded_track.data.channels as usize) as f32;
+                (frames / step_frames).ceil() as u32
+            })
+            .unwrap_or(length),
+        _ => length,
+    };
+    AudioBlock {
+        id: next_id(
+            gfx.audio_blocks.iter().map(|block| block.id.0),
+            AudioBlockID,
+        ),
+        track,
+        start_step,
+        length,
+        block_type,
+        is_muted: false,
     }
 }

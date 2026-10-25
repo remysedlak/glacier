@@ -1,7 +1,6 @@
 use super::{App, State};
 use crate::audio::audio_command::AudioCommand;
 use crate::graphics::primitives::RenameTarget;
-use ringbuf::traits::Producer;
 use winit::event::KeyEvent;
 use winit::keyboard::{KeyCode, PhysicalKey};
 
@@ -22,17 +21,24 @@ impl App {
                 let final_name = renaming.edited_name.clone();
                 match renaming.target {
                     RenameTarget::Pattern(id) => {
+                        if let Some(pattern) = gfx.patterns.iter_mut().find(|p| p.id == id) {
+                            pattern.name = final_name.clone();
+                        }
                         self.producer
                             .try_push(AudioCommand::RenamePattern(id, final_name))
                             .ok();
                     }
                     RenameTarget::Track(id) => {
+                        if let Some(track) = gfx.tracks.iter_mut().find(|t| t.data.id == id) {
+                            track.data.name = final_name.clone();
+                        }
                         self.producer
                             .try_push(AudioCommand::RenameTrack(id, final_name))
                             .ok();
                     }
                 }
                 self.project_is_dirty = true;
+                self.project_revision += 1;
                 gfx.renaming = None;
             }
             PhysicalKey::Code(KeyCode::Escape) => gfx.renaming = None,

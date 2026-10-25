@@ -1,143 +1,34 @@
 //! handle all commands incoming from audio thread
 use super::{App, State};
-use crate::graphics::PlaylistAction;
-use crate::project::{
-    AudioBlock, AudioBlockID, AudioBlockType, PatternData, PatternID, Track, TrackID,
-};
-use crate::{
-    graphics::{
-        bring_to_front,
-        mini_window::{sequencer::TRACK_GAP, SEQUENCER_ID},
-    },
-    project::TrackData,
-};
-use cpal::traits::StreamTrait;
+use crate::project::{ProjectSaveResult, SavePurpose, TrackID};
+use winit::event_loop::ActiveEventLoop;
 
 /// UiCommands are used to sync the audio engine to the graphics engine
 pub enum UiCommand {
     TrackLevel(TrackID, f32, f32, f32),
-    TrackLoaded(Track),
-    TrackDeleted(TrackID),
-    TrackUpdated(TrackData),
-
-    BpmChanged(f32),
-
-    PatternUpdated(PatternData),
-    PatternDeleted(PatternID),
-
-    AudioBlockDeleted(AudioBlockID),
-    AudioBlockLoaded(AudioBlock),
 
     MasterLevel(f32, f32, f32),
-    SampleRateLoaded(f32),
     StepAdvanced(usize),
     PlayheadPosition(f32),
     SpectrumFrame(Vec<f32>),
 
     PlaybackStopped,
-    PlayToggled,
-
-    ShutdownComplete,
-    SaveComplete,
-
-    LoadProject {
-        tracks: Vec<Track>,
-        patterns: Vec<PatternData>,
-        audio_blocks: Vec<AudioBlock>,
-        bpm: f32,
-        master_volume: f32,
-        project_path: String,
-    },
+    PlayToggled(bool),
 }
 
 impl App {
-    pub(super) fn handle_ui_command(&mut self, cmd: UiCommand, should_exit: &mut bool) {
-        use crate::audio::audio_command::AudioCommand;
-        use ringbuf::traits::{Producer, Split};
-        use ringbuf::HeapRb;
-
-        let App {
-            state,
-            producer,
-            consumer,
-            pending_drop,
-            project_is_dirty,
-            config,
-            stream,
-            pending_project,
-            ..
-        } = self;
-
-        let State::Ready(gfx) = state else { return };
+    pub(super) fn handle_ui_command(&mut self, cmd: UiCommand) {
+        let State::Ready(gfx) = &mut self.state else {
+            return;
+        };
 
         match cmd {
-            UiCommand::PlayToggled => {
-                gfx.is_playing = !gfx.is_playing;
-            }
+            UiCommand::PlayToggled(is_playing) => gfx.is_playing = is_playing,
             UiCommand::PlaybackStopped => {
                 gfx.is_playing = false;
                 gfx.active_step = 0;
             }
-            UiCommand::BpmChanged(bpm) => {
-                gfx.bpm = bpm;
-                self.project_is_dirty = true;
-            }
-            UiCommand::AudioBlockLoaded(audio_block) => {
-                gfx.audio_blocks.push(audio_block);
-                self.project_is_dirty = true;
-            }
-            UiCommand::TrackDeleted(track_id) => {
-                if let Some(pos) = gfx.tracks.iter().position(|t| t.data.id == track_id) {
-                    gfx.tracks.remove(pos);
-                }
-                gfx.mini_windows[SEQUENCER_ID].height = 100.0 + TRACK_GAP * gfx.tracks.len() as f32;
-                gfx.audio_blocks.retain(|e| {
-                    if let AudioBlockType::Sample(id) = e.block_type {
-                        id != track_id
-                    } else {
-                        true
-                    }
-                });
-                gfx.context_menu = None;
-                self.project_is_dirty = true;
-            }
-            UiCommand::AudioBlockDeleted(event_id) => {
-                gfx.audio_blocks.retain(|e| e.id != event_id);
-                gfx.waveform_cache.entries.remove(&event_id);
-                self.project_is_dirty = true;
-            }
-            UiCommand::PatternDeleted(pattern_id) => {
-                gfx.patterns.retain(|p| p.id != pattern_id);
-                gfx.audio_blocks.retain(|e| {
-                    if let crate::project::AudioBlockType::Pattern(pid) = e.block_type {
-                        pid != pattern_id
-                    } else {
-                        true
-                    }
-                });
-                gfx.context_menu = None;
-                self.project_is_dirty = true;
-            }
             UiCommand::SpectrumFrame(samples) => gfx.spectrum = samples,
-            UiCommand::LoadProject {
-                tracks,
-                patterns,
-                audio_blocks,
-                bpm,
-                master_volume,
-                project_path,
-            } => {
-                gfx.tracks = tracks;
-                gfx.patterns = patterns;
-                gfx.audio_blocks = audio_blocks;
-                gfx.bpm = bpm;
-                gfx.master_volume = master_volume;
-                gfx.project_path = project_path;
-                gfx.mini_windows[SEQUENCER_ID].height = 100.0 + TRACK_GAP * gfx.tracks.len() as f32;
-            }
-            UiCommand::TrackUpdated(track_data) => {
-                gfx.update_track_data(track_data);
-            }
             UiCommand::PlayheadPosition(beat) => gfx.playhead_beat = beat,
             UiCommand::TrackLevel(track_id, rms_l, rms_r, peak) => {
                 if let Some(track) = gfx.tracks.iter_mut().find(|t| t.data.id == track_id) {
@@ -151,53 +42,122 @@ impl App {
                 gfx.master_rms_r = rms_r;
                 gfx.master_peak = peak;
             }
-            UiCommand::TrackLoaded(track) => {
-                let track_id = track.data.id;
-                gfx.playlist_action = PlaylistAction::PlaceFresh(AudioBlockType::Sample(track_id));
-                gfx.tracks.push(track);
-                let win = &mut gfx.mini_windows[SEQUENCER_ID];
-                win.height = 100.0 + TRACK_GAP * gfx.tracks.len() as f32;
-
-                if let Some((playlist_track, step)) = pending_drop.take() {
-                    producer
-                        .try_push(AudioCommand::CreateAudioBlock(
-                            playlist_track,
-                            step as u32,
-                            1,
-                            AudioBlockType::Sample(track_id),
-                        ))
-                        .ok();
-                } else {
-                    win.is_open = true;
-                    bring_to_front(&mut gfx.z_order, SEQUENCER_ID);
-                }
-            }
-            UiCommand::SampleRateLoaded(rate) => gfx.sample_rate = rate,
-            UiCommand::PatternUpdated(pattern) => {
-                gfx.update_pattern(pattern);
-                self.project_is_dirty = true;
-            }
             UiCommand::StepAdvanced(step) => {
                 gfx.active_step = step;
                 gfx.request_redraw();
             }
-            UiCommand::ShutdownComplete => {
-                crate::config::save(config);
-                let _ = stream.pause();
-                *should_exit = true;
-            }
-            UiCommand::SaveComplete => {
-                if let Some(path) = pending_project.take() {
-                    let _ = stream.pause();
-                    let (audio_prod, audio_cons) = HeapRb::<AudioCommand>::new(64).split();
-                    let (ui_prod, ui_cons) = HeapRb::<UiCommand>::new(64).split();
-                    *producer = audio_prod;
-                    *consumer = ui_cons;
-                    let project = crate::project::load_project(Some(path.as_str()));
-                    let tracks = crate::project::get_tracks(&project);
-                    *stream = crate::audio::init(audio_cons, ui_prod, project, tracks, path);
+        }
+    }
+
+    pub(super) fn handle_save_result(
+        &mut self,
+        result: ProjectSaveResult,
+        event_loop: &ActiveEventLoop,
+    ) {
+        let close_after_regular_save = self.is_closing
+            && result.purpose == SavePurpose::Regular
+            && result.revision == self.project_revision;
+        if result.purpose == SavePurpose::Regular {
+            self.regular_saves_in_flight
+                .remove(&(result.path.clone(), result.revision));
+        }
+
+        if let Err(error) = &result.result {
+            log::error!("failed to save project {}: {error}", result.path);
+        } else {
+            println!("saved to {}", result.path);
+        }
+
+        let purpose = if close_after_regular_save {
+            SavePurpose::Close
+        } else {
+            result.purpose
+        };
+        match purpose {
+            SavePurpose::Regular => {
+                if result.result.is_ok() {
+                    if let State::Ready(gfx) = &mut self.state {
+                        gfx.project_path = result.path.clone();
+                    }
+                    if result.revision == self.project_revision {
+                        self.project_is_dirty = false;
+                        if let Some(path) = self.pending_project.take() {
+                            self.project_load_rx =
+                                Some(crate::project::spawn_project_load(path, false));
+                        }
+                    } else if self.pending_project.is_some() {
+                        let State::Ready(gfx) = &self.state else {
+                            return;
+                        };
+                        super::submit_project_save(
+                            &self.save_worker,
+                            &mut self.regular_saves_in_flight,
+                            &self.project_name,
+                            gfx,
+                            SavePurpose::ProjectSwitch,
+                            self.project_revision,
+                            None,
+                        );
+                    }
+                } else if self.pending_project.is_some() {
+                    self.pending_project = None;
                 }
-                *project_is_dirty = false;
+            }
+            SavePurpose::ProjectSwitch => {
+                if result.result.is_ok() && result.revision == self.project_revision {
+                    self.project_is_dirty = false;
+                    if let Some(path) = self.pending_project.take() {
+                        self.project_load_rx =
+                            Some(crate::project::spawn_project_load(path, false));
+                    }
+                } else if result.result.is_ok() {
+                    // The project changed while the snapshot was being written; save the
+                    // latest state before starting the requested project load.
+                    if self.pending_project.is_some() {
+                        let State::Ready(gfx) = &self.state else {
+                            return;
+                        };
+                        super::submit_project_save(
+                            &self.save_worker,
+                            &mut self.regular_saves_in_flight,
+                            &self.project_name,
+                            gfx,
+                            SavePurpose::ProjectSwitch,
+                            self.project_revision,
+                            None,
+                        );
+                    }
+                } else {
+                    // Keep the current project and its unsaved changes intact.
+                    self.pending_project = None;
+                }
+            }
+            SavePurpose::Close => {
+                if result.result.is_ok() && result.revision == self.project_revision {
+                    self.project_is_dirty = false;
+                    crate::config::save(&self.config);
+                    self.pause_audio_stream();
+                    event_loop.exit();
+                } else if result.result.is_ok() {
+                    if let State::Ready(gfx) = &self.state {
+                        super::submit_project_save(
+                            &self.save_worker,
+                            &mut self.regular_saves_in_flight,
+                            &self.project_name,
+                            gfx,
+                            SavePurpose::Close,
+                            self.project_revision,
+                            None,
+                        );
+                    }
+                } else {
+                    self.is_closing = false;
+                    self.close_save_submitted = false;
+                    if let State::Ready(gfx) = &mut self.state {
+                        gfx.show_save_modal = true;
+                        gfx.request_redraw();
+                    }
+                }
             }
         }
     }

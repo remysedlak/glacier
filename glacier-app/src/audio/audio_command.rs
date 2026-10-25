@@ -2,12 +2,10 @@ use crate::{
     app::UiCommand,
     audio::EngineState,
     project::{
-        AudioBlock, AudioBlockID, AudioBlockType, Note, PatternData, PatternID, Project, Sequence,
-        Track, TrackData, TrackID,
+        AudioBlock, AudioBlockID, AudioBlockType, Note, PatternData, PatternID, Sequence, Track,
+        TrackID,
     },
 };
-
-use glacier_dsp::utils::samples_per_step;
 use ringbuf::traits::Producer;
 
 /// A command sent from the UI thread to control the audio engine
@@ -19,9 +17,8 @@ pub enum AudioCommand {
 
     // audio blocks
     DeleteAudioBlock(AudioBlockID),
-    CreateAudioBlock(u32, u32, u32, AudioBlockType), // track, start_step, length, block_type
+    CreateAudioBlock(AudioBlock),
     ResizeAudioBlock(AudioBlockID, u32),
-    DuplicateAudioBlock(AudioBlockID, u32, u32),
 
     // mixing
     ChangeMasterVolume(f32),
@@ -33,15 +30,8 @@ pub enum AudioCommand {
     Stop,
     PreviewSample(Vec<f32>, u16),
 
-    // project state
-    Shutdown,
-    ShutdownWithoutSaving,
-    SaveProject,
-    SetProjectPath(String),
-
     // patterns
-    DuplicatePattern(PatternID),
-    CreatePattern,
+    CreatePattern(PatternData),
     DeletePattern(PatternID),
     ClearPattern(PatternID),
 
@@ -50,7 +40,7 @@ pub enum AudioCommand {
     RenameTrack(TrackID, String),
 
     // tracks
-    LoadTrack(TrackData, Vec<f32>),
+    LoadTrack(Track),
     DeleteTrack(TrackID),
 }
 
@@ -69,21 +59,7 @@ pub fn handle_command(cmd: AudioCommand, engine_state: &mut EngineState) {
                         *note = Note::DEFAULT;
                     }
                 }
-                // update the ui
-                engine_state
-                    .audio_producer
-                    .try_push(UiCommand::PatternUpdated(pattern.clone()))
-                    .ok();
             }
-        }
-        AudioCommand::ShutdownWithoutSaving => {
-            if !engine_state.is_playing {
-                engine_state
-                    .audio_producer
-                    .try_push(UiCommand::ShutdownComplete)
-                    .ok();
-            }
-            engine_state.is_shutting_down = true;
         }
         AudioCommand::RenamePattern(pattern_id, name) => {
             if let Some(pattern) = engine_state
@@ -92,10 +68,6 @@ pub fn handle_command(cmd: AudioCommand, engine_state: &mut EngineState) {
                 .find(|p| p.id == pattern_id)
             {
                 pattern.name = name.clone();
-                engine_state
-                    .audio_producer
-                    .try_push(UiCommand::PatternUpdated(pattern.clone()))
-                    .ok();
             }
         }
         AudioCommand::RenameTrack(track_id, name) => {
@@ -105,10 +77,6 @@ pub fn handle_command(cmd: AudioCommand, engine_state: &mut EngineState) {
                 .find(|t| t.data.id == track_id)
             {
                 track.data.name = name.clone();
-                engine_state
-                    .audio_producer
-                    .try_push(UiCommand::TrackUpdated(track.data.clone()))
-                    .ok();
             }
         }
         AudioCommand::PreviewSample(samples, channels) => {
@@ -116,7 +84,6 @@ pub fn handle_command(cmd: AudioCommand, engine_state: &mut EngineState) {
             engine_state.preview_channels = channels;
             engine_state.preview_position = 0.0;
         }
-        AudioCommand::SetProjectPath(new_path) => engine_state.project_path = new_path,
         AudioCommand::ResizeAudioBlock(audio_block_id, new_length) => {
             if let Some(audio_block) = engine_state
                 .audio_blocks
@@ -124,50 +91,6 @@ pub fn handle_command(cmd: AudioCommand, engine_state: &mut EngineState) {
                 .find(|audio_block| audio_block.id == audio_block_id)
             {
                 audio_block.length = new_length;
-            }
-        }
-        AudioCommand::DuplicateAudioBlock(block_id, track, step) => {
-            if let Some(block) = engine_state
-                .audio_blocks
-                .iter()
-                .find(|b| b.id == block_id)
-                .cloned()
-            {
-                let new_block = block.duplicate(
-                    crate::project::next_id(
-                        engine_state.audio_blocks.iter().map(|x| x.id.0),
-                        AudioBlockID,
-                    ),
-                    track,
-                    step,
-                );
-
-                engine_state.audio_blocks.push(new_block.clone());
-                // update the ui
-                engine_state
-                    .audio_producer
-                    .try_push(UiCommand::AudioBlockLoaded(new_block))
-                    .ok();
-            }
-        }
-        AudioCommand::DuplicatePattern(pattern_id) => {
-            if let Some(pattern) = engine_state
-                .patterns
-                .iter()
-                .find(|p| p.id == pattern_id)
-                .cloned()
-            {
-                let new_pattern = pattern.duplicate(crate::project::next_id(
-                    engine_state.patterns.iter().map(|x| x.id.0),
-                    PatternID,
-                ));
-
-                engine_state.patterns.push(new_pattern.clone());
-                // update the ui
-                engine_state
-                    .audio_producer
-                    .try_push(UiCommand::PatternUpdated(new_pattern))
-                    .ok();
             }
         }
 
@@ -206,39 +129,9 @@ pub fn handle_command(cmd: AudioCommand, engine_state: &mut EngineState) {
                     };
                     pattern.sequences.push(Sequence { track_id, steps });
                 }
-                engine_state
-                    .audio_producer
-                    .try_push(UiCommand::PatternUpdated(pattern.clone()))
-                    .ok();
             }
         }
-        AudioCommand::CreatePattern => {
-            // get new id
-            let new_pattern_id =
-                crate::project::next_id(engine_state.patterns.iter().map(|x| x.id.0), PatternID);
-
-            // create name to be Nth pattern available
-            let name = format!("Pattern {}", engine_state.patterns.len() + 1);
-
-            let sequences = engine_state
-                .tracks
-                .iter()
-                .map(|instr| Sequence {
-                    track_id: instr.data.id,
-                    steps: vec![Note::DEFAULT; 16],
-                })
-                .collect();
-            let p = PatternData {
-                id: new_pattern_id,
-                name,
-                sequences,
-            };
-            engine_state.patterns.push(p.clone());
-            engine_state
-                .audio_producer
-                .try_push(UiCommand::PatternUpdated(p))
-                .ok();
-        }
+        AudioCommand::CreatePattern(pattern) => engine_state.patterns.push(pattern),
         AudioCommand::DeletePattern(pattern_id) => {
             // remove the pattern from list of patterns
             engine_state.patterns.retain(|p| p.id != pattern_id);
@@ -250,17 +143,9 @@ pub fn handle_command(cmd: AudioCommand, engine_state: &mut EngineState) {
                     true
                 }
             });
-            engine_state
-                .audio_producer
-                .try_push(UiCommand::PatternDeleted(pattern_id))
-                .ok();
         }
         AudioCommand::DeleteAudioBlock(audio_block_id) => {
             engine_state.audio_blocks.retain(|e| e.id != audio_block_id);
-            engine_state
-                .audio_producer
-                .try_push(UiCommand::AudioBlockDeleted(audio_block_id))
-                .ok();
         }
         AudioCommand::Stop => {
             engine_state.is_playing = false;
@@ -274,39 +159,7 @@ pub fn handle_command(cmd: AudioCommand, engine_state: &mut EngineState) {
                 .try_push(UiCommand::PlaybackStopped)
                 .ok();
         }
-        AudioCommand::CreateAudioBlock(track, start_step, length, block_type) => {
-            let computed_length = match &block_type {
-                AudioBlockType::Sample(sample_track_id) => engine_state
-                    .tracks
-                    .iter()
-                    .find(|t| t.data.id == *sample_track_id)
-                    .map(|track| {
-                        let samples_per_step =
-                            samples_per_step(engine_state.sample_rate, engine_state.bpm);
-                        let frames = (track.samples.len() / track.data.channels as usize) as f32;
-                        (frames / samples_per_step).ceil() as u32
-                    })
-                    .unwrap_or(length),
-                _ => length, // Pattern, Mixing — use whatever the UI sent
-            };
-
-            let audio_block = AudioBlock {
-                id: crate::project::next_id(
-                    engine_state.audio_blocks.iter().map(|x| x.id.0),
-                    AudioBlockID,
-                ),
-                track,
-                start_step,
-                length: computed_length,
-                block_type,
-                is_muted: false,
-            };
-            engine_state.audio_blocks.push(audio_block.clone());
-            engine_state
-                .audio_producer
-                .try_push(UiCommand::AudioBlockLoaded(audio_block))
-                .ok();
-        }
+        AudioCommand::CreateAudioBlock(block) => engine_state.audio_blocks.push(block),
         AudioCommand::ChangeMasterVolume(new_volume) => engine_state.master_volume = new_volume,
         AudioCommand::ChangeTrackVolume(track_id, new_volume) => {
             if let Some(track) = engine_state
@@ -315,10 +168,6 @@ pub fn handle_command(cmd: AudioCommand, engine_state: &mut EngineState) {
                 .find(|t| t.data.id == track_id)
             {
                 track.data.track_volume = new_volume;
-                engine_state
-                    .audio_producer
-                    .try_push(UiCommand::TrackUpdated(track.data.clone()))
-                    .ok();
             }
         }
         AudioCommand::ToggleStep(pattern_id, track_id, step_idx) => {
@@ -357,10 +206,6 @@ pub fn handle_command(cmd: AudioCommand, engine_state: &mut EngineState) {
                     };
                     pattern.sequences.push(seq);
                 }
-                engine_state
-                    .audio_producer
-                    .try_push(UiCommand::PatternUpdated(pattern.clone()))
-                    .ok();
             }
         }
         AudioCommand::DeleteTrack(track_id) => {
@@ -381,31 +226,14 @@ pub fn handle_command(cmd: AudioCommand, engine_state: &mut EngineState) {
                     }
                 });
                 engine_state.tracks.remove(pos);
-                engine_state
-                    .audio_producer
-                    .try_push(UiCommand::TrackDeleted(data_id))
-                    .ok();
             };
         }
 
-        AudioCommand::LoadTrack(mut track_data, samples) => {
-            // get new id
-            track_data.id =
-                crate::project::next_id(engine_state.tracks.iter().map(|x| x.data.id.0), TrackID);
-
-            let track = Track::from_data(track_data, samples);
-            engine_state.tracks.push(track.clone()); // ownership clone
-            engine_state
-                .audio_producer
-                .try_push(UiCommand::TrackLoaded(track))
-                .ok();
+        AudioCommand::LoadTrack(track) => {
+            engine_state.tracks.push(track);
         }
         AudioCommand::ChangeBpm(new_bpm) => {
             engine_state.bpm = new_bpm;
-            engine_state
-                .audio_producer
-                .try_push(UiCommand::BpmChanged(new_bpm))
-                .ok();
         }
         AudioCommand::ToggleTrackMute(track_id) => {
             if let Some(track) = engine_state
@@ -414,58 +242,14 @@ pub fn handle_command(cmd: AudioCommand, engine_state: &mut EngineState) {
                 .find(|t| t.data.id == track_id)
             {
                 track.mute();
-                engine_state
-                    .audio_producer
-                    .try_push(UiCommand::TrackUpdated(track.data.clone()))
-                    .ok();
             }
         }
         AudioCommand::TogglePlay => {
             engine_state.is_playing = !engine_state.is_playing;
             engine_state
                 .audio_producer
-                .try_push(UiCommand::PlayToggled)
+                .try_push(UiCommand::PlayToggled(engine_state.is_playing))
                 .ok();
-        }
-        AudioCommand::SaveProject => {
-            let project = Project::new(
-                engine_state.project_name.clone(),
-                engine_state.bpm,
-                engine_state.master_volume,
-                &engine_state.tracks,
-                engine_state.patterns.clone(),
-                engine_state.audio_blocks.clone(),
-            );
-            project.save_to_toml(&engine_state.project_path);
-            engine_state
-                .audio_producer
-                .try_push(UiCommand::SaveComplete)
-                .ok();
-            println!("saved to {}", engine_state.project_path);
-        }
-        AudioCommand::Shutdown => {
-            let project = Project::new(
-                engine_state.project_name.clone(),
-                engine_state.bpm,
-                engine_state.master_volume,
-                &engine_state.tracks,
-                engine_state.patterns.clone(),
-                engine_state.audio_blocks.clone(),
-            );
-            project.save_to_toml(&engine_state.project_path);
-
-            // save is complete
-            engine_state
-                .audio_producer
-                .try_push(UiCommand::SaveComplete)
-                .ok();
-            if !engine_state.is_playing {
-                engine_state
-                    .audio_producer
-                    .try_push(UiCommand::ShutdownComplete)
-                    .ok();
-            }
-            engine_state.is_shutting_down = true;
         }
     }
 }

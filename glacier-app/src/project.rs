@@ -1,6 +1,8 @@
 //! Project details are stored in .toml files
 use serde::{Deserialize, Serialize};
-use std::sync::mpsc::Receiver;
+use std::sync::mpsc::{self, Receiver, Sender, TryRecvError};
+use std::sync::Arc;
+use std::thread::JoinHandle;
 
 const SUPPORTED_AUDIO_EXTENSIONS: &[&str] = &["wav", "mp3", "flac", "aiff", "ogg"];
 pub const MAX_VOICES_PER_TRACK: usize = 64;
@@ -42,20 +44,166 @@ impl Project {
         }
     }
     /// Save the project details to a location on disk
-    pub fn save_to_toml(&self, file_path: &str) {
+    pub fn save_to_toml(&self, file_path: &str) -> Result<(), String> {
         let path = std::path::Path::new(file_path);
         if let Some(parent) = path.parent() {
-            std::fs::create_dir_all(parent).ok();
+            if !parent.as_os_str().is_empty() {
+                std::fs::create_dir_all(parent)
+                    .map_err(|e| format!("failed to create {}: {e}", parent.display()))?;
+            }
         }
 
-        let text = toml::to_string(self).unwrap();
-        if let Err(e) = std::fs::write(file_path, &text) {
-            eprintln!("Failed to save project: {}", e);
+        let text =
+            toml::to_string(self).map_err(|e| format!("failed to serialize project: {e}"))?;
+        #[cfg(windows)]
+        {
+            return std::fs::write(path, text)
+                .map_err(|e| format!("failed to write {}: {e}", path.display()));
+        }
+        #[cfg(not(windows))]
+        {
+            let temporary_path = path.with_extension(format!(
+                "{}.{}.tmp",
+                path.extension()
+                    .and_then(|extension| extension.to_str())
+                    .unwrap_or("toml"),
+                std::process::id()
+            ));
+            std::fs::write(&temporary_path, text)
+                .map_err(|e| format!("failed to write {}: {e}", temporary_path.display()))?;
+            if let Err(error) = std::fs::rename(&temporary_path, path) {
+                let _ = std::fs::remove_file(&temporary_path);
+                return Err(format!("failed to replace {}: {error}", path.display()));
+            }
+            Ok(())
         }
     }
     /// Use the default DAW file
     pub fn default_project_file() -> String {
         "assets/projects/new_project.toml".to_string()
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum SavePurpose {
+    Regular,
+    ProjectSwitch,
+    Close,
+}
+
+pub struct ProjectLoadResult {
+    pub project: Project,
+    pub tracks: Vec<Track>,
+    pub path: String,
+}
+
+/// Read project metadata and its referenced audio files away from the UI thread.
+pub fn spawn_project_load(
+    path: String,
+    use_default_if_missing: bool,
+) -> Receiver<Result<ProjectLoadResult, String>> {
+    let (sender, receiver) = mpsc::channel();
+    std::thread::spawn(move || {
+        let project = match get_project(&path) {
+            Some(project) => project,
+            None if use_default_if_missing => Project::default(),
+            None => {
+                let _ = sender.send(Err(format!("could not read project file {path}")));
+                return;
+            }
+        };
+        let tracks = get_tracks(&project);
+        let _ = sender.send(Ok(ProjectLoadResult {
+            project,
+            tracks,
+            path,
+        }));
+    });
+    receiver
+}
+
+pub struct ProjectSaveJob {
+    pub project: Project,
+    pub path: String,
+    pub purpose: SavePurpose,
+    pub revision: u64,
+}
+
+pub struct ProjectSaveResult {
+    pub path: String,
+    pub purpose: SavePurpose,
+    pub result: Result<(), String>,
+    pub revision: u64,
+}
+
+enum ProjectSaveMessage {
+    Save(ProjectSaveJob),
+    Shutdown,
+}
+
+/// Long-lived worker for project serialization and file writes.
+pub struct ProjectSaveWorker {
+    sender: Sender<ProjectSaveMessage>,
+    results: Receiver<ProjectSaveResult>,
+    thread: Option<JoinHandle<()>>,
+}
+
+impl ProjectSaveWorker {
+    pub fn new() -> Self {
+        let (sender, jobs) = mpsc::channel();
+        let (result_sender, results) = mpsc::channel();
+        let thread = std::thread::spawn(move || {
+            while let Ok(message) = jobs.recv() {
+                match message {
+                    ProjectSaveMessage::Save(job) => {
+                        let ProjectSaveJob {
+                            project,
+                            path,
+                            purpose,
+                            revision,
+                        } = job;
+                        let result = project.save_to_toml(&path);
+                        if result_sender
+                            .send(ProjectSaveResult {
+                                path,
+                                purpose,
+                                result,
+                                revision,
+                            })
+                            .is_err()
+                        {
+                            break;
+                        }
+                    }
+                    ProjectSaveMessage::Shutdown => break,
+                }
+            }
+        });
+
+        Self {
+            sender,
+            results,
+            thread: Some(thread),
+        }
+    }
+
+    pub fn submit(&self, job: ProjectSaveJob) -> Result<(), String> {
+        self.sender
+            .send(ProjectSaveMessage::Save(job))
+            .map_err(|_| "project save worker has stopped".to_string())
+    }
+
+    pub fn try_result(&self) -> Result<ProjectSaveResult, TryRecvError> {
+        self.results.try_recv()
+    }
+}
+
+impl Drop for ProjectSaveWorker {
+    fn drop(&mut self) {
+        let _ = self.sender.send(ProjectSaveMessage::Shutdown);
+        if let Some(thread) = self.thread.take() {
+            let _ = thread.join();
+        }
     }
 }
 
@@ -128,8 +276,8 @@ pub struct Track {
     // persistent track information (serializable)
     pub data: TrackData,
     // recreated in memory every session
-    pub samples: Vec<f32>,
-    pub mono_samples: Vec<f32>,
+    pub samples: Arc<[f32]>,
+    pub mono_samples: Arc<[f32]>,
     pub voice_pool: VoicePool,
     pub show_velocity: bool,
     pub rms_l: f32,
@@ -149,8 +297,8 @@ impl Track {
                 .collect()
         };
         Track {
-            samples,
-            mono_samples,
+            samples: samples.into(),
+            mono_samples: mono_samples.into(),
             data,
             voice_pool: VoicePool::default(),
             show_velocity: false,
@@ -229,12 +377,6 @@ pub fn get_project(file_path: &str) -> Option<Project> {
     toml::from_str(&text).ok()
 }
 
-/// Load the requested project before the audio stream starts, falling back to
-/// a blank project when no path was supplied or the file could not be loaded.
-pub fn load_project(file_path: Option<&str>) -> Project {
-    file_path.and_then(get_project).unwrap_or_default()
-}
-
 /// load list of tracks with their audio data from project details
 pub fn get_tracks(project: &Project) -> Vec<Track> {
     project
@@ -250,7 +392,7 @@ pub fn get_tracks(project: &Project) -> Vec<Track> {
 }
 
 /// Helper method for starting a thread to handle loading a new track to the project from the file system
-pub fn spawn_track_load(path_str: String) -> Receiver<(TrackData, Vec<f32>)> {
+pub fn spawn_track_load(path_str: String) -> Receiver<Track> {
     let (tx, rx) = std::sync::mpsc::channel();
     std::thread::spawn(move || {
         let (samples, channels) = path_to_vector(&path_str);
@@ -267,7 +409,7 @@ pub fn spawn_track_load(path_str: String) -> Receiver<(TrackData, Vec<f32>)> {
             is_muted: false,
             root_note: 60,
         };
-        tx.send((data, samples)).ok();
+        tx.send(Track::from_data(data, samples)).ok();
     });
     rx
 }

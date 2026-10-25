@@ -67,14 +67,10 @@ pub fn draw(
         out,
     );
 
-    let samples_averaged: Vec<f32> = if track.data.channels == 1 {
-        track.samples.clone()
+    let samples_averaged: &[f32] = if track.data.channels == 1 {
+        &track.samples
     } else {
-        track
-            .samples
-            .chunks(2)
-            .map(|pair| (pair[0] + pair[1]) / 2.0)
-            .collect()
+        &track.mono_samples
     };
     let sample_stride = samples_averaged.len() / TRACK_GRAPHICS_WIDTH as usize;
 
