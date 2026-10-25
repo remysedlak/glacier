@@ -1,5 +1,4 @@
 use super::{App, State};
-use crate::audio::audio_command::AudioCommand;
 use crate::graphics::primitives::RenameTarget;
 use winit::event::KeyEvent;
 use winit::keyboard::{KeyCode, PhysicalKey};
@@ -22,19 +21,13 @@ impl App {
                 match renaming.target {
                     RenameTarget::Pattern(id) => {
                         if let Some(pattern) = gfx.patterns.iter_mut().find(|p| p.id == id) {
-                            pattern.name = final_name.clone();
+                            pattern.name = final_name;
                         }
-                        self.producer
-                            .try_push(AudioCommand::RenamePattern(id, final_name))
-                            .ok();
                     }
                     RenameTarget::Track(id) => {
                         if let Some(track) = gfx.tracks.iter_mut().find(|t| t.data.id == id) {
-                            track.data.name = final_name.clone();
+                            track.data.name = final_name;
                         }
-                        self.producer
-                            .try_push(AudioCommand::RenameTrack(id, final_name))
-                            .ok();
                     }
                 }
                 self.project_is_dirty = true;

@@ -35,6 +35,7 @@ use primitives::*;
 use std::borrow::Cow;
 use std::collections::HashMap;
 use std::path::PathBuf;
+use std::time::Instant;
 
 use wgpu::{
     Adapter, CommandEncoderDescriptor, DeviceDescriptor, Features, FragmentState, Instance, Limits,
@@ -265,7 +266,9 @@ pub async fn create_graphics(window: Rc<Window>, proxy: EventLoopProxy<Graphics>
         },
 
         // shapes
-        frame_ms: 0.0,
+        present_fps: 0.0,
+        fps_window_start: None,
+        fps_window_frames: 0,
         num_vertices: 0,
 
         // song information
@@ -382,7 +385,9 @@ pub struct Graphics {
     pub render_context: RenderContext,
     pub window: std::sync::Arc<Window>,
     num_vertices: u32,
-    pub frame_ms: f32,       // FPS
+    pub present_fps: f32,
+    fps_window_start: Option<Instant>,
+    fps_window_frames: u32,
     pub z_order: Vec<usize>, // painters algorithm
 
     // ui

@@ -10,8 +10,6 @@ pub enum UiCommand {
     MasterLevel(f32, f32, f32),
     StepAdvanced(usize),
     PlayheadPosition(f32),
-    SpectrumFrame(Vec<f32>),
-
     PlaybackStopped,
     PlayToggled(bool),
 }
@@ -28,7 +26,6 @@ impl App {
                 gfx.is_playing = false;
                 gfx.active_step = 0;
             }
-            UiCommand::SpectrumFrame(samples) => gfx.spectrum = samples,
             UiCommand::PlayheadPosition(beat) => gfx.playhead_beat = beat,
             UiCommand::TrackLevel(track_id, rms_l, rms_r, peak) => {
                 if let Some(track) = gfx.tracks.iter_mut().find(|t| t.data.id == track_id) {

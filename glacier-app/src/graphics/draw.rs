@@ -824,7 +824,7 @@ impl Graphics {
         let (texts, icons, tooltip, footer_interaction) = footer::draw(
             &screen_config,
             &title,
-            1000.0 / self.frame_ms,
+            self.present_fps,
             mouse_state,
             &mut vertices,
         );
@@ -1061,6 +1061,20 @@ impl Graphics {
         // Submit finished command buffer for execution.
         self.render_context.queue.submit(Some(encoder.finish()));
         frame.present();
+
+        let now = std::time::Instant::now();
+        if let Some(window_start) = self.fps_window_start {
+            self.fps_window_frames += 1;
+            let elapsed = now.duration_since(window_start);
+            if elapsed >= Duration::from_secs(1) {
+                self.present_fps = self.fps_window_frames as f32 / elapsed.as_secs_f32();
+                self.fps_window_frames = 0;
+                self.fps_window_start = Some(now);
+            }
+        } else {
+            self.fps_window_start = Some(now);
+            self.fps_window_frames = 1;
+        }
 
         interaction
     }

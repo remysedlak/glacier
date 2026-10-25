@@ -492,7 +492,8 @@ pub struct VoicePool {
     pub stop_at_frames: [Option<f32>; MAX_VOICES_PER_TRACK],
     pub active: [bool; MAX_VOICES_PER_TRACK],
     pub age: [u32; MAX_VOICES_PER_TRACK],
-    active_scratch: Vec<usize>,
+    active_scratch: [usize; MAX_VOICES_PER_TRACK],
+    active_len: usize,
     voice_age_counter: u32,
 }
 
@@ -506,7 +507,8 @@ impl Default for VoicePool {
             stop_at_frames: [None; MAX_VOICES_PER_TRACK],
             active: [false; MAX_VOICES_PER_TRACK],
             age: [0; MAX_VOICES_PER_TRACK],
-            active_scratch: Vec::new(),
+            active_scratch: [0; MAX_VOICES_PER_TRACK],
+            active_len: 0,
             voice_age_counter: 0,
         }
     }
@@ -516,13 +518,17 @@ impl VoicePool {
     /// Refill the scratch buffer with indices of currently-active voices.
     /// Call once per callback/buffer before iterating — not once per sample.
     pub fn refresh_active_indices(&mut self) {
-        self.active_scratch.clear();
-        self.active_scratch
-            .extend((0..MAX_VOICES_PER_TRACK).filter(|&i| self.active[i]));
+        self.active_len = 0;
+        for i in 0..MAX_VOICES_PER_TRACK {
+            if self.active[i] {
+                self.active_scratch[self.active_len] = i;
+                self.active_len += 1;
+            }
+        }
     }
 
     pub fn active_indices(&self) -> &[usize] {
-        &self.active_scratch
+        &self.active_scratch[..self.active_len]
     }
 
     /// Finds a free slot, or steals the oldest active one if the pool is full.

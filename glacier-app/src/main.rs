@@ -8,13 +8,11 @@ pub mod project;
 
 use crate::{
     app::{App, UiCommand},
-    audio::audio_command::AudioCommand,
+    audio::{audio_command::AudioCommand, RetiredAudioData, SpectrumFrame, COMMAND_RING_CAPACITY},
     graphics::Graphics,
 };
 use ringbuf::{traits::Split, HeapRb};
 use winit::event_loop::{ControlFlow, EventLoop};
-
-const RING_BUFFER_CAPACITY: usize = 64;
 
 /// Main method to start application
 pub fn main() {
@@ -33,8 +31,13 @@ pub fn main() {
 
     // Create heap allocated ring buffers for thread communication
     let (audio_producer, audio_consumer) =
-        HeapRb::<AudioCommand>::new(RING_BUFFER_CAPACITY).split();
-    let (ui_producer, ui_consumer) = HeapRb::<UiCommand>::new(RING_BUFFER_CAPACITY).split();
+        HeapRb::<AudioCommand>::new(COMMAND_RING_CAPACITY).split();
+    let (ui_producer, ui_consumer) = HeapRb::<UiCommand>::new(COMMAND_RING_CAPACITY).split();
+    // Spectrum is replaceable display data, so keep it in a tiny dedicated
+    // ring rather than allowing it to occupy the transport/meter queue.
+    let (spectrum_producer, spectrum_consumer) = HeapRb::<SpectrumFrame>::new(2).split();
+    let (retired_audio_producer, retired_audio_consumer) =
+        HeapRb::<RetiredAudioData>::new(2).split();
 
     // Start building a new event loop, with a Graphics user event
     let event_loop = EventLoop::<Graphics>::with_user_event().build().unwrap();
@@ -51,6 +54,10 @@ pub fn main() {
         audio_consumer,
         ui_producer,
         ui_consumer,
+        spectrum_producer,
+        spectrum_consumer,
+        retired_audio_producer,
+        retired_audio_consumer,
         &event_loop,
         user_config,
         default_project,

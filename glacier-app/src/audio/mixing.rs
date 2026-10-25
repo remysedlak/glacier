@@ -1,11 +1,11 @@
-use crate::project::Track;
+use crate::audio::AudioTrack;
 use glacier_dsp::{
     envelope::{flush_denormal, smooth_toward},
     resample::{align_to_frame, frame_advance, frame_lookahead, interpolate},
 };
 
-pub fn mix_voice(track: &mut Track, voice: usize, master_volume: f32, sample: &mut [f32]) {
-    let channels = track.data.channels;
+pub fn mix_voice(track: &mut AudioTrack, voice: usize, master_volume: f32, sample: &mut [f32]) {
+    let channels = track.channels;
     let pos = if channels == 1 {
         track.voice_pool.positions[voice] as usize
     } else {
@@ -26,7 +26,7 @@ pub fn mix_voice(track: &mut Track, voice: usize, master_volume: f32, sample: &m
     ));
 
     let (l, r) = interpolate(&track.samples, track.voice_pool.positions[voice], channels);
-    let gain = track.voice_pool.current_volumes[voice] * track.data.track_volume * master_volume;
+    let gain = track.voice_pool.current_volumes[voice] * track.track_volume * master_volume;
     sample[0] += l * gain;
     sample[1] += r * gain;
 

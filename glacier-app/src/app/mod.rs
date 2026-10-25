@@ -1,5 +1,7 @@
 //! main state logic for audio and ui decoupling threads
-use crate::audio::audio_command::AudioCommand;
+use crate::audio::{
+    audio_command::AudioCommand, RetiredAudioData, SpectrumFrame, COMMAND_RING_CAPACITY,
+};
 use crate::config::UserSettings;
 use crate::graphics::{
     bring_to_front,
@@ -125,6 +127,10 @@ pub struct App {
     stream: Option<Stream>,
     audio_consumer: Option<HeapCons<AudioCommand>>,
     ui_producer: Option<HeapProd<UiCommand>>,
+    spectrum_consumer: HeapCons<SpectrumFrame>,
+    spectrum_producer: Option<HeapProd<SpectrumFrame>>,
+    retired_audio_consumer: HeapCons<RetiredAudioData>,
+    retired_audio_producer: Option<HeapProd<RetiredAudioData>>,
     project_load_rx: Option<Receiver<Result<crate::project::ProjectLoadResult, String>>>,
     save_worker: ProjectSaveWorker,
     project_name: String,
@@ -154,16 +160,23 @@ pub(crate) struct AudioCommandSender {
     pending: VecDeque<AudioCommand>,
 }
 
+const MAX_PENDING_AUDIO_COMMANDS: usize = 256;
+
 impl AudioCommandSender {
     fn new(ring: HeapProd<AudioCommand>) -> Self {
         Self {
             ring,
-            pending: VecDeque::new(),
+            pending: VecDeque::with_capacity(MAX_PENDING_AUDIO_COMMANDS),
         }
     }
 
-    pub(crate) fn try_push(&mut self, command: AudioCommand) -> Result<(), AudioCommand> {
+    pub(crate) fn try_push(&mut self, mut command: AudioCommand) -> Result<(), AudioCommand> {
         if !self.pending.is_empty() {
+            self.coalesce_pending(&mut command);
+            if self.pending.len() >= MAX_PENDING_AUDIO_COMMANDS {
+                log::error!("audio command backlog reached its bounded capacity; command rejected");
+                return Err(command);
+            }
             self.pending.push_back(command);
             return Ok(());
         }
@@ -171,10 +184,106 @@ impl AudioCommandSender {
         match self.ring.try_push(command) {
             Ok(()) => Ok(()),
             Err(command) => {
+                if self.pending.len() >= MAX_PENDING_AUDIO_COMMANDS {
+                    log::error!(
+                        "audio command backlog reached its bounded capacity; command rejected"
+                    );
+                    return Err(command);
+                }
                 self.pending.push_back(command);
                 Ok(())
             }
         }
+    }
+
+    fn coalesce_pending(&mut self, incoming: &mut AudioCommand) {
+        if let AudioCommand::ReplaceProjectParts(new_update) = incoming {
+            let mut tracks_base = None;
+            let mut blocks_base = None;
+            for (index, queued) in self.pending.iter_mut().enumerate().rev() {
+                if let AudioCommand::ReplaceProjectParts(old_update) = queued {
+                    if new_update.patterns.is_none() {
+                        new_update.patterns = old_update.patterns.take();
+                    }
+                    if new_update.tracks.is_none() {
+                        if old_update.tracks.is_some() {
+                            new_update.tracks = old_update.tracks.take();
+                            tracks_base = Some(index);
+                        }
+                    }
+                    if new_update.audio_blocks.is_none() {
+                        if old_update.audio_blocks.is_some() {
+                            new_update.audio_blocks = old_update.audio_blocks.take();
+                            blocks_base = Some(index);
+                        }
+                    }
+                }
+            }
+
+            // Moving a coalesced collection update after a scalar command must
+            // retain that command's newest value. Replay only commands that
+            // were queued after the update supplying each collection.
+            if let (Some(base), Some(tracks)) = (tracks_base, new_update.tracks.as_mut()) {
+                for queued in self.pending.iter().skip(base + 1) {
+                    match queued {
+                        AudioCommand::ChangeTrackVolume(id, volume) => {
+                            if let Some(track) = tracks.iter_mut().find(|track| track.id == *id) {
+                                track.track_volume = *volume;
+                            }
+                        }
+                        AudioCommand::SetTrackMute(id, is_muted) => {
+                            if let Some(track) = tracks.iter_mut().find(|track| track.id == *id) {
+                                track.is_muted = *is_muted;
+                            }
+                        }
+                        _ => {}
+                    }
+                }
+            }
+            if let (Some(base), Some(blocks)) = (blocks_base, new_update.audio_blocks.as_mut()) {
+                for queued in self.pending.iter().skip(base + 1) {
+                    if let AudioCommand::ResizeAudioBlock(id, length) = queued {
+                        if let Some(block) = blocks.iter_mut().find(|block| block.id == *id) {
+                            block.length = *length;
+                        }
+                    }
+                }
+            }
+            self.pending
+                .retain(|queued| !matches!(queued, AudioCommand::ReplaceProjectParts(_)));
+            return;
+        }
+
+        if let AudioCommand::SetPlaying { reset_position, .. } = incoming {
+            for queued in self.pending.iter_mut().rev() {
+                if let AudioCommand::SetPlaying {
+                    reset_position: old_reset,
+                    ..
+                } = queued
+                {
+                    *reset_position |= *old_reset;
+                }
+            }
+        }
+
+        self.pending.retain(|queued| match (&*queued, &*incoming) {
+            (AudioCommand::ChangeBpm(_), AudioCommand::ChangeBpm(_))
+            | (AudioCommand::ChangeMasterVolume(_), AudioCommand::ChangeMasterVolume(_))
+            | (AudioCommand::PreviewSample(_, _), AudioCommand::PreviewSample(_, _))
+            | (AudioCommand::SetPlaying { .. }, AudioCommand::SetPlaying { .. }) => false,
+            (
+                AudioCommand::ChangeTrackVolume(old_id, _),
+                AudioCommand::ChangeTrackVolume(new_id, _),
+            )
+            | (AudioCommand::SetTrackMute(old_id, _), AudioCommand::SetTrackMute(new_id, _)) => {
+                old_id != new_id
+            }
+            (
+                AudioCommand::ResizeAudioBlock(old_id, _),
+                AudioCommand::ResizeAudioBlock(new_id, _),
+            ) => old_id != new_id,
+            _ => true,
+        });
     }
 
     pub(crate) fn flush_pending(&mut self) {
@@ -204,6 +313,10 @@ impl App {
         audio_consumer: HeapCons<AudioCommand>,
         ui_producer: HeapProd<UiCommand>,
         consumer: HeapCons<UiCommand>,
+        spectrum_producer: HeapProd<SpectrumFrame>,
+        spectrum_consumer: HeapCons<SpectrumFrame>,
+        retired_audio_producer: HeapProd<RetiredAudioData>,
+        retired_audio_consumer: HeapCons<RetiredAudioData>,
         event_loop: &EventLoop<Graphics>,
         config: UserSettings,
         project_file: Option<String>,
@@ -220,6 +333,10 @@ impl App {
             stream: None,
             audio_consumer: Some(audio_consumer),
             ui_producer: Some(ui_producer),
+            spectrum_consumer,
+            spectrum_producer: Some(spectrum_producer),
+            retired_audio_consumer,
+            retired_audio_producer: Some(retired_audio_producer),
             project_load_rx,
             save_worker,
             project_name: String::new(),
@@ -264,24 +381,52 @@ impl App {
             self.project_load_rx = None;
             if let Some(Ok(loaded)) = result {
                 self.project_name = loaded.project.name.clone();
-                let (audio_consumer, ui_producer) =
-                    if let (Some(audio_consumer), Some(ui_producer)) =
-                        (self.audio_consumer.take(), self.ui_producer.take())
-                    {
-                        (audio_consumer, ui_producer)
+                let (audio_consumer, ui_producer, spectrum_producer, retired_audio_producer) =
+                    if let (
+                        Some(audio_consumer),
+                        Some(ui_producer),
+                        Some(spectrum_producer),
+                        Some(retired_audio_producer),
+                    ) = (
+                        self.audio_consumer.take(),
+                        self.ui_producer.take(),
+                        self.spectrum_producer.take(),
+                        self.retired_audio_producer.take(),
+                    ) {
+                        (
+                            audio_consumer,
+                            ui_producer,
+                            spectrum_producer,
+                            retired_audio_producer,
+                        )
                     } else {
                         use ringbuf::traits::Split;
                         use ringbuf::HeapRb;
                         self.shutdown_audio_stream();
-                        let (audio_prod, audio_consumer) = HeapRb::<AudioCommand>::new(256).split();
-                        let (ui_producer, ui_consumer) = HeapRb::<UiCommand>::new(256).split();
+                        let (audio_prod, audio_consumer) =
+                            HeapRb::<AudioCommand>::new(COMMAND_RING_CAPACITY).split();
+                        let (ui_producer, ui_consumer) =
+                            HeapRb::<UiCommand>::new(COMMAND_RING_CAPACITY).split();
+                        let (spectrum_producer, spectrum_consumer) =
+                            HeapRb::<SpectrumFrame>::new(2).split();
+                        let (retired_audio_producer, retired_audio_consumer) =
+                            HeapRb::<RetiredAudioData>::new(2).split();
                         self.producer.replace_ring(audio_prod);
                         self.consumer = ui_consumer;
-                        (audio_consumer, ui_producer)
+                        self.spectrum_consumer = spectrum_consumer;
+                        self.retired_audio_consumer = retired_audio_consumer;
+                        (
+                            audio_consumer,
+                            ui_producer,
+                            spectrum_producer,
+                            retired_audio_producer,
+                        )
                     };
                 let (stream, sample_rate) = crate::audio::init(
                     audio_consumer,
                     ui_producer,
+                    spectrum_producer,
+                    retired_audio_producer,
                     loaded.project.clone(),
                     loaded.tracks.clone(),
                 );
@@ -388,6 +533,25 @@ impl App {
             self.handle_ui_command(cmd);
         }
 
+        // Spectrum frames use a small dedicated ring so stale visual updates
+        // cannot crowd out transport and meter messages.
+        let mut latest_spectrum = None;
+        while let Some(frame) = self.spectrum_consumer.try_pop() {
+            latest_spectrum = Some(frame);
+        }
+        if let Some(frame) = latest_spectrum {
+            if let State::Ready(gfx) = &mut self.state {
+                gfx.spectrum.clear();
+                gfx.spectrum.extend_from_slice(&frame);
+            }
+        }
+
+        // Returned playback snapshots and audition buffers are destroyed here,
+        // away from the audio callback.
+        while let Some(retired) = self.retired_audio_consumer.try_pop() {
+            drop(retired);
+        }
+
         loop {
             match self.save_worker.try_result() {
                 Ok(result) => self.handle_save_result(result, event_loop),
@@ -461,7 +625,6 @@ impl App {
                 return;
             };
 
-            let start = std::time::Instant::now();
             // if user is currently dragging any UI components
             let any_dragging = gfx.is_dragging();
 
@@ -493,8 +656,6 @@ impl App {
             result = interaction.click;
             icon = interaction.cursor;
             gfx.window.set_cursor(icon);
-            gfx.frame_ms = start.elapsed().as_secs_f32() * 1000.0;
-
             if gfx.tooltip.is_some() {
                 if self.mouse_state.hover_duration.is_none() {
                     self.mouse_state.hover_duration = Some(Instant::now());
@@ -544,8 +705,8 @@ impl App {
                             * gfx.tracks.len() as f32;
                     gfx.playlist_action =
                         PlaylistAction::PlaceFresh(AudioBlockType::Sample(track_id));
-                    self.producer.try_push(AudioCommand::LoadTrack(track)).ok();
                     let pending_drop = self.pending_drop.take();
+                    let mut added_block = false;
                     if let Some((playlist_track, step)) = pending_drop {
                         let audio_block = make_audio_block(
                             gfx,
@@ -554,14 +715,13 @@ impl App {
                             1,
                             AudioBlockType::Sample(track_id),
                         );
-                        gfx.audio_blocks.push(audio_block.clone());
-                        self.producer
-                            .try_push(AudioCommand::CreateAudioBlock(audio_block))
-                            .ok();
+                        gfx.audio_blocks.push(audio_block);
+                        added_block = true;
                     } else {
                         gfx.mini_windows[SEQUENCER_ID].is_open = true;
                         bring_to_front(&mut gfx.z_order, SEQUENCER_ID);
                     }
+                    click::sync_audio_project(&mut self.producer, gfx, true, false, added_block);
                     self.project_is_dirty = true;
                     self.project_revision += 1;
                 }
@@ -696,7 +856,12 @@ impl ApplicationHandler<Graphics> for App {
                             PhysicalKey::Code(KeyCode::Space) => {
                                 gfx.is_playing = !gfx.is_playing;
                                 gfx.request_redraw();
-                                self.producer.try_push(AudioCommand::TogglePlay).ok();
+                                self.producer
+                                    .try_push(AudioCommand::SetPlaying {
+                                        is_playing: gfx.is_playing,
+                                        reset_position: false,
+                                    })
+                                    .ok();
                             }
                             PhysicalKey::Code(KeyCode::ControlLeft) => self.ctrl_pressed = true,
                             PhysicalKey::Code(KeyCode::ShiftLeft | KeyCode::ShiftRight) => {
@@ -1035,5 +1200,105 @@ pub(super) fn make_audio_block(
         length,
         block_type,
         is_muted: false,
+    }
+}
+
+#[cfg(test)]
+mod audio_command_sender_tests {
+    use super::*;
+    use crate::audio::{AudioPattern, AudioProjectUpdate};
+    use ringbuf::{
+        traits::{Consumer, Producer, Split},
+        HeapRb,
+    };
+
+    fn block(length: u32) -> AudioBlock {
+        AudioBlock {
+            id: AudioBlockID(7),
+            track: 1,
+            start_step: 0,
+            length,
+            block_type: AudioBlockType::Mixing,
+            is_muted: false,
+        }
+    }
+
+    #[test]
+    fn merged_project_update_keeps_resize_queued_after_its_snapshot() {
+        let (mut ring_producer, mut ring_consumer) = HeapRb::<AudioCommand>::new(1).split();
+        assert!(ring_producer
+            .try_push(AudioCommand::ChangeBpm(120.0))
+            .is_ok());
+        let mut sender = AudioCommandSender::new(ring_producer);
+
+        assert!(sender
+            .try_push(AudioCommand::ReplaceProjectParts(Box::new(
+                AudioProjectUpdate {
+                    patterns: None,
+                    tracks: None,
+                    audio_blocks: Some(vec![block(2)]),
+                },
+            )))
+            .is_ok());
+        assert!(sender
+            .try_push(AudioCommand::ResizeAudioBlock(AudioBlockID(7), 9))
+            .is_ok());
+        assert!(sender
+            .try_push(AudioCommand::ReplaceProjectParts(Box::new(
+                AudioProjectUpdate {
+                    patterns: Some(vec![AudioPattern {
+                        id: PatternID(3),
+                        sequences: Vec::new(),
+                    }]),
+                    tracks: None,
+                    audio_blocks: None,
+                },
+            )))
+            .is_ok());
+
+        assert!(matches!(
+            ring_consumer.try_pop(),
+            Some(AudioCommand::ChangeBpm(_))
+        ));
+        sender.flush_pending();
+        assert!(matches!(
+            ring_consumer.try_pop(),
+            Some(AudioCommand::ResizeAudioBlock(AudioBlockID(7), 9))
+        ));
+        sender.flush_pending();
+        let Some(AudioCommand::ReplaceProjectParts(update)) = ring_consumer.try_pop() else {
+            panic!("expected merged project update")
+        };
+        assert_eq!(update.patterns.as_ref().unwrap()[0].id, PatternID(3));
+        assert_eq!(update.audio_blocks.as_ref().unwrap()[0].length, 9);
+        assert!(sender.pending.is_empty());
+    }
+
+    #[test]
+    fn pending_scalar_controls_keep_only_the_latest_value_for_each_target() {
+        let (ring_producer, _ring_consumer) = HeapRb::<AudioCommand>::new(1).split();
+        let mut sender = AudioCommandSender::new(ring_producer);
+        assert!(sender
+            .try_push(AudioCommand::ChangeTrackVolume(TrackID(2), 0.4))
+            .is_ok());
+        assert!(sender
+            .try_push(AudioCommand::ChangeTrackVolume(TrackID(2), 0.8))
+            .is_ok());
+        assert!(sender
+            .try_push(AudioCommand::SetTrackMute(TrackID(2), true))
+            .is_ok());
+        assert!(sender
+            .try_push(AudioCommand::SetTrackMute(TrackID(2), false))
+            .is_ok());
+
+        assert_eq!(sender.pending.len(), 2);
+        assert!(matches!(
+            sender.pending[0],
+            AudioCommand::ChangeTrackVolume(TrackID(2), 0.8)
+        ));
+        assert!(matches!(
+            sender.pending[1],
+            AudioCommand::SetTrackMute(TrackID(2), false)
+        ));
     }
 }

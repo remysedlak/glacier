@@ -1,8 +1,7 @@
 //! handle all mouse click interactivity
-use super::{App, State};
+use super::{App, AudioCommandSender, State};
 use crate::app::PianoRollState;
-use crate::audio::audio_command::AudioCommand;
-use crate::graphics::PlaylistAction;
+use crate::audio::{audio_command::AudioCommand, AudioProjectUpdate};
 use crate::graphics::{
     bring_to_front,
     components::context_menu::{ContextMenu, ContextMenuKind},
@@ -12,6 +11,7 @@ use crate::graphics::{
     },
     primitives::{RenameState, RenameTarget},
 };
+use crate::graphics::{Graphics, PlaylistAction};
 use crate::project::{
     next_id, AudioBlockID, AudioBlockType, Note, PatternData, PatternID, Sequence, TrackID,
 };
@@ -19,6 +19,21 @@ use rfd::FileDialog;
 use std::path::PathBuf;
 use std::thread;
 use winit::event_loop::ActiveEventLoop;
+
+pub(super) fn sync_audio_project(
+    producer: &mut AudioCommandSender,
+    gfx: &Graphics,
+    include_tracks: bool,
+    include_patterns: bool,
+    include_blocks: bool,
+) {
+    let update = AudioProjectUpdate::from_parts(
+        include_tracks.then_some(gfx.tracks.as_slice()),
+        include_patterns.then_some(gfx.patterns.as_slice()),
+        include_blocks.then_some(gfx.audio_blocks.as_slice()),
+    );
+    let _ = producer.try_push(AudioCommand::ReplaceProjectParts(update));
+}
 
 /// Each frame, a ClickResult is returned from the draw method. If the mouse left clicked a component on a screen, then a ClickResult is returned and handled in app.rs.
 #[derive(PartialEq, Debug)]
@@ -121,9 +136,7 @@ impl App {
                         step,
                     );
                     gfx.audio_blocks.push(duplicate.clone());
-                    self.producer
-                        .try_push(AudioCommand::CreateAudioBlock(duplicate))
-                        .ok();
+                    sync_audio_project(&mut self.producer, gfx, false, false, true);
                     self.project_is_dirty = true;
                     self.project_revision += 1;
                 }
@@ -293,9 +306,7 @@ impl App {
                         .collect(),
                 };
                 gfx.patterns.push(pattern.clone());
-                self.producer
-                    .try_push(AudioCommand::CreatePattern(pattern))
-                    .ok();
+                sync_audio_project(&mut self.producer, gfx, false, true, false);
                 self.project_is_dirty = true;
                 self.project_revision += 1;
             }
@@ -344,9 +355,7 @@ impl App {
                     self.project_is_dirty = true;
                     self.project_revision += 1;
                 }
-                self.producer
-                    .try_push(AudioCommand::ClearPattern(pattern_id))
-                    .ok();
+                sync_audio_project(&mut self.producer, gfx, false, true, false);
                 gfx.context_menu = None;
             }
             ClickResult::ModalConfirmSaveAndExit => {
@@ -365,7 +374,7 @@ impl App {
                 let (preview, channels) =
                     crate::project::path_to_preview(&track_path.to_string_lossy(), 5);
                 self.producer
-                    .try_push(AudioCommand::PreviewSample(preview, channels))
+                    .try_push(AudioCommand::PreviewSample(preview.into(), channels))
                     .ok();
             }
             ClickResult::ChangeBpm(bpm) => {
@@ -379,9 +388,7 @@ impl App {
                     let duplicate =
                         pattern.duplicate(next_id(gfx.patterns.iter().map(|p| p.id.0), PatternID));
                     gfx.patterns.push(duplicate.clone());
-                    self.producer
-                        .try_push(AudioCommand::CreatePattern(duplicate))
-                        .ok();
+                    sync_audio_project(&mut self.producer, gfx, false, true, false);
                     self.project_is_dirty = true;
                     self.project_revision += 1;
                 }
@@ -424,18 +431,12 @@ impl App {
                     self.project_is_dirty = true;
                     self.project_revision += 1;
                 }
-                self.producer
-                    .try_push(AudioCommand::ToggleNote(
-                        pattern_id, track_id, step_idx, pitch,
-                    ))
-                    .ok();
+                sync_audio_project(&mut self.producer, gfx, false, true, false);
             }
             ClickResult::DeletePlaylistAudioBlock(id) => {
                 gfx.audio_blocks.retain(|block| block.id != id);
                 gfx.waveform_cache.entries.remove(&id);
-                self.producer
-                    .try_push(AudioCommand::DeleteAudioBlock(id))
-                    .ok();
+                sync_audio_project(&mut self.producer, gfx, false, false, true);
                 self.project_is_dirty = true;
                 self.project_revision += 1;
             }
@@ -443,10 +444,7 @@ impl App {
                 let audio_block =
                     super::make_audio_block(gfx, track, start_step, length, block_type);
                 gfx.audio_blocks.push(audio_block.clone());
-                // request audio thread to create audio block
-                self.producer
-                    .try_push(AudioCommand::CreateAudioBlock(audio_block))
-                    .ok();
+                sync_audio_project(&mut self.producer, gfx, false, false, true);
                 self.project_is_dirty = true;
                 self.project_revision += 1;
             }
@@ -464,9 +462,7 @@ impl App {
                     gfx.waveform_cache.entries.remove(&id);
                 }
                 gfx.context_menu = None;
-                self.producer
-                    .try_push(AudioCommand::DeletePattern(pattern_id))
-                    .ok();
+                sync_audio_project(&mut self.producer, gfx, false, true, true);
                 self.project_is_dirty = true;
                 self.project_revision += 1;
             }
@@ -509,14 +505,17 @@ impl App {
                     self.project_is_dirty = true;
                     self.project_revision += 1;
                 }
-                self.producer
-                    .try_push(AudioCommand::ToggleStep(pattern_id, track_id, step))
-                    .ok();
+                sync_audio_project(&mut self.producer, gfx, false, true, false);
             }
             ClickResult::Stop => {
                 gfx.is_playing = false;
                 gfx.active_step = 0;
-                self.producer.try_push(AudioCommand::Stop).ok();
+                self.producer
+                    .try_push(AudioCommand::SetPlaying {
+                        is_playing: false,
+                        reset_position: true,
+                    })
+                    .ok();
             }
             ClickResult::ToggleTrackMute(track_id) => {
                 // The sequencer interaction already changed the app-owned track
@@ -524,15 +523,22 @@ impl App {
                 // to audio here; toggling gfx again would undo the UI mutation.
                 self.project_is_dirty = true;
                 self.project_revision += 1;
-                self.producer
-                    .try_push(AudioCommand::ToggleTrackMute(track_id))
-                    .ok();
+                if let Some(track) = gfx.tracks.iter().find(|track| track.data.id == track_id) {
+                    self.producer
+                        .try_push(AudioCommand::SetTrackMute(track_id, track.data.is_muted))
+                        .ok();
+                }
             }
             ClickResult::TogglePlay => {
                 // Reflect the requested state immediately. The audio status
                 // acknowledgement can be dropped if its bounded UI ring is full.
                 gfx.is_playing = !gfx.is_playing;
-                self.producer.try_push(AudioCommand::TogglePlay).ok();
+                self.producer
+                    .try_push(AudioCommand::SetPlaying {
+                        is_playing: gfx.is_playing,
+                        reset_position: false,
+                    })
+                    .ok();
             }
             ClickResult::DeleteTrack(track_id) => {
                 if let Some(position) = gfx.tracks.iter().position(|t| t.data.id == track_id) {
@@ -560,9 +566,7 @@ impl App {
                     self.project_is_dirty = true;
                     self.project_revision += 1;
                 }
-                self.producer
-                    .try_push(AudioCommand::DeleteTrack(track_id))
-                    .ok();
+                sync_audio_project(&mut self.producer, gfx, true, true, true);
             }
             ClickResult::ProjectFileDialog => {
                 if self.project_file_dialog_rx.is_none() {

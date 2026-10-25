@@ -21,11 +21,96 @@ use glacier_dsp::{
     window::window_compensation,
 };
 use ringbuf::{
-    traits::{Consumer, Producer},
+    traits::{Consumer, Observer, Producer},
     HeapCons, HeapProd,
 };
 
 const SPECTRUM_WINDOW: usize = 2048;
+pub const COMMAND_RING_CAPACITY: usize = 64;
+pub const SPECTRUM_BINS: usize = SPECTRUM_WINDOW / 2 + 1;
+pub type SpectrumFrame = [f32; SPECTRUM_BINS];
+
+/// Playback-only projection of a pattern; names stay exclusively in the app's
+/// persistent project model.
+#[derive(Clone)]
+pub struct AudioPattern {
+    pub id: PatternID,
+    pub sequences: Vec<Sequence>,
+}
+
+/// Playback-only projection of a track. It deliberately omits project name and
+/// path strings and shares immutable sample storage with the app.
+#[derive(Clone)]
+pub struct AudioTrack {
+    pub id: TrackID,
+    pub channels: u16,
+    pub is_muted: bool,
+    pub track_volume: f32,
+    pub root_note: u8,
+    pub samples: std::sync::Arc<[f32]>,
+    pub voice_pool: VoicePool,
+    pub rms_l: f32,
+    pub rms_r: f32,
+    pub peak_hold: f32,
+}
+
+impl From<&Track> for AudioTrack {
+    fn from(track: &Track) -> Self {
+        Self {
+            id: track.data.id,
+            channels: track.data.channels,
+            is_muted: track.data.is_muted,
+            track_volume: track.data.track_volume,
+            root_note: track.data.root_note,
+            samples: std::sync::Arc::clone(&track.samples),
+            voice_pool: VoicePool::default(),
+            rms_l: 0.0,
+            rms_r: 0.0,
+            peak_hold: 0.0,
+        }
+    }
+}
+
+/// App-prepared changed project collections. The app clones only the changed
+/// collection; audio swaps ownership at a buffer boundary and returns the old
+/// collection for destruction on the app thread.
+pub struct AudioProjectUpdate {
+    pub patterns: Option<Vec<AudioPattern>>,
+    pub tracks: Option<Vec<AudioTrack>>,
+    pub audio_blocks: Option<Vec<AudioBlock>>,
+}
+
+impl AudioProjectUpdate {
+    pub fn from_parts(
+        tracks: Option<&[Track]>,
+        patterns: Option<&[PatternData]>,
+        audio_blocks: Option<&[AudioBlock]>,
+    ) -> Box<Self> {
+        Box::new(Self {
+            patterns: patterns.map(|items| {
+                items
+                    .iter()
+                    .map(|pattern| AudioPattern {
+                        id: pattern.id,
+                        sequences: pattern.sequences.clone(),
+                    })
+                    .collect()
+            }),
+            tracks: tracks.map(|items| {
+                let mut tracks: Vec<_> = items.iter().map(AudioTrack::from).collect();
+                tracks.sort_unstable_by_key(|track| track.id);
+                tracks
+            }),
+            audio_blocks: audio_blocks.map(|items| items.to_vec()),
+        })
+    }
+}
+
+/// Heap-owning audio data retired by the callback and destroyed by the app.
+pub enum RetiredAudioData {
+    ProjectUpdate(Box<AudioProjectUpdate>),
+    PreviewSamples(std::sync::Arc<[f32]>),
+}
 
 pub mod audio_command;
 pub mod device;
@@ -34,21 +119,20 @@ pub mod mixing;
 
 /// audio logic shared between audio engine and audio commands
 pub struct EngineState {
-    patterns: Vec<PatternData>,
-    tracks: Vec<Track>,
+    patterns: Vec<AudioPattern>,
+    tracks: Vec<AudioTrack>,
     audio_blocks: Vec<AudioBlock>,
     audio_producer: HeapProd<UiCommand>,
+    spectrum_producer: HeapProd<SpectrumFrame>,
+    retired_audio_producer: HeapProd<RetiredAudioData>,
     bpm: f32,
     master_volume: f32,
     is_playing: bool,
-    preview_samples: Vec<f32>,
+    preview_samples: std::sync::Arc<[f32]>,
     preview_channels: u16,
     preview_position: f32,
     sample_rate: f32,
     current_step: usize,
-    triggers: Vec<(TrackID, f32, u8)>,
-    db: Vec<f32>,
-    windowed: Vec<f32>,
 }
 
 impl EngineState {
@@ -57,19 +141,32 @@ impl EngineState {
         project: Project,
         tracks: Vec<Track>,
         producer: HeapProd<UiCommand>,
+        spectrum_producer: HeapProd<SpectrumFrame>,
+        retired_audio_producer: HeapProd<RetiredAudioData>,
         sample_rate: f32,
     ) -> Self {
-        let max_triggers = project.patterns.iter().map(|p| p.sequences.len()).sum();
-
         Self {
-            patterns: project.patterns,
-            tracks,
+            patterns: project
+                .patterns
+                .into_iter()
+                .map(|pattern| AudioPattern {
+                    id: pattern.id,
+                    sequences: pattern.sequences,
+                })
+                .collect(),
+            tracks: {
+                let mut tracks: Vec<_> = tracks.iter().map(AudioTrack::from).collect();
+                tracks.sort_unstable_by_key(|track| track.id);
+                tracks
+            },
             audio_blocks: project.audio_blocks.clone(),
             audio_producer: producer,
+            spectrum_producer,
+            retired_audio_producer,
             master_volume: project.master_volume,
             bpm: project.bpm,
             is_playing: false,
-            preview_samples: Vec::new(),
+            preview_samples: std::sync::Arc::from([]),
             preview_channels: 2,
             sample_rate,
             current_step: project
@@ -81,10 +178,6 @@ impl EngineState {
                 .max(1) as usize
                 - 1,
             preview_position: 0.0,
-            // Keep these buffers ready for callback work.
-            triggers: Vec::with_capacity(max_triggers),
-            db: Vec::new(),
-            windowed: Vec::new(),
         }
     }
 }
@@ -96,10 +189,14 @@ struct AudioCallbackState {
     master_rms_l: f32,
     master_rms_r: f32,
     master_peak: f32,
-    spectrum_buffer: Vec<f32>,
+    spectrum_buffer: [f32; SPECTRUM_WINDOW],
+    spectrum_len: usize,
     spectrum_analyzer: SpectrumAnalyzer,
     hann_window: Vec<f32>,
     window_compensation: f32,
+    spectrum_db: [f32; SPECTRUM_BINS],
+    pending_command: Option<AudioCommand>,
+    pending_retired: Option<RetiredAudioData>,
 }
 
 impl AudioCallbackState {
@@ -112,10 +209,14 @@ impl AudioCallbackState {
             master_rms_l: 0.0,
             master_rms_r: 0.0,
             master_peak: 0.0,
-            spectrum_buffer: Vec::with_capacity(SPECTRUM_WINDOW),
+            spectrum_buffer: [0.0; SPECTRUM_WINDOW],
+            spectrum_len: 0,
             spectrum_analyzer: SpectrumAnalyzer::new(SPECTRUM_WINDOW),
             hann_window,
             window_compensation,
+            spectrum_db: [0.0; SPECTRUM_BINS],
+            pending_command: None,
+            pending_retired: None,
         }
     }
 }
@@ -124,6 +225,8 @@ impl AudioCallbackState {
 pub fn init(
     mut consumer: HeapCons<AudioCommand>,
     producer: HeapProd<UiCommand>,
+    spectrum_producer: HeapProd<SpectrumFrame>,
+    retired_audio_producer: HeapProd<RetiredAudioData>,
     project: Project,
     tracks: Vec<Track>,
 ) -> (cpal::Stream, f32) {
@@ -153,239 +256,53 @@ pub fn init(
 
     let mut callback_state = AudioCallbackState::new();
 
-    let mut engine_state =
-        EngineState::from_project(project, tracks, producer, stream_config.sample_rate as f32);
-
-    // audio callback
-    // fills samples requested from CPAL audio driver
-    let mut fill_f32 = move |data: &mut [f32], _: &cpal::OutputCallbackInfo| {
-        // Apply queued commands before rendering the next audio block.
-        while let Some(cmd) = consumer.try_pop() {
-            handle_command(cmd, &mut engine_state);
-        }
-
-        // refresh each track's active-voice index cache once per callback —
-        // NOT once per sample (see VoicePool::refresh_active_indices docs)
-        if engine_state.is_playing {
-            for track in &mut engine_state.tracks {
-                if !track.data.is_muted {
-                    track.voice_pool.refresh_active_indices();
-                }
-            }
-        }
-
-        // for each sample requested, mix in the appropriate track samples
-        for sample in data.chunks_mut(output_channels) {
-            // Zero out the sample. Fill it if the song currently is_playing.
-            sample[0] = 0.0; // left channel
-            sample[1] = 0.0; // right channel
-
-            // Output beyond stereo (channels 2+) is intentionally silent.
-            // Glacier mixes internally in stereo only.
-            // Real multichannel routing is a future feature, not implemented here.
-            for ch in 2..output_channels {
-                sample[ch] = 0.0;
-            }
-
-            if engine_state.is_playing {
-                for track in &mut engine_state.tracks {
-                    if !track.data.is_muted {
-                        for i in 0..track.voice_pool.active_indices().len() {
-                            let voice = track.voice_pool.active_indices()[i]; // short-lived borrow, ends immediately
-                            mix_voice(track, voice, engine_state.master_volume, sample);
-                        }
-                    }
-                }
-            }
-
-            // preview playback at master volume (user clicks a file on file tree or track window)
-            if !engine_state.preview_samples.is_empty() {
-                process_preview(
-                    &mut engine_state.preview_position,
-                    &engine_state.preview_samples,
-                    sample,
-                    engine_state.master_volume,
-                    engine_state.preview_channels,
-                );
-            }
-
-            // limit the final mixed signal before anything reads it
-            sample[0] = soft_clip(sample[0]);
-            sample[1] = soft_clip(sample[1]);
-
-            // feed the spectrum analyzer with the final mixed mono signal
-            callback_state
-                .spectrum_buffer
-                .push((sample[0] + sample[1]) * 0.5);
-
-            // update master meter info
-            callback_state.master_rms_l = flush_denormal(smooth_toward(
-                callback_state.master_rms_l,
-                sample[0] * sample[0],
-                0.01,
-            ));
-            callback_state.master_rms_r = flush_denormal(smooth_toward(
-                callback_state.master_rms_r,
-                sample[1] * sample[1],
-                0.01,
-            ));
-            callback_state.master_peak = callback_state
-                .master_peak
-                .max(sample[0].abs().max(sample[1].abs()));
-        }
-
-        // update the meter data
-        push_meter_updates(
-            &mut engine_state,
-            &mut callback_state.meter_counter,
-            callback_state.master_rms_l,
-            callback_state.master_rms_r,
-            &mut callback_state.master_peak,
-            data.len() / output_channels,
-        );
-
-        // when the spectrum buffer is full, push fourier compute to ui
-        push_spectrum_frame(
-            &mut engine_state,
-            &callback_state.spectrum_analyzer,
-            &callback_state.hann_window,
-            callback_state.window_compensation,
-            &mut callback_state.spectrum_buffer,
-        );
-
-        if engine_state.is_playing {
-            callback_state.sample_counter += data.len() as f32 / output_channels as f32;
-
-            // get amount of samples per step
-            let step_duration: f32 = samples_per_step(engine_state.sample_rate, engine_state.bpm);
-
-            // update UI time
-            let beat =
-                engine_state.current_step as f32 + (callback_state.sample_counter / step_duration);
-            engine_state
-                .audio_producer
-                .try_push(UiCommand::PlayheadPosition(beat))
-                .ok();
-
-            // increment the step if enough samples have passed
-            if callback_state.sample_counter >= step_duration {
-                callback_state.sample_counter = 0.0;
-
-                let total_steps = engine_state
-                    .audio_blocks
-                    .iter()
-                    .map(|e| e.start_step + e.length)
-                    .max()
-                    .unwrap_or(16)
-                    .max(1) as usize;
-                engine_state.current_step = (engine_state.current_step + 1) % total_steps;
-
-                engine_state
-                    .audio_producer
-                    .try_push(UiCommand::StepAdvanced(engine_state.current_step))
-                    .ok();
-
-                // build out each note
-                engine_state.triggers.clear();
-                engine_state.triggers.extend(
-                    engine_state
-                        .audio_blocks
-                        .iter()
-                        .filter_map(|e| {
-                            if let AudioBlockType::Pattern(pattern_id) = e.block_type {
-                                if engine_state.current_step >= e.start_step as usize
-                                    && engine_state.current_step
-                                        < (e.start_step + e.length) as usize
-                                {
-                                    let local_step =
-                                        engine_state.current_step - e.start_step as usize;
-                                    return engine_state
-                                        .patterns
-                                        .iter()
-                                        .find(|p| p.id == pattern_id)
-                                        .map(|p| (p, local_step));
-                                }
-                            }
-
-                            None
-                        })
-                        .flat_map(|(p, local_step)| {
-                            p.sequences
-                                .iter()
-                                .filter(move |s| {
-                                    local_step < s.steps.len() && s.steps[local_step].velocity > 0.0
-                                })
-                                .map(move |s| {
-                                    let note = &s.steps[local_step];
-                                    (s.track_id, note.velocity, note.pitch)
-                                })
-                        }),
-                );
-
-                for audio_block in &engine_state.audio_blocks {
-                    if let AudioBlockType::Sample(track_id) = audio_block.block_type {
-                        if engine_state.current_step == audio_block.start_step as usize {
-                            if let Some(track) = engine_state
-                                .tracks
-                                .iter_mut()
-                                .find(|t| t.data.id == track_id)
-                            {
-                                let step_duration: f32 =
-                                    samples_per_step(engine_state.sample_rate, engine_state.bpm);
-                                let stop_at = audio_block.length as f32
-                                    * frame_advance(track.data.channels)
-                                    * step_duration;
-
-                                track.voice_pool.spawn(0.0, 1.0, 0.0, 1.0, Some(stop_at));
-                            }
-                        }
-                    }
-                }
-
-                for &(track_id, velocity, pitch) in &engine_state.triggers {
-                    if let Some(track) = engine_state
-                        .tracks
-                        .iter_mut()
-                        .find(|track| track.data.id == track_id)
-                    {
-                        let playback_rate = semitones_to_rate(pitch, track.data.root_note);
-                        track
-                            .voice_pool
-                            .spawn(0.0, playback_rate, 0.0, velocity / 127.0, None);
-                    }
-                }
-            }
-        }
-    };
+    let mut engine_state = EngineState::from_project(
+        project,
+        tracks,
+        producer,
+        spectrum_producer,
+        retired_audio_producer,
+        stream_config.sample_rate as f32,
+    );
 
     // Build the real stream using whichever format the probe found working.
     let stream = match sample_format {
         SampleFormat::F32 => {
-            let cb = move |data: &mut [f32], info: &cpal::OutputCallbackInfo| {
-                fill_f32(data, info);
+            let cb = move |data: &mut [f32], _: &cpal::OutputCallbackInfo| {
+                fill_audio_output(
+                    data,
+                    output_channels,
+                    &mut consumer,
+                    &mut engine_state,
+                    &mut callback_state,
+                    f32::from,
+                );
             };
             device.build_output_stream(stream_config, cb, err_fn, None)
         }
         SampleFormat::I16 => {
-            let mut scratch: Vec<f32> = Vec::new();
-            let cb = move |data: &mut [i16], info: &cpal::OutputCallbackInfo| {
-                scratch.resize(data.len(), 0.0);
-                fill_f32(&mut scratch, info);
-                for (o, s) in data.iter_mut().zip(scratch.iter()) {
-                    *o = (s.clamp(-1.0, 1.0) * i16::MAX as f32).round() as i16;
-                }
+            let cb = move |data: &mut [i16], _: &cpal::OutputCallbackInfo| {
+                fill_audio_output(
+                    data,
+                    output_channels,
+                    &mut consumer,
+                    &mut engine_state,
+                    &mut callback_state,
+                    f32_to_i16,
+                );
             };
             device.build_output_stream(stream_config, cb, err_fn, None)
         }
         SampleFormat::U16 => {
-            let mut scratch: Vec<f32> = Vec::new();
-            let cb = move |data: &mut [u16], info: &cpal::OutputCallbackInfo| {
-                scratch.resize(data.len(), 0.0);
-                fill_f32(&mut scratch, info);
-                for (o, s) in data.iter_mut().zip(scratch.iter()) {
-                    let clamped = s.clamp(-1.0, 1.0);
-                    *o = ((clamped * 0.5 + 0.5) * u16::MAX as f32).round() as u16;
-                }
+            let cb = move |data: &mut [u16], _: &cpal::OutputCallbackInfo| {
+                fill_audio_output(
+                    data,
+                    output_channels,
+                    &mut consumer,
+                    &mut engine_state,
+                    &mut callback_state,
+                    f32_to_u16,
+                );
             };
             device.build_output_stream(stream_config, cb, err_fn, None)
         }
@@ -396,6 +313,235 @@ pub fn init(
     // start the output stream and return it
     stream.play().expect("Failed to play the output stream.");
     (stream, stream_config.sample_rate as f32)
+}
+
+fn f32_to_i16(sample: f32) -> i16 {
+    (sample.clamp(-1.0, 1.0) * i16::MAX as f32).round() as i16
+}
+
+fn f32_to_u16(sample: f32) -> u16 {
+    let clamped = sample.clamp(-1.0, 1.0);
+    ((clamped * 0.5 + 0.5) * u16::MAX as f32).round() as u16
+}
+
+/// Render directly into CPAL's output format. Keeping the mix frame on the
+/// stack avoids an intermediate `Vec<f32>` for integer output devices.
+fn fill_audio_output<T, Convert>(
+    data: &mut [T],
+    output_channels: usize,
+    consumer: &mut HeapCons<AudioCommand>,
+    engine_state: &mut EngineState,
+    callback_state: &mut AudioCallbackState,
+    convert: Convert,
+) where
+    Convert: Fn(f32) -> T,
+{
+    const MAX_COMMANDS_PER_CALLBACK: usize = 64;
+
+    let mut retirement_queue_blocked = false;
+    if let Some(retired) = callback_state.pending_retired.take() {
+        if let Err(retired) = engine_state.retired_audio_producer.try_push(retired) {
+            callback_state.pending_retired = Some(retired);
+            retirement_queue_blocked = true;
+        }
+    }
+
+    if !retirement_queue_blocked {
+        for _ in 0..MAX_COMMANDS_PER_CALLBACK {
+            let Some(command) = callback_state
+                .pending_command
+                .take()
+                .or_else(|| consumer.try_pop())
+            else {
+                break;
+            };
+
+            if command.needs_retirement_slot()
+                && engine_state.retired_audio_producer.vacant_len() == 0
+            {
+                callback_state.pending_command = Some(command);
+                break;
+            }
+
+            if let Some(retired) = handle_command(command, engine_state) {
+                if let Err(retired) = engine_state.retired_audio_producer.try_push(retired) {
+                    // This can only happen if the ring's capacity observation
+                    // raced with its consumer. Keep ownership in callback state
+                    // and retry next buffer; never destroy it here.
+                    callback_state.pending_retired = Some(retired);
+                    break;
+                }
+            }
+        }
+    }
+
+    if engine_state.is_playing {
+        for track in &mut engine_state.tracks {
+            if !track.is_muted {
+                track.voice_pool.refresh_active_indices();
+            }
+        }
+    }
+
+    for output_frame in data.chunks_mut(output_channels) {
+        let mut sample = [0.0f32; 2];
+
+        if engine_state.is_playing {
+            for track in &mut engine_state.tracks {
+                if !track.is_muted {
+                    for i in 0..track.voice_pool.active_indices().len() {
+                        let voice = track.voice_pool.active_indices()[i];
+                        mix_voice(track, voice, engine_state.master_volume, &mut sample);
+                    }
+                }
+            }
+        }
+
+        if !engine_state.preview_samples.is_empty() {
+            process_preview(
+                &mut engine_state.preview_position,
+                &engine_state.preview_samples,
+                &mut sample,
+                engine_state.master_volume,
+                engine_state.preview_channels,
+            );
+        }
+
+        sample[0] = soft_clip(sample[0]);
+        sample[1] = soft_clip(sample[1]);
+
+        callback_state.spectrum_buffer[callback_state.spectrum_len] = (sample[0] + sample[1]) * 0.5;
+        callback_state.spectrum_len += 1;
+        if callback_state.spectrum_len == SPECTRUM_WINDOW {
+            push_spectrum_frame(
+                engine_state,
+                &mut callback_state.spectrum_analyzer,
+                &callback_state.hann_window,
+                callback_state.window_compensation,
+                &callback_state.spectrum_buffer,
+                &mut callback_state.spectrum_db,
+            );
+            callback_state.spectrum_len = 0;
+        }
+
+        callback_state.master_rms_l = flush_denormal(smooth_toward(
+            callback_state.master_rms_l,
+            sample[0] * sample[0],
+            0.01,
+        ));
+        callback_state.master_rms_r = flush_denormal(smooth_toward(
+            callback_state.master_rms_r,
+            sample[1] * sample[1],
+            0.01,
+        ));
+        callback_state.master_peak = callback_state
+            .master_peak
+            .max(sample[0].abs().max(sample[1].abs()));
+
+        output_frame[0] = convert(sample[0]);
+        output_frame[1] = convert(sample[1]);
+        for channel in &mut output_frame[2..] {
+            *channel = convert(0.0);
+        }
+    }
+
+    let frames = data.len() / output_channels;
+    push_meter_updates(
+        engine_state,
+        &mut callback_state.meter_counter,
+        callback_state.master_rms_l,
+        callback_state.master_rms_r,
+        &mut callback_state.master_peak,
+        frames,
+    );
+
+    if engine_state.is_playing {
+        callback_state.sample_counter += frames as f32;
+        let step_duration = samples_per_step(engine_state.sample_rate, engine_state.bpm);
+        let beat = engine_state.current_step as f32 + callback_state.sample_counter / step_duration;
+        engine_state
+            .audio_producer
+            .try_push(UiCommand::PlayheadPosition(beat))
+            .ok();
+
+        if callback_state.sample_counter >= step_duration {
+            callback_state.sample_counter = 0.0;
+
+            let total_steps = engine_state
+                .audio_blocks
+                .iter()
+                .map(|block| block.start_step + block.length)
+                .max()
+                .unwrap_or(16)
+                .max(1) as usize;
+            engine_state.current_step = (engine_state.current_step + 1) % total_steps;
+            engine_state
+                .audio_producer
+                .try_push(UiCommand::StepAdvanced(engine_state.current_step))
+                .ok();
+
+            for audio_block in &engine_state.audio_blocks {
+                if let AudioBlockType::Sample(track_id) = audio_block.block_type {
+                    if engine_state.current_step == audio_block.start_step as usize {
+                        if let Some(track) = engine_state
+                            .tracks
+                            .iter_mut()
+                            .find(|track| track.id == track_id)
+                        {
+                            let step_duration =
+                                samples_per_step(engine_state.sample_rate, engine_state.bpm);
+                            let stop_at = audio_block.length as f32
+                                * frame_advance(track.channels)
+                                * step_duration;
+                            track.voice_pool.spawn(0.0, 1.0, 0.0, 1.0, Some(stop_at));
+                        }
+                    }
+                }
+            }
+
+            for audio_block in &engine_state.audio_blocks {
+                let AudioBlockType::Pattern(pattern_id) = audio_block.block_type else {
+                    continue;
+                };
+                if engine_state.current_step < audio_block.start_step as usize
+                    || engine_state.current_step
+                        >= (audio_block.start_step + audio_block.length) as usize
+                {
+                    continue;
+                }
+
+                let local_step = engine_state.current_step - audio_block.start_step as usize;
+                if let Some(pattern) = engine_state
+                    .patterns
+                    .iter()
+                    .find(|pattern| pattern.id == pattern_id)
+                {
+                    for sequence in &pattern.sequences {
+                        let Some(note) = sequence.steps.get(local_step) else {
+                            continue;
+                        };
+                        if note.velocity <= 0.0 {
+                            continue;
+                        }
+                        if let Some(track) = engine_state
+                            .tracks
+                            .iter_mut()
+                            .find(|track| track.id == sequence.track_id)
+                        {
+                            let playback_rate = semitones_to_rate(note.pitch, track.root_note);
+                            track.voice_pool.spawn(
+                                0.0,
+                                playback_rate,
+                                0.0,
+                                note.velocity / 127.0,
+                                None,
+                            );
+                        }
+                    }
+                }
+            }
+        }
+    }
 }
 
 /// Process the current audio file being previewed into the audio stream

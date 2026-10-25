@@ -1,88 +1,76 @@
 use crate::{
     app::UiCommand,
-    audio::EngineState,
-    project::{
-        AudioBlock, AudioBlockID, AudioBlockType, Note, PatternData, PatternID, Sequence, Track,
-        TrackID,
-    },
+    audio::{AudioProjectUpdate, EngineState, RetiredAudioData},
+    project::{AudioBlockID, TrackID},
 };
 use ringbuf::traits::Producer;
 
-/// A command sent from the UI thread to control the audio engine
+/// Commands are either small scalar controls or an app-prepared ownership swap.
+/// Project structure is never grown or destroyed by the audio callback.
 pub enum AudioCommand {
-    // composition details
-    ToggleStep(PatternID, TrackID, usize), // pattern_id, track_id, step_idx
-    ToggleNote(PatternID, TrackID, usize, u8), // pattern_id, track_id, step_idx, pitch
+    ReplaceProjectParts(Box<AudioProjectUpdate>),
     ChangeBpm(f32),
-
-    // audio blocks
-    DeleteAudioBlock(AudioBlockID),
-    CreateAudioBlock(AudioBlock),
     ResizeAudioBlock(AudioBlockID, u32),
-
-    // mixing
     ChangeMasterVolume(f32),
-    ToggleTrackMute(TrackID),
+    SetTrackMute(TrackID, bool),
     ChangeTrackVolume(TrackID, f32),
-
-    // control
-    TogglePlay,
-    Stop,
-    PreviewSample(Vec<f32>, u16),
-
-    // patterns
-    CreatePattern(PatternData),
-    DeletePattern(PatternID),
-    ClearPattern(PatternID),
-
-    // renaming state
-    RenamePattern(PatternID, String),
-    RenameTrack(TrackID, String),
-
-    // tracks
-    LoadTrack(Track),
-    DeleteTrack(TrackID),
+    SetPlaying {
+        is_playing: bool,
+        reset_position: bool,
+    },
+    PreviewSample(std::sync::Arc<[f32]>, u16),
 }
 
-// patterns, producer, audio_blocks
-pub fn handle_command(cmd: AudioCommand, engine_state: &mut EngineState) {
+/// Apply one command. Heap-owning replacements are moved into `retired` and
+/// returned to the app thread for destruction.
+pub fn handle_command(
+    cmd: AudioCommand,
+    engine_state: &mut EngineState,
+) -> Option<RetiredAudioData> {
     match cmd {
-        // clear a patterns step data by looping through each sequencer and emptying the note
-        AudioCommand::ClearPattern(pattern_id) => {
-            if let Some(pattern) = engine_state
-                .patterns
-                .iter_mut()
-                .find(|p| p.id == pattern_id)
-            {
-                for seq in pattern.sequences.iter_mut() {
-                    for note in seq.steps.iter_mut() {
-                        *note = Note::DEFAULT;
+        AudioCommand::ReplaceProjectParts(mut update) => {
+            // Keep active voices for tracks that still exist in the new project.
+            // New snapshots are built on the app thread; swapping these fixed
+            // runtime fields cannot allocate or free memory.
+            if let Some(new_tracks) = update.tracks.as_mut() {
+                let mut old_index = 0;
+                for new_track in new_tracks {
+                    while old_index < engine_state.tracks.len()
+                        && engine_state.tracks[old_index].id < new_track.id
+                    {
+                        old_index += 1;
+                    }
+                    if let Some(old_track) = engine_state.tracks.get_mut(old_index) {
+                        if old_track.id != new_track.id {
+                            continue;
+                        }
+                        new_track.is_muted = old_track.is_muted;
+                        new_track.track_volume = old_track.track_volume;
+                        std::mem::swap(&mut new_track.voice_pool, &mut old_track.voice_pool);
+                        std::mem::swap(&mut new_track.rms_l, &mut old_track.rms_l);
+                        std::mem::swap(&mut new_track.rms_r, &mut old_track.rms_r);
+                        std::mem::swap(&mut new_track.peak_hold, &mut old_track.peak_hold);
+                        old_index += 1;
                     }
                 }
             }
-        }
-        AudioCommand::RenamePattern(pattern_id, name) => {
-            if let Some(pattern) = engine_state
-                .patterns
-                .iter_mut()
-                .find(|p| p.id == pattern_id)
-            {
-                pattern.name = name.clone();
+
+            if let Some(patterns) = update.patterns.as_mut() {
+                std::mem::swap(&mut engine_state.patterns, patterns);
             }
-        }
-        AudioCommand::RenameTrack(track_id, name) => {
-            if let Some(track) = engine_state
-                .tracks
-                .iter_mut()
-                .find(|t| t.data.id == track_id)
-            {
-                track.data.name = name.clone();
+            if let Some(tracks) = update.tracks.as_mut() {
+                std::mem::swap(&mut engine_state.tracks, tracks);
             }
+            if let Some(audio_blocks) = update.audio_blocks.as_mut() {
+                std::mem::swap(&mut engine_state.audio_blocks, audio_blocks);
+            }
+            Some(RetiredAudioData::ProjectUpdate(update))
         }
         AudioCommand::PreviewSample(samples, channels) => {
-            engine_state.preview_samples = samples;
+            let old_samples = std::mem::replace(&mut engine_state.preview_samples, samples);
             engine_state.preview_channels = channels;
             engine_state.preview_position = 0.0;
+            Some(RetiredAudioData::PreviewSamples(old_samples))
         }
         AudioCommand::ResizeAudioBlock(audio_block_id, new_length) => {
             if let Some(audio_block) = engine_state
@@ -92,164 +80,126 @@ pub fn handle_command(cmd: AudioCommand, engine_state: &mut EngineState) {
             {
                 audio_block.length = new_length;
             }
+            None
         }
-
-        // activate a step within a track within a pattern
-        AudioCommand::ToggleNote(pattern_id, track_id, step_idx, pitch) => {
-            if let Some(pattern) = engine_state
-                .patterns
-                .iter_mut()
-                .find(|p| p.id == pattern_id)
-            {
-                if let Some(seq) = pattern
-                    .sequences
-                    .iter_mut()
-                    .find(|s| s.track_id == track_id)
-                {
-                    if step_idx >= seq.steps.len() {
-                        seq.steps.resize(step_idx + 1, Note::DEFAULT);
-                    }
-                    let note = &mut seq.steps[step_idx];
-                    if note.velocity > 0.0 && note.pitch == pitch {
-                        *note = Note::DEFAULT;
-                    } else {
-                        *note = Note {
-                            velocity: 95.0,
-                            pitch,
-                        };
-                    }
-                    while seq.steps.last().map(|n| n.velocity == 0.0).unwrap_or(false) {
-                        seq.steps.pop();
-                    }
-                } else {
-                    let mut steps = vec![Note::DEFAULT; step_idx + 1];
-                    steps[step_idx] = Note {
-                        velocity: 95.0,
-                        pitch,
-                    };
-                    pattern.sequences.push(Sequence { track_id, steps });
-                }
-            }
+        AudioCommand::ChangeMasterVolume(new_volume) => {
+            engine_state.master_volume = new_volume;
+            None
         }
-        AudioCommand::CreatePattern(pattern) => engine_state.patterns.push(pattern),
-        AudioCommand::DeletePattern(pattern_id) => {
-            // remove the pattern from list of patterns
-            engine_state.patterns.retain(|p| p.id != pattern_id);
-            // remove the pattern from list of audio_blocks
-            engine_state.audio_blocks.retain(|e| {
-                if let AudioBlockType::Pattern(pid) = e.block_type {
-                    pid != pattern_id
-                } else {
-                    true
-                }
-            });
-        }
-        AudioCommand::DeleteAudioBlock(audio_block_id) => {
-            engine_state.audio_blocks.retain(|e| e.id != audio_block_id);
-        }
-        AudioCommand::Stop => {
-            engine_state.is_playing = false;
-            engine_state.current_step = 0;
-            engine_state
-                .audio_producer
-                .try_push(UiCommand::PlayheadPosition(0.0))
-                .ok();
-            engine_state
-                .audio_producer
-                .try_push(UiCommand::PlaybackStopped)
-                .ok();
-        }
-        AudioCommand::CreateAudioBlock(block) => engine_state.audio_blocks.push(block),
-        AudioCommand::ChangeMasterVolume(new_volume) => engine_state.master_volume = new_volume,
         AudioCommand::ChangeTrackVolume(track_id, new_volume) => {
             if let Some(track) = engine_state
                 .tracks
                 .iter_mut()
-                .find(|t| t.data.id == track_id)
+                .find(|track| track.id == track_id)
             {
-                track.data.track_volume = new_volume;
+                track.track_volume = new_volume;
             }
-        }
-        AudioCommand::ToggleStep(pattern_id, track_id, step_idx) => {
-            if let Some(pattern) = engine_state
-                .patterns
-                .iter_mut()
-                .find(|p| p.id == pattern_id)
-            {
-                if let Some(seq) = pattern
-                    .sequences
-                    .iter_mut()
-                    .find(|s| s.track_id == track_id)
-                {
-                    if step_idx >= seq.steps.len() {
-                        seq.steps.resize(step_idx + 1, Note::DEFAULT);
-                    }
-                    seq.steps[step_idx] = if seq.steps[step_idx].velocity > 0.0 {
-                        Note::DEFAULT
-                    } else {
-                        Note {
-                            velocity: 95.0,
-                            pitch: 60,
-                        }
-                    };
-                    while seq.steps.last().map(|n| n.velocity == 0.0).unwrap_or(false) {
-                        seq.steps.pop();
-                    }
-                } else {
-                    let mut seq = Sequence {
-                        track_id,
-                        steps: vec![Note::DEFAULT; step_idx + 1],
-                    };
-                    seq.steps[step_idx] = Note {
-                        velocity: 95.0,
-                        pitch: 60,
-                    };
-                    pattern.sequences.push(seq);
-                }
-            }
-        }
-        AudioCommand::DeleteTrack(track_id) => {
-            if let Some(pos) = engine_state
-                .tracks
-                .iter()
-                .position(|t| t.data.id == track_id)
-            {
-                let data_id = engine_state.tracks[pos].data.id;
-                for pattern in engine_state.patterns.iter_mut() {
-                    pattern.sequences.retain(|s| s.track_id != data_id);
-                }
-                engine_state.audio_blocks.retain(|e| {
-                    if let crate::project::AudioBlockType::Sample(pid) = e.block_type {
-                        pid != data_id
-                    } else {
-                        true
-                    }
-                });
-                engine_state.tracks.remove(pos);
-            };
-        }
-
-        AudioCommand::LoadTrack(track) => {
-            engine_state.tracks.push(track);
+            None
         }
         AudioCommand::ChangeBpm(new_bpm) => {
             engine_state.bpm = new_bpm;
+            None
         }
-        AudioCommand::ToggleTrackMute(track_id) => {
+        AudioCommand::SetTrackMute(track_id, is_muted) => {
             if let Some(track) = engine_state
                 .tracks
                 .iter_mut()
-                .find(|t| t.data.id == track_id)
+                .find(|track| track.id == track_id)
             {
-                track.mute();
+                track.is_muted = is_muted;
             }
+            None
         }
-        AudioCommand::TogglePlay => {
-            engine_state.is_playing = !engine_state.is_playing;
+        AudioCommand::SetPlaying {
+            is_playing,
+            reset_position,
+        } => {
+            engine_state.is_playing = is_playing;
+            if reset_position {
+                engine_state.current_step = 0;
+                engine_state
+                    .audio_producer
+                    .try_push(UiCommand::PlayheadPosition(0.0))
+                    .ok();
+            }
             engine_state
                 .audio_producer
-                .try_push(UiCommand::PlayToggled(engine_state.is_playing))
+                .try_push(if reset_position && !is_playing {
+                    UiCommand::PlaybackStopped
+                } else {
+                    UiCommand::PlayToggled(is_playing)
+                })
                 .ok();
+            None
         }
+    }
+}
+
+impl AudioCommand {
+    /// Commands that transfer heap ownership need one free return-ring slot.
+    pub fn needs_retirement_slot(&self) -> bool {
+        matches!(
+            self,
+            Self::ReplaceProjectParts(_) | Self::PreviewSample(_, _)
+        )
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{
+        audio::SpectrumFrame,
+        project::{AudioBlock, AudioBlockType, Project},
+    };
+    use ringbuf::{traits::Split, HeapRb};
+
+    fn block(length: u32) -> AudioBlock {
+        AudioBlock {
+            id: AudioBlockID(1),
+            track: 1,
+            start_step: 0,
+            length,
+            block_type: AudioBlockType::Mixing,
+            is_muted: false,
+        }
+    }
+
+    #[test]
+    fn project_replacement_returns_old_collection_for_app_thread_drop() {
+        let (ui_producer, _) = HeapRb::<UiCommand>::new(2).split();
+        let (spectrum_producer, _) = HeapRb::<SpectrumFrame>::new(2).split();
+        let (retired_audio_producer, _) = HeapRb::<RetiredAudioData>::new(2).split();
+        let project = Project {
+            name: "test".to_owned(),
+            bpm: 120.0,
+            master_volume: 1.0,
+            audio_blocks: vec![block(2)],
+            tracks: Vec::new(),
+            patterns: Vec::new(),
+        };
+        let mut engine = EngineState::from_project(
+            project,
+            Vec::new(),
+            ui_producer,
+            spectrum_producer,
+            retired_audio_producer,
+            44_100.0,
+        );
+
+        let retired = handle_command(
+            AudioCommand::ReplaceProjectParts(Box::new(AudioProjectUpdate {
+                patterns: None,
+                tracks: None,
+                audio_blocks: Some(vec![block(9)]),
+            })),
+            &mut engine,
+        );
+
+        assert_eq!(engine.audio_blocks[0].length, 9);
+        let Some(RetiredAudioData::ProjectUpdate(retired)) = retired else {
+            panic!("project replacement must return retired project data")
+        };
+        assert_eq!(retired.audio_blocks.as_ref().unwrap()[0].length, 2);
     }
 }

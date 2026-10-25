@@ -5,13 +5,43 @@ use std::{f32::consts::TAU, sync::Arc};
 pub struct SpectrumAnalyzer {
     fft: Arc<dyn Fft<f32>>,
     window_size: usize,
+    buffer: Vec<Complex32>,
+    scratch: Vec<Complex32>,
 }
 
 impl SpectrumAnalyzer {
     pub fn new(window_size: usize) -> Self {
         let mut planner = FftPlanner::new();
         let fft = planner.plan_fft_forward(window_size);
-        Self { fft, window_size }
+        let buffer = vec![Complex32::new(0.0, 0.0); window_size];
+        let scratch = vec![Complex32::new(0.0, 0.0); fft.get_inplace_scratch_len()];
+        Self {
+            fft,
+            window_size,
+            buffer,
+            scratch,
+        }
+    }
+
+    /// Computes a windowed real-input spectrum into caller-owned storage.
+    /// The FFT input and scratch buffers are allocated by `new` and reused,
+    /// so this method does not allocate.
+    pub fn process_windowed_into(&mut self, samples: &[f32], window: &[f32], output: &mut [f32]) {
+        let bins = self.window_size / 2 + 1;
+        assert_eq!(samples.len(), self.window_size);
+        assert_eq!(window.len(), self.window_size);
+        assert!(output.len() >= bins);
+
+        for ((slot, &sample), &window_value) in self.buffer.iter_mut().zip(samples).zip(window) {
+            *slot = Complex32::new(sample * window_value, 0.0);
+        }
+
+        self.fft
+            .process_with_scratch(&mut self.buffer, &mut self.scratch);
+
+        for (magnitude, value) in output.iter_mut().zip(self.buffer.iter()).take(bins) {
+            *magnitude = value.norm();
+        }
     }
 
     /// Computes the FFT magnitude spectrum for a block of real-valued samples.

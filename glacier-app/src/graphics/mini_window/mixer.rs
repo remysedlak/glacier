@@ -1,13 +1,12 @@
 //! The mixer window contains controls for all audio mixing and mastering such as volume and plugins.
 
-use crate::graphics::mini_window::InteractionResult;
 use crate::{
     app::MouseState,
     graphics::{
         components::{slider, slider::MIXER_TRACK_HEIGHT},
         font::{Font::Mono, BODY},
         geometry::Rectangle,
-        mini_window::MiniWindow,
+        mini_window::{InteractionResult, MiniWindow},
         primitives::{ScreenConfig, BOTTOM_RADIUS_16, NO_RADIUS, PAD_16, PAD_32, PAD_4, PAD_8},
         TextItem, Vertex,
     },

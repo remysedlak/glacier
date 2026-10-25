@@ -1,6 +1,6 @@
 use crate::{
     app::UiCommand,
-    audio::{EngineState, SPECTRUM_WINDOW},
+    audio::{EngineState, SPECTRUM_BINS, SPECTRUM_WINDOW},
 };
 
 use glacier_dsp::spectral::{magnitude_to_db, SpectrumAnalyzer};
@@ -34,7 +34,7 @@ pub fn push_meter_updates(
         engine_state
             .audio_producer
             .try_push(UiCommand::TrackLevel(
-                track.data.id,
+                track.id,
                 track.rms_l.sqrt(),
                 track.rms_r.sqrt(),
                 track.peak_hold,
@@ -47,44 +47,26 @@ pub fn push_meter_updates(
 /// Update the UI spectrum analyzer with new frame data
 pub fn push_spectrum_frame(
     engine_state: &mut EngineState,
-    spectrum_analyzer: &SpectrumAnalyzer,
+    spectrum_analyzer: &mut SpectrumAnalyzer,
     hann_window: &[f32],
     compensation: f32,
-    spectrum_buffer: &mut Vec<f32>,
+    spectrum_buffer: &[f32],
+    spectrum_db: &mut [f32; SPECTRUM_BINS],
 ) {
     // A spectrum analysis (FFT) needs a fixed-size block of samples
-    if spectrum_buffer.len() < SPECTRUM_WINDOW {
+    if spectrum_buffer.len() != SPECTRUM_WINDOW {
         return;
     }
 
-    // Applies the window: multiplies each sample by its corresponding window coefficient
-    engine_state.windowed.clear();
-    engine_state.windowed.extend(
-        spectrum_buffer
-            .iter()
-            .zip(hann_window.iter())
-            .map(|(x, w)| x * w),
-    );
+    // The analyzer owns its preallocated FFT input and scratch buffers. Keep
+    // the display data in a fixed-size array so this path neither allocates nor
+    // transfers heap ownership to the UI thread.
+    spectrum_analyzer.process_windowed_into(spectrum_buffer, hann_window, spectrum_db);
+    for magnitude in spectrum_db.iter_mut() {
+        *magnitude = magnitude_to_db(*magnitude, SPECTRUM_WINDOW, compensation);
+    }
 
-    // This is where the actual FFT happens
-    let magnitudes = spectrum_analyzer.process(&engine_state.windowed);
-
-    // Converts magnitude to dB
-    engine_state.db.clear();
-    engine_state.db.extend(
-        magnitudes
-            .iter()
-            .map(|m| magnitude_to_db(*m, SPECTRUM_WINDOW, compensation)),
-    );
-
-    // the full Vec gets handed off to the ringbuf, not dropped synchronously on the audio thread
-    engine_state
-        .audio_producer
-        .try_push(UiCommand::SpectrumFrame(std::mem::take(
-            &mut engine_state.db,
-        )))
-        .ok();
-
-    // clear audio engine's spectrum db buffer
-    spectrum_buffer.clear();
+    // The array is copied into the bounded ring. A full ring drops only this
+    // fixed-size value, never a heap allocation on the audio thread.
+    engine_state.spectrum_producer.try_push(*spectrum_db).ok();
 }
