@@ -1,205 +1,96 @@
-# The audio thread
+# Audio Engine and Callback
 
-The audio thread's main job is to satisfy commands from the UI and maintain a low latency audio stream.
+The audio engine owns the runtime state needed to render playback. The app owns
+the editable project and the values written to the project file. The engine
+receives playback updates from the app through bounded queues; it does not load
+or save project files or mint project IDs.
 
-## Voice Model — Polyphony
+## Runtime playback state
 
-### VoicePool, not Vec<Voice>
+The app's `Track` contains persistent `TrackData`, shared sample buffers, a
+waveform buffer, UI state, and metering state. Audio receives an `AudioTrack`
+projection containing only the fields needed for playback: track ID, channel
+count, mute/volume, root note, shared sample data, voice pool, and meters. The
+sample data is held as `Arc<[f32]>`, so app and audio can share immutable sample
+storage without copying the audio buffer.
 
-```rust
-pub const MAX_VOICES_PER_TRACK: usize = 64;
+Audio uses `AudioPattern` projections too. They contain a pattern ID and its
+sequences, but omit the display name. Playlist blocks are copied as
+`AudioBlock`s. These are runtime mirrors of app-owned project data, not a second
+place where project edits are decided.
 
-pub struct VoicePool {
-    pub positions: [f32; MAX_VOICES_PER_TRACK],
-    pub rates: [f32; MAX_VOICES_PER_TRACK],
-    pub current_volumes: [f32; MAX_VOICES_PER_TRACK],
-    pub target_volumes: [f32; MAX_VOICES_PER_TRACK],
-    pub stop_at_frames: [Option<f32>; MAX_VOICES_PER_TRACK],
-    pub active: [bool; MAX_VOICES_PER_TRACK],
-    pub age: [u32; MAX_VOICES_PER_TRACK],
-    active_scratch: Vec<usize>,
-    voice_age_counter: u32,
-}
+Each track has a fixed-capacity `VoicePool` with 64 slots. Its arrays store
+voice positions, playback rates, volumes, stop positions, active flags, and
+ages. A fixed-size scratch array records active voice indices once per output
+buffer; it does not allocate as voices start or stop. When all 64 slots are in
+use, a new voice reuses the oldest slot.
 
-pub struct Track {
-    pub data: TrackData,
-    pub samples: Vec<f32>,
-    pub mono_samples: Vec<f32>,
-    pub voice_pool: VoicePool,
-    pub show_velocity: bool,
-    pub rms_l: f32,
-    pub rms_r: f32,
-    pub peak_hold: f32,
-}
-```
+## Commands and project updates
 
-This used to be `Vec<Voice>`, where `Voice` was one bundled struct with all six fields together. Got rewritten into a fixed-size, struct-of-arrays pool — every voice's `position` lives in one flat array, every `rate` in another, etc. The old `Voice` type doesn't exist anymore; it got fully replaced, not just wrapped.
+The app sends `AudioCommand`s through a bounded SPSC ring. Small controls such
+as tempo, volume, mute, resize, and play state are scalar commands. Structural
+edits use `ReplaceProjectParts`: the app prepares playback-only snapshots for
+the changed collections, then audio swaps them into the engine at a callback
+boundary. The callback returns the replaced collections through a separate
+retirement ring so their heap storage is dropped by the app thread.
 
-Two reasons for the rewrite: capping polyphony at a real number instead of letting `Vec<Voice>` grow forever, and laying the data out so it's actually possible to batch it with SIMD later (not done yet, just the groundwork).
+Preview samples use the same retirement path when replaced. If the retirement
+ring has no free slot, audio holds the pending command and continues rendering
+without consuming more commands. The callback applies no more than 64 commands
+per output buffer. The command ring has 64 slots, the app-side retry queue is
+capped at 256 commands, and the retirement ring has two slots. The app
+coalesces replaceable pending controls and project updates; if its retry queue
+still reaches capacity, it logs and rejects the new command.
 
-### Spawning — find a free slot, or steal the oldest
+This handoff keeps project-vector growth and destruction off the callback, but
+it is not a proof that the entire callback is real-time safe. Preparing a large
+snapshot can cost time and memory on the UI thread, and applying a track
+replacement does work proportional to track count. The callback also performs
+mixing, metering, and spectrum analysis.
 
-```rust
-pub fn spawn(&mut self, position: f32, rate: f32, current_volume: f32, target_volume: f32, stop_at_frame: Option<f32>) -> usize {
-    let slot = (0..MAX_VOICES_PER_TRACK)
-        .find(|&i| !self.active[i])
-        .unwrap_or_else(|| {
-            (0..MAX_VOICES_PER_TRACK).min_by_key(|&i| self.age[i]).unwrap()
-        });
-    // write all five fields into that slot, bump age, mark active
-    slot
-}
-```
+## Callback and timing
 
-No more unbounded pushing. If there's a free slot, use it. If the pool's full (64 voices already going on one track), kill the oldest one and reuse its slot. `age` is just a counter that only ever goes up — every spawn stamps the slot with the current counter value, so "oldest" means "lowest age," not anything to do with pitch or position.
+CPAL invokes the output callback to fill each audio buffer. Commands are
+processed at the start of that callback, then the engine mixes active voices
+and preview audio into the output. There is no project-file I/O in this path.
+The callback sends playback position and meter updates to the app through a
+bounded ring; these telemetry messages are best-effort and can be dropped if
+the UI falls behind. Spectrum frames use their own two-frame ring so they do
+not crowd out transport and meter messages.
 
-### Cleanup — no more retain()
+Sequencer timing uses `samples_per_step(sample_rate, bpm)`, with the negotiated
+output sample rate and channel count. The engine supports stereo-or-better
+output devices; extra output channels are left silent. Sample positions and
+stop points account for mono versus interleaved stereo source data.
 
-Old version swept dead voices out of a `Vec` every callback with `.retain()`. New version doesn't need to — a dead voice just gets `active[i] = false` the instant it finishes, and that's it. No sweep pass. `refresh_active_indices()` runs once per track per callback, refilling a scratch buffer with whichever indices are currently active, and the mixing loop walks that scratch buffer instead of the raw 64 slots.
+## Voice playback
 
-```rust
-track.voice_pool.refresh_active_indices();
-for i in 0..track.voice_pool.active_indices().len() {
-    let voice = track.voice_pool.active_indices()[i];
-    mix_voice(track, voice, shutdown_volume, master_volume, sample);
-}
-```
+`VoicePool::spawn` finds an inactive slot or steals the oldest active voice.
+At the start of a buffer, `refresh_active_indices` fills its fixed scratch
+array. Mixing iterates only those active indices. Finished voices mark their
+slot inactive rather than being removed from a growable collection.
 
-### stop_at_frame and the mono/stereo mess
+`frame_advance` and `frame_lookahead` account for source channel count. Mono
+samples occupy one value per frame; stereo samples are interleaved and occupy
+two. `interpolate` selects the appropriate mono or stereo interpolation path.
 
-This one took a while to get right. `frame_advance` and `frame_lookahead` both exist specifically because stereo data is interleaved (`L0 R0 L1 R1...`, 2 slots per frame) and mono data isn't (`S0 S1 S2...`, 1 slot per frame). Every number that used to be a hardcoded `2.0` or `3.0` — the position-advance step, the bounds-check lookahead, the frame alignment — had to become channel-aware or mono tracks would read garbage.
+## Metering and spectrum
 
-```rust
-pub fn frame_advance(channels: u16) -> f32 {
-    if channels == 1 { 1.0 } else { 2.0 }
-}
+Metering smooths RMS values and reports levels periodically rather than on
+every sample. Spectrum analysis buffers a 2048-sample mono mix, applies a
+precomputed Hann window, runs the FFT, corrects for window attenuation, and
+converts the result to decibels. FFT input and scratch storage are initialized
+ahead of callback use, and the result is written into a fixed-size frame.
 
-pub fn frame_lookahead(channels: u16) -> usize {
-    if channels == 1 { 1 } else { 3 }
-}
-```
+The FFT still runs on the audio callback, so eliminating command-driven heap
+allocation does not eliminate all callback workload or guarantee underrun-free
+playback.
 
-`mix_voice` uses both of these now instead of bare constants:
+## Stream lifetime
 
-```rust
-let channels = track.data.channels;
-let pos = if channels == 1 {
-    track.voice_pool.positions[voice] as usize
-} else {
-    align_to_frame(track.voice_pool.positions[voice])
-};
-let lookahead = frame_lookahead(channels);
-let stop = track.voice_pool.stop_at_frames[voice].unwrap_or(track.samples.len() as f32);
-
-if pos + lookahead >= stop.min(track.samples.len() as f32) as usize {
-    track.voice_pool.active[voice] = false;
-} else {
-    // smooth volume, interpolate, mix into sample, advance position
-}
-```
-
-`stop_at` itself (computed at trigger time for sample blocks) also needs `frame_advance` baked in, same reason — it has to be in the same index-space as `position` for the comparison above to make sense:
-
-```rust
-let stop_at = audio_block.length as f32 * frame_advance(track.data.channels) * step_duration;
-```
-
-Pattern-triggered notes still pass `stop_at_frame: None` — they just play out until they run off the end of the actual sample data.
-
-### Interpolation — one function, branches internally
-
-`interpolate(samples, position, channels)` replaced two separate functions (`interpolate_mono`/`interpolate_stereo`) that used to get called with a manual `if channels == 1 {...} else {...}` at every call site. Now it's one call, branches inside:
-
-```rust
-pub fn interpolate(samples: &[f32], position: f32, channels: u16) -> (f32, f32) {
-    if channels == 1 {
-        interpolate_mono(samples, position)
-    } else {
-        interpolate_stereo(samples, position)
-    }
-}
-```
-
-Both `interpolate_mono` and `interpolate_stereo` still exist underneath it, they're just not called directly from `audio.rs` anymore.
-
-### rms_l/rms_r/peak_hold stay on Track, not in the pool
-
-Same as before — these are aggregate signal across all of a track's currently-playing voices, summed together, not per-voice state. They don't belong in `VoicePool` and never did.
-
----
-
-## Command Loop — how the UI talks to audio
-
-Still the same shape as it's always been. Every callback drains the command queue before touching any samples:
-
-```rust
-while let Some(cmd) = consumer.try_pop() {
-    handle_command(cmd, &mut engine_state);
-}
-```
-
-`consumer`/`producer` are the two `ringbuf` halves. UI sends `AudioCommand`s in, audio thread sends `UiCommand`s back out, nothing's behind a `Mutex`. The audio thread owns the real `EngineState` — tracks, patterns, audio_blocks, bpm, all of it — and the UI's `Graphics` struct is just a mirror, updated only by whatever `UiCommand`s come back.
-
-Preview playback now carries its own channel count through the whole chain, since preview files aren't guaranteed to be the same channel layout as whatever track triggered them:
-
-```rust
-AudioCommand::PreviewSample(samples, channels) => {
-    engine_state.preview_samples = samples;
-    engine_state.preview_channels = channels;
-    engine_state.preview_position = 0.0;
-}
-```
-
-Lookups are still always `.find()` by id, never bracket-indexed — nothing about that changed.
-
----
-
-## Playback Timing — steps, not wall-clock
-
-`samples_per_step(sample_rate, bpm)` is still the one unit of time the whole sequencer runs on. `sample_counter` still drives step-advance once per callback, except the divisor isn't a hardcoded `2.0` anymore — it uses whatever the actual output device negotiated:
-
-```rust
-sample_counter += data.len() as f32 / output_channels as f32;
-```
-
-Same deal for the meter-update frame count a bit further down. Both of these used to assume exactly 2 output channels; now they use `output_channels`, which comes from the real negotiated `stream_config.channels`. Anything that isn't stereo (mono gets rejected outright at startup, anything 3+ channels works fine with the extra channels left silent) used to silently desync the playhead from real audio time. Fixed now.
-
-`current_step` and `total_steps` both got a `.max(1)` guard added before any subtraction happens, since an empty or all-zero-length playlist used to be able to underflow `0usize - 1` and panic.
-
----
-
-## Metering & Spectrum — reporting without stalling audio
-
-Mostly unchanged, but it's not all crammed into one closure anymore. `push_meter_updates` and `push_spectrum_frame` are real, named functions now, living in `audio/metering.rs`, called from `fill_f32` instead of being inlined 20-line blocks in the middle of the callback.
-
-RMS still smooths in squared space with `smooth_toward`, still takes one `.sqrt()` at report time. Reporting still throttles to roughly every 1024 frames, same reasoning as before — no point flooding the ring buffer faster than the UI can render a frame.
-
-`master_peak` gets reset to `0.0` inside `push_meter_updates`, right after the `MasterLevel` push. Worth saying explicitly since it's easy to assume a running max like that just accumulates forever if you're skimming — it doesn't, it's a real reset every window.
-
-Spectrum still buffers the mono mixdown across however many callbacks it takes to hit `SPECTRUM_WINDOW` (2048 samples), still Hann windows it, runs the FFT, corrects for window attenuation, converts to dB. `SPECTRUM_WINDOW` moved from a local `const` inside `init()` to a module-level `const` in `audio.rs`, since `push_spectrum_frame` needed to see it too now that it's a separate function.
-
----
-
-## Shutdown — fading, not cutting
-
-Same idea as before — drop the stream outright and you get a click, so instead `is_shutting_down` ramps `shutdown_volume` down from 1.0 over the next several callbacks.
-
-Two real bugs got fixed here. First, the fade used to be a flat `-0.0001` per sample, which meant fade time depended on sample rate — ~226ms on a 44.1kHz device, more like 104ms on 96kHz. Now it's computed from the actual sample rate so fade time is a fixed, device-independent duration:
-
-```rust
-let fade_decrement = 1.0 / (FADE_TIME_SECS * engine_state.sample_rate);
-```
-
-Second, `shutdown_volume` never used to get reset after the fade finished — it'd just sit at whatever small negative number it landed on. Harmless as long as shutdown is genuinely terminal, but if anything ever re-triggers shutdown without rebuilding the stream, every sample afterward gets multiplied by a negative number. Fixed:
-
-```rust
-if shutdown_volume <= 0.0 {
-    producer.try_push(UiCommand::ShutdownComplete).ok();
-    is_shutting_down = false;
-    shutdown_volume = 1.0;
-}
-```
-
-Preview playback now fades along with everything else during shutdown too — it used to only scale by `master_volume`, so a preview playing right as the app closed would cut off hard while the rest of the mix faded smoothly. Now `process_preview` takes `shutdown_volume` as well and multiplies it in, same as `mix_voice` already did.
-
-Save-before-confirm is unchanged — `Shutdown` still saves and pushes `SaveComplete` before deciding whether to send `ShutdownComplete` immediately or wait for the fade to actually finish.
+The audio stream runs for the active project's lifetime. Loading a project and
+its referenced audio files happens on a worker; when loading completes, the app
+tears down the old stream and initializes a new engine/stream for the loaded
+project. Closing the app pauses and drops the stream from the app's exit path.
+There is currently no callback-driven shutdown fade, so audio can stop
+abruptly when the stream is dropped.

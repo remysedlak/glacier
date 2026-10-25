@@ -1,88 +1,53 @@
-# ID Minting & Lookup
+# IDs and Project Authority
 
-This rule applies uniformly across every id-bearing collection in the
-project — tracks, patterns, and audio blocks alike. It was discovered
-piecemeal (tracks first, then patterns and blocks turned out to have the
-identical bug), but the rule itself is one rule, not three.
+IDs are stable identities, not positions in a vector. Glacier uses distinct
+newtypes—`TrackID`, `PatternID`, and `AudioBlockID`—so Rust can help prevent
+mixing unrelated kinds of IDs. References such as `Sequence.track_id` and
+`AudioBlockType::Pattern` use those identities. `AudioBlock.track`, by
+contrast, is the playlist lane/index field; it is not the block's ID.
 
-## The Core Distinction: Identity vs. Position
+## Minting IDs
 
-Every `.id` field (`TrackData.id`, `PatternData.id`, `AudioBlock.id`) is a
-**stable identity**, referenced by other structs across the codebase
-(`Sequence.track_id`, `AudioBlockType::Pattern(pattern_id)`,
-`AudioBlockType::Sample(track_id)`). It is *never* a position index into its
-own `Vec` — even though, before anything is ever deleted, an id will
-coincidentally equal its position. That coincidence is exactly what makes
-this bug easy to introduce and hard to notice: everything works until the
-first deletion breaks the assumption.
+The app mints IDs when it creates tracks, patterns, and playlist blocks. The
+shared `next_id` helper chooses one greater than the maximum existing ID, or
+zero for an empty collection. Display names such as `Pattern 2` are labels, not
+identities, and may use a collection count.
 
-The test that decides which one you're holding: **does this value's meaning
-need to survive being passed to a different thread, or to a later frame?**
-If yes, it's an id — resolve it with `.find()`. If it's consumed
-synchronously, in the same call that produced it, a plain position is fine.
+Audio does not mint project IDs. For a structural edit, the app first updates
+its project state, then sends playback data for the changed collection to the
+audio engine. This keeps saves and UI decisions tied to one app-owned project
+model while audio maintains the runtime copy it needs to play the song.
 
-## Minting New IDs — Never `.len()`
+## Lookup
 
-```rust
-id: collection.iter().map(|x| x.id).max().map(|m| m + 1).unwrap_or(0)
-```
-
-`.len()`-derived ids collide with existing ids the moment anything has ever
-been deleted — `len()` shrinks on delete, but surviving ids don't renumber
-to fill the gap. Scanning for the current max and adding one is the only
-minting strategy that survives deletions. This applies at every creation
-site: `LoadTrack`, `CreatePattern`/`DuplicatePattern`, `CreateAudioBlock`
-(all in `audio.rs`, since it's the sole minting authority — see below).
-
-Display labels are the one exception — `format!("Pattern {}", patterns.len() + 1)`
-is a human-facing count, not an identity, so it has no collision risk and
-can stay `.len()`-based.
-
-## Lookup — `.find()`/`.position()`, Never Bracket-Indexed by ID
+Resolve a stable ID by matching the object's ID, not by indexing the vector
+with the ID:
 
 ```rust
-collection.iter_mut().find(|item| item.id == x)   // to mutate
-collection.iter().position(|item| item.id == x)   // then .remove(pos)
+tracks.iter().find(|track| track.data.id == track_id)
+blocks.iter().position(|block| block.id == block_id)
 ```
 
-`collection[x]` is only correct when `x` is a genuine position, computed and
-consumed in the same synchronous call — with no round-trip through a
-different thread or a later frame in between. The instant a value comes
-from an `.id` field, or has crossed the ring-buffer boundary (UI → audio
-thread → confirmation back), it must be resolved by scanning for a matching
-id, not indexed directly.
+An index from `.position()` or `.enumerate()` is fine for an immediate
+operation on that same collection. Fixed UI arrays also use actual positions;
+for example, a mini-window constant is an array index, not a project ID.
 
-Fixed-slot constants are the legitimate exception —
-`mini_windows[SEQUENCER_ID]` is a real constant array index, not an id
-masquerading as one. Likewise, values resolved via `.position()`/
-`.enumerate()` and used immediately, within the same frame, are fine staying
-positional.
+## Mirroring structural edits
 
-## Audio Thread Is the Sole Minting/Mutating Authority
+The app is authoritative for project edits. Pattern, track, and block changes
+are applied to the app's editable state, which is also the source of save
+snapshots. The app prepares an `AudioProjectUpdate` for the changed playback
+collections; the audio callback swaps it into its runtime state at a buffer
+boundary and returns the retired collection to the app for destruction.
 
-UI-side click handlers never mutate `tracks`/`patterns`/`audio_blocks`
-directly for create or delete — they only send an `AudioCommand`. The audio
-thread mints the id, mutates its own copy, and reports back with a
-confirmation `UiCommand`, which the UI applies to its own mirrored state.
-Confirmation commands are named past-tense on purpose — TrackLoaded, TrackDeleted, TrackUpdated, BpmChanged, PatternUpdated, PatternDeleted, AudioBlockLoaded, AudioBlockDeleted — to make clear they represent something that already happened on the audio thread's authoritative copy, not a request.
+The audio copy exists to render playback. It does not independently create
+project objects, choose IDs, serialize project data, or send project mutations
+back as confirmation commands. Playback status, meters, and playhead position
+do flow from audio to the app, but those are runtime facts rather than project
+authority.
 
-This exists specifically to prevent two independent copies from minting or
-mutating the same conceptual thing on their own — the failure mode when
-that happens is silent divergence between the UI's view and the audio
-thread's real state, which surfaces later as a corrupted save or a UI that
-shows something the audio thread disagrees with.
-
-## Delete-Cascade Symmetry
-
-Every delete needs *identical* cleanup applied on both the audio thread's
-copy and the UI's mirrored copy. Cleanup logic present on only one side is a
-live bug waiting for a save/reload, or any moment the two copies are
-compared, to expose it — for example, `DeleteTrack` must remove orphaned
-`AudioBlockType::Sample` events referencing the deleted track on *both*
-sides; missing it on either side leaves dangling references pointing at a
-track that no longer exists.
-
-**When adding any new delete path, check both sides of the boundary** —
-the audio thread's handler and whatever applies its confirmation back on
-the UI side — for whether cascading cleanup is needed, and whether it's
-actually present on both.
+When adding a structural edit, update the app's project state and send the
+corresponding playback projection. When adding a scalar playback control such
+as mute, volume, tempo, or transport, keep the app's persistent value current
+and send the audio control that mirrors it. Keep the two operations ordered so
+the audio state follows the app's latest value.
