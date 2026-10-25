@@ -53,11 +53,82 @@ pub struct EngineState {
     windowed: Vec<f32>,
 }
 
-/// Initializes the CPAL engine with project file data. Returns the audio stream
+impl EngineState {
+    /// Build playback state from a project loaded by the app.
+    fn from_project(
+        project: Project,
+        tracks: Vec<Track>,
+        producer: HeapProd<UiCommand>,
+        project_path: String,
+        sample_rate: f32,
+    ) -> Self {
+        let max_triggers = project.patterns.iter().map(|p| p.sequences.len()).sum();
+
+        Self {
+            patterns: project.patterns,
+            tracks,
+            audio_blocks: project.audio_blocks.clone(),
+            audio_producer: producer,
+            master_volume: project.master_volume,
+            bpm: project.bpm,
+            is_playing: false,
+            is_shutting_down: false,
+            project_name: project.name.clone(),
+            project_path,
+            preview_samples: Vec::new(),
+            preview_channels: 2,
+            sample_rate,
+            current_step: project
+                .audio_blocks
+                .iter()
+                .map(|e| e.start_step + e.length)
+                .max()
+                .unwrap_or(16)
+                .max(1) as usize
+                - 1,
+            preview_position: 0.0,
+            // Keep these buffers ready for callback work.
+            triggers: Vec::with_capacity(max_triggers),
+            db: Vec::new(),
+            windowed: Vec::new(),
+        }
+    }
+}
+
+/// State that persists between invocations of the CPAL output callback.
+struct AudioCallbackState {
+    shutdown_volume: f32,
+    sample_counter: f32,
+    meter_counter: usize,
+    master_rms_l: f32,
+    master_rms_r: f32,
+    master_peak: f32,
+    spectrum_buffer: Vec<f32>,
+    spectrum_analyzer: SpectrumAnalyzer,
+}
+
+impl AudioCallbackState {
+    fn new() -> Self {
+        Self {
+            shutdown_volume: 1.0,
+            sample_counter: 0.0,
+            meter_counter: 0,
+            master_rms_l: 0.0,
+            master_rms_r: 0.0,
+            master_peak: 0.0,
+            spectrum_buffer: Vec::with_capacity(SPECTRUM_WINDOW),
+            spectrum_analyzer: SpectrumAnalyzer::new(SPECTRUM_WINDOW),
+        }
+    }
+}
+
+/// Initializes the CPAL engine with a project already loaded by the app.
 pub fn init(
     mut consumer: HeapCons<AudioCommand>,
     producer: HeapProd<UiCommand>,
-    project_file: Option<String>,
+    project: Project,
+    tracks: Vec<Track>,
+    project_path: String,
 ) -> cpal::Stream {
     // error callback
     let err_fn = |err| eprintln!("an error occurred on the output audio stream: {}", err);
@@ -83,61 +154,15 @@ pub fn init(
         output_channels
     );
 
-    // load project file to memory
-    let project: Project = project_file
-        .as_deref()
-        .and_then(get_project)
-        .unwrap_or_default();
+    let mut callback_state = AudioCallbackState::new();
 
-    let tracks: Vec<Track> = get_tracks(&project);
-
-    // setup bpm and volume
-
-    let mut shutdown_volume: f32 = 1.00;
-    let mut sample_counter: f32 = 0.0; // tracks how many samples passed, to track when a step passes
-
-    // sample RMS/peak callback state
-    let mut meter_counter: usize = 0;
-    let mut master_rms_l: f32 = 0.0;
-    let mut master_rms_r: f32 = 0.0;
-    let mut master_peak: f32 = 0.0;
-
-    // store samples for spectrum math over multiple audio callbacks
-    let mut spectrum_buffer: Vec<f32> = Vec::with_capacity(2048);
-
-    let spectrum_analyzer = SpectrumAnalyzer::new(SPECTRUM_WINDOW);
-
-    let max_triggers = project.patterns.iter().map(|p| p.sequences.len()).sum();
-
-    let mut engine_state = EngineState {
-        patterns: project.patterns,
+    let mut engine_state = EngineState::from_project(
+        project,
         tracks,
-        audio_blocks: project.audio_blocks.clone(),
-        audio_producer: producer,
-        master_volume: project.master_volume,
-        bpm: project.bpm,
-        is_playing: false,
-        is_shutting_down: false,
-        project_name: project.name.clone(),
-        project_path: project_file.unwrap_or_else(Project::default_project_file),
-        preview_samples: Vec::new(),
-        preview_channels: 2,
-        sample_rate: stream_config.sample_rate as f32,
-        current_step: project
-            .audio_blocks
-            .iter()
-            .map(|e| e.start_step + e.length)
-            .max()
-            .unwrap_or(16)
-            .max(1) as usize
-            - 1,
-        preview_position: 0.0,
-
-        // information to not be reallocated during callback
-        triggers: Vec::with_capacity(max_triggers),
-        db: Vec::new(),
-        windowed: Vec::new(),
-    };
+        producer,
+        project_path,
+        stream_config.sample_rate as f32,
+    );
 
     const FADE_TIME_SECS: f32 = 0.2; // or whatever duration you want
     let fade_decrement = 1.0 / (FADE_TIME_SECS * engine_state.sample_rate);
@@ -182,14 +207,14 @@ pub fn init(
         for sample in data.chunks_mut(output_channels) {
             // fade audio off during app shutdown
             if engine_state.is_shutting_down {
-                shutdown_volume -= fade_decrement;
-                if shutdown_volume <= 0.0 {
+                callback_state.shutdown_volume -= fade_decrement;
+                if callback_state.shutdown_volume <= 0.0 {
                     engine_state
                         .audio_producer
                         .try_push(UiCommand::ShutdownComplete)
                         .ok();
                     engine_state.is_shutting_down = false;
-                    shutdown_volume = 1.0; // reset for safety, in case shutdown is ever re-triggered
+                    callback_state.shutdown_volume = 1.0; // reset in case shutdown is re-triggered
                 }
             }
 
@@ -212,7 +237,7 @@ pub fn init(
                             mix_voice(
                                 track,
                                 voice,
-                                shutdown_volume,
+                                callback_state.shutdown_volume,
                                 engine_state.master_volume,
                                 sample,
                             );
@@ -227,7 +252,7 @@ pub fn init(
                     &mut engine_state.preview_position,
                     &engine_state.preview_samples,
                     sample,
-                    shutdown_volume,
+                    callback_state.shutdown_volume,
                     engine_state.master_volume,
                     engine_state.preview_channels,
                 );
@@ -238,43 +263,60 @@ pub fn init(
             sample[1] = soft_clip(sample[1]);
 
             // feed the spectrum analyzer with the final mixed mono signal
-            spectrum_buffer.push((sample[0] + sample[1]) * 0.5);
+            callback_state
+                .spectrum_buffer
+                .push((sample[0] + sample[1]) * 0.5);
 
             // update master meter info
-            master_rms_l = flush_denormal(smooth_toward(master_rms_l, sample[0] * sample[0], 0.01));
-            master_rms_r = flush_denormal(smooth_toward(master_rms_r, sample[1] * sample[1], 0.01));
-            master_peak = master_peak.max(sample[0].abs().max(sample[1].abs()));
+            callback_state.master_rms_l = flush_denormal(smooth_toward(
+                callback_state.master_rms_l,
+                sample[0] * sample[0],
+                0.01,
+            ));
+            callback_state.master_rms_r = flush_denormal(smooth_toward(
+                callback_state.master_rms_r,
+                sample[1] * sample[1],
+                0.01,
+            ));
+            callback_state.master_peak = callback_state
+                .master_peak
+                .max(sample[0].abs().max(sample[1].abs()));
         }
 
         // update the meter data
         push_meter_updates(
             &mut engine_state,
-            &mut meter_counter,
-            master_rms_l,
-            master_rms_r,
-            &mut master_peak,
+            &mut callback_state.meter_counter,
+            callback_state.master_rms_l,
+            callback_state.master_rms_r,
+            &mut callback_state.master_peak,
             data.len() / output_channels,
         );
 
         // when the spectrum buffer is full, push fourier compute to ui
-        push_spectrum_frame(&mut engine_state, &spectrum_analyzer, &mut spectrum_buffer);
+        push_spectrum_frame(
+            &mut engine_state,
+            &callback_state.spectrum_analyzer,
+            &mut callback_state.spectrum_buffer,
+        );
 
         if engine_state.is_playing {
-            sample_counter += data.len() as f32 / output_channels as f32; // increment sample counter by number of samples requested : keep track of sample position
+            callback_state.sample_counter += data.len() as f32 / output_channels as f32;
 
             // get amount of samples per step
             let step_duration: f32 = samples_per_step(engine_state.sample_rate, engine_state.bpm);
 
             // update UI time
-            let beat = engine_state.current_step as f32 + (sample_counter / step_duration);
+            let beat =
+                engine_state.current_step as f32 + (callback_state.sample_counter / step_duration);
             engine_state
                 .audio_producer
                 .try_push(UiCommand::PlayheadPosition(beat))
                 .ok();
 
             // increment the step if enough samples have passed
-            if sample_counter >= step_duration {
-                sample_counter = 0.0;
+            if callback_state.sample_counter >= step_duration {
+                callback_state.sample_counter = 0.0;
 
                 let total_steps = engine_state
                     .audio_blocks

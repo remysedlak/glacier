@@ -229,6 +229,12 @@ pub fn get_project(file_path: &str) -> Option<Project> {
     toml::from_str(&text).ok()
 }
 
+/// Load the requested project before the audio stream starts, falling back to
+/// a blank project when no path was supplied or the file could not be loaded.
+pub fn load_project(file_path: Option<&str>) -> Project {
+    file_path.and_then(get_project).unwrap_or_default()
+}
+
 /// load list of tracks with their audio data from project details
 pub fn get_tracks(project: &Project) -> Vec<Track> {
     project

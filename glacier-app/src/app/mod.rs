@@ -142,11 +142,19 @@ impl App {
     /// Initialzie the app's state
     pub fn new(
         producer: HeapProd<AudioCommand>,
+        audio_consumer: HeapCons<AudioCommand>,
+        ui_producer: HeapProd<UiCommand>,
         consumer: HeapCons<UiCommand>,
         event_loop: &EventLoop<Graphics>,
-        stream: Stream,
         config: UserSettings,
+        project_file: Option<String>,
     ) -> Self {
+        let project = crate::project::load_project(project_file.as_deref());
+        let tracks = crate::project::get_tracks(&project);
+        let project_path =
+            project_file.unwrap_or_else(crate::project::Project::default_project_file);
+        let stream = crate::audio::init(audio_consumer, ui_producer, project, tracks, project_path);
+
         Self {
             producer,
             consumer,
@@ -468,6 +476,7 @@ impl ApplicationHandler<Graphics> for App {
                                     .is_hovered(self.mouse_state.x, self.mouse_state.y)
                         })
                         .copied();
+
                     // PLAYLIST SCROLLING
                     if scroll_owner == Some(PLAYLIST_ID) {
                         if self.shift_pressed {

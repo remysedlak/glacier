@@ -193,7 +193,9 @@ impl App {
                     let (ui_prod, ui_cons) = HeapRb::<UiCommand>::new(64).split();
                     *producer = audio_prod;
                     *consumer = ui_cons;
-                    *stream = crate::audio::init(audio_cons, ui_prod, Some(path));
+                    let project = crate::project::load_project(Some(path.as_str()));
+                    let tracks = crate::project::get_tracks(&project);
+                    *stream = crate::audio::init(audio_cons, ui_prod, project, tracks, path);
                 }
                 *project_is_dirty = false;
             }

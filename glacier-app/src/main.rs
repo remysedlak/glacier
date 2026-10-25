@@ -44,16 +44,16 @@ pub fn main() {
     // Load cached application configuration
     let user_config = config::load();
 
-    // Start the audio stream
-    let audio_stream = audio::init(audio_consumer, ui_producer, default_project);
-
-    // Combine audio and ui buffers to create app logic owning the audio stream
+    // Give the app/controller the queue endpoints so it can load the initial
+    // project and own the audio stream lifecycle.
     let mut app = App::new(
         audio_producer,
+        audio_consumer,
+        ui_producer,
         ui_consumer,
         &event_loop,
-        audio_stream,
         user_config,
+        default_project,
     );
 
     // Run the application with the event loop on the calling thread.
