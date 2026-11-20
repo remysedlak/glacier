@@ -26,7 +26,6 @@ use ringbuf::{
 };
 
 const SPECTRUM_WINDOW: usize = 2048;
-pub const COMMAND_RING_CAPACITY: usize = 64;
 pub const SPECTRUM_BINS: usize = SPECTRUM_WINDOW / 2 + 1;
 pub type SpectrumFrame = [f32; SPECTRUM_BINS];
 
