@@ -6,7 +6,9 @@ The graphics module paints windows and widgets to the screen in the right visual
 
 ### Painter's Algorithm
 
-Windows and widgets are drawn back-to-front in a single pass. Each one's vertex/text/icon ranges get recorded so a later render pass can issue draw calls per-window in the correct order:
+`Graphics::draw` creates one `FrameDrawContext` for the frame and passes it to components. It owns the CPU-side shape, glyph, and icon buffers, along with the draw ranges and interaction results. Components write into those shared buffers as they draw instead of returning temporary vertex and text collections for the caller to append.
+
+Windows and widgets are drawn back-to-front. `FrameDrawContext::with_region` captures the current buffer positions, runs a closure that draws a component or sub-region, then records the ranges and optional scissor rectangle added by that closure. The order of these calls is the painter's order:
 
 ```rust
 struct WindowDrawRange {
@@ -19,9 +21,15 @@ struct WindowDrawRange {
 }
 ```
 
-Most windows only need one `RecordedRegion`. Playlist and piano roll are the exception — they have scrollable sub-regions that each need their own scissor rect (playlist has static/ruler/header/timeline; piano roll has static/keys/grid). Instead of going through the generic single-region path, they push multiple `RecordedRegion`s directly and `continue` past the loop's normal bottom-of-loop record call.
+Most windows use one region. The playlist records four clipped regions—static content, ruler, track headers, and timeline—and the piano roll records three—static content, keys, and grid. Each region is drawn inside its own `with_region` call, so its shapes, text, icons, and scissor stay associated. For example:
 
-When a window has both icons and multiple sub-regions, only one sub-region should own that window's icons — attaching the same icon range to every sub-region would draw them more than once. Playlist's icons conceptually belong to its static region (the one scissored to the whole window), so `icon_start`/`icon_end` get captured once, right after the icon-push loop runs, and only the static region's `record(...)` call gets the real range. The other sub-regions (ruler, header, timeline) get an empty range at that same offset, so nothing extra gets drawn there.
+```rust
+frame.with_region(Some(scissor), |frame| {
+    // Draw this region's shapes, text, and icons into the frame.
+});
+```
+
+The closures run in draw order. A drawable belongs to the region whose closure adds it, so icons do not need to be manually assigned to a range after drawing.
 
 Icons follow the same recording shape as text. A persistent `icon_vertex_buffer` holds the quad geometry, and `icon_draws` records each icon quad's byte offset so regions can find their contiguous ranges. All configured icons share one color atlas and bind group; each quad's UVs select its icon within the atlas. Glyphs use a separate single-channel atlas and bind group. The renderer binds each atlas once and submits one batched draw for the region's glyphs and one for its icons. `WindowDrawRange` carries `icon_start`/`icon_end` alongside `char_start`/`char_end`, so icons remain clipped and ordered with their region.
 
