@@ -1,5 +1,5 @@
 use crate::{
-    graphics::{color::*, font::TextItem},
+    graphics::color::*,
     project::{PatternID, TrackID},
 };
 
@@ -42,12 +42,6 @@ pub struct ScreenConfig<'a> {
     pub width: u32,
     pub height: u32,
     pub palette: &'a Palette,
-}
-
-/// Stores the vertices and texts of one region of paint
-pub struct DrawRegion {
-    pub vertices: Vec<Vertex>,
-    pub text_items: Vec<TextItem>,
 }
 
 #[repr(C)]

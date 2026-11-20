@@ -32,10 +32,13 @@ impl RecordedRegion {
 
 /// Tracks the position of the global vertex/glyph/icon buffers of where a window's shapes are.
 pub struct WindowDrawRange {
+    /// Half-open vertex indices in the shape buffer; `u32` matches wgpu's draw range.
     pub vert_start: u32,
     pub vert_end: u32,
+    /// Half-open indices into the frame's `char_draws` list.
     pub char_start: usize,
     pub char_end: usize,
+    /// Half-open indices into the frame's `icon_draws` list.
     pub icon_start: usize,
     pub icon_end: usize,
 }
