@@ -2,19 +2,21 @@
 use winit::window::CursorIcon;
 
 use crate::{
-    app::{click::ClickResult, MouseState, ScrollOffset},
+    app::{MouseState, ScrollOffset, click::ClickResult},
     graphics::{
+        FrameDrawContext,
         color::Color,
         font::{Font::Roboto, TextItem},
         geometry::Rectangle,
         mini_window::{
+            InteractionResult, MiniWindow,
             playlist::grid::{
                 GRID_X_ORIGIN, PLAYLIST_STEP_GAP, PLAYLIST_STEP_HEIGHT, PLAYLIST_TRACK_GAP,
             },
-            InteractionResult, MiniWindow,
         },
         primitives::{
-            ScreenConfig, Vertex, NO_RADIUS, PAD_16, PAD_4, PAD_64, PAD_8, RADIUS_8, TOP_RADIUS_8,
+            NO_RADIUS, PAD_4, PAD_8, PAD_16, PAD_64, RADIUS_8, ScreenConfig, TOP_RADIUS_8,
+            VertexSink,
         },
     },
     project::{AudioBlock, AudioBlockID, AudioBlockType, PatternData, Track},
@@ -60,7 +62,7 @@ pub fn draw_waveform(
     rect: &Rectangle,
     screen_config: &ScreenConfig,
     color: Color,
-    out: &mut Vec<Vertex>,
+    out: &mut impl VertexSink,
 ) {
     let center_y = rect.y + rect.height / 2.0;
     let half_height = rect.height / 2.0;
@@ -90,8 +92,7 @@ pub fn draw_audio_block(
     patterns: &[PatternData],
     _resizing_audio_block: Option<AudioBlockID>,
     waveform_cache: &mut WaveformCache,
-    timeline_vertices: &mut Vec<Vertex>,
-    timeline_text_items: &mut Vec<TextItem>,
+    frame: &mut FrameDrawContext<'_>,
 ) -> InteractionResult {
     let mut interaction = InteractionResult::default();
 
@@ -114,7 +115,7 @@ pub fn draw_audio_block(
                 screen_config,
                 screen_config.palette.neutral.shade(7),
                 RADIUS_8,
-                timeline_vertices,
+                frame,
             );
 
             let label = patterns
@@ -143,7 +144,7 @@ pub fn draw_audio_block(
                 screen_config,
                 screen_config.palette.neutral.shade(5),
                 RADIUS_8,
-                timeline_vertices,
+                frame,
             );
 
             let label = tracks
@@ -182,7 +183,7 @@ pub fn draw_audio_block(
                     &waveform_rect,
                     screen_config,
                     screen_config.palette.neutral.shade(7),
-                    timeline_vertices,
+                    frame,
                 );
             }
             (rect, label)
@@ -226,16 +227,16 @@ pub fn draw_audio_block(
             screen_config,
             screen_config.palette.neutral.shade(2),
             TOP_RADIUS_8,
-            timeline_vertices,
+            frame,
         );
 
-    timeline_text_items.push(TextItem {
+    frame.draw_texts(&[TextItem {
         text: label,
         x: block.x + PAD_8,
         y: block.y + PAD_4,
         size: 12.0,
         font: Roboto,
         color: screen_config.palette.neutral.shade(7),
-    });
+    }]);
     interaction
 }

@@ -1,12 +1,12 @@
-use crate::app::{click::ClickResult, MouseState};
+use crate::app::{MouseState, click::ClickResult};
 use crate::graphics::icons::DEFAULT_TOOLTIP_WIDTH;
 use crate::graphics::mini_window::InteractionResult;
 use crate::graphics::{
     components::toolbar::TOOLTIP_MARGIN,
     icons::{IconDraw, Tooltip},
     mini_window::{MiniWindow, TITLEBAR_HEIGHT},
-    primitives::{ScreenConfig, Vertex, NO_RADIUS, PAD_16, PAD_8, RADIUS_4},
-    {Rectangle, TextItem},
+    primitives::{NO_RADIUS, PAD_8, PAD_16, RADIUS_4},
+    {FrameDrawContext, Rectangle},
 };
 use crate::project::Track;
 
@@ -18,38 +18,29 @@ const TRACK_GRAPHICS_HEIGHT_HALF: f32 = 128.0 / 2.0;
 pub fn draw(
     window: &MiniWindow,
     mouse_state: &MouseState,
-    screen_config: &ScreenConfig,
     track: &Track,
-    out: &mut Vec<Vertex>,
-) -> (
-    Vec<TextItem>,
-    Vec<IconDraw>,
-    InteractionResult,
-    Option<Tooltip>,
-) {
-    // setup
-    let mut text_items: Vec<TextItem> = Vec::new();
-    let mut icons: Vec<IconDraw> = Vec::new();
+    frame: &mut FrameDrawContext<'_>,
+) -> InteractionResult {
+    let screen_config = *frame.screen_config();
     let mut interaction = InteractionResult::default();
-    let mut tooltip: Option<Tooltip> = None;
     // window background
     let window_background = window.background();
     window_background.draw(
-        screen_config,
+        &screen_config,
         screen_config.palette.neutral.shade(4),
         [0.0, 16.0, 0.0, 16.0],
-        out,
+        frame,
     );
 
     // titlebar
     let (titlebar_texts, titlebar_interaction) = window.title_bar(
         &format!("Track: {}", track.data.name),
-        screen_config,
+        &screen_config,
         mouse_state,
-        out,
+        frame,
     );
     interaction = interaction.or(titlebar_interaction);
-    text_items.push(titlebar_texts);
+    frame.draw_texts(&[titlebar_texts]);
 
     // draw background of wave form for track
     let graphics_y = (window.y) + TITLEBAR_HEIGHT - PAD_16;
@@ -61,10 +52,10 @@ pub fn draw(
         height: TRACK_GRAPHICS_HEIGHT,
     };
     track_wave_background.draw(
-        screen_config,
+        &screen_config,
         screen_config.palette.neutral.shade(3),
         NO_RADIUS,
-        out,
+        frame,
     );
 
     let samples_averaged: &[f32] = if track.data.channels == 1 {
@@ -95,10 +86,10 @@ pub fn draw(
             width: 1.0,
         };
         pixel_line.draw(
-            screen_config,
+            &screen_config,
             screen_config.palette.neutral.shade(7),
             NO_RADIUS,
-            out,
+            frame,
         );
     }
 
@@ -114,17 +105,17 @@ pub fn draw(
     .draw_style()
     .interactive(Some(mouse_state))
     .draw(
-        screen_config,
+        &screen_config,
         screen_config.palette.neutral.shade(3),
         RADIUS_4,
-        out,
+        frame,
     );
 
     if open_file_background.hovered && mouse_state.left_clicked {
         interaction.click = ClickResult::OpenTrackFileLocation(track.data.path.clone())
     };
 
-    icons.push(IconDraw {
+    let icon = IconDraw {
         name: "file",
         x: open_file_button_x - 2.0,
         y: open_file_button_y - 2.0,
@@ -136,15 +127,14 @@ pub fn draw(
             y: (open_file_button_y + TOOLTIP_MARGIN),
             width: DEFAULT_TOOLTIP_WIDTH,
         },
-    });
+    };
+    frame.draw_icon(&icon);
 
     if !mouse_state.left_click_held {
-        for icon in &icons {
-            if icon.is_hovered(mouse_state.x, mouse_state.y) {
-                tooltip = Some(icon.tooltip.clone());
-            }
+        if icon.is_hovered(mouse_state.x, mouse_state.y) {
+            frame.set_tooltip_if_some(Some(icon.tooltip.clone()));
         }
     }
 
-    (text_items, icons, interaction, tooltip)
+    interaction
 }

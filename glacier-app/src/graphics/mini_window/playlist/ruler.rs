@@ -3,11 +3,12 @@ use super::grid::{GRID_X_ORIGIN, PLAYLIST_STEP_GAP};
 use crate::app::ScrollOffset;
 use crate::graphics::font::Font::Mono;
 use crate::graphics::geometry::{BorderStyle, Rectangle};
-use crate::graphics::primitives::{Vertex, NO_RADIUS};
+use crate::graphics::primitives::NO_RADIUS;
 use crate::graphics::{
+    FrameDrawContext,
     font::TextItem,
     mini_window::MiniWindow,
-    primitives::{ScreenConfig, PAD_16},
+    primitives::{PAD_16, ScreenConfig},
 };
 
 pub fn draw(
@@ -15,10 +16,8 @@ pub fn draw(
     screen_config: &ScreenConfig,
     step_count: usize,
     scroll_offset: &ScrollOffset,
-) -> (Vec<Vertex>, Vec<TextItem>) {
-    let mut text_items: Vec<TextItem> = vec![];
-    let mut vertices: Vec<Vertex> = vec![];
-
+    frame: &mut FrameDrawContext<'_>,
+) {
     let _background = Rectangle::new(
         window.x + PAD_16 + GRID_X_ORIGIN - 4.0,
         window.y + 44.0,
@@ -34,12 +33,12 @@ pub fn draw(
         screen_config,
         screen_config.palette.neutral.shade(0),
         NO_RADIUS,
-        &mut vertices,
+        frame,
     );
 
     for step in (0..step_count).step_by(16) {
         let group = step / 4;
-        text_items.push(TextItem {
+        frame.draw_texts(&[TextItem {
             text: format!("{group}"),
             x: window.x + (step as f32 * PLAYLIST_STEP_GAP) + PAD_16 + GRID_X_ORIGIN
                 - scroll_offset.x,
@@ -47,8 +46,6 @@ pub fn draw(
             size: 16.0,
             font: Mono,
             color: screen_config.palette.secondary.shade(4),
-        });
+        }]);
     }
-
-    (vertices, text_items)
 }

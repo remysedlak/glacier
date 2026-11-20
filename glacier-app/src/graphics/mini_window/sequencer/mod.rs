@@ -1,11 +1,10 @@
-use crate::app::{click::ClickResult, MouseState};
+use crate::app::{MouseState, click::ClickResult};
 use crate::graphics::mini_window::InteractionResult;
 use crate::graphics::{
-    font::{truncate_text, Font::Roboto},
-    icons::IconDraw,
+    font::{Font::Roboto, truncate_text},
     mini_window::MiniWindow,
     primitives::*,
-    {Rectangle, ScrollOffset, TextItem},
+    {FrameDrawContext, Rectangle, ScrollOffset, TextItem},
 };
 use crate::project::{Note, PatternData, PatternID, Track, TrackID};
 use winit::window::CursorIcon;
@@ -22,6 +21,7 @@ pub const SEQUENCER_STEP_WIDTH: f32 = 18.0;
 pub const SEQUENCER_STEP_HEIGHT: f32 = 48.0;
 pub const MUTE_SQUARE_LENGTH: f32 = 16.0;
 pub const MAX_STEPS: u32 = 256;
+const STEPS_PER_BAR: usize = 16;
 
 /// Draw the sequencer Mini Window. The user can compose a pattern here or access track context menus
 pub fn draw(
@@ -32,13 +32,10 @@ pub fn draw(
     active_pattern_id: PatternID,
     active_step: usize,
     mouse_state: &MouseState,
-    screen_config: &ScreenConfig,
-    out: &mut Vec<Vertex>,
-) -> (Vec<TextItem>, Vec<IconDraw>, InteractionResult) {
-    // setup
-    let mut text_items: Vec<TextItem> = Vec::new();
+    frame: &mut FrameDrawContext<'_>,
+) -> InteractionResult {
+    let screen_config = *frame.screen_config();
     let mut interaction = InteractionResult::default();
-    let icons: Vec<IconDraw> = Vec::new();
 
     // window background
     let window_background = Rectangle {
@@ -48,18 +45,17 @@ pub fn draw(
         height: window.height,
     };
     window_background.draw(
-        screen_config,
+        &screen_config,
         screen_config.palette.neutral.shade(4),
         BOTTOM_RADIUS_16,
-        out,
+        frame,
     );
 
     // titlebar
     let (titlebar_texts, titlebar_interaction) =
-        window.title_bar(&window.title, screen_config, mouse_state, out);
-    interaction = interaction.or(titlebar_interaction);
-
-    text_items.push(titlebar_texts);
+        window.title_bar(&window.title, &screen_config, mouse_state, frame);
+    frame.add_interaction(titlebar_interaction);
+    frame.draw_texts(&[titlebar_texts]);
 
     // collect steps values for each row
     let steps_data: Vec<(TrackID, &[Note])> = patterns
@@ -82,6 +78,9 @@ pub fn draw(
             .find(|(id, _)| *id == track.data.id)
             .map(|(_, s)| *s)
             .unwrap_or(&EMPTY_STEPS);
+        // Keep the final partially filled bar solid; ghosting starts at the next bar.
+        let ghost_start =
+            steps_slice.len().max(STEPS_PER_BAR).div_ceil(STEPS_PER_BAR) * STEPS_PER_BAR;
 
         // velocity view
         if track.show_velocity {
@@ -110,10 +109,10 @@ pub fn draw(
                     height: SEQUENCER_STEP_HEIGHT,
                 };
                 background.draw(
-                    screen_config,
+                    &screen_config,
                     screen_config.palette.neutral.shade(3),
                     NO_RADIUS,
-                    out,
+                    frame,
                 );
                 let bar = Rectangle {
                     x: step_x,
@@ -122,10 +121,10 @@ pub fn draw(
                     height: filled_height,
                 };
                 bar.draw(
-                    screen_config,
+                    &screen_config,
                     screen_config.palette.secondary.shade(4),
                     NO_RADIUS,
-                    out,
+                    frame,
                 );
             }
         }
@@ -137,7 +136,7 @@ pub fn draw(
                     .get(j as usize)
                     .copied()
                     .unwrap_or(Note::DEFAULT);
-                let is_ghost = j as usize >= steps_slice.len();
+                let is_ghost = j as usize >= ghost_start;
                 let is_active = note.velocity > 0.0;
 
                 // add the button for a step
@@ -175,7 +174,7 @@ pub fn draw(
                 let step_color =
                     utils::step_color(screen_config.palette, hovered, is_active, is_ghost, active);
 
-                step_button.draw(screen_config, step_color, RADIUS_4, out);
+                step_button.draw(&screen_config, step_color, RADIUS_4, frame);
 
                 // check if the step was clicked
                 if hovered && mouse_state.left_clicked {
@@ -202,7 +201,7 @@ pub fn draw(
         } else {
             screen_config.palette.neutral.shade(2)
         };
-        track_button.draw(screen_config, color, RADIUS_4, out);
+        track_button.draw(&screen_config, color, RADIUS_4, frame);
         if hovered {
             interaction.cursor = CursorIcon::Pointer;
             if mouse_state.left_clicked {
@@ -237,16 +236,16 @@ pub fn draw(
         } else {
             base
         };
-        mute_button.draw(screen_config, mute_button_color, RADIUS_4, out);
+        mute_button.draw(&screen_config, mute_button_color, RADIUS_4, frame);
 
-        text_items.push(TextItem {
+        frame.draw_texts(&[TextItem {
             text: "mut".to_string(),
             x: window.x + PAD_8 + PAD_4,
             y: window.y + i as f32 * TRACK_GAP + ACTIONS_Y_OFFSET + PAD_2,
             size: 14.0,
             color: screen_config.palette.neutral.shade(0),
             font: Roboto,
-        });
+        }]);
 
         if mute_button.is_hovered(mouse_state.x, mouse_state.y) && mouse_state.left_clicked {
             track.data.is_muted = !track.data.is_muted;
@@ -273,16 +272,16 @@ pub fn draw(
         } else {
             base
         };
-        velocity_button.draw(screen_config, velocity_button_color, RADIUS_4, out);
+        velocity_button.draw(&screen_config, velocity_button_color, RADIUS_4, frame);
 
-        text_items.push(TextItem {
+        frame.draw_texts(&[TextItem {
             text: "vel".to_string(),
             x: PAD_16 + window.x + 32.0 + PAD_4,
             y: window.y + i as f32 * TRACK_GAP + ACTIONS_Y_OFFSET + PAD_2,
             size: 14.0,
             color: screen_config.palette.neutral.shade(0),
             font: Roboto,
-        });
+        }]);
         if velocity_button.is_hovered(mouse_state.x, mouse_state.y) && mouse_state.left_clicked {
             track.show_velocity = !track.show_velocity;
         };
@@ -292,21 +291,21 @@ pub fn draw(
             window.x + KNOB_OFFSET,
             window.y + (i as f32 * TRACK_GAP) + ACTIONS_Y_OFFSET + PAD_8,
             track.data.track_volume,
-            screen_config,
-            out,
+            &screen_config,
+            frame,
         );
 
         // track name
 
-        text_items.push(TextItem {
+        frame.draw_texts(&[TextItem {
             text: truncate_text(&track.data.name, 23),
             x: window.x + PAD_16,
             y: window.y + i as f32 * TRACK_GAP + PAD_16 + PAD_4,
             size: 12.0,
             color: screen_config.palette.neutral.shade(7),
             font: Roboto,
-        });
+        }]);
     }
 
-    (text_items, icons, interaction)
+    interaction
 }

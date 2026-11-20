@@ -4,7 +4,7 @@ use crate::{
     graphics::{
         components::{modal, toolbar::TOOLBAR_MARGIN},
         font::cursor_x_offset,
-        mini_window::{playlist::grid::GRID_X_ORIGIN, InteractionResult, TITLEBAR_HEIGHT},
+        mini_window::InteractionResult,
         regions::*,
         side_panel::track_tray::file_tree,
     },
@@ -117,33 +117,24 @@ impl Graphics {
             match id {
                 SEQUENCER_ID if self.mini_windows[SEQUENCER_ID].is_open => {
                     let window = &self.mini_windows[SEQUENCER_ID];
-                    let (texts, icons, sequencer_interaction) = sequencer::draw(
-                        window,
-                        &self.patterns,
-                        &self.sequencer_scroll_offset,
-                        &mut self.tracks,
-                        self.active_pattern_id,
-                        self.active_step,
-                        &masked_mouse,
-                        &screen_config,
-                        &mut frame_draw_context.vertices,
-                    );
-                    frame_draw_context.draw_texts(&texts);
-                    for icon in icons {
-                        frame_draw_context.draw_icon(&icon);
-                    }
-                    frame_draw_context.add_interaction(sequencer_interaction);
+                    frame_draw_context.with_region(None, |frame| {
+                        let sequencer_interaction = sequencer::draw(
+                            window,
+                            &self.patterns,
+                            &self.sequencer_scroll_offset,
+                            &mut self.tracks,
+                            self.active_pattern_id,
+                            self.active_step,
+                            &masked_mouse,
+                            frame,
+                        );
+                        frame.add_interaction(sequencer_interaction);
+                    });
+                    continue;
                 }
                 PLAYLIST_ID if self.mini_windows[PLAYLIST_ID].is_open => {
                     let window = &self.mini_windows[PLAYLIST_ID];
-                    let (
-                        static_draw_region,
-                        timeline_draw_region,
-                        header_draw_region,
-                        ruler_draw_region,
-                        playlist_interaction,
-                        playlist_icons,
-                    ) = playlist::draw(
+                    let playlist_interaction = playlist::draw(
                         window,
                         &self.audio_blocks,
                         &self.patterns,
@@ -154,204 +145,43 @@ impl Graphics {
                         self.playhead_beat,
                         self.resizing_audio_block,
                         self.dragging_file.as_ref(),
-                        &screen_config,
                         &self.playlist_tool,
                         &mut self.waveform_cache,
                         self.stretch_mode,
+                        &mut frame_draw_context,
                     );
-                    // icon_start (captured at top of this loop iteration) marks the
-                    // start of playlist's icons; they all belong to the STATIC region.
-                    for icon in playlist_icons {
-                        frame_draw_context.draw_icon(&icon);
-                    }
-                    let playlist_icon_end = frame_draw_context.icon_draws.len();
-
-                    let sw = self.render_context.surface_config.width;
-                    let sh = self.render_context.surface_config.height;
-                    let wx = (window.x.max(0.0) as u32).min(sw);
-                    let wy = ((window.y - TITLEBAR_HEIGHT).max(0.0) as u32).min(sh);
-                    let win_right = ((window.x + window.width) as u32).min(sw);
-                    let win_bottom = ((window.y + window.height) as u32).min(sh);
-                    let content_y = (window.y as u32 + PAD_64 as u32).min(sh);
-                    let content_h = win_bottom.saturating_sub(content_y);
-                    let header_x = ((window.x + PAD_16 + GRID_X_ORIGIN).max(0.0) as u32).min(sw);
-                    let header_w = header_x.saturating_sub(wx);
-                    let timeline_w = win_right.saturating_sub(header_x);
-                    let ruler_y = content_y.saturating_sub(24);
-                    let ruler_h = content_y.saturating_sub(ruler_y);
-
-                    // STATIC SHAPES — owns the playlist's icons
-                    let static_vert_start = frame_draw_context.vertices.len() as u32;
-                    let static_char_start = frame_draw_context.char_draws.len();
-                    frame_draw_context
-                        .vertices
-                        .extend(static_draw_region.vertices);
-                    frame_draw_context.draw_texts(&static_draw_region.text_items);
-                    frame_draw_context.record_region(
-                        static_vert_start,
-                        static_char_start,
-                        icon_start,
-                        Some(safe_scissor(
-                            wx,
-                            wy,
-                            win_right.saturating_sub(wx),
-                            win_bottom.saturating_sub(wy),
-                            sw,
-                            sh,
-                        )),
-                    );
-
-                    // RULER — no icons of its own; icon range collapses to [playlist_icon_end, playlist_icon_end)
-                    let ruler_padding = 16.0;
-                    let ruler_x = (header_x as f32 - ruler_padding).max(0.0) as u32;
-                    let ruler_w = timeline_w + ruler_padding as u32;
-                    let ruler_vert_start = frame_draw_context.vertices.len() as u32;
-                    let ruler_char_start = frame_draw_context.char_draws.len();
-                    frame_draw_context
-                        .vertices
-                        .extend(ruler_draw_region.vertices);
-                    frame_draw_context.draw_texts(&ruler_draw_region.text_items);
-                    frame_draw_context.record_region(
-                        ruler_vert_start,
-                        ruler_char_start,
-                        playlist_icon_end,
-                        Some(safe_scissor(ruler_x, ruler_y, ruler_w, ruler_h, sw, sh)),
-                    );
-
-                    // HEADER
-                    let header_vert_start = frame_draw_context.vertices.len() as u32;
-                    let header_char_start = frame_draw_context.char_draws.len();
-                    frame_draw_context
-                        .vertices
-                        .extend(header_draw_region.vertices);
-                    frame_draw_context.draw_texts(&header_draw_region.text_items);
-                    frame_draw_context.record_region(
-                        header_vert_start,
-                        header_char_start,
-                        playlist_icon_end,
-                        Some(safe_scissor(wx, content_y, header_w, content_h, sw, sh)),
-                    );
-
-                    // TIMELINE
-                    let timeline_vert_start = frame_draw_context.vertices.len() as u32;
-                    let timeline_char_start = frame_draw_context.char_draws.len();
-                    frame_draw_context
-                        .vertices
-                        .extend(timeline_draw_region.vertices);
-                    frame_draw_context.draw_texts(&timeline_draw_region.text_items);
-                    frame_draw_context.record_region(
-                        timeline_vert_start,
-                        timeline_char_start,
-                        playlist_icon_end,
-                        Some(safe_scissor(
-                            header_x, content_y, timeline_w, content_h, sw, sh,
-                        )),
-                    );
-
                     frame_draw_context.add_interaction(playlist_interaction);
                     continue;
                 }
                 MIXER_ID if self.mini_windows[MIXER_ID].is_open => {
                     let window = &self.mini_windows[MIXER_ID];
-                    let (texts, mixer_interaction) = mixer::draw(
-                        window,
-                        &self.tracks,
-                        self.master_volume,
-                        self.master_rms_l,
-                        self.master_rms_r,
-                        self.master_peak,
-                        &screen_config,
-                        &masked_mouse,
-                        &mut frame_draw_context.vertices,
-                    );
-                    frame_draw_context.draw_texts(&texts);
-                    frame_draw_context.add_interaction(mixer_interaction);
+                    frame_draw_context.with_region(None, |frame| {
+                        let mixer_interaction = mixer::draw(
+                            window,
+                            &self.tracks,
+                            self.master_volume,
+                            self.master_rms_l,
+                            self.master_rms_r,
+                            self.master_peak,
+                            &screen_config,
+                            &masked_mouse,
+                            frame,
+                        );
+                        frame.add_interaction(mixer_interaction);
+                    });
+                    // This region was recorded by `with_region` above.
+                    continue;
                 }
                 PIANO_ROLL_ID if self.mini_windows[PIANO_ROLL_ID].is_open => {
                     let window = &self.mini_windows[PIANO_ROLL_ID];
-                    let (
-                        static_draw_region,
-                        piano_key_draw_region,
-                        grid_draw_region,
-                        piano_interaction,
-                    ) = piano_roll::window::draw(
+                    let piano_interaction = piano_roll::window::draw(
                         window,
                         &masked_mouse,
-                        &screen_config,
                         &self.patterns,
                         &self.tracks,
                         self.active_step,
                         self.piano_roll_state.as_ref(),
-                    );
-
-                    frame_draw_context
-                        .vertices
-                        .extend(static_draw_region.vertices);
-                    frame_draw_context.draw_texts(&static_draw_region.text_items);
-
-                    let piano_content_vert_start = frame_draw_context.vertices.len() as u32;
-                    let piano_content_char_start = frame_draw_context.char_draws.len();
-                    frame_draw_context
-                        .vertices
-                        .extend(piano_key_draw_region.vertices);
-                    frame_draw_context.draw_texts(&piano_key_draw_region.text_items);
-
-                    let grid_vert_start = frame_draw_context.vertices.len() as u32;
-                    let grid_char_start = frame_draw_context.char_draws.len();
-                    frame_draw_context
-                        .vertices
-                        .extend(grid_draw_region.vertices);
-                    frame_draw_context.draw_texts(&grid_draw_region.text_items);
-
-                    let sw = self.render_context.surface_config.width;
-                    let sh = self.render_context.surface_config.height;
-                    let wx = (window.x.max(0.0) as u32).min(sw);
-                    let wy = ((window.y - TITLEBAR_HEIGHT).max(0.0) as u32).min(sh);
-                    let win_right = ((window.x + window.width) as u32).min(sw);
-                    let win_bottom = ((window.y + window.height) as u32).min(sh);
-                    let content_y = (window.y as u32 + 72).min(sh);
-                    let content_h = win_bottom.saturating_sub(content_y).saturating_sub(32);
-                    let key_col_right = (window.x + 72.0).max(0.0) as u32;
-                    let grid_x = key_col_right.min(sw);
-                    let key_w = grid_x.saturating_sub(wx);
-                    let grid_w = win_right.saturating_sub(grid_x).saturating_sub(16);
-
-                    // piano roll pushes no icons this session — icon range is empty
-                    // ([icon_start, icon_start)) for all three sub-regions.
-                    frame_draw_context.regions.push(RecordedRegion {
-                        range: WindowDrawRange {
-                            vert_start,
-                            vert_end: piano_content_vert_start,
-                            char_start,
-                            char_end: piano_content_char_start,
-                            icon_start,
-                            icon_end: icon_start,
-                        },
-                        scissor: Some(safe_scissor(
-                            wx,
-                            wy,
-                            win_right.saturating_sub(wx),
-                            win_bottom.saturating_sub(wy),
-                            sw,
-                            sh,
-                        )),
-                    });
-                    frame_draw_context.regions.push(RecordedRegion {
-                        range: WindowDrawRange {
-                            vert_start: piano_content_vert_start,
-                            vert_end: grid_vert_start,
-                            char_start: piano_content_char_start,
-                            char_end: grid_char_start,
-                            icon_start,
-                            icon_end: icon_start,
-                        },
-                        scissor: Some(safe_scissor(wx, content_y, key_w, content_h, sw, sh)),
-                    });
-                    frame_draw_context.record_region(
-                        grid_vert_start,
-                        grid_char_start,
-                        icon_start,
-                        Some(safe_scissor(grid_x, content_y, grid_w, content_h, sw, sh)),
+                        &mut frame_draw_context,
                     );
 
                     frame_draw_context.add_interaction(piano_interaction);
@@ -363,20 +193,12 @@ impl Graphics {
                         if let WindowKind::TrackDetail(track_id) = window.window_kind {
                             if let Some(track) = self.tracks.iter().find(|t| t.data.id == track_id)
                             {
-                                let (texts, icons, track_interaction, tooltip) = track::draw(
-                                    window,
-                                    &masked_mouse,
-                                    &screen_config,
-                                    track,
-                                    &mut frame_draw_context.vertices,
-                                );
-
-                                frame_draw_context.add_interaction(track_interaction);
-                                for icon in icons {
-                                    frame_draw_context.draw_icon(&icon);
-                                }
-                                frame_draw_context.draw_texts(&texts);
-                                self.tooltip = tooltip;
+                                frame_draw_context.with_region(None, |frame| {
+                                    let track_interaction =
+                                        track::draw(window, &masked_mouse, track, frame);
+                                    frame.add_interaction(track_interaction);
+                                });
+                                continue;
                             }
                         }
                     }
