@@ -10,6 +10,7 @@ use crate::{
         font::{truncate_text, Font::Roboto, TextItem},
         primitives::*,
         side_panel::{draw_title, PATTERN_TRAY_ITEM_HEIGHT},
+        FrameDrawContext,
     },
 };
 use winit::window::CursorIcon;
@@ -17,15 +18,14 @@ use winit::window::CursorIcon;
 pub mod file_tree;
 
 pub fn draw(
+    frame: &mut FrameDrawContext<'_>,
     mouse_state: &MouseState,
-    screen_config: &ScreenConfig,
     resizing: bool,
     tracks: &[Track],
     tray_width: f32,
-    out: &mut Vec<Vertex>,
     selected_track_id: Option<TrackID>,
-) -> (Vec<TextItem>, InteractionResult) {
-    let mut text_items: Vec<TextItem> = Vec::new();
+) {
+    let screen_config = *frame.screen_config();
     let mut interaction = InteractionResult::default();
 
     let track_tray = Rectangle {
@@ -35,21 +35,21 @@ pub fn draw(
         height: screen_config.height as f32 - TOOLBAR_Y,
     };
     track_tray.draw(
-        screen_config,
+        &screen_config,
         screen_config.palette.neutral.shade(1),
         NO_RADIUS,
-        out,
+        frame,
     );
 
     if track_tray.is_hovered_right_edge(mouse_state.x, mouse_state.y) || resizing {
         interaction.cursor = CursorIcon::ColResize;
     }
 
-    text_items.push(draw_title(
+    frame.draw_texts(&[draw_title(
         "Tracks",
         (track_tray.x, track_tray.y),
-        screen_config,
-    ));
+        &screen_config,
+    )]);
 
     for (i, track) in tracks.iter().enumerate() {
         let button_y = PATTERN_TRAY_HEADER_MARGIN + (PATTERN_TRAY_ITEM_GAP * i as f32) + PAD_32;
@@ -65,7 +65,7 @@ pub fn draw(
             screen_config.palette.neutral.shade(2)
         };
 
-        track_button.draw(screen_config, track_button_color, RADIUS_4, out);
+        track_button.draw(&screen_config, track_button_color, RADIUS_4, frame);
         if track_button.is_hovered(mouse_state.x, mouse_state.y) {
             interaction.cursor = CursorIcon::Pointer;
             if mouse_state.left_double_clicked {
@@ -83,23 +83,23 @@ pub fn draw(
                 height: PATTERN_TRAY_ITEM_HEIGHT,
             };
             signal.draw(
-                screen_config,
+                &screen_config,
                 screen_config.palette.primary.shade(5),
                 RADIUS_4,
-                out,
+                frame,
             );
         }
 
         let text_pos = track_button.offset(PAD_8, PAD_2);
-        text_items.push(TextItem {
+        frame.draw_texts(&[TextItem {
             text: truncate_text(&track.data.name, 18),
             x: text_pos.x,
             y: text_pos.y,
             size: 10.0,
             color: screen_config.palette.neutral.shade(7),
             font: Roboto,
-        });
+        }]);
     }
 
-    (text_items, interaction)
+    frame.add_interaction(interaction);
 }

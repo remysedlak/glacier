@@ -1,5 +1,5 @@
 //! file for drawing track sliders for volume control
-use crate::graphics::{Rectangle, ScreenConfig, Vertex, NO_RADIUS};
+use crate::graphics::{primitives::VertexSink, Rectangle, ScreenConfig, NO_RADIUS};
 
 pub const MIXER_TRACK_HEIGHT: f32 = 164.0;
 pub const MIXER_TRACK_WIDTH: f32 = 4.0;
@@ -23,7 +23,7 @@ pub fn draw(
     x: f32,
     y: f32,
     screen_config: &ScreenConfig,
-    out: &mut Vec<Vertex>,
+    out: &mut impl VertexSink,
 ) {
     // TRACK (static)
     let track = Rectangle {

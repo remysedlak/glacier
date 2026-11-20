@@ -4,7 +4,7 @@ use glacier_dsp::spectral::freq_to_bin;
 use crate::graphics::{
     components::toolbar::{ICON_SIZE, PLAY_Y_ORIGIN},
     geometry::icon_border,
-    Rectangle, ScreenConfig, Vertex, NO_RADIUS, RADIUS_4,
+    FrameDrawContext, Rectangle, NO_RADIUS, RADIUS_4,
 };
 
 const MIN_FREQ: f32 = 20.0;
@@ -12,12 +12,12 @@ const DB_FLOOR: f32 = -60.0;
 const DB_CEIL: f32 = 0.0;
 
 pub fn draw(
-    screen_config: &ScreenConfig,
+    frame: &mut FrameDrawContext<'_>,
     spectrum_db: &[f32],
     sample_rate: f32,
     window_size: usize,
-    out: &mut Vec<Vertex>,
 ) {
+    let screen_config = *frame.screen_config();
     let spectrum_background = Rectangle::new(
         screen_config.width as f32 - 420.0,
         PLAY_Y_ORIGIN,
@@ -27,10 +27,10 @@ pub fn draw(
     .draw_style()
     .bordered(Some(icon_border(screen_config.palette)))
     .draw(
-        screen_config,
+        &screen_config,
         screen_config.palette.neutral.shade(0),
         RADIUS_4,
-        out,
+        frame,
     );
 
     let max_freq = sample_rate / 2.0; // Nyquist
@@ -66,10 +66,10 @@ pub fn draw(
             height: bar_height,
         };
         bar.draw(
-            screen_config,
+            &screen_config,
             screen_config.palette.primary.shade(5),
             NO_RADIUS,
-            out,
+            frame,
         );
     }
 }

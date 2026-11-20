@@ -7,19 +7,20 @@ pub fn step_color(
     is_ghost: bool,
     active_step: bool,
 ) -> Color {
-    if is_ghost {
-        return if hovered {
-            palette.neutral.shade(3)
-        } else {
-            palette.neutral.shade(4)
-        };
-    }
-
+    // Keep the playhead visible even when it moves beyond the recorded steps.
     if active_step {
         return if hovered {
             palette.primary.shade(5)
         } else {
             palette.primary.shade(4)
+        };
+    }
+
+    if is_ghost {
+        return if hovered {
+            palette.neutral.shade(6)
+        } else {
+            palette.neutral.shade(5)
         };
     }
 

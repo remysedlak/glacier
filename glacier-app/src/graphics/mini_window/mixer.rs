@@ -1,14 +1,15 @@
-//! The mixer window contains controls for all audio mixing and mastering such as volume and plugins.
+//! The mixer window contains controls for audio mixing and mastering.
 
 use crate::{
     app::MouseState,
     graphics::{
         components::{slider, slider::MIXER_TRACK_HEIGHT},
         font::{Font::Mono, BODY},
+        frame_draw_context::FrameDrawContext,
         geometry::Rectangle,
         mini_window::{InteractionResult, MiniWindow},
         primitives::{ScreenConfig, BOTTOM_RADIUS_16, NO_RADIUS, PAD_16, PAD_32, PAD_4, PAD_8},
-        TextItem, Vertex,
+        TextItem,
     },
     project::Track,
 };
@@ -25,39 +26,33 @@ pub fn draw(
     master_peak: f32,
     screen_config: &ScreenConfig,
     mouse_state: &MouseState,
-    out: &mut Vec<Vertex>,
-) -> (Vec<TextItem>, InteractionResult) {
-    let mut text_items: Vec<TextItem> = Vec::new();
+    frame: &mut FrameDrawContext<'_>,
+) -> InteractionResult {
     let mut interaction = InteractionResult::default();
 
-    let window_background = window.background();
-    window_background.draw(
+    window.background().draw(
         screen_config,
         screen_config.palette.primary.shade(3),
         BOTTOM_RADIUS_16,
-        out,
+        frame,
     );
 
-    let (titlebar_texts, titlebar_interaction) =
-        window.title_bar("Mixer", screen_config, mouse_state, out);
+    let (titlebar_text, titlebar_interaction) =
+        window.title_bar("Mixer", screen_config, mouse_state, frame);
     interaction = interaction.or(titlebar_interaction);
-    text_items.push(titlebar_texts);
+    frame.draw_texts(&[titlebar_text]);
 
     let master_slider_x = window.x + SLIDER_BACKGROUND_OFFSET;
     let master_slider_y = window.y + SLIDER_BACKGROUND_OFFSET;
-
     let col_height = window.height - PAD_32;
     let meter_area_height = col_height * 0.5;
-    // let slider_area_height = col_height * 0.5;
 
-    // helper closure to draw one channel strip
-    let draw_channel = |vertices: &mut Vec<Vertex>,
-                        text_items: &mut Vec<TextItem>,
-                        col_x: f32,
-                        volume: f32,
-                        rms_l: f32,
-                        rms_r: f32,
-                        peak: f32| {
+    let draw_channel = |col_x: f32,
+                            volume: f32,
+                            rms_l: f32,
+                            rms_r: f32,
+                            peak: f32,
+                            frame: &mut FrameDrawContext<'_>| {
         let bg = Rectangle {
             x: col_x - PAD_8,
             y: master_slider_y - PAD_8,
@@ -68,10 +63,9 @@ pub fn draw(
             screen_config,
             screen_config.palette.neutral.shade(3),
             NO_RADIUS,
-            vertices,
+            frame,
         );
 
-        // meter top half
         let meter_bg = Rectangle {
             x: col_x,
             y: bg.y + PAD_8,
@@ -82,94 +76,87 @@ pub fn draw(
             screen_config,
             screen_config.palette.neutral.shade(0),
             NO_RADIUS,
-            vertices,
+            frame,
         );
 
-        let bar_width = (meter_bg.width - 2.0) * 0.5; // 2px gap between
-
-        // left bar
+        let bar_width = (meter_bg.width - 2.0) * 0.5;
         let fill_l = (meter_bg.height * rms_l.clamp(0.0, 1.0)).min(meter_bg.height);
-        let bar_l = Rectangle {
+        Rectangle {
             x: meter_bg.x,
             y: meter_bg.y + meter_bg.height - fill_l,
             width: bar_width,
             height: fill_l,
-        };
-        bar_l.draw(
+        }
+        .draw(
             screen_config,
             screen_config.palette.secondary.shade(5),
             NO_RADIUS,
-            vertices,
+            frame,
         );
 
-        // right bar
         let fill_r = (meter_bg.height * rms_r.clamp(0.0, 1.0)).min(meter_bg.height);
-        let bar_r = Rectangle {
+        Rectangle {
             x: meter_bg.x + bar_width + 2.0,
             y: meter_bg.y + meter_bg.height - fill_r,
             width: bar_width,
             height: fill_r,
-        };
-        bar_r.draw(
+        }
+        .draw(
             screen_config,
             screen_config.palette.secondary.shade(5),
             NO_RADIUS,
-            vertices,
+            frame,
         );
 
-        // peak line spans full width
         let peak_y = (meter_bg.y + meter_bg.height - (meter_bg.height * peak.clamp(0.0, 1.0)))
             .max(meter_bg.y);
-        let peak_line = Rectangle {
+        Rectangle {
             x: meter_bg.x,
             y: peak_y,
             width: meter_bg.width,
             height: 2.0,
-        };
-        peak_line.draw(
+        }
+        .draw(
             screen_config,
             screen_config.palette.primary.shade(5),
             NO_RADIUS,
-            vertices,
+            frame,
         );
 
-        // slider bottom half
         let slider_y = slider::slider_y_origin(window.y, window.height);
-        slider::draw(volume, col_x, slider_y, screen_config, vertices);
+        slider::draw(volume, col_x, slider_y, screen_config, frame);
 
-        text_items.push(TextItem {
+        frame.draw_texts(&[TextItem {
             text: format!("{:.2}", volume),
             x: col_x,
             y: master_slider_y + MIXER_TRACK_HEIGHT,
             size: BODY,
             font: Mono,
             color: screen_config.palette.primary.shade(6),
-        });
+        }]);
     };
 
     draw_channel(
-        out,
-        &mut text_items,
         master_slider_x,
         master_volume,
         master_rms_l,
         master_rms_r,
         master_peak,
+        frame,
     );
 
     for (i, track) in tracks.iter().enumerate() {
         let col_x =
             (master_slider_x - PAD_8 + PAD_16) + ((MIXER_ITEM_WIDTH + PAD_4) * (i + 1) as f32);
         draw_channel(
-            out,
-            &mut text_items,
             col_x,
             track.data.track_volume,
             track.rms_l,
             track.rms_r,
             track.peak_hold,
+            frame,
         );
     }
 
-    (text_items, interaction)
+    interaction
 }

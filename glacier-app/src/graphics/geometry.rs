@@ -9,7 +9,7 @@ use crate::{
             TextItem,
         },
         primitives::{
-            draw_rectangle, draw_rectangle_bordered, Vertex, PAD_4, PAD_64, PAD_8, RADIUS_4,
+            draw_rectangle, draw_rectangle_bordered, VertexSink, PAD_4, PAD_64, PAD_8, RADIUS_4,
         },
         ScreenConfig,
     },
@@ -71,7 +71,7 @@ impl<'a> RectangleCtx<'a> {
         screen_config: &ScreenConfig,
         color: Color,
         corner_radius: [f32; 4],
-        out: &mut Vec<Vertex>,
+        out: &mut impl VertexSink,
     ) -> DrawResponse {
         let mut rectangle_color = color;
         let mut hovered = false;
@@ -123,7 +123,7 @@ pub fn checkbox(
     is_toggled: bool,
     mouse_state: &MouseState,
     screen_config: &ScreenConfig,
-    out_vertices: &mut Vec<Vertex>,
+    out_vertices: &mut impl VertexSink,
     out_texts: &mut Vec<TextItem>,
 ) -> DrawResponse {
     let checkbox = Rectangle::new(x, y, 16.0, 16.0)
@@ -216,7 +216,7 @@ impl<'a> Rectangle {
         screen_config: &ScreenConfig,
         color: Color,
         corner_radius: [f32; 4],
-        out: &mut Vec<Vertex>,
+        out: &mut impl VertexSink,
     ) {
         draw_rectangle(
             self.x,
@@ -238,7 +238,7 @@ impl<'a> Rectangle {
         corner_radius: [f32; 4],
         border_width: f32,
         border_color: Color,
-        out: &mut Vec<Vertex>,
+        out: &mut impl VertexSink,
     ) {
         draw_rectangle_bordered(
             self.x,

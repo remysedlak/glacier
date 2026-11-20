@@ -4,7 +4,7 @@ use crate::{
     graphics::{
         components::{modal, toolbar::TOOLBAR_MARGIN},
         font::cursor_x_offset,
-        mini_window::{playlist::grid::GRID_X_ORIGIN, InteractionResult, TITLEBAR_HEIGHT},
+        mini_window::InteractionResult,
         regions::*,
         side_panel::track_tray::file_tree,
     },
@@ -13,82 +13,7 @@ use crate::{
 use std::time::Duration;
 use wgpu::{SurfaceTexture, TextureView};
 
-impl FrameDrawContext {
-    fn push_text_draws(
-        &mut self,
-        texts: &[TextItem],
-        font_cache: &FontCache,
-        glyph_cache: &GlyphCache,
-        screen_config: &ScreenConfig,
-    ) {
-        Graphics::push_text_draws(
-            texts,
-            font_cache,
-            glyph_cache,
-            screen_config,
-            &mut self.glyph_vertices,
-            &mut self.char_draws,
-        );
-    }
-
-    fn push_icon_draw(
-        &mut self,
-        icon_cache: &IconCache,
-        screen_config: &ScreenConfig,
-        icon: &icons::IconDraw,
-    ) {
-        push_icon_draw(
-            icon_cache,
-            screen_config,
-            icon,
-            &mut self.icon_vertices,
-            &mut self.icon_draws,
-        );
-    }
-}
-
 impl Graphics {
-    /// converts TextItem into vertices.
-    fn push_text_draws(
-        texts: &[TextItem],
-        font_cache: &FontCache,
-        glyph_cache: &GlyphCache,
-        screen_config: &ScreenConfig,
-        glyph_vertices: &mut Vec<Vertex>,
-        char_draws: &mut Vec<DrawItem>,
-    ) {
-        for text_item in texts {
-            let Some(font) = font_cache.get(text_item.font) else {
-                continue;
-            };
-            let mut layout = Layout::new(CoordinateSystem::PositiveYDown);
-            let Color { r, g, b, a } = text_item.color;
-            layout.append(&[font], &TextStyle::new(&text_item.text, text_item.size, 0));
-
-            for glyph in layout.glyphs() {
-                if let Some(entry) =
-                    glyph_cache.get(text_item.font, glyph.parent, text_item.size as u32)
-                {
-                    let gverts = font::draw_glyph(
-                        (text_item.x + glyph.x).round(),
-                        (text_item.y + glyph.y).round(),
-                        glyph.width as f32,
-                        glyph.height as f32,
-                        entry.uv_min,
-                        entry.uv_max,
-                        screen_config,
-                        (r, g, b, a),
-                    );
-                    let offset = (glyph_vertices.len() * std::mem::size_of::<Vertex>()) as u64;
-                    glyph_vertices.extend_from_slice(&gverts);
-                    char_draws.push(DrawItem {
-                        vertex_offset: offset,
-                    });
-                }
-            }
-        }
-    }
-
     /// main graphics drawing method. returns interaction state
     pub fn draw(&mut self, mouse_state: &MouseState, project_is_dirty: bool) -> InteractionResult {
         let real_mouse_state = *mouse_state;
@@ -138,8 +63,6 @@ impl Graphics {
         };
 
         // rebuild interface every frame (IMGUI)
-        let mut frame_draw_context = FrameDrawContext::new();
-
         let frame: SurfaceTexture = self
             .render_context
             .surface
@@ -152,6 +75,12 @@ impl Graphics {
             palette: &self.palette,
         };
         self.tooltip = None;
+        let mut frame_draw_context = FrameDrawContext::new(
+            screen_config,
+            &self.font_cache,
+            &self.glyph_cache,
+            &self.icon_cache,
+        );
 
         // --- mini windows ---
         for &id in &self.z_order {
@@ -188,38 +117,24 @@ impl Graphics {
             match id {
                 SEQUENCER_ID if self.mini_windows[SEQUENCER_ID].is_open => {
                     let window = &self.mini_windows[SEQUENCER_ID];
-                    let (texts, icons, sequencer_interaction) = sequencer::draw(
-                        window,
-                        &self.patterns,
-                        &self.sequencer_scroll_offset,
-                        &mut self.tracks,
-                        self.active_pattern_id,
-                        self.active_step,
-                        &masked_mouse,
-                        &screen_config,
-                        &mut frame_draw_context.vertices,
-                    );
-                    frame_draw_context.push_text_draws(
-                        &texts,
-                        &self.font_cache,
-                        &self.glyph_cache,
-                        &screen_config,
-                    );
-                    for icon in icons {
-                        frame_draw_context.push_icon_draw(&self.icon_cache, &screen_config, &icon);
-                    }
-                    frame_draw_context.add_interaction(sequencer_interaction);
+                    frame_draw_context.with_region(None, |frame| {
+                        let sequencer_interaction = sequencer::draw(
+                            window,
+                            &self.patterns,
+                            &self.sequencer_scroll_offset,
+                            &mut self.tracks,
+                            self.active_pattern_id,
+                            self.active_step,
+                            &masked_mouse,
+                            frame,
+                        );
+                        frame.add_interaction(sequencer_interaction);
+                    });
+                    continue;
                 }
                 PLAYLIST_ID if self.mini_windows[PLAYLIST_ID].is_open => {
                     let window = &self.mini_windows[PLAYLIST_ID];
-                    let (
-                        static_draw_region,
-                        timeline_draw_region,
-                        header_draw_region,
-                        ruler_draw_region,
-                        playlist_interaction,
-                        playlist_icons,
-                    ) = playlist::draw(
+                    let playlist_interaction = playlist::draw(
                         window,
                         &self.audio_blocks,
                         &self.patterns,
@@ -230,244 +145,43 @@ impl Graphics {
                         self.playhead_beat,
                         self.resizing_audio_block,
                         self.dragging_file.as_ref(),
-                        &screen_config,
                         &self.playlist_tool,
                         &mut self.waveform_cache,
                         self.stretch_mode,
+                        &mut frame_draw_context,
                     );
-                    // icon_start (captured at top of this loop iteration) marks the
-                    // start of playlist's icons; they all belong to the STATIC region.
-                    for icon in playlist_icons {
-                        frame_draw_context.push_icon_draw(&self.icon_cache, &screen_config, &icon);
-                    }
-                    let playlist_icon_end = frame_draw_context.icon_draws.len();
-
-                    let sw = self.render_context.surface_config.width;
-                    let sh = self.render_context.surface_config.height;
-                    let wx = (window.x.max(0.0) as u32).min(sw);
-                    let wy = ((window.y - TITLEBAR_HEIGHT).max(0.0) as u32).min(sh);
-                    let win_right = ((window.x + window.width) as u32).min(sw);
-                    let win_bottom = ((window.y + window.height) as u32).min(sh);
-                    let content_y = (window.y as u32 + PAD_64 as u32).min(sh);
-                    let content_h = win_bottom.saturating_sub(content_y);
-                    let header_x = ((window.x + PAD_16 + GRID_X_ORIGIN).max(0.0) as u32).min(sw);
-                    let header_w = header_x.saturating_sub(wx);
-                    let timeline_w = win_right.saturating_sub(header_x);
-                    let ruler_y = content_y.saturating_sub(24);
-                    let ruler_h = content_y.saturating_sub(ruler_y);
-
-                    // STATIC SHAPES — owns the playlist's icons
-                    let static_vert_start = frame_draw_context.vertices.len() as u32;
-                    let static_char_start = frame_draw_context.char_draws.len();
-                    frame_draw_context
-                        .vertices
-                        .extend(static_draw_region.vertices);
-                    frame_draw_context.push_text_draws(
-                        &static_draw_region.text_items,
-                        &self.font_cache,
-                        &self.glyph_cache,
-                        &screen_config,
-                    );
-                    frame_draw_context.record_region(
-                        static_vert_start,
-                        static_char_start,
-                        icon_start,
-                        Some(safe_scissor(
-                            wx,
-                            wy,
-                            win_right.saturating_sub(wx),
-                            win_bottom.saturating_sub(wy),
-                            sw,
-                            sh,
-                        )),
-                    );
-
-                    // RULER — no icons of its own; icon range collapses to [playlist_icon_end, playlist_icon_end)
-                    let ruler_padding = 16.0;
-                    let ruler_x = (header_x as f32 - ruler_padding).max(0.0) as u32;
-                    let ruler_w = timeline_w + ruler_padding as u32;
-                    let ruler_vert_start = frame_draw_context.vertices.len() as u32;
-                    let ruler_char_start = frame_draw_context.char_draws.len();
-                    frame_draw_context
-                        .vertices
-                        .extend(ruler_draw_region.vertices);
-                    frame_draw_context.push_text_draws(
-                        &ruler_draw_region.text_items,
-                        &self.font_cache,
-                        &self.glyph_cache,
-                        &screen_config,
-                    );
-                    frame_draw_context.record_region(
-                        ruler_vert_start,
-                        ruler_char_start,
-                        playlist_icon_end,
-                        Some(safe_scissor(ruler_x, ruler_y, ruler_w, ruler_h, sw, sh)),
-                    );
-
-                    // HEADER
-                    let header_vert_start = frame_draw_context.vertices.len() as u32;
-                    let header_char_start = frame_draw_context.char_draws.len();
-                    frame_draw_context
-                        .vertices
-                        .extend(header_draw_region.vertices);
-                    frame_draw_context.push_text_draws(
-                        &header_draw_region.text_items,
-                        &self.font_cache,
-                        &self.glyph_cache,
-                        &screen_config,
-                    );
-                    frame_draw_context.record_region(
-                        header_vert_start,
-                        header_char_start,
-                        playlist_icon_end,
-                        Some(safe_scissor(wx, content_y, header_w, content_h, sw, sh)),
-                    );
-
-                    // TIMELINE
-                    let timeline_vert_start = frame_draw_context.vertices.len() as u32;
-                    let timeline_char_start = frame_draw_context.char_draws.len();
-                    frame_draw_context
-                        .vertices
-                        .extend(timeline_draw_region.vertices);
-                    frame_draw_context.push_text_draws(
-                        &timeline_draw_region.text_items,
-                        &self.font_cache,
-                        &self.glyph_cache,
-                        &screen_config,
-                    );
-                    frame_draw_context.record_region(
-                        timeline_vert_start,
-                        timeline_char_start,
-                        playlist_icon_end,
-                        Some(safe_scissor(
-                            header_x, content_y, timeline_w, content_h, sw, sh,
-                        )),
-                    );
-
                     frame_draw_context.add_interaction(playlist_interaction);
                     continue;
                 }
                 MIXER_ID if self.mini_windows[MIXER_ID].is_open => {
                     let window = &self.mini_windows[MIXER_ID];
-                    let (texts, mixer_interaction) = mixer::draw(
-                        window,
-                        &self.tracks,
-                        self.master_volume,
-                        self.master_rms_l,
-                        self.master_rms_r,
-                        self.master_peak,
-                        &screen_config,
-                        &masked_mouse,
-                        &mut frame_draw_context.vertices,
-                    );
-                    frame_draw_context.push_text_draws(
-                        &texts,
-                        &self.font_cache,
-                        &self.glyph_cache,
-                        &screen_config,
-                    );
-                    frame_draw_context.add_interaction(mixer_interaction);
+                    frame_draw_context.with_region(None, |frame| {
+                        let mixer_interaction = mixer::draw(
+                            window,
+                            &self.tracks,
+                            self.master_volume,
+                            self.master_rms_l,
+                            self.master_rms_r,
+                            self.master_peak,
+                            &screen_config,
+                            &masked_mouse,
+                            frame,
+                        );
+                        frame.add_interaction(mixer_interaction);
+                    });
+                    // This region was recorded by `with_region` above.
+                    continue;
                 }
                 PIANO_ROLL_ID if self.mini_windows[PIANO_ROLL_ID].is_open => {
                     let window = &self.mini_windows[PIANO_ROLL_ID];
-                    let (
-                        static_draw_region,
-                        piano_key_draw_region,
-                        grid_draw_region,
-                        piano_interaction,
-                    ) = piano_roll::window::draw(
+                    let piano_interaction = piano_roll::window::draw(
                         window,
                         &masked_mouse,
-                        &screen_config,
                         &self.patterns,
                         &self.tracks,
                         self.active_step,
                         self.piano_roll_state.as_ref(),
-                    );
-
-                    frame_draw_context
-                        .vertices
-                        .extend(static_draw_region.vertices);
-                    frame_draw_context.push_text_draws(
-                        &static_draw_region.text_items,
-                        &self.font_cache,
-                        &self.glyph_cache,
-                        &screen_config,
-                    );
-
-                    let piano_content_vert_start = frame_draw_context.vertices.len() as u32;
-                    let piano_content_char_start = frame_draw_context.char_draws.len();
-                    frame_draw_context
-                        .vertices
-                        .extend(piano_key_draw_region.vertices);
-                    frame_draw_context.push_text_draws(
-                        &piano_key_draw_region.text_items,
-                        &self.font_cache,
-                        &self.glyph_cache,
-                        &screen_config,
-                    );
-
-                    let grid_vert_start = frame_draw_context.vertices.len() as u32;
-                    let grid_char_start = frame_draw_context.char_draws.len();
-                    frame_draw_context
-                        .vertices
-                        .extend(grid_draw_region.vertices);
-                    frame_draw_context.push_text_draws(
-                        &grid_draw_region.text_items,
-                        &self.font_cache,
-                        &self.glyph_cache,
-                        &screen_config,
-                    );
-
-                    let sw = self.render_context.surface_config.width;
-                    let sh = self.render_context.surface_config.height;
-                    let wx = (window.x.max(0.0) as u32).min(sw);
-                    let wy = ((window.y - TITLEBAR_HEIGHT).max(0.0) as u32).min(sh);
-                    let win_right = ((window.x + window.width) as u32).min(sw);
-                    let win_bottom = ((window.y + window.height) as u32).min(sh);
-                    let content_y = (window.y as u32 + 72).min(sh);
-                    let content_h = win_bottom.saturating_sub(content_y).saturating_sub(32);
-                    let key_col_right = (window.x + 72.0).max(0.0) as u32;
-                    let grid_x = key_col_right.min(sw);
-                    let key_w = grid_x.saturating_sub(wx);
-                    let grid_w = win_right.saturating_sub(grid_x).saturating_sub(16);
-
-                    // piano roll pushes no icons this session — icon range is empty
-                    // ([icon_start, icon_start)) for all three sub-regions.
-                    frame_draw_context.regions.push(RecordedRegion {
-                        range: WindowDrawRange {
-                            vert_start,
-                            vert_end: piano_content_vert_start,
-                            char_start,
-                            char_end: piano_content_char_start,
-                            icon_start,
-                            icon_end: icon_start,
-                        },
-                        scissor: Some(safe_scissor(
-                            wx,
-                            wy,
-                            win_right.saturating_sub(wx),
-                            win_bottom.saturating_sub(wy),
-                            sw,
-                            sh,
-                        )),
-                    });
-                    frame_draw_context.regions.push(RecordedRegion {
-                        range: WindowDrawRange {
-                            vert_start: piano_content_vert_start,
-                            vert_end: grid_vert_start,
-                            char_start: piano_content_char_start,
-                            char_end: grid_char_start,
-                            icon_start,
-                            icon_end: icon_start,
-                        },
-                        scissor: Some(safe_scissor(wx, content_y, key_w, content_h, sw, sh)),
-                    });
-                    frame_draw_context.record_region(
-                        grid_vert_start,
-                        grid_char_start,
-                        icon_start,
-                        Some(safe_scissor(grid_x, content_y, grid_w, content_h, sw, sh)),
+                        &mut frame_draw_context,
                     );
 
                     frame_draw_context.add_interaction(piano_interaction);
@@ -479,29 +193,12 @@ impl Graphics {
                         if let WindowKind::TrackDetail(track_id) = window.window_kind {
                             if let Some(track) = self.tracks.iter().find(|t| t.data.id == track_id)
                             {
-                                let (texts, icons, track_interaction, tooltip) = track::draw(
-                                    window,
-                                    &masked_mouse,
-                                    &screen_config,
-                                    track,
-                                    &mut frame_draw_context.vertices,
-                                );
-
-                                frame_draw_context.add_interaction(track_interaction);
-                                for icon in icons {
-                                    frame_draw_context.push_icon_draw(
-                                        &self.icon_cache,
-                                        &screen_config,
-                                        &icon,
-                                    );
-                                }
-                                frame_draw_context.push_text_draws(
-                                    &texts,
-                                    &self.font_cache,
-                                    &self.glyph_cache,
-                                    &screen_config,
-                                );
-                                self.tooltip = tooltip;
+                                frame_draw_context.with_region(None, |frame| {
+                                    let track_interaction =
+                                        track::draw(window, &masked_mouse, track, frame);
+                                    frame.add_interaction(track_interaction);
+                                });
+                                continue;
                             }
                         }
                     }
@@ -516,258 +213,164 @@ impl Graphics {
             let sw = self.render_context.surface_config.width;
             let sh = self.render_context.surface_config.height;
 
-            let tray_vert_start = frame_draw_context.vertices.len() as u32;
-            let tray_char_start = frame_draw_context.char_draws.len();
-            let tray_icon_start = frame_draw_context.icon_draws.len();
-
             let selected_track_id: Option<TrackID> = match self.playlist_action {
                 PlaylistAction::PlaceFresh(AudioBlockType::Sample(id)) => Some(id),
                 _ => None,
             };
 
-            let (texts, track_tray_interaction) = side_panel::track_tray::draw(
-                mouse_state,
-                &screen_config,
-                self.resizing_track_tray,
-                &self.tracks,
-                self.track_tray_width,
-                &mut frame_draw_context.vertices,
-                selected_track_id,
-            );
-            frame_draw_context.add_interaction(track_tray_interaction);
-            frame_draw_context.push_text_draws(
-                &texts,
-                &self.font_cache,
-                &self.glyph_cache,
-                &screen_config,
-            );
-
             let tray_bottom = sh / 2 + 2;
-            frame_draw_context.record_region(
-                tray_vert_start,
-                tray_char_start,
-                tray_icon_start,
-                Some(safe_scissor(
-                    0,
-                    0,
-                    self.track_tray_width as u32,
-                    tray_bottom,
-                    sw,
-                    sh,
-                )),
-            );
+            let tray_scissor = Some(safe_scissor(
+                0,
+                0,
+                self.track_tray_width as u32,
+                tray_bottom,
+                sw,
+                sh,
+            ));
+            frame_draw_context.with_region(tray_scissor, |frame| {
+                side_panel::track_tray::draw(
+                    frame,
+                    mouse_state,
+                    self.resizing_track_tray,
+                    &self.tracks,
+                    self.track_tray_width,
+                    selected_track_id,
+                );
+            });
 
             // DIVIDER (unscissored) — no icons
-            let divider_vert_start = frame_draw_context.vertices.len() as u32;
-            let divider_char_start = frame_draw_context.char_draws.len();
-            let divider_icon_start = frame_draw_context.icon_draws.len();
-            Rectangle {
-                x: 0.0,
-                y: (screen_config.height / 2) as f32,
-                width: self.track_tray_width,
-                height: screen_config.height as f32 - (screen_config.height / 2) as f32,
-            }
-            .draw(
-                &screen_config,
-                screen_config.palette.neutral.shade(1),
-                NO_RADIUS,
-                &mut frame_draw_context.vertices,
-            );
-            let w_divider = Rectangle {
-                x: PAD_2,
-                y: (screen_config.height / 2) as f32,
-                width: self.track_tray_width - PAD_4,
-                height: 1.0,
-            };
-            w_divider.draw(
-                &screen_config,
-                screen_config.palette.neutral.shade(3),
-                RADIUS_4,
-                &mut frame_draw_context.vertices,
-            );
-            let h_divider = Rectangle {
-                x: self.track_tray_width - 1.0,
-                y: TOOLBAR_MARGIN,
-                width: 1.0,
-                height: screen_config.height as f32 - TOOLBAR_MARGIN,
-            };
-            h_divider.draw(
-                &screen_config,
-                screen_config.palette.neutral.shade(3),
-                NO_RADIUS,
-                &mut frame_draw_context.vertices,
-            );
-            use crate::graphics::side_panel::draw_title;
-            frame_draw_context.push_text_draws(
-                &[draw_title(
+            frame_draw_context.with_region(None, |frame| {
+                Rectangle {
+                    x: 0.0,
+                    y: (screen_config.height / 2) as f32,
+                    width: self.track_tray_width,
+                    height: screen_config.height as f32 - (screen_config.height / 2) as f32,
+                }
+                .draw(
+                    &screen_config,
+                    screen_config.palette.neutral.shade(1),
+                    NO_RADIUS,
+                    frame,
+                );
+                let w_divider = Rectangle {
+                    x: PAD_2,
+                    y: (screen_config.height / 2) as f32,
+                    width: self.track_tray_width - PAD_4,
+                    height: 1.0,
+                };
+                w_divider.draw(
+                    &screen_config,
+                    screen_config.palette.neutral.shade(3),
+                    RADIUS_4,
+                    frame,
+                );
+                let h_divider = Rectangle {
+                    x: self.track_tray_width - 1.0,
+                    y: TOOLBAR_MARGIN,
+                    width: 1.0,
+                    height: screen_config.height as f32 - TOOLBAR_MARGIN,
+                };
+                h_divider.draw(
+                    &screen_config,
+                    screen_config.palette.neutral.shade(3),
+                    NO_RADIUS,
+                    frame,
+                );
+                use crate::graphics::side_panel::draw_title;
+                frame.draw_texts(&[draw_title(
                     "File Tree",
                     (w_divider.x - 2.0, w_divider.y),
                     &screen_config,
-                )],
-                &self.font_cache,
-                &self.glyph_cache,
-                &screen_config,
-            );
-            frame_draw_context.record_region(
-                divider_vert_start,
-                divider_char_start,
-                divider_icon_start,
-                None,
-            );
+                )]);
+            });
 
             // FILE TREE — owns its own icons
-            let file_tree_vert_start = frame_draw_context.vertices.len() as u32;
-            let file_tree_char_start = frame_draw_context.char_draws.len();
-            let file_tree_icon_start = frame_draw_context.icon_draws.len();
-
-            let (icons, text_items, file_tree_interaction) = file_tree::draw(
-                mouse_state,
-                &screen_config,
-                &self.user_fs_location,
-                &self.expanded_dirs,
-                &self.fs_cache,
-                self.fs_scroll_offset,
-                self.track_tray_width,
-                &mut frame_draw_context.vertices,
-                (screen_config.height / 2) as f32,
-            );
-            frame_draw_context.add_interaction(file_tree_interaction);
-            frame_draw_context.push_text_draws(
-                &text_items,
-                &self.font_cache,
-                &self.glyph_cache,
-                &screen_config,
-            );
-            for icon in icons {
-                frame_draw_context.push_icon_draw(&self.icon_cache, &screen_config, &icon);
-            }
-
             let divider_y = sh / 2 + (PAD_32 + PAD_16) as u32;
-            frame_draw_context.record_region(
-                file_tree_vert_start,
-                file_tree_char_start,
-                file_tree_icon_start,
-                Some(safe_scissor(
-                    0,
-                    divider_y,
-                    self.track_tray_width as u32,
-                    sh.saturating_sub(divider_y),
-                    sw,
-                    sh,
-                )),
-            );
+            let file_tree_scissor = Some(safe_scissor(
+                0,
+                divider_y,
+                self.track_tray_width as u32,
+                sh.saturating_sub(divider_y),
+                sw,
+                sh,
+            ));
+            frame_draw_context.with_region(file_tree_scissor, |frame| {
+                file_tree::draw(
+                    frame,
+                    mouse_state,
+                    &self.user_fs_location,
+                    &self.expanded_dirs,
+                    &self.fs_cache,
+                    self.fs_scroll_offset,
+                    self.track_tray_width,
+                    (screen_config.height / 2) as f32,
+                );
+            });
         }
 
         // --- toolbar (pattern tray + top bar) ---
-        let toolbar_vert_start = frame_draw_context.vertices.len() as u32;
-        let toolbar_char_start = frame_draw_context.char_draws.len();
-        let toolbar_icon_start = frame_draw_context.icon_draws.len();
+        frame_draw_context.with_region(None, |frame| {
+            let sequencer_is_open = self
+                .mini_windows
+                .iter()
+                .any(|w| matches!(w.window_kind, WindowKind::Sequencer) && w.is_open);
 
-        let sequencer_is_open = self
-            .mini_windows
-            .iter()
-            .any(|w| matches!(w.window_kind, WindowKind::Sequencer) && w.is_open);
+            if self.show_pattern_tray {
+                let selected_pattern_id: Option<PatternID> = match self.playlist_action {
+                    PlaylistAction::PlaceFresh(AudioBlockType::Pattern(id)) => Some(id),
+                    _ => None,
+                };
+                let rename_cursor_offset: Option<f32> = self.renaming.as_ref().map(|r| {
+                    let font = self
+                        .font_cache
+                        .get(Roboto)
+                        .expect("Roboto font missing from cache");
+                    cursor_x_offset(font, &r.edited_name, r.cursor, 14.0)
+                });
 
-        if self.show_pattern_tray {
-            let selected_pattern_id: Option<PatternID> = match self.playlist_action {
-                PlaylistAction::PlaceFresh(AudioBlockType::Pattern(id)) => Some(id),
-                _ => None,
-            };
-            let rename_cursor_offset: Option<f32> = self.renaming.as_ref().map(|r| {
-                let font = self
-                    .font_cache
-                    .get(Roboto)
-                    .expect("Roboto font missing from cache");
-                cursor_x_offset(font, &r.edited_name, r.cursor, 14.0)
-            });
+                side_panel::pattern_tray::draw(
+                    frame,
+                    &self.patterns,
+                    selected_pattern_id,
+                    &mouse_state.hidden(self.context_menu.is_some() && menu_is_hovered),
+                    sequencer_is_open,
+                    self.pattern_tray_width,
+                    &self.renaming,
+                    rename_cursor_offset,
+                );
+            }
 
-            let (texts, pattern_interaction, icon, tooltip) = side_panel::pattern_tray::draw(
-                &screen_config,
-                &self.patterns,
-                selected_pattern_id,
-                &mouse_state.hidden(self.context_menu.is_some() && menu_is_hovered),
-                sequencer_is_open,
-                self.pattern_tray_width,
-                &self.renaming,
-                rename_cursor_offset,
-                &mut frame_draw_context.vertices,
+            if self.show_save_modal {
+                modal::draw(frame, &real_mouse_state);
+            }
+
+            let total_seconds = ((self.playhead_beat / self.bpm) * 60.0) as u32;
+            let time_string = format!(
+                "{:02}:{:02}:{:02}",
+                total_seconds / 3600,
+                (total_seconds % 3600) / 60,
+                total_seconds % 60
             );
-            frame_draw_context.add_interaction(pattern_interaction);
-            frame_draw_context.push_text_draws(
-                &texts,
-                &self.font_cache,
-                &self.glyph_cache,
-                &screen_config,
+            components::toolbar::draw(
+                frame,
+                mouse_state,
+                self.bpm,
+                self.is_playing,
+                self.active_step,
+                &self.spectrum,
+                self.sample_rate,
+                time_string,
             );
-            frame_draw_context.push_icon_draw(&self.icon_cache, &screen_config, &icon);
-            self.tooltip = tooltip;
-        }
-
-        if self.show_save_modal {
-            let (texts, modal_interaction) = modal::draw(
-                &screen_config,
-                &real_mouse_state,
-                &mut frame_draw_context.vertices,
-            );
-            frame_draw_context.add_interaction(modal_interaction);
-            frame_draw_context.push_text_draws(
-                &texts,
-                &self.font_cache,
-                &self.glyph_cache,
-                &screen_config,
-            );
-        }
-
-        let total_seconds = ((self.playhead_beat / self.bpm) * 60.0) as u32;
-        let time_string = format!(
-            "{:02}:{:02}:{:02}",
-            total_seconds / 3600,
-            (total_seconds % 3600) / 60,
-            total_seconds % 60
-        );
-        let (texts, icons, toolbar_interaction, tooltip) = components::toolbar::draw(
-            mouse_state,
-            &screen_config,
-            self.bpm,
-            self.is_playing,
-            self.active_step,
-            &self.spectrum,
-            self.sample_rate,
-            time_string,
-            &mut frame_draw_context.vertices,
-        );
-        frame_draw_context.add_interaction(toolbar_interaction);
-        for icon in icons {
-            frame_draw_context.push_icon_draw(&self.icon_cache, &screen_config, &icon);
-        }
-        self.tooltip = tooltip;
-
-        frame_draw_context.push_text_draws(
-            &texts,
-            &self.font_cache,
-            &self.glyph_cache,
-            &screen_config,
-        );
-        frame_draw_context.record_region(
-            toolbar_vert_start,
-            toolbar_char_start,
-            toolbar_icon_start,
-            None,
-        );
+        });
 
         // --- footer ---
-        let footer_tooltip = Self::draw_footer(
-            &self.icon_cache,
-            &self.font_cache,
-            &self.glyph_cache,
+        Self::draw_footer(
             &self.project_path,
             self.present_fps,
             &mut frame_draw_context,
-            &screen_config,
             project_is_dirty,
             mouse_state,
         );
-        self.tooltip = footer_tooltip.or(self.tooltip.take());
 
         // dragging cursor override
         if self.resizing_track_tray {
@@ -777,110 +380,68 @@ impl Graphics {
         }
 
         if let Some(ref path) = self.dragging_file {
-            let ghost_vert_start = frame_draw_context.vertices.len() as u32;
-            let ghost_char_start = frame_draw_context.char_draws.len();
-            let ghost_icon_start = frame_draw_context.icon_draws.len();
-            let name = path.file_name().and_then(|n| n.to_str()).unwrap_or("?");
-            let ghost = Rectangle {
-                x: mouse_state.x,
-                y: mouse_state.y - 16.0,
-                width: 128.0,
-                height: 32.0,
-            };
-            ghost.draw(
-                &screen_config,
-                screen_config.palette.neutral.shade(6),
-                RADIUS_4,
-                &mut frame_draw_context.vertices,
-            );
-            frame_draw_context.push_text_draws(
-                &[TextItem {
+            frame_draw_context.with_region(None, |frame| {
+                let name = path.file_name().and_then(|n| n.to_str()).unwrap_or("?");
+                let ghost = Rectangle {
+                    x: mouse_state.x,
+                    y: mouse_state.y - 16.0,
+                    width: 128.0,
+                    height: 32.0,
+                };
+                ghost.draw(
+                    &screen_config,
+                    screen_config.palette.neutral.shade(6),
+                    RADIUS_4,
+                    frame,
+                );
+                frame.draw_texts(&[TextItem {
                     text: name.to_string(),
                     x: ghost.x + PAD_4,
                     y: ghost.y + PAD_4,
                     size: 10.0,
                     font: Roboto,
                     color: screen_config.palette.neutral.shade(3),
-                }],
-                &self.font_cache,
-                &self.glyph_cache,
-                &screen_config,
-            );
-            frame_draw_context.record_region(
-                ghost_vert_start,
-                ghost_char_start,
-                ghost_icon_start,
-                None,
-            );
+                }]);
+            });
         };
 
         // context menu
-        let context_menu_vert_start = frame_draw_context.vertices.len() as u32;
-        let context_menu_char_start = frame_draw_context.char_draws.len();
-        let context_menu_icon_start = frame_draw_context.icon_draws.len();
-        if let Some(menu) = &self.context_menu {
-            let (texts, context_menu_interaction) = menu.draw(
-                &screen_config,
-                mouse_state,
-                &mut frame_draw_context.vertices,
-            );
-
-            frame_draw_context.push_text_draws(
-                &texts,
-                &self.font_cache,
-                &self.glyph_cache,
-                &screen_config,
-            );
-            frame_draw_context.add_interaction(context_menu_interaction);
-        }
-        frame_draw_context.record_region(
-            context_menu_vert_start,
-            context_menu_char_start,
-            context_menu_icon_start,
-            None,
-        );
+        frame_draw_context.with_region(None, |frame| {
+            if let Some(menu) = &self.context_menu {
+                menu.draw(frame, mouse_state);
+            }
+        });
 
         // tooltip
-        let tooltip_vert_start = frame_draw_context.vertices.len() as u32;
-        let tooltip_char_start = frame_draw_context.char_draws.len();
-        let tooltip_icon_start = frame_draw_context.icon_draws.len();
-        if let Some(tt) = &self.tooltip {
-            if mouse_state
-                .hover_duration
-                .is_some_and(|t| t.elapsed() > Duration::from_millis(400))
-            {
-                let _tooltip_rectangle = Rectangle::new(tt.x, tt.y, tt.width, 24.0)
-                    .draw_style()
-                    .draw(
-                        &screen_config,
-                        screen_config.palette.neutral.shade(3),
-                        RADIUS_8,
-                        &mut frame_draw_context.vertices,
-                    );
-                if let Some(text) = &tt.text {
-                    let tooltip_text = [TextItem {
-                        text: text.to_string(),
-                        x: tt.x + PAD_4,
-                        y: tt.y + PAD_2,
-                        size: 14.0,
-                        font: Mono,
-                        color: screen_config.palette.neutral.shade(7),
-                    }];
-                    frame_draw_context.push_text_draws(
-                        &tooltip_text,
-                        &self.font_cache,
-                        &self.glyph_cache,
-                        &screen_config,
-                    );
+        let tooltip = frame_draw_context.tooltip.clone();
+        frame_draw_context.with_region(None, |frame| {
+            if let Some(tt) = &tooltip {
+                if mouse_state
+                    .hover_duration
+                    .is_some_and(|t| t.elapsed() > Duration::from_millis(400))
+                {
+                    let _tooltip_rectangle = Rectangle::new(tt.x, tt.y, tt.width, 24.0)
+                        .draw_style()
+                        .draw(
+                            &screen_config,
+                            screen_config.palette.neutral.shade(3),
+                            RADIUS_8,
+                            frame,
+                        );
+                    if let Some(text) = &tt.text {
+                        let tooltip_text = [TextItem {
+                            text: text.to_string(),
+                            x: tt.x + PAD_4,
+                            y: tt.y + PAD_2,
+                            size: 14.0,
+                            font: Mono,
+                            color: screen_config.palette.neutral.shade(7),
+                        }];
+                        frame.draw_texts(&tooltip_text);
+                    }
                 }
             }
-        }
-        frame_draw_context.record_region(
-            tooltip_vert_start,
-            tooltip_char_start,
-            tooltip_icon_start,
-            None,
-        );
+        });
 
         self.render_context.queue.write_buffer(
             &self.render_context.vertex_buffer,
@@ -965,6 +526,9 @@ impl Graphics {
         self.render_context.queue.submit(Some(encoder.finish()));
         frame.present();
 
+        // The event loop uses Graphics.tooltip to start the hover-delay timer.
+        self.tooltip = frame_draw_context.tooltip.clone();
+
         let now = std::time::Instant::now();
         if let Some(window_start) = self.fps_window_start {
             self.fps_window_frames += 1;
@@ -983,39 +547,19 @@ impl Graphics {
     }
 
     fn draw_footer<'a>(
-        icon_cache: &'a IconCache,
-        font_cache: &FontCache,
-        glyph_cache: &'a GlyphCache,
         project_path: &str,
         present_fps: f32,
-        frame: &mut FrameDrawContext,
-        screen_config: &ScreenConfig,
+        frame: &mut FrameDrawContext<'_>,
         project_is_dirty: bool,
         mouse_state: &MouseState,
-    ) -> Option<Tooltip> {
-        let vert_start = frame.vertices.len() as u32;
-        let char_start = frame.char_draws.len();
-        let icon_start = frame.icon_draws.len();
-
+    ) {
         let title = if project_is_dirty {
             format!("{}*", project_path)
         } else {
             project_path.to_owned()
         };
-        let (texts, icons, tooltip, footer_interaction) = footer::draw(
-            screen_config,
-            &title,
-            present_fps,
-            mouse_state,
-            &mut frame.vertices,
-        );
-        frame.interaction = std::mem::take(&mut frame.interaction).or(footer_interaction);
-
-        for icon in icons {
-            frame.push_icon_draw(icon_cache, screen_config, &icon);
-        }
-        frame.push_text_draws(&texts, font_cache, glyph_cache, screen_config);
-        frame.record_region(vert_start, char_start, icon_start, None);
-        tooltip
+        frame.with_region(None, |frame| {
+            footer::draw(frame, &title, present_fps, mouse_state);
+        });
     }
 }

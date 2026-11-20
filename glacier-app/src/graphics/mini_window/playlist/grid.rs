@@ -1,17 +1,13 @@
 use std::path::PathBuf;
 
 use crate::{
-    app::{click::ClickResult, MouseState, ScrollOffset},
+    app::{MouseState, ScrollOffset, click::ClickResult},
     graphics::{
+        FrameDrawContext, PlaylistAction,
         font::{Font::Roboto, TextItem},
         geometry::Rectangle,
-        icons::IconDraw,
-        mini_window::{
-            playlist::toolbar::{self, PlaylistTool},
-            InteractionResult, MiniWindow,
-        },
-        primitives::{ScreenConfig, Vertex, NO_RADIUS, PAD_16, PAD_4, PAD_64, PAD_8},
-        PlaylistAction,
+        mini_window::{InteractionResult, MiniWindow},
+        primitives::{NO_RADIUS, PAD_4, PAD_8, PAD_16, PAD_64, ScreenConfig},
     },
     project::{AudioBlockType, PatternData},
 };
@@ -23,41 +19,13 @@ pub const PLAYLIST_TRACK_GAP: f32 = 70.0;
 pub const GRID_X_ORIGIN: f32 = 128.0;
 pub const PLAYHEAD_WIDTH: f32 = 4.0;
 
-pub fn draw(
+pub fn draw_track_headers(
     window: &MiniWindow,
     track_count: usize,
-    step_count: usize,
     screen_config: &ScreenConfig,
-    mouse_state: &MouseState,
     scroll_offset: &ScrollOffset,
-    dragging_file: Option<&PathBuf>,
-    playlist_draw: PlaylistAction,
-    patterns: &[PatternData],
-    playlist_tool: &PlaylistTool,
-) -> (
-    Vec<Vertex>,
-    Vec<TextItem>,
-    Vec<IconDraw>,
-    Vec<Vertex>,
-    Vec<TextItem>,
-    Vec<Vertex>,
-    Vec<TextItem>,
-    InteractionResult,
+    frame: &mut FrameDrawContext<'_>,
 ) {
-    let mut track_header_vertices: Vec<Vertex> = Vec::new();
-    let mut track_header_text_items: Vec<TextItem> = Vec::new();
-
-    let mut grid_vertices: Vec<Vertex> = Vec::new();
-    let grid_text_items: Vec<TextItem> = Vec::new();
-
-    let mut interaction = InteractionResult::default();
-
-    let (toolbar_vertices, toolbar_text_items, toolbar_icons, toolbar_interaction) =
-        toolbar::draw(window, screen_config, mouse_state, playlist_tool);
-
-    interaction = interaction.or(toolbar_interaction);
-
-    // for each ui track
     for track in 0..track_count {
         let background = Rectangle {
             x: window.x + PAD_16,
@@ -72,17 +40,33 @@ pub fn draw(
             screen_config,
             screen_config.palette.neutral.shade(2),
             NO_RADIUS,
-            &mut track_header_vertices,
+            frame,
         );
-        track_header_text_items.push(TextItem {
+        frame.draw_texts(&[TextItem {
             text: format!("Track {}", track),
             x: window.x + PAD_16 + PAD_8,
             font: Roboto,
             y: window.y + (track as f32 * PLAYLIST_TRACK_GAP) + PAD_64 + PAD_4 - scroll_offset.y,
             size: 18.0,
             color: screen_config.palette.neutral.shade(7),
-        });
+        }]);
+    }
+}
 
+pub fn draw_grid(
+    window: &MiniWindow,
+    track_count: usize,
+    step_count: usize,
+    screen_config: &ScreenConfig,
+    mouse_state: &MouseState,
+    scroll_offset: &ScrollOffset,
+    dragging_file: Option<&PathBuf>,
+    playlist_draw: PlaylistAction,
+    patterns: &[PatternData],
+    frame: &mut FrameDrawContext<'_>,
+) -> InteractionResult {
+    let mut interaction = InteractionResult::default();
+    for track in 0..track_count {
         for step in 0..step_count {
             let group = step / 4;
             let pl_step = Rectangle {
@@ -156,17 +140,8 @@ pub fn draw(
                 }
             }
 
-            pl_step.draw(screen_config, color, NO_RADIUS, &mut grid_vertices);
+            pl_step.draw(screen_config, color, NO_RADIUS, frame);
         }
     }
-    (
-        toolbar_vertices,
-        toolbar_text_items,
-        toolbar_icons,
-        track_header_vertices,
-        track_header_text_items,
-        grid_vertices,
-        grid_text_items,
-        interaction,
-    )
+    interaction
 }

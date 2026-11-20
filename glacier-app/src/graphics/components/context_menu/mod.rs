@@ -8,7 +8,7 @@ use crate::{
         geometry::Rectangle,
         mini_window::InteractionResult,
         primitives::{ScreenConfig, PAD_2, PAD_32, PAD_4, PAD_64, PAD_8, RADIUS_4, RADIUS_8},
-        Vertex,
+        FrameDrawContext,
     },
     project::{PatternID, TrackID},
 };
@@ -33,18 +33,14 @@ pub struct ContextMenu {
 
 impl ContextMenu {
     /// Draw a context menu
-    pub fn draw(
-        &self,
-        screen_config: &ScreenConfig,
-        mouse_state: &MouseState,
-        out: &mut Vec<Vertex>,
-    ) -> (Vec<TextItem>, InteractionResult) {
+    pub fn draw(&self, frame: &mut FrameDrawContext<'_>, mouse_state: &MouseState) {
+        let screen_config = *frame.screen_config();
         match &self.kind {
             ContextMenuKind::PatternContext(id) => {
-                self.draw_pattern_context(screen_config, mouse_state, *id, out)
+                self.draw_pattern_context(&screen_config, mouse_state, *id, frame)
             }
             ContextMenuKind::TrackContext(pattern, track) => {
-                self.draw_track_context(screen_config, mouse_state, *pattern, *track, out)
+                self.draw_track_context(&screen_config, mouse_state, *pattern, *track, frame)
             }
         }
     }
@@ -127,9 +123,8 @@ impl ContextMenu {
         screen_config: &ScreenConfig,
         mouse_state: &MouseState,
         id: PatternID,
-        out: &mut Vec<Vertex>,
-    ) -> (Vec<TextItem>, InteractionResult) {
-        let mut text_items: Vec<TextItem> = Vec::new();
+        frame: &mut FrameDrawContext<'_>,
+    ) {
         let mut interaction = InteractionResult::default();
 
         // dark background
@@ -138,7 +133,7 @@ impl ContextMenu {
             screen_config,
             screen_config.palette.neutral.shade(3),
             RADIUS_8,
-            out,
+            frame,
         );
 
         // render each item - lighter background
@@ -158,10 +153,10 @@ impl ContextMenu {
                 screen_config,
                 screen_config.palette.neutral.shade(4),
                 RADIUS_4,
-                out,
+                frame,
             );
 
-            text_items.push(self.draw_pattern_context_item_text(item as usize, screen_config));
+            frame.draw_texts(&[self.draw_pattern_context_item_text(item as usize, screen_config)]);
 
             if context_item_background.hovered {
                 interaction.cursor = CursorIcon::Pointer;
@@ -192,7 +187,7 @@ impl ContextMenu {
             }
         }
 
-        (text_items, interaction)
+        frame.add_interaction(interaction);
     }
 
     /// Draw the context menu of a Track
@@ -202,10 +197,8 @@ impl ContextMenu {
         mouse_state: &MouseState,
         pattern_id: PatternID,
         track_id: TrackID,
-        out: &mut Vec<Vertex>,
-    ) -> (Vec<TextItem>, InteractionResult) {
-        let mut text_items: Vec<TextItem> = Vec::new();
-
+        frame: &mut FrameDrawContext<'_>,
+    ) {
         let mut interaction = InteractionResult::default();
 
         // dark background
@@ -214,7 +207,7 @@ impl ContextMenu {
             screen_config,
             screen_config.palette.neutral.shade(3),
             RADIUS_8,
-            out,
+            frame,
         );
 
         for item in 0..TRACK_MENU_ITEM_COUNT {
@@ -231,11 +224,11 @@ impl ContextMenu {
                 screen_config,
                 screen_config.palette.neutral.shade(4),
                 RADIUS_4,
-                out,
+                frame,
             );
 
             // label for ContextMenu item
-            text_items.push(self.draw_track_context_item_text(item as usize, screen_config));
+            frame.draw_texts(&[self.draw_track_context_item_text(item as usize, screen_config)]);
 
             if context_item_background.hovered {
                 interaction.cursor = CursorIcon::Pointer;
@@ -274,6 +267,6 @@ impl ContextMenu {
             }
         }
 
-        (text_items, interaction)
+        frame.add_interaction(interaction);
     }
 }

@@ -9,15 +9,15 @@ use crate::graphics::{
     font::{Font::Roboto, TextItem},
     icons::{IconDraw, Tooltip, DEFAULT_TOOLTIP_WIDTH},
     mini_window::InteractionResult,
-    primitives::{RenameState, RenameTarget, ScreenConfig, PAD_32, PAD_4, PAD_64, PAD_8, RADIUS_8},
-    {CursorIcon, PatternData, Rectangle, Vertex, NO_RADIUS, PAD_2},
+    primitives::{RenameState, RenameTarget, PAD_32, PAD_4, PAD_64, PAD_8, RADIUS_8},
+    {CursorIcon, FrameDrawContext, PatternData, Rectangle, NO_RADIUS, PAD_2},
 };
 use crate::project::PatternID;
 
 const ICON_SIZE: f32 = 20.0;
 
 pub fn draw(
-    screen_config: &ScreenConfig,
+    frame: &mut FrameDrawContext<'_>,
     patterns: &[PatternData],
     selected_pattern_id: Option<PatternID>,
     mouse_state: &MouseState,
@@ -25,10 +25,9 @@ pub fn draw(
     tray_width: f32,
     renaming: &Option<RenameState>,
     rename_cursor_offset: Option<f32>,
-    out: &mut Vec<Vertex>,
-) -> (Vec<TextItem>, InteractionResult, IconDraw, Option<Tooltip>) {
+) {
     // setup
-    let mut text_items: Vec<TextItem> = Vec::new();
+    let screen_config = *frame.screen_config();
     let mut interaction = InteractionResult::default();
     let mut tooltip = None;
 
@@ -40,20 +39,20 @@ pub fn draw(
         height: screen_config.height as f32 - TOOLBAR_THICKNESS,
     };
     pattern_tray.draw(
-        screen_config,
+        &screen_config,
         screen_config.palette.neutral.shade(1),
         NO_RADIUS,
-        out,
+        frame,
     );
 
     let _w_divider = Rectangle::new(pattern_tray.x, pattern_tray.y, 1.0, pattern_tray.height)
         .draw_style()
         .interactive(Some(mouse_state))
         .draw(
-            screen_config,
+            &screen_config,
             screen_config.palette.neutral.shade(3),
             NO_RADIUS,
-            out,
+            frame,
         );
 
     if pattern_tray.is_hovered_left_edge(mouse_state.x, mouse_state.y) {
@@ -61,11 +60,11 @@ pub fn draw(
     }
 
     // title
-    text_items.push(draw_title(
+    frame.draw_texts(&[draw_title(
         "Patterns",
         (pattern_tray.x, pattern_tray.y),
-        screen_config,
-    ));
+        &screen_config,
+    )]);
 
     // add pattern button (+)
     let add_pattern_button = Rectangle::square(
@@ -77,10 +76,10 @@ pub fn draw(
     .interactive(Some(mouse_state))
     .bordered(Some(icon_border(screen_config.palette)))
     .draw(
-        screen_config,
+        &screen_config,
         screen_config.palette.neutral.shade(3),
         RADIUS_8,
-        out,
+        frame,
     );
 
     if add_pattern_button.hovered {
@@ -106,6 +105,7 @@ pub fn draw(
     if add_icon.is_hovered(mouse_state.x, mouse_state.y) {
         tooltip = Some(add_icon.tooltip.clone());
     }
+    frame.draw_icon(&add_icon);
 
     // single pass: each pattern's row position is computed once and
     // reused for its button, selection indicator, and label, so they
@@ -127,10 +127,10 @@ pub fn draw(
             screen_config.palette.neutral.shade(2)
         };
         pattern_button.draw(
-            screen_config,
+            &screen_config,
             pattern_button_color,
             [4.0, 4.0, 4.0, 4.0],
-            out,
+            frame,
         );
 
         // handle interaction (reuses the `hovered` computed above instead
@@ -157,10 +157,10 @@ pub fn draw(
                 height: PATTERN_TRAY_ITEM_HEIGHT,
             };
             indicator.draw(
-                screen_config,
+                &screen_config,
                 screen_config.palette.secondary.shade(5),
                 [7.0, 7.0, 7.0, 7.0],
-                out,
+                frame,
             );
         }
 
@@ -175,14 +175,14 @@ pub fn draw(
             pattern.name.clone()
         };
 
-        text_items.push(TextItem {
+        frame.draw_texts(&[TextItem {
             text: pattern_label,
             x: screen_config.width as f32 - PATTERN_TRAY_ITEM_WIDTH - PAD_16,
             y: row_y + PAD_2,
             size: 14.0,
             color: screen_config.palette.neutral.shade(7),
             font: Roboto,
-        });
+        }]);
 
         if is_being_renamed {
             if let Some(offset) = rename_cursor_offset {
@@ -193,14 +193,15 @@ pub fn draw(
                     height: 14.0, // match font size
                 };
                 cursor_rect.draw(
-                    screen_config,
+                    &screen_config,
                     screen_config.palette.neutral.shade(7),
                     NO_RADIUS,
-                    out,
+                    frame,
                 );
             }
         }
     }
 
-    (text_items, interaction, add_icon, tooltip)
+    frame.add_interaction(interaction);
+    frame.set_tooltip(tooltip);
 }

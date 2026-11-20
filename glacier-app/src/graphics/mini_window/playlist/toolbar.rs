@@ -1,14 +1,14 @@
 use winit::window::CursorIcon;
 
 use crate::{
-    app::{click::ClickResult, MouseState},
+    app::{MouseState, click::ClickResult},
     graphics::{
+        FrameDrawContext,
         components::toolbar::{IconRow, TOOLTIP_MARGIN},
-        font::TextItem,
-        geometry::{icon_border, DrawResponse, Rectangle},
-        icons::{IconDraw, Tooltip, DEFAULT_TOOLTIP_WIDTH},
+        geometry::{DrawResponse, Rectangle, icon_border},
+        icons::{DEFAULT_TOOLTIP_WIDTH, IconDraw, Tooltip},
         mini_window::{InteractionResult, MiniWindow},
-        primitives::{ScreenConfig, Vertex, NO_RADIUS, PAD_16, PAD_32, PAD_4, RADIUS_4},
+        primitives::{NO_RADIUS, PAD_4, PAD_16, PAD_32, RADIUS_4, ScreenConfig, VertexSink},
     },
 };
 
@@ -26,7 +26,7 @@ fn draw_tool_button(
     rect: Rectangle,
     mouse_state: &MouseState,
     screen_config: &ScreenConfig,
-    out: &mut Vec<Vertex>,
+    out: &mut impl VertexSink,
 ) -> (DrawResponse, InteractionResult) {
     let color = if tool == *active_tool {
         screen_config.palette.secondary.shade(4)
@@ -55,9 +55,8 @@ pub fn draw(
     screen_config: &ScreenConfig,
     mouse_state: &MouseState,
     active_tool: &PlaylistTool,
-) -> (Vec<Vertex>, Vec<TextItem>, Vec<IconDraw>, InteractionResult) {
-    let mut verts = vec![];
-    let texts = vec![];
+    frame: &mut FrameDrawContext<'_>,
+) -> InteractionResult {
     let mut interaction = InteractionResult {
         cursor: CursorIcon::Default,
         click: ClickResult::None,
@@ -74,7 +73,7 @@ pub fn draw(
         screen_config,
         screen_config.palette.neutral.shade(1),
         NO_RADIUS,
-        &mut verts,
+        frame,
     );
 
     let mut window_icons = IconRow {
@@ -93,7 +92,6 @@ pub fn draw(
         (PlaylistTool::Mute, "Mute", "Mute"),
     ];
 
-    let mut icons = Vec::new();
     for (tool, icon_name, tooltip_text) in TOOLS {
         let (response, tool_interaction) = draw_tool_button(
             tool,
@@ -101,11 +99,11 @@ pub fn draw(
             window_icons.next_icon(),
             mouse_state,
             screen_config,
-            &mut verts,
+            frame,
         );
         interaction = interaction.or(tool_interaction);
 
-        icons.push(IconDraw {
+        let icon = IconDraw {
             name: icon_name,
             x: response.x,
             y: response.y,
@@ -117,8 +115,12 @@ pub fn draw(
                 y: response.y + TOOLTIP_MARGIN,
                 width: DEFAULT_TOOLTIP_WIDTH,
             },
-        });
+        };
+        frame.draw_icon(&icon);
+        if !mouse_state.left_click_held && icon.is_hovered(mouse_state.x, mouse_state.y) {
+            frame.set_tooltip_if_some(Some(icon.tooltip.clone()));
+        }
     }
 
-    (verts, texts, icons, interaction)
+    interaction
 }

@@ -7,7 +7,7 @@ use crate::{
     graphics::{
         font::{Font::Roboto, TextItem},
         geometry::Rectangle,
-        primitives::{ScreenConfig, Vertex, NO_RADIUS, PAD_16, PAD_4, PAD_8},
+        primitives::{ScreenConfig, VertexSink, NO_RADIUS, PAD_16, PAD_4, PAD_8},
     },
     project::TrackID,
 };
@@ -128,7 +128,7 @@ impl MiniWindow {
         title: &str,
         screen_config: &ScreenConfig,
         mouse_state: &MouseState,
-        out: &mut Vec<Vertex>,
+        out: &mut impl VertexSink,
     ) -> (TextItem, InteractionResult) {
         let mut click = ClickResult::None;
         let mut cursor = CursorIcon::Default;
