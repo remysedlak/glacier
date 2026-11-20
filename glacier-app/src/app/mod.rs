@@ -1,7 +1,5 @@
 //! main state logic for audio and ui decoupling threads
-use crate::audio::{
-    audio_command::AudioCommand, RetiredAudioData, SpectrumFrame, COMMAND_RING_CAPACITY,
-};
+use crate::audio::{audio_command::AudioCommand, RetiredAudioData, SpectrumFrame};
 use crate::config::UserSettings;
 use crate::graphics::{
     bring_to_front,
@@ -14,6 +12,7 @@ use crate::project::{
     next_id, spawn_track_load, AudioBlock, AudioBlockID, AudioBlockType, PatternID, Project,
     ProjectSaveJob, ProjectSaveWorker, SavePurpose, Track, TrackID,
 };
+use crate::COMMAND_RING_CAPACITY;
 use cpal::{traits::StreamTrait, Stream};
 use rfd::FileDialog;
 use ringbuf::{
@@ -25,6 +24,7 @@ use std::path::PathBuf;
 use std::sync::mpsc::{Receiver, TryRecvError};
 use std::thread;
 use std::time::Instant;
+use winit::platform::wayland::WindowAttributesExtWayland;
 use winit::window::Icon;
 use winit::{
     application::ApplicationHandler,
@@ -753,7 +753,6 @@ fn load_icon() -> Icon {
     Icon::from_rgba(rgba, width, height).expect("failed to create icon")
 }
 
-use winit::platform::wayland::WindowAttributesExtWayland;
 impl ApplicationHandler<Graphics> for App {
     /// typically fires once at start for OS
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
@@ -1003,44 +1002,41 @@ impl ApplicationHandler<Graphics> for App {
             }
             // manage mouse clicks (left + right)
             WindowEvent::MouseInput { state, button, .. } => {
-                // LEFT CLICK
-                if state.is_pressed() && button == MouseButton::Left {
-                    // check if part of a double click
-                    let now = std::time::Instant::now();
-                    let is_double_click = self
-                        .last_click_time
-                        .map(|t| now.duration_since(t).as_millis() < 300)
-                        .unwrap_or(false);
-                    self.last_click_time = Some(now);
-                    if is_double_click {
-                        self.mouse_state.left_double_clicked = true;
-                    }
-                    self.mouse_state.left_clicked = true;
-                    self.mouse_state.left_click_held = true;
+                match button {
+                    MouseButton::Left if state.is_pressed() => {
+                        // check if part of a double click
+                        let now = std::time::Instant::now();
+                        let is_double_click = self
+                            .last_click_time
+                            .map(|t| now.duration_since(t).as_millis() < 300)
+                            .unwrap_or(false);
+                        self.last_click_time = Some(now);
+                        if is_double_click {
+                            self.mouse_state.left_double_clicked = true;
+                        }
+                        self.mouse_state.left_clicked = true;
+                        self.mouse_state.left_click_held = true;
 
-                    self.draw(event_loop);
-                }
-                // NOT LEFT CLICK
-                else {
-                    self.mouse_state.left_released = true;
-                    self.mouse_state.left_click_held = false;
-                    self.mouse_state.left_clicked = false;
-                    self.draw(event_loop);
-
-                    if let State::Ready(gfx) = &mut self.state {
-                        gfx.clear_drag_state();
+                        self.draw(event_loop);
                     }
-                }
-                // RIGHT CLICK
-                if state.is_pressed() && button == MouseButton::Right {
-                    self.mouse_state.right_clicked = true;
-                    self.right_click_held = true;
-                    self.draw(event_loop);
-                }
-                // NO RIGHT CLICK
-                else {
-                    self.right_click_held = false;
-                    self.mouse_state.right_clicked = false;
+                    MouseButton::Left => {
+                        self.mouse_state.left_released = true;
+                        self.mouse_state.left_click_held = false;
+                        self.mouse_state.left_clicked = false;
+                        self.draw(event_loop);
+
+                        if let State::Ready(gfx) = &mut self.state {
+                            gfx.clear_drag_state();
+                        }
+                    }
+                    MouseButton::Right => {
+                        self.right_click_held = state.is_pressed();
+                        self.mouse_state.right_clicked = state.is_pressed();
+                        if state.is_pressed() {
+                            self.draw(event_loop);
+                        }
+                    }
+                    _ => {}
                 }
             }
             // manage mouse movement (drag / drop + hover)
