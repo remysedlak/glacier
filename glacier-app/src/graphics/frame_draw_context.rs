@@ -66,6 +66,20 @@ impl<'a> FrameDrawContext<'a> {
         ));
     }
 
+    pub(super) fn with_region(
+        &mut self,
+        scissor: Option<(u32, u32, u32, u32)>,
+        draw_contents: impl FnOnce(&mut Self),
+    ) {
+        let vertex_start = self.vertices.len() as u32;
+        let char_start = self.char_draws.len();
+        let icon_start = self.icon_draws.len();
+
+        draw_contents(self);
+
+        self.record_region(vertex_start, char_start, icon_start, scissor);
+    }
+
     pub(crate) fn draw_texts(&mut self, texts: &[TextItem]) {
         append_text_draws(
             texts,

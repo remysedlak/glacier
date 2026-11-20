@@ -391,186 +391,155 @@ impl Graphics {
             let sw = self.render_context.surface_config.width;
             let sh = self.render_context.surface_config.height;
 
-            let tray_vert_start = frame_draw_context.vertices.len() as u32;
-            let tray_char_start = frame_draw_context.char_draws.len();
-            let tray_icon_start = frame_draw_context.icon_draws.len();
-
             let selected_track_id: Option<TrackID> = match self.playlist_action {
                 PlaylistAction::PlaceFresh(AudioBlockType::Sample(id)) => Some(id),
                 _ => None,
             };
 
-            side_panel::track_tray::draw(
-                &mut frame_draw_context,
-                mouse_state,
-                self.resizing_track_tray,
-                &self.tracks,
-                self.track_tray_width,
-                selected_track_id,
-            );
-
             let tray_bottom = sh / 2 + 2;
-            frame_draw_context.record_region(
-                tray_vert_start,
-                tray_char_start,
-                tray_icon_start,
-                Some(safe_scissor(
-                    0,
-                    0,
-                    self.track_tray_width as u32,
-                    tray_bottom,
-                    sw,
-                    sh,
-                )),
-            );
+            let tray_scissor = Some(safe_scissor(
+                0,
+                0,
+                self.track_tray_width as u32,
+                tray_bottom,
+                sw,
+                sh,
+            ));
+            frame_draw_context.with_region(tray_scissor, |frame| {
+                side_panel::track_tray::draw(
+                    frame,
+                    mouse_state,
+                    self.resizing_track_tray,
+                    &self.tracks,
+                    self.track_tray_width,
+                    selected_track_id,
+                );
+            });
 
             // DIVIDER (unscissored) — no icons
-            let divider_vert_start = frame_draw_context.vertices.len() as u32;
-            let divider_char_start = frame_draw_context.char_draws.len();
-            let divider_icon_start = frame_draw_context.icon_draws.len();
-            Rectangle {
-                x: 0.0,
-                y: (screen_config.height / 2) as f32,
-                width: self.track_tray_width,
-                height: screen_config.height as f32 - (screen_config.height / 2) as f32,
-            }
-            .draw(
-                &screen_config,
-                screen_config.palette.neutral.shade(1),
-                NO_RADIUS,
-                &mut frame_draw_context.vertices,
-            );
-            let w_divider = Rectangle {
-                x: PAD_2,
-                y: (screen_config.height / 2) as f32,
-                width: self.track_tray_width - PAD_4,
-                height: 1.0,
-            };
-            w_divider.draw(
-                &screen_config,
-                screen_config.palette.neutral.shade(3),
-                RADIUS_4,
-                &mut frame_draw_context.vertices,
-            );
-            let h_divider = Rectangle {
-                x: self.track_tray_width - 1.0,
-                y: TOOLBAR_MARGIN,
-                width: 1.0,
-                height: screen_config.height as f32 - TOOLBAR_MARGIN,
-            };
-            h_divider.draw(
-                &screen_config,
-                screen_config.palette.neutral.shade(3),
-                NO_RADIUS,
-                &mut frame_draw_context.vertices,
-            );
-            use crate::graphics::side_panel::draw_title;
-            frame_draw_context.draw_texts(&[draw_title(
-                "File Tree",
-                (w_divider.x - 2.0, w_divider.y),
-                &screen_config,
-            )]);
-            frame_draw_context.record_region(
-                divider_vert_start,
-                divider_char_start,
-                divider_icon_start,
-                None,
-            );
+            frame_draw_context.with_region(None, |frame| {
+                Rectangle {
+                    x: 0.0,
+                    y: (screen_config.height / 2) as f32,
+                    width: self.track_tray_width,
+                    height: screen_config.height as f32 - (screen_config.height / 2) as f32,
+                }
+                .draw(
+                    &screen_config,
+                    screen_config.palette.neutral.shade(1),
+                    NO_RADIUS,
+                    frame,
+                );
+                let w_divider = Rectangle {
+                    x: PAD_2,
+                    y: (screen_config.height / 2) as f32,
+                    width: self.track_tray_width - PAD_4,
+                    height: 1.0,
+                };
+                w_divider.draw(
+                    &screen_config,
+                    screen_config.palette.neutral.shade(3),
+                    RADIUS_4,
+                    frame,
+                );
+                let h_divider = Rectangle {
+                    x: self.track_tray_width - 1.0,
+                    y: TOOLBAR_MARGIN,
+                    width: 1.0,
+                    height: screen_config.height as f32 - TOOLBAR_MARGIN,
+                };
+                h_divider.draw(
+                    &screen_config,
+                    screen_config.palette.neutral.shade(3),
+                    NO_RADIUS,
+                    frame,
+                );
+                use crate::graphics::side_panel::draw_title;
+                frame.draw_texts(&[draw_title(
+                    "File Tree",
+                    (w_divider.x - 2.0, w_divider.y),
+                    &screen_config,
+                )]);
+            });
 
             // FILE TREE — owns its own icons
-            let file_tree_vert_start = frame_draw_context.vertices.len() as u32;
-            let file_tree_char_start = frame_draw_context.char_draws.len();
-            let file_tree_icon_start = frame_draw_context.icon_draws.len();
-
-            file_tree::draw(
-                &mut frame_draw_context,
-                mouse_state,
-                &self.user_fs_location,
-                &self.expanded_dirs,
-                &self.fs_cache,
-                self.fs_scroll_offset,
-                self.track_tray_width,
-                (screen_config.height / 2) as f32,
-            );
-
             let divider_y = sh / 2 + (PAD_32 + PAD_16) as u32;
-            frame_draw_context.record_region(
-                file_tree_vert_start,
-                file_tree_char_start,
-                file_tree_icon_start,
-                Some(safe_scissor(
-                    0,
-                    divider_y,
-                    self.track_tray_width as u32,
-                    sh.saturating_sub(divider_y),
-                    sw,
-                    sh,
-                )),
-            );
+            let file_tree_scissor = Some(safe_scissor(
+                0,
+                divider_y,
+                self.track_tray_width as u32,
+                sh.saturating_sub(divider_y),
+                sw,
+                sh,
+            ));
+            frame_draw_context.with_region(file_tree_scissor, |frame| {
+                file_tree::draw(
+                    frame,
+                    mouse_state,
+                    &self.user_fs_location,
+                    &self.expanded_dirs,
+                    &self.fs_cache,
+                    self.fs_scroll_offset,
+                    self.track_tray_width,
+                    (screen_config.height / 2) as f32,
+                );
+            });
         }
 
         // --- toolbar (pattern tray + top bar) ---
-        let toolbar_vert_start = frame_draw_context.vertices.len() as u32;
-        let toolbar_char_start = frame_draw_context.char_draws.len();
-        let toolbar_icon_start = frame_draw_context.icon_draws.len();
+        frame_draw_context.with_region(None, |frame| {
+            let sequencer_is_open = self
+                .mini_windows
+                .iter()
+                .any(|w| matches!(w.window_kind, WindowKind::Sequencer) && w.is_open);
 
-        let sequencer_is_open = self
-            .mini_windows
-            .iter()
-            .any(|w| matches!(w.window_kind, WindowKind::Sequencer) && w.is_open);
+            if self.show_pattern_tray {
+                let selected_pattern_id: Option<PatternID> = match self.playlist_action {
+                    PlaylistAction::PlaceFresh(AudioBlockType::Pattern(id)) => Some(id),
+                    _ => None,
+                };
+                let rename_cursor_offset: Option<f32> = self.renaming.as_ref().map(|r| {
+                    let font = self
+                        .font_cache
+                        .get(Roboto)
+                        .expect("Roboto font missing from cache");
+                    cursor_x_offset(font, &r.edited_name, r.cursor, 14.0)
+                });
 
-        if self.show_pattern_tray {
-            let selected_pattern_id: Option<PatternID> = match self.playlist_action {
-                PlaylistAction::PlaceFresh(AudioBlockType::Pattern(id)) => Some(id),
-                _ => None,
-            };
-            let rename_cursor_offset: Option<f32> = self.renaming.as_ref().map(|r| {
-                let font = self
-                    .font_cache
-                    .get(Roboto)
-                    .expect("Roboto font missing from cache");
-                cursor_x_offset(font, &r.edited_name, r.cursor, 14.0)
-            });
+                side_panel::pattern_tray::draw(
+                    frame,
+                    &self.patterns,
+                    selected_pattern_id,
+                    &mouse_state.hidden(self.context_menu.is_some() && menu_is_hovered),
+                    sequencer_is_open,
+                    self.pattern_tray_width,
+                    &self.renaming,
+                    rename_cursor_offset,
+                );
+            }
 
-            side_panel::pattern_tray::draw(
-                &mut frame_draw_context,
-                &self.patterns,
-                selected_pattern_id,
-                &mouse_state.hidden(self.context_menu.is_some() && menu_is_hovered),
-                sequencer_is_open,
-                self.pattern_tray_width,
-                &self.renaming,
-                rename_cursor_offset,
+            if self.show_save_modal {
+                modal::draw(frame, &real_mouse_state);
+            }
+
+            let total_seconds = ((self.playhead_beat / self.bpm) * 60.0) as u32;
+            let time_string = format!(
+                "{:02}:{:02}:{:02}",
+                total_seconds / 3600,
+                (total_seconds % 3600) / 60,
+                total_seconds % 60
             );
-        }
-
-        if self.show_save_modal {
-            modal::draw(&mut frame_draw_context, &real_mouse_state);
-        }
-
-        let total_seconds = ((self.playhead_beat / self.bpm) * 60.0) as u32;
-        let time_string = format!(
-            "{:02}:{:02}:{:02}",
-            total_seconds / 3600,
-            (total_seconds % 3600) / 60,
-            total_seconds % 60
-        );
-        components::toolbar::draw(
-            &mut frame_draw_context,
-            mouse_state,
-            self.bpm,
-            self.is_playing,
-            self.active_step,
-            &self.spectrum,
-            self.sample_rate,
-            time_string,
-        );
-        frame_draw_context.record_region(
-            toolbar_vert_start,
-            toolbar_char_start,
-            toolbar_icon_start,
-            None,
-        );
+            components::toolbar::draw(
+                frame,
+                mouse_state,
+                self.bpm,
+                self.is_playing,
+                self.active_step,
+                &self.spectrum,
+                self.sample_rate,
+                time_string,
+            );
+        });
 
         // --- footer ---
         Self::draw_footer(
@@ -589,88 +558,68 @@ impl Graphics {
         }
 
         if let Some(ref path) = self.dragging_file {
-            let ghost_vert_start = frame_draw_context.vertices.len() as u32;
-            let ghost_char_start = frame_draw_context.char_draws.len();
-            let ghost_icon_start = frame_draw_context.icon_draws.len();
-            let name = path.file_name().and_then(|n| n.to_str()).unwrap_or("?");
-            let ghost = Rectangle {
-                x: mouse_state.x,
-                y: mouse_state.y - 16.0,
-                width: 128.0,
-                height: 32.0,
-            };
-            ghost.draw(
-                &screen_config,
-                screen_config.palette.neutral.shade(6),
-                RADIUS_4,
-                &mut frame_draw_context.vertices,
-            );
-            frame_draw_context.draw_texts(&[TextItem {
-                text: name.to_string(),
-                x: ghost.x + PAD_4,
-                y: ghost.y + PAD_4,
-                size: 10.0,
-                font: Roboto,
-                color: screen_config.palette.neutral.shade(3),
-            }]);
-            frame_draw_context.record_region(
-                ghost_vert_start,
-                ghost_char_start,
-                ghost_icon_start,
-                None,
-            );
+            frame_draw_context.with_region(None, |frame| {
+                let name = path.file_name().and_then(|n| n.to_str()).unwrap_or("?");
+                let ghost = Rectangle {
+                    x: mouse_state.x,
+                    y: mouse_state.y - 16.0,
+                    width: 128.0,
+                    height: 32.0,
+                };
+                ghost.draw(
+                    &screen_config,
+                    screen_config.palette.neutral.shade(6),
+                    RADIUS_4,
+                    frame,
+                );
+                frame.draw_texts(&[TextItem {
+                    text: name.to_string(),
+                    x: ghost.x + PAD_4,
+                    y: ghost.y + PAD_4,
+                    size: 10.0,
+                    font: Roboto,
+                    color: screen_config.palette.neutral.shade(3),
+                }]);
+            });
         };
 
         // context menu
-        let context_menu_vert_start = frame_draw_context.vertices.len() as u32;
-        let context_menu_char_start = frame_draw_context.char_draws.len();
-        let context_menu_icon_start = frame_draw_context.icon_draws.len();
-        if let Some(menu) = &self.context_menu {
-            menu.draw(&mut frame_draw_context, mouse_state);
-        }
-        frame_draw_context.record_region(
-            context_menu_vert_start,
-            context_menu_char_start,
-            context_menu_icon_start,
-            None,
-        );
+        frame_draw_context.with_region(None, |frame| {
+            if let Some(menu) = &self.context_menu {
+                menu.draw(frame, mouse_state);
+            }
+        });
 
         // tooltip
-        let tooltip_vert_start = frame_draw_context.vertices.len() as u32;
-        let tooltip_char_start = frame_draw_context.char_draws.len();
-        let tooltip_icon_start = frame_draw_context.icon_draws.len();
-        if let Some(tt) = &frame_draw_context.tooltip {
-            if mouse_state
-                .hover_duration
-                .is_some_and(|t| t.elapsed() > Duration::from_millis(400))
-            {
-                let _tooltip_rectangle = Rectangle::new(tt.x, tt.y, tt.width, 24.0)
-                    .draw_style()
-                    .draw(
-                        &screen_config,
-                        screen_config.palette.neutral.shade(3),
-                        RADIUS_8,
-                        &mut frame_draw_context.vertices,
-                    );
-                if let Some(text) = &tt.text {
-                    let tooltip_text = [TextItem {
-                        text: text.to_string(),
-                        x: tt.x + PAD_4,
-                        y: tt.y + PAD_2,
-                        size: 14.0,
-                        font: Mono,
-                        color: screen_config.palette.neutral.shade(7),
-                    }];
-                    frame_draw_context.draw_texts(&tooltip_text);
+        let tooltip = frame_draw_context.tooltip.clone();
+        frame_draw_context.with_region(None, |frame| {
+            if let Some(tt) = &tooltip {
+                if mouse_state
+                    .hover_duration
+                    .is_some_and(|t| t.elapsed() > Duration::from_millis(400))
+                {
+                    let _tooltip_rectangle = Rectangle::new(tt.x, tt.y, tt.width, 24.0)
+                        .draw_style()
+                        .draw(
+                            &screen_config,
+                            screen_config.palette.neutral.shade(3),
+                            RADIUS_8,
+                            frame,
+                        );
+                    if let Some(text) = &tt.text {
+                        let tooltip_text = [TextItem {
+                            text: text.to_string(),
+                            x: tt.x + PAD_4,
+                            y: tt.y + PAD_2,
+                            size: 14.0,
+                            font: Mono,
+                            color: screen_config.palette.neutral.shade(7),
+                        }];
+                        frame.draw_texts(&tooltip_text);
+                    }
                 }
             }
-        }
-        frame_draw_context.record_region(
-            tooltip_vert_start,
-            tooltip_char_start,
-            tooltip_icon_start,
-            None,
-        );
+        });
 
         self.render_context.queue.write_buffer(
             &self.render_context.vertex_buffer,
@@ -782,16 +731,13 @@ impl Graphics {
         project_is_dirty: bool,
         mouse_state: &MouseState,
     ) {
-        let vert_start = frame.vertices.len() as u32;
-        let char_start = frame.char_draws.len();
-        let icon_start = frame.icon_draws.len();
-
         let title = if project_is_dirty {
             format!("{}*", project_path)
         } else {
             project_path.to_owned()
         };
-        footer::draw(frame, &title, present_fps, mouse_state);
-        frame.record_region(vert_start, char_start, icon_start, None);
+        frame.with_region(None, |frame| {
+            footer::draw(frame, &title, present_fps, mouse_state);
+        });
     }
 }
