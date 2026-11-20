@@ -1,3 +1,5 @@
+//! Audio device management
+
 use cpal::traits::DeviceTrait;
 use cpal::{SampleFormat, StreamConfig};
 

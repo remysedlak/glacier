@@ -1,5 +1,5 @@
 //! handle all mouse click interactivity
-use super::{App, AudioCommandSender, State};
+use super::{App, AudioCommandSender, GraphicsState};
 use crate::app::PianoRollState;
 use crate::audio::{audio_command::AudioCommand, AudioProjectUpdate};
 use crate::graphics::{
@@ -111,7 +111,7 @@ impl App {
         result: ClickResult,
         event_loop: &ActiveEventLoop,
     ) {
-        let State::Ready(gfx) = &mut self.state else {
+        let GraphicsState::Ready(gfx) = &mut self.state else {
             return;
         };
 
@@ -136,9 +136,9 @@ impl App {
                         step,
                     );
                     gfx.audio_blocks.push(duplicate.clone());
-                    sync_audio_project(&mut self.producer, gfx, false, false, true);
-                    self.project_is_dirty = true;
-                    self.project_revision += 1;
+                    sync_audio_project(&mut self.audio.commands, gfx, false, false, true);
+                    self.project.dirty = true;
+                    self.project.revision += 1;
                 }
             }
 
@@ -185,8 +185,8 @@ impl App {
             }
             ClickResult::FSEndDragFile(path, track, step) => {
                 let path_str = path.to_string_lossy().to_string();
-                self.pending_drop = Some((track, step));
-                self.track_load_rx = Some(crate::project::spawn_track_load(path_str));
+                self.files.pending_drop = Some((track, step));
+                self.files.track_load_rx = Some(crate::project::spawn_track_load(path_str));
             }
 
             ClickResult::FsToggleDir(path) => {
@@ -306,9 +306,9 @@ impl App {
                         .collect(),
                 };
                 gfx.patterns.push(pattern.clone());
-                sync_audio_project(&mut self.producer, gfx, false, true, false);
-                self.project_is_dirty = true;
-                self.project_revision += 1;
+                sync_audio_project(&mut self.audio.commands, gfx, false, true, false);
+                self.project.dirty = true;
+                self.project.revision += 1;
             }
             ClickResult::ToggleSequencerWindow => {
                 if let Some(win) = gfx
@@ -352,16 +352,16 @@ impl App {
                     for sequence in &mut pattern.sequences {
                         sequence.steps.fill(Note::DEFAULT);
                     }
-                    self.project_is_dirty = true;
-                    self.project_revision += 1;
+                    self.project.dirty = true;
+                    self.project.revision += 1;
                 }
-                sync_audio_project(&mut self.producer, gfx, false, true, false);
+                sync_audio_project(&mut self.audio.commands, gfx, false, true, false);
                 gfx.context_menu = None;
             }
             ClickResult::ModalConfirmSaveAndExit => {
                 gfx.show_save_modal = false;
-                self.is_closing = true;
-                self.close_save_submitted = false;
+                self.shutdown.closing = true;
+                self.shutdown.close_save_submitted = false;
             }
             ClickResult::ModalConfirmDiscardAndExit => {
                 gfx.show_save_modal = false;
@@ -373,24 +373,24 @@ impl App {
             ClickResult::FsPreviewSample(track_path) => {
                 let (preview, channels) =
                     crate::project::path_to_preview(&track_path.to_string_lossy(), 5);
-                self.producer
+                self.audio.commands
                     .try_push(AudioCommand::PreviewSample(preview.into(), channels))
                     .ok();
             }
             ClickResult::ChangeBpm(bpm) => {
                 gfx.bpm = bpm;
-                self.producer.try_push(AudioCommand::ChangeBpm(bpm)).ok();
-                self.project_is_dirty = true;
-                self.project_revision += 1;
+                self.audio.commands.try_push(AudioCommand::ChangeBpm(bpm)).ok();
+                self.project.dirty = true;
+                self.project.revision += 1;
             }
             ClickResult::DuplicatePattern(pattern_id) => {
                 if let Some(pattern) = gfx.patterns.iter().find(|p| p.id == pattern_id).cloned() {
                     let duplicate =
                         pattern.duplicate(next_id(gfx.patterns.iter().map(|p| p.id.0), PatternID));
                     gfx.patterns.push(duplicate.clone());
-                    sync_audio_project(&mut self.producer, gfx, false, true, false);
-                    self.project_is_dirty = true;
-                    self.project_revision += 1;
+                    sync_audio_project(&mut self.audio.commands, gfx, false, true, false);
+                    self.project.dirty = true;
+                    self.project.revision += 1;
                 }
                 gfx.context_menu = None;
             }
@@ -428,25 +428,25 @@ impl App {
                         };
                         pattern.sequences.push(Sequence { track_id, steps });
                     }
-                    self.project_is_dirty = true;
-                    self.project_revision += 1;
+                    self.project.dirty = true;
+                    self.project.revision += 1;
                 }
-                sync_audio_project(&mut self.producer, gfx, false, true, false);
+                sync_audio_project(&mut self.audio.commands, gfx, false, true, false);
             }
             ClickResult::DeletePlaylistAudioBlock(id) => {
                 gfx.audio_blocks.retain(|block| block.id != id);
                 gfx.waveform_cache.entries.remove(&id);
-                sync_audio_project(&mut self.producer, gfx, false, false, true);
-                self.project_is_dirty = true;
-                self.project_revision += 1;
+                sync_audio_project(&mut self.audio.commands, gfx, false, false, true);
+                self.project.dirty = true;
+                self.project.revision += 1;
             }
             ClickResult::AddPlaylistAudioBlock(track, start_step, length, block_type) => {
                 let audio_block =
                     super::make_audio_block(gfx, track, start_step, length, block_type);
                 gfx.audio_blocks.push(audio_block.clone());
-                sync_audio_project(&mut self.producer, gfx, false, false, true);
-                self.project_is_dirty = true;
-                self.project_revision += 1;
+                sync_audio_project(&mut self.audio.commands, gfx, false, false, true);
+                self.project.dirty = true;
+                self.project.revision += 1;
             }
             ClickResult::DeletePattern(pattern_id) => {
                 gfx.patterns.retain(|pattern| pattern.id != pattern_id);
@@ -462,9 +462,9 @@ impl App {
                     gfx.waveform_cache.entries.remove(&id);
                 }
                 gfx.context_menu = None;
-                sync_audio_project(&mut self.producer, gfx, false, true, true);
-                self.project_is_dirty = true;
-                self.project_revision += 1;
+                sync_audio_project(&mut self.audio.commands, gfx, false, true, true);
+                self.project.dirty = true;
+                self.project.revision += 1;
             }
             ClickResult::ToggleStep(pattern_id, track_id, step) => {
                 if let Some(pattern) = gfx.patterns.iter_mut().find(|p| p.id == pattern_id) {
@@ -502,15 +502,15 @@ impl App {
                         };
                         pattern.sequences.push(sequence);
                     }
-                    self.project_is_dirty = true;
-                    self.project_revision += 1;
+                    self.project.dirty = true;
+                    self.project.revision += 1;
                 }
-                sync_audio_project(&mut self.producer, gfx, false, true, false);
+                sync_audio_project(&mut self.audio.commands, gfx, false, true, false);
             }
             ClickResult::Stop => {
                 gfx.is_playing = false;
                 gfx.active_step = 0;
-                self.producer
+                self.audio.commands
                     .try_push(AudioCommand::SetPlaying {
                         is_playing: false,
                         reset_position: true,
@@ -521,10 +521,10 @@ impl App {
                 // The sequencer interaction already changed the app-owned track
                 // value while producing this click result. Only mirror the edit
                 // to audio here; toggling gfx again would undo the UI mutation.
-                self.project_is_dirty = true;
-                self.project_revision += 1;
+                self.project.dirty = true;
+                self.project.revision += 1;
                 if let Some(track) = gfx.tracks.iter().find(|track| track.data.id == track_id) {
-                    self.producer
+                    self.audio.commands
                         .try_push(AudioCommand::SetTrackMute(track_id, track.data.is_muted))
                         .ok();
                 }
@@ -533,7 +533,7 @@ impl App {
                 // Reflect the requested state immediately. The audio status
                 // acknowledgement can be dropped if its bounded UI ring is full.
                 gfx.is_playing = !gfx.is_playing;
-                self.producer
+                self.audio.commands
                     .try_push(AudioCommand::SetPlaying {
                         is_playing: gfx.is_playing,
                         reset_position: false,
@@ -563,15 +563,15 @@ impl App {
                     gfx.mini_windows[SEQUENCER_ID].height = 100.0
                         + crate::graphics::mini_window::sequencer::TRACK_GAP
                             * gfx.tracks.len() as f32;
-                    self.project_is_dirty = true;
-                    self.project_revision += 1;
+                    self.project.dirty = true;
+                    self.project.revision += 1;
                 }
-                sync_audio_project(&mut self.producer, gfx, true, true, true);
+                sync_audio_project(&mut self.audio.commands, gfx, true, true, true);
             }
             ClickResult::ProjectFileDialog => {
-                if self.project_file_dialog_rx.is_none() {
+                if self.files.project_open_dialog_rx.is_none() {
                     let (tx, rx) = std::sync::mpsc::channel::<Option<PathBuf>>();
-                    self.project_file_dialog_rx = Some(rx);
+                    self.files.project_open_dialog_rx = Some(rx);
                     thread::spawn(move || {
                         let file = FileDialog::new()
                             .add_filter("toml", &["toml"])
@@ -582,9 +582,9 @@ impl App {
                 }
             }
             ClickResult::TrackFileDialog => {
-                if self.track_file_dialog_rx.is_none() {
+                if self.files.track_dialog_rx.is_none() {
                     let (tx, rx) = std::sync::mpsc::channel::<Option<PathBuf>>();
-                    self.track_file_dialog_rx = Some(rx);
+                    self.files.track_dialog_rx = Some(rx);
                     thread::spawn(move || {
                         let file = FileDialog::new()
                             .add_filter("wav", &["wav"])
@@ -596,7 +596,7 @@ impl App {
                 }
             }
             ClickResult::None => {
-                if self.mouse_state.left_clicked {
+                if self.input.mouse.left_clicked {
                     gfx.context_menu = None;
                 }
             }

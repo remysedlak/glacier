@@ -1,5 +1,5 @@
 //! handle all commands incoming from audio thread
-use super::{App, State};
+use super::{App, GraphicsState};
 use crate::project::{ProjectSaveResult, SavePurpose, TrackID};
 use winit::event_loop::ActiveEventLoop;
 
@@ -16,7 +16,7 @@ pub enum UiCommand {
 
 impl App {
     pub(super) fn handle_ui_command(&mut self, cmd: UiCommand) {
-        let State::Ready(gfx) = &mut self.state else {
+        let GraphicsState::Ready(gfx) = &mut self.state else {
             return;
         };
 
@@ -51,11 +51,11 @@ impl App {
         result: ProjectSaveResult,
         event_loop: &ActiveEventLoop,
     ) {
-        let close_after_regular_save = self.is_closing
+        let close_after_regular_save = self.shutdown.closing
             && result.purpose == SavePurpose::Regular
-            && result.revision == self.project_revision;
+            && result.revision == self.project.revision;
         if result.purpose == SavePurpose::Regular {
-            self.regular_saves_in_flight
+            self.project.saves_in_flight
                 .remove(&(result.path.clone(), result.revision));
         }
 
@@ -73,84 +73,84 @@ impl App {
         match purpose {
             SavePurpose::Regular => {
                 if result.result.is_ok() {
-                    if let State::Ready(gfx) = &mut self.state {
+                    if let GraphicsState::Ready(gfx) = &mut self.state {
                         gfx.project_path = result.path.clone();
                     }
-                    if result.revision == self.project_revision {
-                        self.project_is_dirty = false;
-                        if let Some(path) = self.pending_project.take() {
-                            self.project_load_rx =
+                    if result.revision == self.project.revision {
+                        self.project.dirty = false;
+                        if let Some(path) = self.project.pending_path.take() {
+                            self.project.load_rx =
                                 Some(crate::project::spawn_project_load(path, false));
                         }
-                    } else if self.pending_project.is_some() {
-                        let State::Ready(gfx) = &self.state else {
+                    } else if self.project.pending_path.is_some() {
+                        let GraphicsState::Ready(gfx) = &self.state else {
                             return;
                         };
                         super::submit_project_save(
-                            &self.save_worker,
-                            &mut self.regular_saves_in_flight,
-                            &self.project_name,
+                            &self.project.save_worker,
+                            &mut self.project.saves_in_flight,
+                            &self.project.name,
                             gfx,
                             SavePurpose::ProjectSwitch,
-                            self.project_revision,
+                            self.project.revision,
                             None,
                         );
                     }
-                } else if self.pending_project.is_some() {
-                    self.pending_project = None;
+                } else if self.project.pending_path.is_some() {
+                    self.project.pending_path = None;
                 }
             }
             SavePurpose::ProjectSwitch => {
-                if result.result.is_ok() && result.revision == self.project_revision {
-                    self.project_is_dirty = false;
-                    if let Some(path) = self.pending_project.take() {
-                        self.project_load_rx =
+                if result.result.is_ok() && result.revision == self.project.revision {
+                    self.project.dirty = false;
+                    if let Some(path) = self.project.pending_path.take() {
+                        self.project.load_rx =
                             Some(crate::project::spawn_project_load(path, false));
                     }
                 } else if result.result.is_ok() {
                     // The project changed while the snapshot was being written; save the
                     // latest state before starting the requested project load.
-                    if self.pending_project.is_some() {
-                        let State::Ready(gfx) = &self.state else {
+                    if self.project.pending_path.is_some() {
+                        let GraphicsState::Ready(gfx) = &self.state else {
                             return;
                         };
                         super::submit_project_save(
-                            &self.save_worker,
-                            &mut self.regular_saves_in_flight,
-                            &self.project_name,
+                            &self.project.save_worker,
+                            &mut self.project.saves_in_flight,
+                            &self.project.name,
                             gfx,
                             SavePurpose::ProjectSwitch,
-                            self.project_revision,
+                            self.project.revision,
                             None,
                         );
                     }
                 } else {
                     // Keep the current project and its unsaved changes intact.
-                    self.pending_project = None;
+                    self.project.pending_path = None;
                 }
             }
             SavePurpose::Close => {
-                if result.result.is_ok() && result.revision == self.project_revision {
-                    self.project_is_dirty = false;
+                if result.result.is_ok() && result.revision == self.project.revision {
+                    self.project.dirty = false;
                     crate::config::save(&self.config);
                     self.pause_audio_stream();
                     event_loop.exit();
                 } else if result.result.is_ok() {
-                    if let State::Ready(gfx) = &self.state {
+                    if let GraphicsState::Ready(gfx) = &self.state {
                         super::submit_project_save(
-                            &self.save_worker,
-                            &mut self.regular_saves_in_flight,
-                            &self.project_name,
+                            &self.project.save_worker,
+                            &mut self.project.saves_in_flight,
+                            &self.project.name,
                             gfx,
                             SavePurpose::Close,
-                            self.project_revision,
+                            self.project.revision,
                             None,
                         );
                     }
                 } else {
-                    self.is_closing = false;
-                    self.close_save_submitted = false;
-                    if let State::Ready(gfx) = &mut self.state {
+                    self.shutdown.closing = false;
+                    self.shutdown.close_save_submitted = false;
+                    if let GraphicsState::Ready(gfx) = &mut self.state {
                         gfx.show_save_modal = true;
                         gfx.request_redraw();
                     }

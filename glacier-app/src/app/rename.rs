@@ -1,4 +1,4 @@
-use super::{App, State};
+use super::{App, GraphicsState};
 use crate::graphics::primitives::RenameTarget;
 use winit::event::KeyEvent;
 use winit::keyboard::{KeyCode, PhysicalKey};
@@ -8,7 +8,7 @@ impl App {
     /// Returns true if the event was consumed (caller should not fall through
     /// to normal keybind handling).
     pub(super) fn handle_rename_key(&mut self, event: &KeyEvent) -> bool {
-        let State::Ready(gfx) = &mut self.state else {
+        let GraphicsState::Ready(gfx) = &mut self.state else {
             return false;
         };
         let Some(renaming) = &mut gfx.renaming else {
@@ -30,8 +30,8 @@ impl App {
                         }
                     }
                 }
-                self.project_is_dirty = true;
-                self.project_revision += 1;
+                self.project.dirty = true;
+                self.project.revision += 1;
                 gfx.renaming = None;
             }
             PhysicalKey::Code(KeyCode::Escape) => gfx.renaming = None,
