@@ -8,7 +8,7 @@ use crate::graphics::{
     geometry::*,
     icons::{IconDraw, Tooltip},
     primitives::*,
-    ScreenConfig, Vertex,
+    FrameDrawContext,
 };
 use winit::window::CursorIcon;
 
@@ -41,21 +41,16 @@ impl IconRow {
 }
 
 pub fn draw(
+    frame: &mut FrameDrawContext<'_>,
     mouse_state: &MouseState,
-    screen_config: &ScreenConfig,
     bpm: f32,
     is_playing: bool,
     active_step: usize,
     spectrum: &[f32],
     sample_rate: f32,
     seconds: String,
-    out: &mut Vec<Vertex>,
-) -> (
-    Vec<TextItem>,
-    Vec<IconDraw>,
-    InteractionResult,
-    Option<Tooltip>,
 ) {
+    let screen_config = *frame.screen_config();
     let mut text_items: Vec<TextItem> = Vec::new();
     let mut interaction = InteractionResult::default();
 
@@ -75,10 +70,10 @@ pub fn draw(
         height: TOOLBAR_Y,
     };
     toolbar_background.draw(
-        screen_config,
+        &screen_config,
         screen_config.palette.neutral.shade(0),
         NO_RADIUS,
-        out,
+        frame,
     );
 
     let toolbar_divider = Rectangle {
@@ -88,10 +83,10 @@ pub fn draw(
         width: toolbar_background.width,
     };
     toolbar_divider.draw(
-        screen_config,
+        &screen_config,
         screen_config.palette.neutral.shade(3),
         NO_RADIUS,
-        out,
+        frame,
     );
 
     let bpm_counter = TextItem {
@@ -108,10 +103,10 @@ pub fn draw(
         .draw_style()
         .interactive(Some(mouse_state))
         .draw(
-            screen_config,
+            &screen_config,
             screen_config.palette.neutral.shade(3),
             RADIUS_4,
-            out,
+            frame,
         );
     if bpm_up.hovered {
         interaction.cursor = CursorIcon::Pointer;
@@ -125,10 +120,10 @@ pub fn draw(
         .draw_style()
         .interactive(Some(mouse_state))
         .draw(
-            screen_config,
+            &screen_config,
             screen_config.palette.neutral.shade(3),
             RADIUS_4,
-            out,
+            frame,
         );
     if bpm_down.hovered {
         interaction.cursor = CursorIcon::Pointer;
@@ -145,10 +140,10 @@ pub fn draw(
         .interactive(Some(mouse_state))
         .bordered(Some(icon_border(screen_config.palette)))
         .draw(
-            screen_config,
+            &screen_config,
             screen_config.palette.neutral.shade(3),
             RADIUS_4,
-            out,
+            frame,
         );
     if play_button.hovered && mouse_state.left_clicked {
         interaction.click = ClickResult::TogglePlay;
@@ -160,10 +155,10 @@ pub fn draw(
         .interactive(Some(mouse_state))
         .bordered(Some(icon_border(screen_config.palette)))
         .draw(
-            screen_config,
+            &screen_config,
             screen_config.palette.neutral.shade(3),
             RADIUS_4,
-            out,
+            frame,
         );
     if stop_button.hovered && mouse_state.left_clicked && active_step != 0 {
         interaction.click = ClickResult::Stop;
@@ -180,10 +175,10 @@ pub fn draw(
         .draw_style()
         .bordered(Some(icon_border(screen_config.palette)))
         .draw(
-            screen_config,
+            &screen_config,
             screen_config.palette.neutral.shade(0),
             RADIUS_4,
-            out,
+            frame,
         );
 
     let step_divider_line = Rectangle {
@@ -193,10 +188,10 @@ pub fn draw(
         width: 1.0,
     };
     step_divider_line.draw(
-        screen_config,
+        &screen_config,
         screen_config.palette.primary.shade(5),
         NO_RADIUS,
-        out,
+        frame,
     );
 
     // ACTIVE_STEP LABEL
@@ -225,7 +220,7 @@ pub fn draw(
     });
 
     // draw power spectrogram of audio frequency domain.
-    spectrum::draw(screen_config, spectrum, sample_rate, 2048, out);
+    spectrum::draw(frame, spectrum, sample_rate, 2048);
 
     let sequencer_toggle = window_icons
         .next_icon()
@@ -233,10 +228,10 @@ pub fn draw(
         .bordered(Some(icon_border(screen_config.palette)))
         .interactive(Some(mouse_state))
         .draw(
-            screen_config,
+            &screen_config,
             screen_config.palette.neutral.shade(3),
             RADIUS_4,
-            out,
+            frame,
         );
 
     if sequencer_toggle.hovered && mouse_state.left_clicked {
@@ -249,10 +244,10 @@ pub fn draw(
         .bordered(Some(icon_border(screen_config.palette)))
         .interactive(Some(mouse_state))
         .draw(
-            screen_config,
+            &screen_config,
             screen_config.palette.neutral.shade(3),
             RADIUS_4,
-            out,
+            frame,
         );
 
     if mixer_toggle.hovered && mouse_state.left_clicked {
@@ -265,10 +260,10 @@ pub fn draw(
         .bordered(Some(icon_border(screen_config.palette)))
         .interactive(Some(mouse_state))
         .draw(
-            screen_config,
+            &screen_config,
             screen_config.palette.neutral.shade(3),
             RADIUS_4,
-            out,
+            frame,
         );
     if playlist_toggle.hovered && mouse_state.left_clicked {
         interaction.click = ClickResult::TogglePlaylistWindow;
@@ -280,10 +275,10 @@ pub fn draw(
         .bordered(Some(icon_border(screen_config.palette)))
         .interactive(Some(mouse_state))
         .draw(
-            screen_config,
+            &screen_config,
             screen_config.palette.neutral.shade(3),
             RADIUS_4,
-            out,
+            frame,
         );
 
     if piano_toggle.hovered && mouse_state.left_clicked {
@@ -296,10 +291,10 @@ pub fn draw(
         .bordered(Some(icon_border(screen_config.palette)))
         .interactive(Some(mouse_state))
         .draw(
-            screen_config,
+            &screen_config,
             screen_config.palette.neutral.shade(3),
             RADIUS_4,
-            out,
+            frame,
         );
 
     if track_selection_toggle.hovered && mouse_state.left_clicked {
@@ -312,17 +307,17 @@ pub fn draw(
         .bordered(Some(icon_border(screen_config.palette)))
         .interactive(Some(mouse_state))
         .draw(
-            screen_config,
+            &screen_config,
             screen_config.palette.neutral.shade(3),
             RADIUS_4,
-            out,
+            frame,
         );
 
     if patterns_toggle.hovered && mouse_state.left_clicked {
         interaction.click = ClickResult::TogglePatternTray;
     }
 
-    draw_h_line(TOOLBAR_Y, TOOLBAR_THICKNESS, screen_config, out);
+    draw_h_line(TOOLBAR_Y, TOOLBAR_THICKNESS, &screen_config, frame);
 
     // LOAD_PROJECT BUTTON
     let load_project_button =
@@ -331,10 +326,10 @@ pub fn draw(
             .bordered(Some(icon_border(screen_config.palette)))
             .interactive(Some(mouse_state))
             .draw(
-                screen_config,
+                &screen_config,
                 screen_config.palette.neutral.shade(3),
                 RADIUS_4,
-                out,
+                frame,
             );
     if load_project_button.hovered && mouse_state.left_clicked {
         interaction.click = ClickResult::ProjectFileDialog;
@@ -347,10 +342,10 @@ pub fn draw(
             .bordered(Some(icon_border(screen_config.palette)))
             .interactive(Some(mouse_state))
             .draw(
-                screen_config,
+                &screen_config,
                 screen_config.palette.neutral.shade(3),
                 RADIUS_4,
-                out,
+                frame,
             );
     if load_track_button.hovered && mouse_state.left_clicked {
         interaction.click = ClickResult::TrackFileDialog;
@@ -528,5 +523,10 @@ pub fn draw(
         }
     }
 
-    (text_items, icons, interaction, tooltip)
+    frame.draw_texts(&text_items);
+    for icon in &icons {
+        frame.draw_icon(icon);
+    }
+    frame.add_interaction(interaction);
+    frame.set_tooltip(tooltip);
 }

@@ -8,7 +8,7 @@ use crate::{
         icons::{IconDraw, DEFAULT_TOOLTIP_WIDTH},
         mini_window::InteractionResult,
         primitives::{NO_RADIUS, PAD_16, PAD_2, PAD_32, PAD_4, RADIUS_4},
-        ScreenConfig, Tooltip, Vertex,
+        FrameDrawContext, ScreenConfig, Tooltip,
     },
 };
 use std::collections::HashMap;
@@ -16,39 +16,34 @@ use std::path::PathBuf;
 use winit::window::CursorIcon;
 
 pub fn draw(
+    frame: &mut FrameDrawContext<'_>,
     mouse_state: &MouseState,
-    screen_config: &ScreenConfig,
     user_fs_location: &std::path::Path,
     expanded_dirs: &std::collections::HashSet<PathBuf>,
     fs_cache: &HashMap<PathBuf, Vec<(PathBuf, bool)>>,
     scroll_offset: f32,
     tray_width: f32,
-    out: &mut Vec<Vertex>,
     divider_y: f32,
-) -> (Vec<IconDraw>, Vec<TextItem>, InteractionResult) {
-    let mut text_items: Vec<TextItem> = Vec::new();
+) {
+    let screen_config = *frame.screen_config();
     let mut interaction = InteractionResult::default();
 
     let mut row: f32 = 0.0;
-    (
-        draw_fs_tree(
-            user_fs_location,
-            0,
-            &mut row,
-            divider_y + PAD_32 + PAD_16,
-            expanded_dirs,
-            mouse_state,
-            screen_config,
-            &mut text_items,
-            &mut interaction,
-            fs_cache,
-            scroll_offset,
-            tray_width,
-            out,
-        ),
-        text_items,
-        interaction,
-    )
+    draw_fs_tree(
+        user_fs_location,
+        0,
+        &mut row,
+        divider_y + PAD_32 + PAD_16,
+        expanded_dirs,
+        mouse_state,
+        &screen_config,
+        &mut interaction,
+        fs_cache,
+        scroll_offset,
+        tray_width,
+        frame,
+    );
+    frame.add_interaction(interaction);
 }
 
 fn draw_fs_tree(
@@ -59,16 +54,14 @@ fn draw_fs_tree(
     expanded_dirs: &std::collections::HashSet<PathBuf>,
     mouse_state: &MouseState,
     screen_config: &ScreenConfig,
-    text_items: &mut Vec<TextItem>,
     interaction: &mut InteractionResult,
     fs_cache: &HashMap<PathBuf, Vec<(PathBuf, bool)>>,
     scroll_offset: f32,
     tray_width: f32,
-    out: &mut Vec<Vertex>,
-) -> Vec<IconDraw> {
-    let mut icons: Vec<IconDraw> = Vec::new();
+    frame: &mut FrameDrawContext<'_>,
+) {
     let Some(entries) = fs_cache.get(dir) else {
-        return Vec::new();
+        return;
     };
     let indent = depth as f32 * PAD_16;
 
@@ -100,7 +93,7 @@ fn draw_fs_tree(
         let above_visible = y + 24.0 < visible_top; // whole row above the line — skip rect/text
         let icon_visible = y >= visible_top; // row's top itself below the line — safe for icon
         if y > screen_config.height as f32 {
-            return icons;
+            return;
         }
 
         if !above_visible {
@@ -115,20 +108,20 @@ fn draw_fs_tree(
             } else {
                 screen_config.palette.neutral.shade(1)
             };
-            button.draw(screen_config, color, RADIUS_4, out);
+            button.draw(screen_config, color, RADIUS_4, frame);
 
-            text_items.push(TextItem {
+            frame.draw_texts(&[TextItem {
                 text: name.to_string(),
                 x: button.x + PAD_4 + 16.0,
                 y: button.y + PAD_4,
                 size: 10.0,
                 color: screen_config.palette.neutral.shade(7),
                 font: Roboto,
-            });
+            }]);
 
             let icon_name = if *is_dir { "music_dir" } else { "music_file" };
             if icon_visible {
-                icons.push(IconDraw {
+                frame.draw_icon(&IconDraw {
                     name: icon_name,
                     x: button.x + PAD_2,
                     y: button.y + PAD_2,
@@ -177,7 +170,7 @@ fn draw_fs_tree(
             let line_x = PAD_4 + indent + 8.0;
             let line_top = y + 24.0;
 
-            let mut child_icons = draw_fs_tree(
+            draw_fs_tree(
                 path,
                 depth + 1,
                 row,
@@ -185,14 +178,12 @@ fn draw_fs_tree(
                 expanded_dirs,
                 mouse_state,
                 screen_config,
-                text_items,
                 interaction,
                 fs_cache,
                 scroll_offset,
                 tray_width,
-                out,
+                frame,
             );
-            icons.append(&mut child_icons);
 
             // ui visual nesting of items within a directory — only draw this line
             // if the parent row itself was visible; if it wasn't, its top anchor
@@ -209,10 +200,9 @@ fn draw_fs_tree(
                     screen_config,
                     screen_config.palette.neutral.shade(3),
                     NO_RADIUS,
-                    out,
+                    frame,
                 );
             }
         }
     }
-    icons
 }

@@ -482,22 +482,16 @@ impl Graphics {
             let file_tree_char_start = frame_draw_context.char_draws.len();
             let file_tree_icon_start = frame_draw_context.icon_draws.len();
 
-            let (icons, text_items, file_tree_interaction) = file_tree::draw(
+            file_tree::draw(
+                &mut frame_draw_context,
                 mouse_state,
-                &screen_config,
                 &self.user_fs_location,
                 &self.expanded_dirs,
                 &self.fs_cache,
                 self.fs_scroll_offset,
                 self.track_tray_width,
-                &mut frame_draw_context.vertices,
                 (screen_config.height / 2) as f32,
             );
-            frame_draw_context.add_interaction(file_tree_interaction);
-            frame_draw_context.draw_texts(&text_items);
-            for icon in icons {
-                frame_draw_context.draw_icon(&icon);
-            }
 
             let divider_y = sh / 2 + (PAD_32 + PAD_16) as u32;
             frame_draw_context.record_region(
@@ -561,24 +555,16 @@ impl Graphics {
             (total_seconds % 3600) / 60,
             total_seconds % 60
         );
-        let (texts, icons, toolbar_interaction, tooltip) = components::toolbar::draw(
+        components::toolbar::draw(
+            &mut frame_draw_context,
             mouse_state,
-            &screen_config,
             self.bpm,
             self.is_playing,
             self.active_step,
             &self.spectrum,
             self.sample_rate,
             time_string,
-            &mut frame_draw_context.vertices,
         );
-        frame_draw_context.add_interaction(toolbar_interaction);
-        for icon in icons {
-            frame_draw_context.draw_icon(&icon);
-        }
-        self.tooltip = tooltip;
-
-        frame_draw_context.draw_texts(&texts);
         frame_draw_context.record_region(
             toolbar_vert_start,
             toolbar_char_start,
@@ -587,7 +573,6 @@ impl Graphics {
         );
 
         // --- footer ---
-        frame_draw_context.set_tooltip(self.tooltip.take());
         Self::draw_footer(
             &self.project_path,
             self.present_fps,
