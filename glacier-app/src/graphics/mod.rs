@@ -4,6 +4,8 @@ pub mod components;
 pub mod drag;
 pub mod draw;
 pub mod font;
+mod frame_draw_context;
+pub use frame_draw_context::FrameDrawContext;
 pub mod geometry;
 pub mod icons;
 pub mod mini_window;
@@ -18,12 +20,11 @@ use crate::graphics::{
 use crate::project::{
     AudioBlock, AudioBlockID, AudioBlockType, PatternData, PatternID, Track, TrackData, TrackID,
 };
-use color::{Color, Palette};
+use color::Palette;
 use components::{context_menu::ContextMenu, footer, side_panel, side_panel::DEFAULT_TRAY_WIDTH};
 use font::{create_bind_group_layout, load_fonts, Font::Mono, Font::Roboto, GlyphCache, TextItem};
-use fontdue::layout::{CoordinateSystem, Layout, TextStyle};
 use geometry::*;
-use icons::{push_icon_draw, Tooltip};
+use icons::Tooltip;
 use mini_window::{
     mixer, piano_roll, playlist,
     playlist::toolbar::PlaylistTool,
@@ -53,55 +54,6 @@ use winit::{
 
 pub(crate) struct DrawItem {
     pub(crate) vertex_offset: u64,
-}
-
-use crate::graphics::mini_window::InteractionResult;
-use crate::graphics::regions::RecordedRegion;
-pub struct FrameDrawContext {
-    vertices: Vec<Vertex>,
-    glyph_vertices: Vec<Vertex>,
-    char_draws: Vec<DrawItem>,
-    icon_vertices: Vec<Vertex>,
-    icon_draws: Vec<DrawItem>,
-    regions: Vec<RecordedRegion>,
-    interaction: InteractionResult,
-}
-impl FrameDrawContext {
-    fn new() -> Self {
-        FrameDrawContext {
-            vertices: Vec::new(),
-            glyph_vertices: Vec::new(),
-            char_draws: Vec::new(),
-
-            icon_vertices: Vec::new(),
-            icon_draws: Vec::new(),
-
-            regions: Vec::new(),
-            interaction: InteractionResult::default(),
-        }
-    }
-
-    fn record_region(
-        &mut self,
-        vertex_start: u32,
-        char_start: usize,
-        icon_start: usize,
-        scissor: Option<(u32, u32, u32, u32)>,
-    ) {
-        self.regions.push(RecordedRegion::record(
-            &self.vertices,
-            &self.char_draws,
-            &self.icon_draws,
-            vertex_start,
-            char_start,
-            icon_start,
-            scissor,
-        ));
-    }
-
-    fn add_interaction(&mut self, interaction: InteractionResult) {
-        self.interaction = std::mem::take(&mut self.interaction).or(interaction);
-    }
 }
 
 #[derive(Clone, Copy, PartialEq, Debug)]

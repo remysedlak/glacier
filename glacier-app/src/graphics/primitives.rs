@@ -37,6 +37,7 @@ pub const BUTTON_GAP: f32 = 24.0;
 pub const ONE_MEGABYTE: u64 = 1024 * 1024;
 
 /// Stores the width and height of the user's application window
+#[derive(Clone, Copy)]
 pub struct ScreenConfig<'a> {
     pub width: u32,
     pub height: u32,
@@ -63,6 +64,23 @@ pub struct Vertex {
     pub border_color: [f32; 4],
     // corner radius
     pub radius: [f32; 4],
+}
+
+/// Destination for generated UI vertices.
+pub trait VertexSink {
+    fn push_vertex(&mut self, vertex: Vertex);
+
+    fn extend_vertices(&mut self, vertices: impl IntoIterator<Item = Vertex>) {
+        for vertex in vertices {
+            self.push_vertex(vertex);
+        }
+    }
+}
+
+impl VertexSink for Vec<Vertex> {
+    fn push_vertex(&mut self, vertex: Vertex) {
+        self.push(vertex);
+    }
 }
 
 impl Vertex {
@@ -137,7 +155,7 @@ pub fn draw_rectangle_bordered(
     corner_radius: [f32; 4],
     border_width: f32,
     border_color: Color,
-    vertex_buffer: &mut Vec<Vertex>,
+    vertex_buffer: &mut impl VertexSink,
 ) {
     let ndc_x = to_ndc_x(x, screen_config);
     let ndc_y = to_ndc_y(y, screen_config);
@@ -160,7 +178,7 @@ pub fn draw_rectangle_bordered(
         border_color.a,
     ];
 
-    vertex_buffer.push(Vertex {
+    vertex_buffer.push_vertex(Vertex {
         position: [ndc_x, ndc_y, 0.0],
         color: [color.r, color.g, color.b, color.a],
         uv: [-1.0, -1.0],
@@ -170,7 +188,7 @@ pub fn draw_rectangle_bordered(
         border_width: ndc_border,
         border_color: bc,
     });
-    vertex_buffer.push(Vertex {
+    vertex_buffer.push_vertex(Vertex {
         position: [ndc_x, ndc_y - ndc_height, 0.0],
         color: [color.r, color.g, color.b, color.a],
         uv: [-1.0, -1.0],
@@ -180,7 +198,7 @@ pub fn draw_rectangle_bordered(
         border_width: ndc_border,
         border_color: bc,
     });
-    vertex_buffer.push(Vertex {
+    vertex_buffer.push_vertex(Vertex {
         position: [ndc_x + ndc_width, ndc_y, 0.0],
         color: [color.r, color.g, color.b, color.a],
         uv: [-1.0, -1.0],
@@ -190,7 +208,7 @@ pub fn draw_rectangle_bordered(
         border_width: ndc_border,
         border_color: bc,
     });
-    vertex_buffer.push(Vertex {
+    vertex_buffer.push_vertex(Vertex {
         position: [ndc_x + ndc_width, ndc_y, 0.0],
         color: [color.r, color.g, color.b, color.a],
         uv: [-1.0, -1.0],
@@ -200,7 +218,7 @@ pub fn draw_rectangle_bordered(
         border_width: ndc_border,
         border_color: bc,
     });
-    vertex_buffer.push(Vertex {
+    vertex_buffer.push_vertex(Vertex {
         position: [ndc_x, ndc_y - ndc_height, 0.0],
         color: [color.r, color.g, color.b, color.a],
         uv: [-1.0, -1.0],
@@ -210,7 +228,7 @@ pub fn draw_rectangle_bordered(
         border_width: ndc_border,
         border_color: bc,
     });
-    vertex_buffer.push(Vertex {
+    vertex_buffer.push_vertex(Vertex {
         position: [ndc_x + ndc_width, ndc_y - ndc_height, 0.0],
         color: [color.r, color.g, color.b, color.a],
         uv: [-1.0, -1.0],
@@ -231,7 +249,7 @@ pub fn draw_rectangle(
     screen_config: &ScreenConfig,
     color: Color,
     corner_radius: [f32; 4],
-    vertex_buffer: &mut Vec<Vertex>,
+    vertex_buffer: &mut impl VertexSink,
 ) {
     draw_rectangle_bordered(
         x,
@@ -255,7 +273,7 @@ pub fn draw_circle(
     segments: u32,
     screen_config: &ScreenConfig,
     color: Color,
-    vertex_buffer: &mut Vec<Vertex>,
+    vertex_buffer: &mut impl VertexSink,
 ) {
     let to_ndc = |x: f32, y: f32| -> [f32; 3] {
         [
@@ -279,9 +297,9 @@ pub fn draw_circle(
     for k in 0..segments {
         let a0 = k as f32 * (2.0 * std::f32::consts::PI / segments as f32);
         let a1 = (k + 1) as f32 * (2.0 * std::f32::consts::PI / segments as f32);
-        vertex_buffer.push(inert_v(cx, cy));
-        vertex_buffer.push(inert_v(cx + radius * a0.cos(), cy + radius * a0.sin()));
-        vertex_buffer.push(inert_v(cx + radius * a1.cos(), cy + radius * a1.sin()));
+        vertex_buffer.push_vertex(inert_v(cx, cy));
+        vertex_buffer.push_vertex(inert_v(cx + radius * a0.cos(), cy + radius * a0.sin()));
+        vertex_buffer.push_vertex(inert_v(cx + radius * a1.cos(), cy + radius * a1.sin()));
     }
 }
 
@@ -291,7 +309,7 @@ pub fn draw_knob(
     cy: f32,
     vol: f32,
     screen_config: &ScreenConfig,
-    vertex_buffer: &mut Vec<Vertex>,
+    vertex_buffer: &mut impl VertexSink,
 ) {
     let radius = 10.0_f32;
     draw_circle(
@@ -333,12 +351,12 @@ pub fn draw_knob(
     let p3 = (ex - thickness * perp_x, ey - thickness * perp_y);
 
     // always wind counter-clockwise
-    vertex_buffer.push(v(p0.0, p0.1));
-    vertex_buffer.push(v(p2.0, p2.1));
-    vertex_buffer.push(v(p1.0, p1.1));
-    vertex_buffer.push(v(p1.0, p1.1));
-    vertex_buffer.push(v(p2.0, p2.1));
-    vertex_buffer.push(v(p3.0, p3.1));
+    vertex_buffer.push_vertex(v(p0.0, p0.1));
+    vertex_buffer.push_vertex(v(p2.0, p2.1));
+    vertex_buffer.push_vertex(v(p1.0, p1.1));
+    vertex_buffer.push_vertex(v(p1.0, p1.1));
+    vertex_buffer.push_vertex(v(p2.0, p2.1));
+    vertex_buffer.push_vertex(v(p3.0, p3.1));
 }
 
 /// draw a horizontal line across the entire screen
@@ -346,7 +364,7 @@ pub fn draw_h_line(
     y: f32,
     thickness: f32,
     screen_config: &ScreenConfig,
-    vertex_buffer: &mut Vec<Vertex>,
+    vertex_buffer: &mut impl VertexSink,
 ) {
     // top edge of the line
     let ndc_y = 1.0 - (y / screen_config.height as f32) * 2.0;
@@ -364,7 +382,7 @@ pub fn draw_h_line(
         border_color: [0.0, 0.0, 0.0, 1.0],
     };
 
-    vertex_buffer.extend([
+    vertex_buffer.extend_vertices([
         v(-1.0, ndc_y),
         v(1.0, ndc_y),
         v(1.0, ndc_y - ndc_t),
