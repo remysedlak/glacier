@@ -755,6 +755,9 @@ impl Graphics {
         self.render_context.queue.submit(Some(encoder.finish()));
         frame.present();
 
+        // The event loop uses Graphics.tooltip to start the hover-delay timer.
+        self.tooltip = frame_draw_context.tooltip.clone();
+
         let now = std::time::Instant::now();
         if let Some(window_start) = self.fps_window_start {
             self.fps_window_frames += 1;
