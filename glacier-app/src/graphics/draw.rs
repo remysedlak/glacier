@@ -400,17 +400,14 @@ impl Graphics {
                 _ => None,
             };
 
-            let (texts, track_tray_interaction) = side_panel::track_tray::draw(
+            side_panel::track_tray::draw(
+                &mut frame_draw_context,
                 mouse_state,
-                &screen_config,
                 self.resizing_track_tray,
                 &self.tracks,
                 self.track_tray_width,
-                &mut frame_draw_context.vertices,
                 selected_track_id,
             );
-            frame_draw_context.add_interaction(track_tray_interaction);
-            frame_draw_context.draw_texts(&texts);
 
             let tray_bottom = sh / 2 + 2;
             frame_draw_context.record_region(
@@ -541,8 +538,8 @@ impl Graphics {
                 cursor_x_offset(font, &r.edited_name, r.cursor, 14.0)
             });
 
-            let (texts, pattern_interaction, icon, tooltip) = side_panel::pattern_tray::draw(
-                &screen_config,
+            side_panel::pattern_tray::draw(
+                &mut frame_draw_context,
                 &self.patterns,
                 selected_pattern_id,
                 &mouse_state.hidden(self.context_menu.is_some() && menu_is_hovered),
@@ -550,12 +547,7 @@ impl Graphics {
                 self.pattern_tray_width,
                 &self.renaming,
                 rename_cursor_offset,
-                &mut frame_draw_context.vertices,
             );
-            frame_draw_context.add_interaction(pattern_interaction);
-            frame_draw_context.draw_texts(&texts);
-            frame_draw_context.draw_icon(&icon);
-            self.tooltip = tooltip;
         }
 
         if self.show_save_modal {
@@ -595,7 +587,7 @@ impl Graphics {
         );
 
         // --- footer ---
-        frame_draw_context.set_tooltip_if_some(self.tooltip.take());
+        frame_draw_context.set_tooltip(self.tooltip.take());
         Self::draw_footer(
             &self.project_path,
             self.present_fps,
@@ -649,14 +641,7 @@ impl Graphics {
         let context_menu_char_start = frame_draw_context.char_draws.len();
         let context_menu_icon_start = frame_draw_context.icon_draws.len();
         if let Some(menu) = &self.context_menu {
-            let (texts, context_menu_interaction) = menu.draw(
-                &screen_config,
-                mouse_state,
-                &mut frame_draw_context.vertices,
-            );
-
-            frame_draw_context.draw_texts(&texts);
-            frame_draw_context.add_interaction(context_menu_interaction);
+            menu.draw(&mut frame_draw_context, mouse_state);
         }
         frame_draw_context.record_region(
             context_menu_vert_start,

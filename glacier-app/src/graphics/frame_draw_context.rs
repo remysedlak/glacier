@@ -99,6 +99,10 @@ impl<'a> FrameDrawContext<'a> {
         }
     }
 
+    pub(crate) fn set_tooltip(&mut self, tooltip: Option<crate::graphics::icons::Tooltip>) {
+        self.tooltip = tooltip;
+    }
+
     pub(crate) fn screen_config(&self) -> &ScreenConfig<'a> {
         &self.screen_config
     }
