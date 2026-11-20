@@ -9,13 +9,21 @@ another directly.
 ```mermaid
 sequenceDiagram
     participant App as App / UI thread
-    participant Commands as Audio command ring
+    participant Sender as AudioCommandSender<br/>(bounded retry queue)
+    participant Commands as Audio command ring (64)
     participant Audio as CPAL callback
-    participant Feedback as UI feedback rings
-    App->>Commands: controls and prepared playback updates
-    Commands->>Audio: callback consumes bounded work per buffer
-    Audio->>Feedback: playhead, meters, spectrum, retired data
-    Feedback->>App: app polls results during redraw
+    participant Ui as UI command ring (64)
+    participant Spectrum as Spectrum ring (2)
+    participant Retired as Retirement ring (2)
+    App->>Sender: controls and app-prepared playback updates
+    Sender->>Commands: enqueue; retry/coalesce if ring is full
+    Commands->>Audio: callback consumes up to 64 commands per buffer
+    Audio->>Ui: playhead, steps, meters, playback status
+    Audio->>Spectrum: spectrum frames
+    Audio->>Retired: replaced project data and preview samples
+    App->>Ui: drain during redraw
+    App->>Spectrum: drain during redraw; keep newest frame
+    App->>Retired: drain during redraw; destroy old data here
 ```
 
 The app is the authority for editable project data and save snapshots. Audio
