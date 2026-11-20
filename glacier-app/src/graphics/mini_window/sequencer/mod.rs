@@ -10,6 +10,8 @@ use crate::graphics::{
 use crate::project::{Note, PatternData, PatternID, Track, TrackID};
 use winit::window::CursorIcon;
 
+pub mod utils;
+
 pub const BAR_GAP: f32 = 12.0;
 pub const KNOB_OFFSET: f32 = 110.0;
 pub const KNOB_RADIUS: f32 = 8.0;
@@ -169,28 +171,10 @@ pub fn draw(
                     height: SEQUENCER_STEP_HEIGHT,
                 };
                 let hovered = step_button.is_hovered(mouse_state.x, mouse_state.y); // cache it!
-                let mut step_color = if j == active_step as u32 {
-                    if hovered {
-                        screen_config.palette.primary.shade(5)
-                    } else {
-                        screen_config.palette.primary.shade(4)
-                    }
-                } else if hovered && is_active {
-                    screen_config.palette.neutral.shade(3)
-                } else if hovered {
-                    screen_config.palette.neutral.shade(6)
-                } else if is_active {
-                    screen_config.palette.neutral.shade(0)
-                } else {
-                    screen_config.palette.neutral.shade(7)
-                };
-                if is_ghost {
-                    step_color = if hovered {
-                        screen_config.palette.neutral.shade(3)
-                    } else {
-                        screen_config.palette.neutral.shade(4)
-                    };
-                }
+                let active = j == active_step as u32;
+                let step_color =
+                    utils::step_color(screen_config.palette, hovered, is_active, is_ghost, active);
+
                 step_button.draw(screen_config, step_color, RADIUS_4, out);
 
                 // check if the step was clicked
@@ -233,20 +217,6 @@ pub fn draw(
                 );
             }
         }
-        if track_button.is_hovered(mouse_state.x, mouse_state.y) {
-            interaction.cursor = CursorIcon::Pointer;
-            if mouse_state.left_clicked {
-                interaction.click = ClickResult::ToggleTrackWindow(track.data.id);
-            }
-            if mouse_state.right_clicked {
-                interaction.click = ClickResult::OpenTrackMenu(
-                    track_button_x,
-                    track_button_y,
-                    active_pattern_id,
-                    track.data.id,
-                );
-            }
-        }
 
         // mute button
         let mute_button = Rectangle {
@@ -255,14 +225,12 @@ pub fn draw(
             width: MUTE_SQUARE_LENGTH * 2.0,
             height: MUTE_SQUARE_LENGTH,
         };
-        let _hovered =
-            mute_button.is_hovered(mouse_state.x, mouse_state.y) && !mouse_state.left_click_held;
         let hovered =
             mute_button.is_hovered(mouse_state.x, mouse_state.y) && !mouse_state.left_click_held;
         let base = if track.data.is_muted {
             screen_config.palette.primary.shade(5)
         } else {
-            screen_config.palette.primary.shade(6)
+            screen_config.palette.neutral.shade(7)
         };
         let mute_button_color = if hovered {
             screen_config.palette.primary.shade(7)
@@ -298,7 +266,7 @@ pub fn draw(
         let base = if track.show_velocity {
             screen_config.palette.primary.shade(5)
         } else {
-            screen_config.palette.primary.shade(6)
+            screen_config.palette.neutral.shade(7)
         };
         let velocity_button_color = if hovered {
             screen_config.palette.primary.shade(7)
