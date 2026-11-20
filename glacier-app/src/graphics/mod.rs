@@ -51,6 +51,59 @@ use winit::{
     window::{CursorIcon, Window},
 };
 
+pub(crate) struct DrawItem {
+    pub(crate) vertex_offset: u64,
+}
+
+use crate::graphics::mini_window::InteractionResult;
+use crate::graphics::regions::RecordedRegion;
+pub struct FrameDrawContext {
+    vertices: Vec<Vertex>,
+    glyph_vertices: Vec<Vertex>,
+    char_draws: Vec<DrawItem>,
+    icon_vertices: Vec<Vertex>,
+    icon_draws: Vec<DrawItem>,
+    regions: Vec<RecordedRegion>,
+    interaction: InteractionResult,
+}
+impl FrameDrawContext {
+    fn new() -> Self {
+        FrameDrawContext {
+            vertices: Vec::new(),
+            glyph_vertices: Vec::new(),
+            char_draws: Vec::new(),
+
+            icon_vertices: Vec::new(),
+            icon_draws: Vec::new(),
+
+            regions: Vec::new(),
+            interaction: InteractionResult::default(),
+        }
+    }
+
+    fn record_region(
+        &mut self,
+        vertex_start: u32,
+        char_start: usize,
+        icon_start: usize,
+        scissor: Option<(u32, u32, u32, u32)>,
+    ) {
+        self.regions.push(RecordedRegion::record(
+            &self.vertices,
+            &self.char_draws,
+            &self.icon_draws,
+            vertex_start,
+            char_start,
+            icon_start,
+            scissor,
+        ));
+    }
+
+    fn add_interaction(&mut self, interaction: InteractionResult) {
+        self.interaction = std::mem::take(&mut self.interaction).or(interaction);
+    }
+}
+
 #[derive(Clone, Copy, PartialEq, Debug)]
 pub enum PlaylistAction {
     PlaceFresh(AudioBlockType),
@@ -120,7 +173,7 @@ impl RenderContext {
         surface_config.format = wgpu::TextureFormat::Bgra8Unorm; // drop the Srgb suffix
         surface.configure(&device, &surface_config);
 
-        // The bind group layout shared by every glyph/icon texture:
+        // The bind group layout shared by the glyph and icon atlases:
         // one filterable 2D texture (binding 0) plus one filtering sampler (binding 1).
         let bind_group_layout = create_bind_group_layout(&device);
 
@@ -216,12 +269,7 @@ pub async fn create_graphics(window: Rc<Window>, proxy: EventLoopProxy<Graphics>
     let (font_cache, glyph_cache) = load_fonts(&render_context.device, &render_context.queue);
 
     // load SVG icons
-    let mut icon_cache = IconCache::new();
-    icons::load_icons(
-        &mut icon_cache,
-        &render_context.device,
-        &render_context.queue,
-    );
+    let icon_cache = icons::load_icons(&render_context.device, &render_context.queue);
 
     let waveform_cache = WaveformCache {
         entries: HashMap::new(),

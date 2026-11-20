@@ -75,9 +75,8 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
         }
 
         return vec4<f32>(in.color.rgb, outer_alpha * in.color.a);
-    } else if in.uv.x > 1.0 {
-        let actual_uv = vec2<f32>(in.uv.x - 2.0, in.uv.y);
-        return textureSample(glyph_tex, glyph_sampler, actual_uv);
+    } else if in.local_pos.x > 0.5 {
+        return textureSample(glyph_tex, glyph_sampler, in.uv);
     } else {
         let alpha = textureSample(glyph_tex, glyph_sampler, in.uv).r;
         return vec4<f32>(in.color.rgb, alpha * in.color.a);

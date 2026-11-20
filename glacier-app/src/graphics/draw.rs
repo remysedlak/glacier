@@ -13,15 +13,49 @@ use crate::{
 use std::time::Duration;
 use wgpu::{SurfaceTexture, TextureView};
 
-impl Graphics {
-    /// converts TextItem into vertices.
-    fn push_text_draws<'a>(
+impl FrameDrawContext {
+    fn push_text_draws(
+        &mut self,
         texts: &[TextItem],
         font_cache: &FontCache,
-        glyph_cache: &'a GlyphCache,
+        glyph_cache: &GlyphCache,
+        screen_config: &ScreenConfig,
+    ) {
+        Graphics::push_text_draws(
+            texts,
+            font_cache,
+            glyph_cache,
+            screen_config,
+            &mut self.glyph_vertices,
+            &mut self.char_draws,
+        );
+    }
+
+    fn push_icon_draw(
+        &mut self,
+        icon_cache: &IconCache,
+        screen_config: &ScreenConfig,
+        icon: &icons::IconDraw,
+    ) {
+        push_icon_draw(
+            icon_cache,
+            screen_config,
+            icon,
+            &mut self.icon_vertices,
+            &mut self.icon_draws,
+        );
+    }
+}
+
+impl Graphics {
+    /// converts TextItem into vertices.
+    fn push_text_draws(
+        texts: &[TextItem],
+        font_cache: &FontCache,
+        glyph_cache: &GlyphCache,
         screen_config: &ScreenConfig,
         glyph_vertices: &mut Vec<Vertex>,
-        char_draws: &mut Vec<(u64, &'a wgpu::BindGroup)>,
+        char_draws: &mut Vec<DrawItem>,
     ) {
         for text_item in texts {
             let Some(font) = font_cache.get(text_item.font) else {
@@ -40,12 +74,16 @@ impl Graphics {
                         (text_item.y + glyph.y).round(),
                         glyph.width as f32,
                         glyph.height as f32,
+                        entry.uv_min,
+                        entry.uv_max,
                         screen_config,
                         (r, g, b, a),
                     );
                     let offset = (glyph_vertices.len() * std::mem::size_of::<Vertex>()) as u64;
                     glyph_vertices.extend_from_slice(&gverts);
-                    char_draws.push((offset, entry.bind_group()));
+                    char_draws.push(DrawItem {
+                        vertex_offset: offset,
+                    });
                 }
             }
         }
@@ -73,10 +111,6 @@ impl Graphics {
             .as_ref()
             .map(|m| m.is_hovered(mouse_state.x, mouse_state.y))
             .unwrap_or(false);
-        // eprintln!(
-        //     "menu_is_hovered = {}, mouse = ({}, {})",
-        //     menu_is_hovered, mouse_state.x, mouse_state.y
-        // );
 
         if mouse_state.left_clicked && !menu_is_hovered {
             let z_order = self.z_order.clone();
@@ -104,16 +138,7 @@ impl Graphics {
         };
 
         // rebuild interface every frame (IMGUI)
-        let mut vertices: Vec<Vertex> = Vec::new();
-
-        let mut glyph_vertices: Vec<Vertex> = Vec::new();
-        let mut char_draws: Vec<(u64, &wgpu::BindGroup)> = Vec::new();
-
-        let mut icon_vertices: Vec<Vertex> = Vec::new();
-        let mut icon_draws: Vec<(u64, &wgpu::BindGroup)> = Vec::new();
-
-        let mut regions: Vec<RecordedRegion> = Vec::new();
-        let mut interaction = InteractionResult::default();
+        let mut frame_draw_context = FrameDrawContext::new();
 
         let frame: SurfaceTexture = self
             .render_context
@@ -130,9 +155,9 @@ impl Graphics {
 
         // --- mini windows ---
         for &id in &self.z_order {
-            let vert_start = vertices.len() as u32;
-            let char_start = char_draws.len();
-            let icon_start = icon_draws.len();
+            let vert_start = frame_draw_context.vertices.len() as u32;
+            let char_start = frame_draw_context.char_draws.len();
+            let icon_start = frame_draw_context.icon_draws.len();
 
             let blocked = self.context_menu.is_some() && menu_is_hovered
                 || self
@@ -172,26 +197,18 @@ impl Graphics {
                         self.active_step,
                         &masked_mouse,
                         &screen_config,
-                        &mut vertices,
+                        &mut frame_draw_context.vertices,
                     );
-                    Graphics::push_text_draws(
+                    frame_draw_context.push_text_draws(
                         &texts,
                         &self.font_cache,
                         &self.glyph_cache,
                         &screen_config,
-                        &mut glyph_vertices,
-                        &mut char_draws,
                     );
                     for icon in icons {
-                        push_icon_draw(
-                            &self.icon_cache,
-                            &screen_config,
-                            &icon,
-                            &mut icon_vertices,
-                            &mut icon_draws,
-                        );
+                        frame_draw_context.push_icon_draw(&self.icon_cache, &screen_config, &icon);
                     }
-                    interaction = interaction.or(sequencer_interaction);
+                    frame_draw_context.add_interaction(sequencer_interaction);
                 }
                 PLAYLIST_ID if self.mini_windows[PLAYLIST_ID].is_open => {
                     let window = &self.mini_windows[PLAYLIST_ID];
@@ -221,15 +238,9 @@ impl Graphics {
                     // icon_start (captured at top of this loop iteration) marks the
                     // start of playlist's icons; they all belong to the STATIC region.
                     for icon in playlist_icons {
-                        push_icon_draw(
-                            &self.icon_cache,
-                            &screen_config,
-                            &icon,
-                            &mut icon_vertices,
-                            &mut icon_draws,
-                        );
+                        frame_draw_context.push_icon_draw(&self.icon_cache, &screen_config, &icon);
                     }
-                    let playlist_icon_end = icon_draws.len();
+                    let playlist_icon_end = frame_draw_context.icon_draws.len();
 
                     let sw = self.render_context.surface_config.width;
                     let sh = self.render_context.surface_config.height;
@@ -246,21 +257,18 @@ impl Graphics {
                     let ruler_h = content_y.saturating_sub(ruler_y);
 
                     // STATIC SHAPES — owns the playlist's icons
-                    let static_vert_start = vertices.len() as u32;
-                    let static_char_start = char_draws.len();
-                    vertices.extend(static_draw_region.vertices);
-                    Graphics::push_text_draws(
+                    let static_vert_start = frame_draw_context.vertices.len() as u32;
+                    let static_char_start = frame_draw_context.char_draws.len();
+                    frame_draw_context
+                        .vertices
+                        .extend(static_draw_region.vertices);
+                    frame_draw_context.push_text_draws(
                         &static_draw_region.text_items,
                         &self.font_cache,
                         &self.glyph_cache,
                         &screen_config,
-                        &mut glyph_vertices,
-                        &mut char_draws,
                     );
-                    regions.push(RecordedRegion::record(
-                        &vertices,
-                        &char_draws,
-                        &icon_draws,
+                    frame_draw_context.record_region(
                         static_vert_start,
                         static_char_start,
                         icon_start,
@@ -272,80 +280,71 @@ impl Graphics {
                             sw,
                             sh,
                         )),
-                    ));
+                    );
 
                     // RULER — no icons of its own; icon range collapses to [playlist_icon_end, playlist_icon_end)
                     let ruler_padding = 16.0;
                     let ruler_x = (header_x as f32 - ruler_padding).max(0.0) as u32;
                     let ruler_w = timeline_w + ruler_padding as u32;
-                    let ruler_vert_start = vertices.len() as u32;
-                    let ruler_char_start = char_draws.len();
-                    vertices.extend(ruler_draw_region.vertices);
-                    Graphics::push_text_draws(
+                    let ruler_vert_start = frame_draw_context.vertices.len() as u32;
+                    let ruler_char_start = frame_draw_context.char_draws.len();
+                    frame_draw_context
+                        .vertices
+                        .extend(ruler_draw_region.vertices);
+                    frame_draw_context.push_text_draws(
                         &ruler_draw_region.text_items,
                         &self.font_cache,
                         &self.glyph_cache,
                         &screen_config,
-                        &mut glyph_vertices,
-                        &mut char_draws,
                     );
-                    regions.push(RecordedRegion::record(
-                        &vertices,
-                        &char_draws,
-                        &icon_draws,
+                    frame_draw_context.record_region(
                         ruler_vert_start,
                         ruler_char_start,
                         playlist_icon_end,
                         Some(safe_scissor(ruler_x, ruler_y, ruler_w, ruler_h, sw, sh)),
-                    ));
+                    );
 
                     // HEADER
-                    let header_vert_start = vertices.len() as u32;
-                    let header_char_start = char_draws.len();
-                    vertices.extend(header_draw_region.vertices);
-                    Graphics::push_text_draws(
+                    let header_vert_start = frame_draw_context.vertices.len() as u32;
+                    let header_char_start = frame_draw_context.char_draws.len();
+                    frame_draw_context
+                        .vertices
+                        .extend(header_draw_region.vertices);
+                    frame_draw_context.push_text_draws(
                         &header_draw_region.text_items,
                         &self.font_cache,
                         &self.glyph_cache,
                         &screen_config,
-                        &mut glyph_vertices,
-                        &mut char_draws,
                     );
-                    regions.push(RecordedRegion::record(
-                        &vertices,
-                        &char_draws,
-                        &icon_draws,
+                    frame_draw_context.record_region(
                         header_vert_start,
                         header_char_start,
                         playlist_icon_end,
                         Some(safe_scissor(wx, content_y, header_w, content_h, sw, sh)),
-                    ));
+                    );
 
                     // TIMELINE
-                    let timeline_vert_start = vertices.len() as u32;
-                    let timeline_char_start = char_draws.len();
-                    vertices.extend(timeline_draw_region.vertices);
-                    Graphics::push_text_draws(
+                    let timeline_vert_start = frame_draw_context.vertices.len() as u32;
+                    let timeline_char_start = frame_draw_context.char_draws.len();
+                    frame_draw_context
+                        .vertices
+                        .extend(timeline_draw_region.vertices);
+                    frame_draw_context.push_text_draws(
                         &timeline_draw_region.text_items,
                         &self.font_cache,
                         &self.glyph_cache,
                         &screen_config,
-                        &mut glyph_vertices,
-                        &mut char_draws,
                     );
-                    regions.push(RecordedRegion::record(
-                        &vertices,
-                        &char_draws,
-                        &icon_draws,
+                    frame_draw_context.record_region(
                         timeline_vert_start,
                         timeline_char_start,
                         playlist_icon_end,
                         Some(safe_scissor(
                             header_x, content_y, timeline_w, content_h, sw, sh,
                         )),
-                    ));
+                    );
 
-                    interaction = interaction.or(playlist_interaction);
+                    frame_draw_context.add_interaction(playlist_interaction);
                     continue;
                 }
                 MIXER_ID if self.mini_windows[MIXER_ID].is_open => {
@@ -359,17 +358,15 @@ impl Graphics {
                         self.master_peak,
                         &screen_config,
                         &masked_mouse,
-                        &mut vertices,
+                        &mut frame_draw_context.vertices,
                     );
-                    Graphics::push_text_draws(
+                    frame_draw_context.push_text_draws(
                         &texts,
                         &self.font_cache,
                         &self.glyph_cache,
                         &screen_config,
-                        &mut glyph_vertices,
-                        &mut char_draws,
                     );
-                    interaction = interaction.or(mixer_interaction);
+                    frame_draw_context.add_interaction(mixer_interaction);
                 }
                 PIANO_ROLL_ID if self.mini_windows[PIANO_ROLL_ID].is_open => {
                     let window = &self.mini_windows[PIANO_ROLL_ID];
@@ -388,38 +385,38 @@ impl Graphics {
                         self.piano_roll_state.as_ref(),
                     );
 
-                    vertices.extend(static_draw_region.vertices);
-                    Graphics::push_text_draws(
+                    frame_draw_context
+                        .vertices
+                        .extend(static_draw_region.vertices);
+                    frame_draw_context.push_text_draws(
                         &static_draw_region.text_items,
                         &self.font_cache,
                         &self.glyph_cache,
                         &screen_config,
-                        &mut glyph_vertices,
-                        &mut char_draws,
                     );
 
-                    let piano_content_vert_start = vertices.len() as u32;
-                    let piano_content_char_start = char_draws.len();
-                    vertices.extend(piano_key_draw_region.vertices);
-                    Graphics::push_text_draws(
+                    let piano_content_vert_start = frame_draw_context.vertices.len() as u32;
+                    let piano_content_char_start = frame_draw_context.char_draws.len();
+                    frame_draw_context
+                        .vertices
+                        .extend(piano_key_draw_region.vertices);
+                    frame_draw_context.push_text_draws(
                         &piano_key_draw_region.text_items,
                         &self.font_cache,
                         &self.glyph_cache,
                         &screen_config,
-                        &mut glyph_vertices,
-                        &mut char_draws,
                     );
 
-                    let grid_vert_start = vertices.len() as u32;
-                    let grid_char_start = char_draws.len();
-                    vertices.extend(grid_draw_region.vertices);
-                    Graphics::push_text_draws(
+                    let grid_vert_start = frame_draw_context.vertices.len() as u32;
+                    let grid_char_start = frame_draw_context.char_draws.len();
+                    frame_draw_context
+                        .vertices
+                        .extend(grid_draw_region.vertices);
+                    frame_draw_context.push_text_draws(
                         &grid_draw_region.text_items,
                         &self.font_cache,
                         &self.glyph_cache,
                         &screen_config,
-                        &mut glyph_vertices,
-                        &mut char_draws,
                     );
 
                     let sw = self.render_context.surface_config.width;
@@ -436,8 +433,8 @@ impl Graphics {
                     let grid_w = win_right.saturating_sub(grid_x).saturating_sub(16);
 
                     // piano roll pushes no icons this session — icon range is empty
-                    // ([icon_start, icon_start)) for all three of its sub-regions.
-                    regions.push(RecordedRegion {
+                    // ([icon_start, icon_start)) for all three sub-regions.
+                    frame_draw_context.regions.push(RecordedRegion {
                         range: WindowDrawRange {
                             vert_start,
                             vert_end: piano_content_vert_start,
@@ -455,7 +452,7 @@ impl Graphics {
                             sh,
                         )),
                     });
-                    regions.push(RecordedRegion {
+                    frame_draw_context.regions.push(RecordedRegion {
                         range: WindowDrawRange {
                             vert_start: piano_content_vert_start,
                             vert_end: grid_vert_start,
@@ -466,17 +463,14 @@ impl Graphics {
                         },
                         scissor: Some(safe_scissor(wx, content_y, key_w, content_h, sw, sh)),
                     });
-                    regions.push(RecordedRegion::record(
-                        &vertices,
-                        &char_draws,
-                        &icon_draws,
+                    frame_draw_context.record_region(
                         grid_vert_start,
                         grid_char_start,
                         icon_start,
                         Some(safe_scissor(grid_x, content_y, grid_w, content_h, sw, sh)),
-                    ));
+                    );
 
-                    interaction = interaction.or(piano_interaction);
+                    frame_draw_context.add_interaction(piano_interaction);
                     continue;
                 }
                 track => {
@@ -490,26 +484,22 @@ impl Graphics {
                                     &masked_mouse,
                                     &screen_config,
                                     track,
-                                    &mut vertices,
+                                    &mut frame_draw_context.vertices,
                                 );
 
-                                interaction = interaction.or(track_interaction);
+                                frame_draw_context.add_interaction(track_interaction);
                                 for icon in icons {
-                                    push_icon_draw(
+                                    frame_draw_context.push_icon_draw(
                                         &self.icon_cache,
                                         &screen_config,
                                         &icon,
-                                        &mut icon_vertices,
-                                        &mut icon_draws,
                                     );
                                 }
-                                Graphics::push_text_draws(
+                                frame_draw_context.push_text_draws(
                                     &texts,
                                     &self.font_cache,
                                     &self.glyph_cache,
                                     &screen_config,
-                                    &mut glyph_vertices,
-                                    &mut char_draws,
                                 );
                                 self.tooltip = tooltip;
                             }
@@ -518,15 +508,7 @@ impl Graphics {
                 }
             }
 
-            regions.push(RecordedRegion::record(
-                &vertices,
-                &char_draws,
-                &icon_draws,
-                vert_start,
-                char_start,
-                icon_start,
-                None,
-            ));
+            frame_draw_context.record_region(vert_start, char_start, icon_start, None);
         }
 
         // --- track tray + file tree ---
@@ -534,9 +516,9 @@ impl Graphics {
             let sw = self.render_context.surface_config.width;
             let sh = self.render_context.surface_config.height;
 
-            let tray_vert_start = vertices.len() as u32;
-            let tray_char_start = char_draws.len();
-            let tray_icon_start = icon_draws.len();
+            let tray_vert_start = frame_draw_context.vertices.len() as u32;
+            let tray_char_start = frame_draw_context.char_draws.len();
+            let tray_icon_start = frame_draw_context.icon_draws.len();
 
             let selected_track_id: Option<TrackID> = match self.playlist_action {
                 PlaylistAction::PlaceFresh(AudioBlockType::Sample(id)) => Some(id),
@@ -549,24 +531,19 @@ impl Graphics {
                 self.resizing_track_tray,
                 &self.tracks,
                 self.track_tray_width,
-                &mut vertices,
+                &mut frame_draw_context.vertices,
                 selected_track_id,
             );
-            interaction = interaction.or(track_tray_interaction);
-            Graphics::push_text_draws(
+            frame_draw_context.add_interaction(track_tray_interaction);
+            frame_draw_context.push_text_draws(
                 &texts,
                 &self.font_cache,
                 &self.glyph_cache,
                 &screen_config,
-                &mut glyph_vertices,
-                &mut char_draws,
             );
 
             let tray_bottom = sh / 2 + 2;
-            regions.push(RecordedRegion::record(
-                &vertices,
-                &char_draws,
-                &icon_draws,
+            frame_draw_context.record_region(
                 tray_vert_start,
                 tray_char_start,
                 tray_icon_start,
@@ -578,12 +555,12 @@ impl Graphics {
                     sw,
                     sh,
                 )),
-            ));
+            );
 
             // DIVIDER (unscissored) — no icons
-            let divider_vert_start = vertices.len() as u32;
-            let divider_char_start = char_draws.len();
-            let divider_icon_start = icon_draws.len();
+            let divider_vert_start = frame_draw_context.vertices.len() as u32;
+            let divider_char_start = frame_draw_context.char_draws.len();
+            let divider_icon_start = frame_draw_context.icon_draws.len();
             Rectangle {
                 x: 0.0,
                 y: (screen_config.height / 2) as f32,
@@ -594,7 +571,7 @@ impl Graphics {
                 &screen_config,
                 screen_config.palette.neutral.shade(1),
                 NO_RADIUS,
-                &mut vertices,
+                &mut frame_draw_context.vertices,
             );
             let w_divider = Rectangle {
                 x: PAD_2,
@@ -606,7 +583,7 @@ impl Graphics {
                 &screen_config,
                 screen_config.palette.neutral.shade(3),
                 RADIUS_4,
-                &mut vertices,
+                &mut frame_draw_context.vertices,
             );
             let h_divider = Rectangle {
                 x: self.track_tray_width - 1.0,
@@ -618,10 +595,10 @@ impl Graphics {
                 &screen_config,
                 screen_config.palette.neutral.shade(3),
                 NO_RADIUS,
-                &mut vertices,
+                &mut frame_draw_context.vertices,
             );
             use crate::graphics::side_panel::draw_title;
-            Graphics::push_text_draws(
+            frame_draw_context.push_text_draws(
                 &[draw_title(
                     "File Tree",
                     (w_divider.x - 2.0, w_divider.y),
@@ -630,23 +607,18 @@ impl Graphics {
                 &self.font_cache,
                 &self.glyph_cache,
                 &screen_config,
-                &mut glyph_vertices,
-                &mut char_draws,
             );
-            regions.push(RecordedRegion::record(
-                &vertices,
-                &char_draws,
-                &icon_draws,
+            frame_draw_context.record_region(
                 divider_vert_start,
                 divider_char_start,
                 divider_icon_start,
                 None,
-            ));
+            );
 
             // FILE TREE — owns its own icons
-            let file_tree_vert_start = vertices.len() as u32;
-            let file_tree_char_start = char_draws.len();
-            let file_tree_icon_start = icon_draws.len();
+            let file_tree_vert_start = frame_draw_context.vertices.len() as u32;
+            let file_tree_char_start = frame_draw_context.char_draws.len();
+            let file_tree_icon_start = frame_draw_context.icon_draws.len();
 
             let (icons, text_items, file_tree_interaction) = file_tree::draw(
                 mouse_state,
@@ -656,33 +628,22 @@ impl Graphics {
                 &self.fs_cache,
                 self.fs_scroll_offset,
                 self.track_tray_width,
-                &mut vertices,
+                &mut frame_draw_context.vertices,
                 (screen_config.height / 2) as f32,
             );
-            interaction = interaction.or(file_tree_interaction);
-            Graphics::push_text_draws(
+            frame_draw_context.add_interaction(file_tree_interaction);
+            frame_draw_context.push_text_draws(
                 &text_items,
                 &self.font_cache,
                 &self.glyph_cache,
                 &screen_config,
-                &mut glyph_vertices,
-                &mut char_draws,
             );
             for icon in icons {
-                push_icon_draw(
-                    &self.icon_cache,
-                    &screen_config,
-                    &icon,
-                    &mut icon_vertices,
-                    &mut icon_draws,
-                );
+                frame_draw_context.push_icon_draw(&self.icon_cache, &screen_config, &icon);
             }
 
             let divider_y = sh / 2 + (PAD_32 + PAD_16) as u32;
-            regions.push(RecordedRegion::record(
-                &vertices,
-                &char_draws,
-                &icon_draws,
+            frame_draw_context.record_region(
                 file_tree_vert_start,
                 file_tree_char_start,
                 file_tree_icon_start,
@@ -694,13 +655,13 @@ impl Graphics {
                     sw,
                     sh,
                 )),
-            ));
+            );
         }
 
         // --- toolbar (pattern tray + top bar) ---
-        let toolbar_vert_start = vertices.len() as u32;
-        let toolbar_char_start = char_draws.len();
-        let toolbar_icon_start = icon_draws.len();
+        let toolbar_vert_start = frame_draw_context.vertices.len() as u32;
+        let toolbar_char_start = frame_draw_context.char_draws.len();
+        let toolbar_icon_start = frame_draw_context.icon_draws.len();
 
         let sequencer_is_open = self
             .mini_windows
@@ -729,38 +690,31 @@ impl Graphics {
                 self.pattern_tray_width,
                 &self.renaming,
                 rename_cursor_offset,
-                &mut vertices,
+                &mut frame_draw_context.vertices,
             );
-            interaction = interaction.or(pattern_interaction);
-            Graphics::push_text_draws(
+            frame_draw_context.add_interaction(pattern_interaction);
+            frame_draw_context.push_text_draws(
                 &texts,
                 &self.font_cache,
                 &self.glyph_cache,
                 &screen_config,
-                &mut glyph_vertices,
-                &mut char_draws,
             );
-            push_icon_draw(
-                &self.icon_cache,
-                &screen_config,
-                &icon,
-                &mut icon_vertices,
-                &mut icon_draws,
-            );
+            frame_draw_context.push_icon_draw(&self.icon_cache, &screen_config, &icon);
             self.tooltip = tooltip;
         }
 
         if self.show_save_modal {
-            let (texts, modal_interaction) =
-                modal::draw(&screen_config, &real_mouse_state, &mut vertices);
-            interaction = interaction.or(modal_interaction);
-            Graphics::push_text_draws(
+            let (texts, modal_interaction) = modal::draw(
+                &screen_config,
+                &real_mouse_state,
+                &mut frame_draw_context.vertices,
+            );
+            frame_draw_context.add_interaction(modal_interaction);
+            frame_draw_context.push_text_draws(
                 &texts,
                 &self.font_cache,
                 &self.glyph_cache,
                 &screen_config,
-                &mut glyph_vertices,
-                &mut char_draws,
             );
         }
 
@@ -780,94 +734,52 @@ impl Graphics {
             &self.spectrum,
             self.sample_rate,
             time_string,
-            &mut vertices,
+            &mut frame_draw_context.vertices,
         );
-        interaction = interaction.or(toolbar_interaction);
+        frame_draw_context.add_interaction(toolbar_interaction);
         for icon in icons {
-            push_icon_draw(
-                &self.icon_cache,
-                &screen_config,
-                &icon,
-                &mut icon_vertices,
-                &mut icon_draws,
-            );
+            frame_draw_context.push_icon_draw(&self.icon_cache, &screen_config, &icon);
         }
         self.tooltip = tooltip;
 
-        Graphics::push_text_draws(
+        frame_draw_context.push_text_draws(
             &texts,
             &self.font_cache,
             &self.glyph_cache,
             &screen_config,
-            &mut glyph_vertices,
-            &mut char_draws,
         );
-        regions.push(RecordedRegion::record(
-            &vertices,
-            &char_draws,
-            &icon_draws,
+        frame_draw_context.record_region(
             toolbar_vert_start,
             toolbar_char_start,
             toolbar_icon_start,
             None,
-        ));
+        );
 
         // --- footer ---
-        let footer_vert_start = vertices.len() as u32;
-        let footer_char_start = char_draws.len();
-        let footer_icon_start = icon_draws.len();
-        let title = if project_is_dirty {
-            format!("{}*", self.project_path)
-        } else {
-            self.project_path.clone()
-        };
-        let (texts, icons, tooltip, footer_interaction) = footer::draw(
-            &screen_config,
-            &title,
-            self.present_fps,
-            mouse_state,
-            &mut vertices,
-        );
-        interaction = interaction.or(footer_interaction);
-        self.tooltip = tooltip.or(self.tooltip.take());
-        for icon in icons {
-            push_icon_draw(
-                &self.icon_cache,
-                &screen_config,
-                &icon,
-                &mut icon_vertices,
-                &mut icon_draws,
-            );
-        }
-        Graphics::push_text_draws(
-            &texts,
+        let footer_tooltip = Self::draw_footer(
+            &self.icon_cache,
             &self.font_cache,
             &self.glyph_cache,
+            &self.project_path,
+            self.present_fps,
+            &mut frame_draw_context,
             &screen_config,
-            &mut glyph_vertices,
-            &mut char_draws,
+            project_is_dirty,
+            mouse_state,
         );
-        regions.push(RecordedRegion::record(
-            &vertices,
-            &char_draws,
-            &icon_draws,
-            footer_vert_start,
-            footer_char_start,
-            footer_icon_start,
-            None,
-        ));
+        self.tooltip = footer_tooltip.or(self.tooltip.take());
 
         // dragging cursor override
         if self.resizing_track_tray {
-            interaction.cursor = CursorIcon::ColResize;
+            frame_draw_context.interaction.cursor = CursorIcon::ColResize;
         } else if self.dragging_window.is_some() || self.dragging || self.dragging_knob.is_some() {
-            interaction.cursor = CursorIcon::Default;
+            frame_draw_context.interaction.cursor = CursorIcon::Default;
         }
 
         if let Some(ref path) = self.dragging_file {
-            let ghost_vert_start = vertices.len() as u32;
-            let ghost_char_start = char_draws.len();
-            let ghost_icon_start = icon_draws.len();
+            let ghost_vert_start = frame_draw_context.vertices.len() as u32;
+            let ghost_char_start = frame_draw_context.char_draws.len();
+            let ghost_icon_start = frame_draw_context.icon_draws.len();
             let name = path.file_name().and_then(|n| n.to_str()).unwrap_or("?");
             let ghost = Rectangle {
                 x: mouse_state.x,
@@ -879,9 +791,9 @@ impl Graphics {
                 &screen_config,
                 screen_config.palette.neutral.shade(6),
                 RADIUS_4,
-                &mut vertices,
+                &mut frame_draw_context.vertices,
             );
-            Graphics::push_text_draws(
+            frame_draw_context.push_text_draws(
                 &[TextItem {
                     text: name.to_string(),
                     x: ghost.x + PAD_4,
@@ -893,52 +805,45 @@ impl Graphics {
                 &self.font_cache,
                 &self.glyph_cache,
                 &screen_config,
-                &mut glyph_vertices,
-                &mut char_draws,
             );
-            regions.push(RecordedRegion::record(
-                &vertices,
-                &char_draws,
-                &icon_draws,
+            frame_draw_context.record_region(
                 ghost_vert_start,
                 ghost_char_start,
                 ghost_icon_start,
                 None,
-            ));
+            );
         };
 
         // context menu
-        let context_menu_vert_start = vertices.len() as u32;
-        let context_menu_char_start = char_draws.len();
-        let context_menu_icon_start = icon_draws.len();
+        let context_menu_vert_start = frame_draw_context.vertices.len() as u32;
+        let context_menu_char_start = frame_draw_context.char_draws.len();
+        let context_menu_icon_start = frame_draw_context.icon_draws.len();
         if let Some(menu) = &self.context_menu {
-            let (texts, context_menu_interaction) =
-                menu.draw(&screen_config, mouse_state, &mut vertices);
+            let (texts, context_menu_interaction) = menu.draw(
+                &screen_config,
+                mouse_state,
+                &mut frame_draw_context.vertices,
+            );
 
-            Graphics::push_text_draws(
+            frame_draw_context.push_text_draws(
                 &texts,
                 &self.font_cache,
                 &self.glyph_cache,
                 &screen_config,
-                &mut glyph_vertices,
-                &mut char_draws,
             );
-            interaction = interaction.or(context_menu_interaction);
+            frame_draw_context.add_interaction(context_menu_interaction);
         }
-        regions.push(RecordedRegion::record(
-            &vertices,
-            &char_draws,
-            &icon_draws,
+        frame_draw_context.record_region(
             context_menu_vert_start,
             context_menu_char_start,
             context_menu_icon_start,
             None,
-        ));
+        );
 
         // tooltip
-        let tooltip_vert_start = vertices.len() as u32;
-        let tooltip_char_start = char_draws.len();
-        let tooltip_icon_start = icon_draws.len();
+        let tooltip_vert_start = frame_draw_context.vertices.len() as u32;
+        let tooltip_char_start = frame_draw_context.char_draws.len();
+        let tooltip_icon_start = frame_draw_context.icon_draws.len();
         if let Some(tt) = &self.tooltip {
             if mouse_state
                 .hover_duration
@@ -950,7 +855,7 @@ impl Graphics {
                         &screen_config,
                         screen_config.palette.neutral.shade(3),
                         RADIUS_8,
-                        &mut vertices,
+                        &mut frame_draw_context.vertices,
                     );
                 if let Some(text) = &tt.text {
                     let tooltip_text = [TextItem {
@@ -961,43 +866,38 @@ impl Graphics {
                         font: Mono,
                         color: screen_config.palette.neutral.shade(7),
                     }];
-                    Graphics::push_text_draws(
+                    frame_draw_context.push_text_draws(
                         &tooltip_text,
                         &self.font_cache,
                         &self.glyph_cache,
                         &screen_config,
-                        &mut glyph_vertices,
-                        &mut char_draws,
                     );
                 }
             }
         }
-        regions.push(RecordedRegion::record(
-            &vertices,
-            &char_draws,
-            &icon_draws,
+        frame_draw_context.record_region(
             tooltip_vert_start,
             tooltip_char_start,
             tooltip_icon_start,
             None,
-        ));
+        );
 
         self.render_context.queue.write_buffer(
             &self.render_context.vertex_buffer,
             0,
-            bytemuck::cast_slice(&vertices),
+            bytemuck::cast_slice(&frame_draw_context.vertices),
         );
         self.render_context.queue.write_buffer(
             &self.render_context.glyph_vertex_buffer,
             0,
-            bytemuck::cast_slice(&glyph_vertices),
+            bytemuck::cast_slice(&frame_draw_context.glyph_vertices),
         );
         self.render_context.queue.write_buffer(
             &self.render_context.icon_vertex_buffer,
             0,
-            bytemuck::cast_slice(&icon_vertices),
+            bytemuck::cast_slice(&frame_draw_context.icon_vertices),
         );
-        self.num_vertices = vertices.len() as u32;
+        self.num_vertices = frame_draw_context.vertices.len() as u32;
 
         // Encodes a series of operations to submit to the GPU at once
         let mut encoder = self
@@ -1029,7 +929,7 @@ impl Graphics {
             r_pass.set_bind_group(1, &self.render_context.screen_bind_group, &[]);
             let any_bg = self.glyph_cache.any_bind_group().unwrap();
 
-            for region in &regions {
+            for region in &frame_draw_context.regions {
                 match region.scissor {
                     Some((x, y, w, h)) => r_pass.set_scissor_rect(x, y, w, h),
                     None => r_pass.set_scissor_rect(
@@ -1039,14 +939,17 @@ impl Graphics {
                         self.render_context.surface_config.height,
                     ),
                 }
+                // draw everything that was in that draw range
                 draw_range(
                     &mut r_pass,
                     &self.render_context.vertex_buffer,
                     &self.render_context.glyph_vertex_buffer,
                     &self.render_context.icon_vertex_buffer,
                     any_bg,
-                    &char_draws,
-                    &icon_draws,
+                    &frame_draw_context.char_draws,
+                    &frame_draw_context.icon_draws,
+                    self.glyph_cache.any_bind_group().unwrap(),
+                    self.icon_cache.bind_group(),
                     &region.range,
                 );
             }
@@ -1076,6 +979,43 @@ impl Graphics {
             self.fps_window_frames = 1;
         }
 
-        interaction
+        frame_draw_context.interaction
+    }
+
+    fn draw_footer<'a>(
+        icon_cache: &'a IconCache,
+        font_cache: &FontCache,
+        glyph_cache: &'a GlyphCache,
+        project_path: &str,
+        present_fps: f32,
+        frame: &mut FrameDrawContext,
+        screen_config: &ScreenConfig,
+        project_is_dirty: bool,
+        mouse_state: &MouseState,
+    ) -> Option<Tooltip> {
+        let vert_start = frame.vertices.len() as u32;
+        let char_start = frame.char_draws.len();
+        let icon_start = frame.icon_draws.len();
+
+        let title = if project_is_dirty {
+            format!("{}*", project_path)
+        } else {
+            project_path.to_owned()
+        };
+        let (texts, icons, tooltip, footer_interaction) = footer::draw(
+            screen_config,
+            &title,
+            present_fps,
+            mouse_state,
+            &mut frame.vertices,
+        );
+        frame.interaction = std::mem::take(&mut frame.interaction).or(footer_interaction);
+
+        for icon in icons {
+            frame.push_icon_draw(icon_cache, screen_config, &icon);
+        }
+        frame.push_text_draws(&texts, font_cache, glyph_cache, screen_config);
+        frame.record_region(vert_start, char_start, icon_start, None);
+        tooltip
     }
 }

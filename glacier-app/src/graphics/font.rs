@@ -34,7 +34,7 @@ impl Font {
 pub fn load_fonts(device: &wgpu::Device, queue: &wgpu::Queue) -> (FontCache, GlyphCache) {
     // build caches
     let mut font_cache = FontCache::new();
-    let mut glyph_cache = GlyphCache::new();
+    let mut glyph_entries = HashMap::new();
 
     // reuse bgl and sampler for all fonts/sizes
     let bgl = create_bind_group_layout(device);
@@ -51,22 +51,29 @@ pub fn load_fonts(device: &wgpu::Device, queue: &wgpu::Queue) -> (FontCache, Gly
         let parsed =
             fontdue::Font::from_bytes(font.bytes(), fontdue::FontSettings::default()).unwrap();
 
-        let cache = build_glyph_cache(device, queue, &parsed, &FONT_SIZES, &bgl, &sampler);
+        let cache = rasterize_font_glyphs(&parsed, &FONT_SIZES);
+        glyph_entries.extend(
+            cache
+                .into_iter()
+                .map(|(key, value)| ((font, key.0, key.1), value)),
+        );
         font_cache.insert(font, parsed);
-        glyph_cache.insert(font, cache);
     }
+    let glyph_cache = build_glyph_atlas(device, queue, glyph_entries, &bgl, &sampler);
     (font_cache, glyph_cache)
 }
 
-/// A single rasterized glyph: its wgpu texture, the bind group used to draw
-/// it, and fontdue's layout metrics (width/height/advance) for positioning.
-#[expect(dead_code)] // wgpu texture is not used, just needs to exist
-pub struct GlyphEntry(wgpu::Texture, wgpu::BindGroup, fontdue::Metrics);
-impl GlyphEntry {
-    /// The bind group to set before drawing this glyph's quad.
-    pub fn bind_group(&self) -> &wgpu::BindGroup {
-        &self.1
-    }
+/// A rasterized glyph's atlas coordinates and fontdue layout metrics.
+pub struct GlyphEntry {
+    pub uv_min: [f32; 2],
+    pub uv_max: [f32; 2],
+    pub metrics: fontdue::Metrics,
+}
+
+pub struct GlyphAtlas {
+    // Keep the texture alive for the view/bind group that references it.
+    _texture: wgpu::Texture,
+    bind_group: wgpu::BindGroup,
 }
 
 /// Store a cache of Font enums mapped to rendered fonts
@@ -92,40 +99,23 @@ impl Default for FontCache {
     }
 }
 
-/// Pre-rasterized glyphs for every loaded font, keyed by font name and then
-/// by (character, size). Built once at startup via `build_glyph_cache` per
-/// font; `Graphics::draw` looks glyphs up here every frame instead of
-/// rasterizing on the fly.
-pub struct GlyphCache(HashMap<Font, HashMap<(char, u32), GlyphEntry>>);
+/// Pre-rasterized glyphs for every loaded font, keyed by (font, character,
+/// size). Built once at startup into a shared atlas; `Graphics::draw` looks
+/// glyphs up here every frame instead of rasterizing on the fly.
+pub struct GlyphCache {
+    atlas: GlyphAtlas,
+    entries: HashMap<(Font, char, u32), GlyphEntry>,
+}
 
 impl GlyphCache {
-    pub fn new() -> Self {
-        GlyphCache(HashMap::new())
-    }
-
-    // cache a font
-    pub fn insert(&mut self, font: Font, entry: HashMap<(char, u32), GlyphEntry>) {
-        self.0.insert(font, entry);
-    }
-
     // get a cached font
     pub fn get(&self, font: Font, ch: char, size: u32) -> Option<&GlyphEntry> {
-        self.0.get(&font)?.get(&(ch, size))
+        self.entries.get(&(font, ch, size))
     }
 
     // return bind group
     pub fn any_bind_group(&self) -> Option<&wgpu::BindGroup> {
-        self.0
-            .values()
-            .next()?
-            .values()
-            .next()
-            .map(|entry| entry.bind_group())
-    }
-}
-impl Default for GlyphCache {
-    fn default() -> Self {
-        Self::new()
+        Some(&self.atlas.bind_group)
     }
 }
 
@@ -173,7 +163,7 @@ pub fn truncate_text(name: &str, length: usize) -> String {
 pub const TITLE: f32 = 18.0;
 pub const BODY: f32 = 12.0;
 
-/// The bind group layout shared by every glyph/icon texture: one filterable
+/// The bind group layout shared by the glyph and icon atlases: one filterable
 /// 2D texture (binding 0) plus one filtering sampler (binding 1).
 pub fn create_bind_group_layout(device: &wgpu::Device) -> wgpu::BindGroupLayout {
     device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
@@ -200,47 +190,79 @@ pub fn create_bind_group_layout(device: &wgpu::Device) -> wgpu::BindGroupLayout 
 }
 
 /// returns the glyph cache (a hashmap of characters to bitmaps for multiple size)
-pub fn build_glyph_cache(
-    device: &wgpu::Device,
-    queue: &wgpu::Queue,
+fn rasterize_font_glyphs(
     font: &fontdue::Font,
     sizes: &[f32],
-    bgl: &wgpu::BindGroupLayout,
-    sampler: &wgpu::Sampler,
-) -> HashMap<(char, u32), GlyphEntry> {
+) -> HashMap<(char, u32), (fontdue::Metrics, Vec<u8>)> {
     let mut cache = HashMap::new();
     for &size in sizes {
         for c in ' '..='~' {
-            let (metrics, _) = font.rasterize(c, size); // call #1: cheap empty-glyph check
+            let (metrics, bitmap) = font.rasterize(c, size);
             if metrics.width == 0 || metrics.height == 0 {
                 continue;
             }
-            let (texture, bind_group, metrics) =
-                rasterize_glyph(device, queue, font, c, size, bgl, sampler); // call #2, metrics reused below
-
-            cache.insert((c, size as u32), GlyphEntry(texture, bind_group, metrics));
+            cache.insert((c, size as u32), (metrics, bitmap));
         }
     }
     cache
 }
 
-/// convert the font glyph into wgpu renderable pixels
-pub fn rasterize_glyph(
+fn build_glyph_atlas(
     device: &wgpu::Device,
     queue: &wgpu::Queue,
-    font: &fontdue::Font,
-    c: char,
-    size: f32,
+    rasters: HashMap<(Font, char, u32), (fontdue::Metrics, Vec<u8>)>,
     bgl: &wgpu::BindGroupLayout,
     sampler: &wgpu::Sampler,
-) -> (wgpu::Texture, wgpu::BindGroup, fontdue::Metrics) {
-    let (metrics, bitmap) = font.rasterize(c, size);
-
+) -> GlyphCache {
+    const WIDTH: u32 = 1024;
+    const PAD: u32 = 1;
+    let mut atlas_h = 1;
+    let mut placements = Vec::with_capacity(rasters.len());
+    let (mut x, mut y, mut row_h) = (PAD, PAD, 0u32);
+    for (key, (metrics, bitmap)) in rasters {
+        let (w, h) = (metrics.width as u32, metrics.height as u32);
+        if x + w + PAD > WIDTH {
+            x = PAD;
+            y += row_h + PAD;
+            row_h = 0;
+        }
+        assert!(w + 2 * PAD <= WIDTH, "glyph wider than glyph atlas");
+        placements.push((key, metrics, bitmap, x, y));
+        x += w + PAD;
+        row_h = row_h.max(h);
+        atlas_h = atlas_h.max(y + h + PAD);
+    }
+    let height = atlas_h.next_power_of_two();
+    let mut pixels = vec![0u8; (WIDTH * height) as usize];
+    let mut entries = HashMap::with_capacity(placements.len());
+    for (key, metrics, bitmap, x, y) in placements {
+        let w = metrics.width as u32;
+        let h = metrics.height as u32;
+        for row in 0..h {
+            let src = (row * w) as usize..((row + 1) * w) as usize;
+            let dst = ((y + row) * WIDTH + x) as usize;
+            pixels[dst..dst + w as usize].copy_from_slice(&bitmap[src]);
+        }
+        entries.insert(
+            key,
+            GlyphEntry {
+                uv_min: [
+                    (x as f32 + 0.5) / WIDTH as f32,
+                    (y as f32 + 0.5) / height as f32,
+                ],
+                uv_max: [
+                    (x as f32 + w as f32 - 0.5) / WIDTH as f32,
+                    (y as f32 + h as f32 - 0.5) / height as f32,
+                ],
+                metrics,
+            },
+        );
+    }
     let texture = device.create_texture(&wgpu::TextureDescriptor {
-        label: None,
+        label: Some("Glyph Atlas"),
         size: wgpu::Extent3d {
-            width: metrics.width as u32,
-            height: metrics.height as u32,
+            width: WIDTH,
+            height,
             depth_or_array_layers: 1,
         },
         mip_level_count: 1,
@@ -252,23 +274,21 @@ pub fn rasterize_glyph(
     });
     queue.write_texture(
         texture.as_image_copy(),
-        &bitmap,
+        &pixels,
         wgpu::TexelCopyBufferLayout {
             offset: 0,
-            bytes_per_row: Some(metrics.width as u32),
+            bytes_per_row: Some(WIDTH),
             rows_per_image: None,
         },
         wgpu::Extent3d {
-            width: metrics.width as u32,
-            height: metrics.height as u32,
+            width: WIDTH,
+            height,
             depth_or_array_layers: 1,
         },
     );
-
     let view = texture.create_view(&wgpu::TextureViewDescriptor::default());
-
     let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-        label: None,
+        label: Some("Glyph Atlas Bind Group"),
         layout: bgl,
         entries: &[
             wgpu::BindGroupEntry {
@@ -281,8 +301,13 @@ pub fn rasterize_glyph(
             },
         ],
     });
-
-    (texture, bind_group, metrics)
+    GlyphCache {
+        atlas: GlyphAtlas {
+            _texture: texture,
+            bind_group,
+        },
+        entries,
+    }
 }
 
 /// Build vertices for one glyph quad at the given screen position, sized to
@@ -293,6 +318,8 @@ pub fn draw_glyph(
     y: f32,
     w: f32,
     h: f32,
+    uv_min: [f32; 2],
+    uv_max: [f32; 2],
     screen_config: &ScreenConfig,
     color: (f32, f32, f32, f32),
 ) -> Vec<Vertex> {
@@ -305,7 +332,7 @@ pub fn draw_glyph(
         Vertex {
             position: [ndc_x, ndc_y, 0.0],
             color,
-            uv: [0.0, 0.0],
+            uv: uv_min,
             local_pos: [0.0, 0.0],
             half_size: [0.0, 0.0],
             radius: NO_RADIUS,
@@ -315,7 +342,7 @@ pub fn draw_glyph(
         Vertex {
             position: [ndc_x, ndc_y - ndc_h, 0.0],
             color,
-            uv: [0.0, 1.0],
+            uv: [uv_min[0], uv_max[1]],
             local_pos: [0.0, 0.0],
             half_size: [0.0, 0.0],
             radius: NO_RADIUS,
@@ -325,7 +352,7 @@ pub fn draw_glyph(
         Vertex {
             position: [ndc_x + ndc_w, ndc_y, 0.0],
             color,
-            uv: [1.0, 0.0],
+            uv: [uv_max[0], uv_min[1]],
             local_pos: [0.0, 0.0],
             half_size: [0.0, 0.0],
             radius: NO_RADIUS,
@@ -335,7 +362,7 @@ pub fn draw_glyph(
         Vertex {
             position: [ndc_x + ndc_w, ndc_y, 0.0],
             color,
-            uv: [1.0, 0.0],
+            uv: [uv_max[0], uv_min[1]],
             local_pos: [0.0, 0.0],
             half_size: [0.0, 0.0],
             radius: NO_RADIUS,
@@ -345,7 +372,7 @@ pub fn draw_glyph(
         Vertex {
             position: [ndc_x, ndc_y - ndc_h, 0.0],
             color,
-            uv: [0.0, 1.0],
+            uv: [uv_min[0], uv_max[1]],
             local_pos: [0.0, 0.0],
             half_size: [0.0, 0.0],
             radius: NO_RADIUS,
@@ -355,7 +382,7 @@ pub fn draw_glyph(
         Vertex {
             position: [ndc_x + ndc_w, ndc_y - ndc_h, 0.0],
             color,
-            uv: [1.0, 1.0],
+            uv: uv_max,
             local_pos: [0.0, 0.0],
             half_size: [0.0, 0.0],
             radius: NO_RADIUS,

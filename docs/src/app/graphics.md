@@ -23,7 +23,7 @@ Most windows only need one `RecordedRegion`. Playlist and piano roll are the exc
 
 When a window has both icons and multiple sub-regions, only one sub-region should own that window's icons — attaching the same icon range to every sub-region would draw them more than once. Playlist's icons conceptually belong to its static region (the one scissored to the whole window), so `icon_start`/`icon_end` get captured once, right after the icon-push loop runs, and only the static region's `record(...)` call gets the real range. The other sub-regions (ruler, header, timeline) get an empty range at that same offset, so nothing extra gets drawn there.
 
-Icons follow the same recording shape as text. A persistent `icon_vertex_buffer` holds the quad geometry, and `icon_draws: Vec<(u64, &wgpu::BindGroup)>` records a byte offset plus bind group per icon — same reason glyphs need this, since every icon has its own texture and needs its own bind group set before drawing. `WindowDrawRange` carries `icon_start`/`icon_end` right alongside `char_start`/`char_end` so icons get clipped and z-ordered exactly like everything else in that region.
+Icons follow the same recording shape as text. A persistent `icon_vertex_buffer` holds the quad geometry, and `icon_draws` records each icon quad's byte offset so regions can find their contiguous ranges. All configured icons share one color atlas and bind group; each quad's UVs select its icon within the atlas. Glyphs use a separate single-channel atlas and bind group. The renderer binds each atlas once and submits one batched draw for the region's glyphs and one for its icons. `WindowDrawRange` carries `icon_start`/`icon_end` alongside `char_start`/`char_end`, so icons remain clipped and ordered with their region.
 
 Icons didn't always work this way. They used to get collected into one flat list and drawn in a single unscissored pass after every region had already been drawn — which meant they ignored window z-order and scissor rects completely. An icon belonging to a window underneath could paint straight through a window on top of it. The fix was making icons go through the same region-recording path as text. Any new kind of drawable added to this engine needs to go through that same path, or it'll silently skip z-order and scissoring the same way icons did.
 
@@ -33,21 +33,19 @@ Icons didn't always work this way. They used to get collected into one flat list
 
 ### Text — fontdue
 
-Text is rendered as textured quads, not as a separate draw phase. That's a deliberate choice, not the obvious default. An earlier attempt used `glyphon`, which required all text draws to happen after all geometry, unconditionally — its `prepare()` had to run before the render pass opened and `render()` inside it. That's incompatible with painter's algorithm on overlapping windows, since a lower window's text would always end up drawn on top of a higher window's geometry. Fontdue rasterizes glyphs to CPU bitmaps once, uploads them as `wgpu::Texture`s, and treats each glyph as geometry — so text and colored rects can interleave freely in draw order.
+Text is rendered as textured quads, not as a separate library-managed draw phase. That's a deliberate choice, not the obvious default. An earlier attempt used `glyphon`, which required all text draws to happen after all geometry, unconditionally — its `prepare()` had to run before the render pass opened and `render()` inside it. That's incompatible with painter's algorithm on overlapping windows, since a lower window's text would always end up drawn on top of a higher window's geometry. Fontdue rasterizes the configured glyphs to CPU bitmaps at startup; Glacier packs those bitmaps into one shared GPU atlas. Each glyph remains a quad in the frame's glyph vertex buffer, with UVs pointing to its rectangle in the atlas. The region renderer binds that atlas once and draws the region's contiguous glyph range.
 
-```rust
-HashMap<String, HashMap<(char, u32), (wgpu::Texture, wgpu::BindGroup, fontdue::Metrics)>>
-```
+The glyph cache maps `(font, character, size)` to atlas UV bounds and fontdue metrics. One atlas contains both configured fonts and all sizes in the fixed startup slice — any `TextItem` size not in that slice silently produces no glyph. Zero-size glyphs are skipped. Sampling uses `FilterMode::Nearest`, not `Linear`, since linear filtering blurs pixel-exact glyph edges. Icons have their own color atlas because their pixels are RGBA rather than glyph coverage values.
 
-Outer key is font name, inner key is `(char, size)`. `build_glyph_cache` pre-rasterizes every size in a fixed startup slice — any `TextItem` size not in that slice silently produces no glyph. Zero-size glyphs get skipped (a zero-dimension texture panics wgpu). Sampling uses `FilterMode::Nearest`, not `Linear`, since linear filtering blurs pixel-exact glyph edges.
-
-The fragment shader branches on UV range to decide what it's drawing:
+The fragment shader uses the UV and a vertex marker to decide what it's drawing:
 
 ```wgsl
-if in.uv.x < 0.0       { use color }                // geometry quad
-else if in.uv.x > 1.0  { sample icon rgba }          // icon quad
+if in.uv.x < 0.0       { use color }                  // geometry quad
+else if in.local_pos.x > 0.5 { sample icon rgba }    // icon quad marker
 else                   { sample glyph alpha * color } // glyph quad
 ```
+
+Glyph and icon UVs both stay within `0.0..1.0` because they address rectangles inside their respective atlases. The icon marker is carried in `local_pos.x`; the earlier UV-range convention for icons no longer applies.
 
 ### Rectangles
 

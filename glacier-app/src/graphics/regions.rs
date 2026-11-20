@@ -1,5 +1,5 @@
 //! Glacier does not have a layout system yet but needed a system to track where draw regions or groups of vertexes are for scissor rects and z layering.
-use crate::graphics::Vertex;
+use crate::graphics::{DrawItem, Vertex};
 
 /// A recorded region tracks where vertices are in the vertex buffer and the coordinates of a scissor rectangle
 pub struct RecordedRegion {
@@ -7,10 +7,10 @@ pub struct RecordedRegion {
     pub scissor: Option<(u32, u32, u32, u32)>,
 }
 impl RecordedRegion {
-    pub fn record(
+    pub(crate) fn record(
         vertices: &[Vertex],
-        char_draws: &[(u64, &wgpu::BindGroup)],
-        icon_draws: &[(u64, &wgpu::BindGroup)],
+        char_draws: &[DrawItem],
+        icon_draws: &[DrawItem],
         vert_start: u32,
         char_start: usize,
         icon_start: usize,
@@ -64,49 +64,55 @@ pub fn draw_geom(
     }
 }
 
-/// Draw a range of glyph quads, each with its own bind group
-pub fn draw_chars(
+/// Draw a contiguous range of glyph quads from the shared atlas.
+pub(crate) fn draw_chars(
     r_pass: &mut wgpu::RenderPass,
     glyph_vertex_buffer: &wgpu::Buffer,
-    char_draws: &[(u64, &wgpu::BindGroup)],
+    char_draws: &[DrawItem],
+    atlas_bind_group: &wgpu::BindGroup,
     start: usize,
     end: usize,
 ) {
-    let stride = (6 * std::mem::size_of::<Vertex>()) as u64;
-    for (offset, bg) in char_draws.iter().skip(start).take(end - start) {
-        r_pass.set_bind_group(0, *bg, &[]);
-        r_pass.set_vertex_buffer(0, glyph_vertex_buffer.slice(*offset..*offset + stride));
-        r_pass.draw(0..6, 0..1);
+    if start < end {
+        let stride = std::mem::size_of::<Vertex>() as u64;
+        let first = char_draws[start].vertex_offset / stride;
+        let last = char_draws[end - 1].vertex_offset / stride + 6;
+        r_pass.set_bind_group(0, atlas_bind_group, &[]);
+        r_pass.set_vertex_buffer(0, glyph_vertex_buffer.slice(..));
+        r_pass.draw(first as u32..last as u32, 0..1);
     }
 }
 
-/// Draw a range of icon quads, each with its own bind group — identical
-/// shape to draw_chars, since icons and glyphs are both textured quads
-/// needing a per-item bind group swap.
-pub fn draw_icons(
+/// Draw a range of icon quads from the shared icon atlas.
+pub(crate) fn draw_icons(
     r_pass: &mut wgpu::RenderPass,
     icon_vertex_buffer: &wgpu::Buffer,
-    icon_draws: &[(u64, &wgpu::BindGroup)],
+    icon_draws: &[DrawItem],
+    atlas_bind_group: &wgpu::BindGroup,
     start: usize,
     end: usize,
 ) {
-    let stride = (6 * std::mem::size_of::<Vertex>()) as u64;
-    for (offset, bg) in icon_draws.iter().skip(start).take(end - start) {
-        r_pass.set_bind_group(0, *bg, &[]);
-        r_pass.set_vertex_buffer(0, icon_vertex_buffer.slice(*offset..*offset + stride));
-        r_pass.draw(0..6, 0..1);
+    if start < end {
+        let stride = std::mem::size_of::<Vertex>() as u64;
+        let first = icon_draws[start].vertex_offset / stride;
+        let last = icon_draws[end - 1].vertex_offset / stride + 6;
+        r_pass.set_bind_group(0, atlas_bind_group, &[]);
+        r_pass.set_vertex_buffer(0, icon_vertex_buffer.slice(..));
+        r_pass.draw(first as u32..last as u32, 0..1);
     }
 }
 
 /// Draw geometry + glyphs + icons for a WindowDrawRange in one call
-pub fn draw_range(
+pub(crate) fn draw_range(
     r_pass: &mut wgpu::RenderPass,
     vertex_buffer: &wgpu::Buffer,
     glyph_vertex_buffer: &wgpu::Buffer,
     icon_vertex_buffer: &wgpu::Buffer,
     any_bg: &wgpu::BindGroup,
-    char_draws: &[(u64, &wgpu::BindGroup)],
-    icon_draws: &[(u64, &wgpu::BindGroup)],
+    char_draws: &[DrawItem],
+    icon_draws: &[DrawItem],
+    glyph_atlas_bind_group: &wgpu::BindGroup,
+    icon_atlas_bind_group: &wgpu::BindGroup,
     range: &WindowDrawRange,
 ) {
     draw_geom(
@@ -120,6 +126,7 @@ pub fn draw_range(
         r_pass,
         glyph_vertex_buffer,
         char_draws,
+        glyph_atlas_bind_group,
         range.char_start,
         range.char_end,
     );
@@ -127,6 +134,7 @@ pub fn draw_range(
         r_pass,
         icon_vertex_buffer,
         icon_draws,
+        icon_atlas_bind_group,
         range.icon_start,
         range.icon_end,
     );
