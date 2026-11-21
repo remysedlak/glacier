@@ -1,13 +1,13 @@
 use std::path::PathBuf;
 
 use crate::{
-    app::{MouseState, ScrollOffset, click::ClickResult},
+    app::{click::ClickResult, MouseState, ScrollOffset},
     graphics::{
-        FrameDrawContext, PlaylistAction,
         font::{Font::Roboto, TextItem},
         geometry::Rectangle,
-        mini_window::{InteractionResult, MiniWindow},
-        primitives::{NO_RADIUS, PAD_4, PAD_8, PAD_16, PAD_64, ScreenConfig},
+        mini_window::{playlist::PlaylistAction, InteractionResult, MiniWindow},
+        primitives::{ScreenConfig, NO_RADIUS, PAD_16, PAD_4, PAD_64, PAD_8},
+        FrameDrawContext,
     },
     project::{AudioBlockType, PatternData},
 };

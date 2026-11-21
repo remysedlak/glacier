@@ -1,12 +1,14 @@
+//! handles window events and mouse/keyboard
+
 use super::*;
 use std::path::PathBuf;
 use std::sync::Arc;
-use winit::platform::wayland::WindowAttributesExtWayland;
 use winit::{
     application::ApplicationHandler,
     event::{MouseButton, WindowEvent},
     event_loop::ActiveEventLoop,
     keyboard::{KeyCode, PhysicalKey},
+    platform::wayland::WindowAttributesExtWayland,
     window::{Icon, Window, WindowId},
 };
 

@@ -1,3 +1,5 @@
+//! Various UI Components to be drawn in Glacier
+
 pub mod context_menu;
 pub mod footer;
 pub mod modal;

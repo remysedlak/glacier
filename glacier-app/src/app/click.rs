@@ -1,4 +1,5 @@
 //! handle all mouse click interactivity
+
 use super::{App, AudioCommandSender, GraphicsState};
 use crate::app::PianoRollState;
 use crate::audio::{audio_command::AudioCommand, AudioProjectUpdate};
@@ -6,12 +7,13 @@ use crate::graphics::{
     bring_to_front,
     components::context_menu::{ContextMenu, ContextMenuKind},
     mini_window::{
-        piano_roll::PIANO_ROLL_DEFAULT_Y, playlist::toolbar::PlaylistTool, MiniWindow, WindowKind,
-        MIXER_ID, PIANO_ROLL_ID, PLAYLIST_ID, SEQUENCER_ID,
+        piano_roll::PIANO_ROLL_DEFAULT_Y,
+        playlist::{toolbar::PlaylistTool, PlaylistAction},
+        MiniWindow, WindowKind, MIXER_ID, PIANO_ROLL_ID, PLAYLIST_ID, SEQUENCER_ID,
     },
     primitives::{RenameState, RenameTarget},
+    Graphics,
 };
-use crate::graphics::{Graphics, PlaylistAction};
 use crate::project::{
     next_id, AudioBlockID, AudioBlockType, Note, PatternData, PatternID, Sequence, TrackID,
 };
@@ -373,13 +375,17 @@ impl App {
             ClickResult::FsPreviewSample(track_path) => {
                 let (preview, channels) =
                     crate::project::path_to_preview(&track_path.to_string_lossy(), 5);
-                self.audio.commands
+                self.audio
+                    .commands
                     .try_push(AudioCommand::PreviewSample(preview.into(), channels))
                     .ok();
             }
             ClickResult::ChangeBpm(bpm) => {
                 gfx.bpm = bpm;
-                self.audio.commands.try_push(AudioCommand::ChangeBpm(bpm)).ok();
+                self.audio
+                    .commands
+                    .try_push(AudioCommand::ChangeBpm(bpm))
+                    .ok();
                 self.project.dirty = true;
                 self.project.revision += 1;
             }
@@ -510,7 +516,8 @@ impl App {
             ClickResult::Stop => {
                 gfx.is_playing = false;
                 gfx.active_step = 0;
-                self.audio.commands
+                self.audio
+                    .commands
                     .try_push(AudioCommand::SetPlaying {
                         is_playing: false,
                         reset_position: true,
@@ -524,7 +531,8 @@ impl App {
                 self.project.dirty = true;
                 self.project.revision += 1;
                 if let Some(track) = gfx.tracks.iter().find(|track| track.data.id == track_id) {
-                    self.audio.commands
+                    self.audio
+                        .commands
                         .try_push(AudioCommand::SetTrackMute(track_id, track.data.is_muted))
                         .ok();
                 }
@@ -533,7 +541,8 @@ impl App {
                 // Reflect the requested state immediately. The audio status
                 // acknowledgement can be dropped if its bounded UI ring is full.
                 gfx.is_playing = !gfx.is_playing;
-                self.audio.commands
+                self.audio
+                    .commands
                     .try_push(AudioCommand::SetPlaying {
                         is_playing: gfx.is_playing,
                         reset_position: false,

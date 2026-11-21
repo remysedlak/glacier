@@ -78,6 +78,8 @@ impl VertexSink for Vec<Vertex> {
 }
 
 impl Vertex {
+    /// referenced by Vertex::desc() when creating a render pipeline.
+    /// tells the GPU how to interpret each vertex’s bytes.
     const ATTRIBS: [wgpu::VertexAttribute; 8] = [
         wgpu::VertexAttribute {
             format: wgpu::VertexFormat::Float32x3,

@@ -1,4 +1,6 @@
-//! A context menu appears when you right click a song item. This is handy for shortcuts to other windows or for user CRUD operations.
+//! A context menu appears when you right click a song item.
+//! This is handy for shortcuts to other windows or for project CRUD operations.
+
 use winit::window::CursorIcon;
 
 use crate::{

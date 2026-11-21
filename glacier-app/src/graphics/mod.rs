@@ -5,7 +5,6 @@ pub mod drag;
 pub mod draw;
 pub mod font;
 pub mod frame_draw_context;
-pub use frame_draw_context::FrameDrawContext;
 pub mod geometry;
 pub mod icons;
 pub mod mini_window;
@@ -15,18 +14,17 @@ pub mod render_context;
 
 use crate::app::{MouseState, PianoRollState, ScrollOffset};
 use crate::config::DEFAULT_BPM;
-use crate::graphics::{
-    font::FontCache, icons::IconCache, mini_window::playlist::block::WaveformCache,
-    render_context::RenderContext,
-};
+use crate::graphics::mini_window::playlist::PlaylistAction;
 use crate::project::{
     AudioBlock, AudioBlockID, AudioBlockType, PatternData, PatternID, Track, TrackData, TrackID,
 };
 use color::Palette;
 use components::{context_menu::ContextMenu, footer, side_panel, side_panel::DEFAULT_TRAY_WIDTH};
-use font::{load_fonts, Font::Mono, Font::Roboto, GlyphCache, TextItem};
+use font::{load_fonts, Font::Mono, Font::Roboto, FontCache, GlyphCache, TextItem};
+pub use frame_draw_context::FrameDrawContext;
 use geometry::*;
-use icons::Tooltip;
+use icons::{IconCache, Tooltip};
+use mini_window::playlist::block::WaveformCache;
 use mini_window::{
     mixer, piano_roll, playlist,
     playlist::toolbar::PlaylistTool,
@@ -35,31 +33,21 @@ use mini_window::{
     track, MiniWindow, WindowKind, MIXER_ID, PIANO_ROLL_ID, PLAYLIST_ID, SEQUENCER_ID,
 };
 use primitives::*;
+use render_context::RenderContext;
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Instant;
-
 use wgpu::{
     CommandEncoderDescriptor, LoadOp, Operations, RenderPassColorAttachment, RenderPassDescriptor,
     StoreOp, TextureViewDescriptor,
 };
-
 use winit::{
     event_loop::EventLoopProxy,
     window::{CursorIcon, Window},
 };
-
 pub(crate) struct DrawItem {
     pub(crate) vertex_offset: u64,
-}
-
-/// Actions possible on the Playlist window
-#[derive(Clone, Copy, PartialEq, Debug)]
-pub enum PlaylistAction {
-    PlaceFresh(AudioBlockType),
-    PlaceCopy(AudioBlockID),
-    None,
 }
 
 /// Initialize the graphics with default/loaded state and find driver/display info

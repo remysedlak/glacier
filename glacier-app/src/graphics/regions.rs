@@ -1,4 +1,5 @@
-//! Glacier does not have a layout system yet but needed a system to track where draw regions or groups of vertexes are for scissor rects and z layering.
+//! Glacier does not have a layout system yet but needed a system to track
+//! where draw regions or groups of vertexes are for scissor rects and z layering.
 use crate::graphics::{DrawItem, Vertex};
 
 /// A recorded region tracks where vertices are in the vertex buffer and the coordinates of a scissor rectangle

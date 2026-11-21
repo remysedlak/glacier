@@ -1,29 +1,4 @@
 //! main state logic for audio and ui decoupling threads
-use crate::audio::{audio_command::AudioCommand, RetiredAudioData, SpectrumFrame};
-use crate::config::UserSettings;
-use crate::graphics::{
-    bring_to_front,
-    drag::DragResult,
-    mini_window::{PIANO_ROLL_ID, PLAYLIST_ID, SEQUENCER_ID},
-    primitives::{RenameState, RenameTarget, PAD_32},
-    PlaylistAction, {create_graphics, Graphics},
-};
-use crate::project::{
-    next_id, spawn_track_load, AudioBlock, AudioBlockID, AudioBlockType, PatternID, Project,
-    ProjectSaveJob, ProjectSaveWorker, SavePurpose, TrackID,
-};
-use crate::COMMAND_RING_CAPACITY;
-use cpal::traits::StreamTrait;
-use rfd::FileDialog;
-use ringbuf::{
-    traits::Consumer,
-    {HeapCons, HeapProd},
-};
-use std::collections::HashSet;
-use std::sync::mpsc::TryRecvError;
-use std::thread;
-use std::time::Instant;
-use winit::event_loop::{ActiveEventLoop, EventLoop, EventLoopProxy};
 
 mod audio_bridge;
 pub mod click;
@@ -33,11 +8,37 @@ mod rename;
 mod runtime_state;
 mod ui_command;
 
+use crate::audio::{audio_command::AudioCommand, RetiredAudioData, SpectrumFrame};
+use crate::config::UserSettings;
+use crate::graphics::mini_window::playlist::PlaylistAction;
+use crate::graphics::{
+    bring_to_front,
+    drag::DragResult,
+    mini_window::{PIANO_ROLL_ID, PLAYLIST_ID, SEQUENCER_ID},
+    primitives::{RenameState, RenameTarget, PAD_32},
+    {create_graphics, Graphics},
+};
+use crate::project::{
+    next_id, spawn_track_load, AudioBlock, AudioBlockID, AudioBlockType, PatternID, Project,
+    ProjectSaveJob, ProjectSaveWorker, SavePurpose, TrackID,
+};
+use crate::COMMAND_RING_CAPACITY;
 use audio_bridge::AudioBridge;
 pub(super) use audio_bridge::AudioCommandSender;
+use cpal::traits::StreamTrait;
 use project_session::ProjectSession;
+use rfd::FileDialog;
+use ringbuf::{
+    traits::Consumer,
+    {HeapCons, HeapProd},
+};
 use runtime_state::{FileOperations, InputState, ShutdownState};
+use std::collections::HashSet;
+use std::sync::mpsc::TryRecvError;
+use std::thread;
+use std::time::Instant;
 pub use ui_command::UiCommand;
+use winit::event_loop::{ActiveEventLoop, EventLoop, EventLoopProxy};
 
 #[derive(Clone, Copy, Debug)]
 pub struct MouseState {

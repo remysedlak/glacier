@@ -1,3 +1,4 @@
+//! RenderContext groups the GPU resources and setup that Graphics needs to draw.
 use std::{borrow::Cow, sync::Arc};
 
 use wgpu::{

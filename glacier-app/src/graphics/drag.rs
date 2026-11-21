@@ -1,4 +1,4 @@
-//! File for handling the user's click and drag actions
+//! logic handling the user's (click + drag) actions
 
 use crate::{
     graphics::{

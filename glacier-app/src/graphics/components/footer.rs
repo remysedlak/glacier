@@ -1,4 +1,4 @@
-use winit::window::CursorIcon;
+//! footer sits at the bottom of the app
 
 use crate::{
     app::{click::ClickResult, MouseState},
@@ -11,6 +11,7 @@ use crate::{
         FrameDrawContext,
     },
 };
+use winit::window::CursorIcon;
 
 pub const FOOTER_Y_HEIGHT: f32 = 32.0;
 pub const FPS_COUNTER_X_OFFSET: f32 = 80.0;

@@ -1,17 +1,18 @@
 use winit::window::CursorIcon;
 
 use crate::{
-    app::{MouseState, click::ClickResult},
+    app::{click::ClickResult, MouseState},
     graphics::{
-        FrameDrawContext,
         components::toolbar::{IconRow, TOOLTIP_MARGIN},
-        geometry::{DrawResponse, Rectangle, icon_border},
-        icons::{DEFAULT_TOOLTIP_WIDTH, IconDraw, Tooltip},
+        geometry::{icon_border, DrawResponse, Rectangle},
+        icons::{IconDraw, Tooltip, DEFAULT_TOOLTIP_WIDTH},
         mini_window::{InteractionResult, MiniWindow},
-        primitives::{NO_RADIUS, PAD_4, PAD_16, PAD_32, RADIUS_4, ScreenConfig, VertexSink},
+        primitives::{ScreenConfig, VertexSink, NO_RADIUS, PAD_16, PAD_32, PAD_4, RADIUS_4},
+        FrameDrawContext,
     },
 };
 
+/// Options for selecting or toggling notes
 #[derive(PartialEq, Debug)]
 pub enum PlaylistTool {
     Select,

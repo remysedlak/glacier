@@ -1,3 +1,5 @@
+//! methods and state for accumulating shapes, texts, and icons from UI components
+
 use super::{
     color::Color,
     font::{self, FontCache, GlyphCache, TextItem},
@@ -66,6 +68,7 @@ impl<'a> FrameDrawContext<'a> {
         ));
     }
 
+    /// Runs drawing within an optional scissor region and records the resulting draw ranges.
     pub(super) fn with_region(
         &mut self,
         scissor: Option<(u32, u32, u32, u32)>,

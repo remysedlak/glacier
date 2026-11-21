@@ -1,22 +1,29 @@
-use crate::app::{MouseState, ScrollOffset, click::ClickResult};
-use crate::graphics::PlaylistAction;
+use crate::app::{click::ClickResult, MouseState, ScrollOffset};
 use crate::graphics::{
-    FrameDrawContext, PathBuf,
     geometry::checkbox,
     mini_window::{
-        InteractionResult, MiniWindow, TITLEBAR_HEIGHT,
         playlist::{block::WaveformCache, toolbar::PlaylistTool},
+        InteractionResult, MiniWindow, TITLEBAR_HEIGHT,
     },
-    primitives::{NO_RADIUS, PAD_8, PAD_16, PAD_32, PAD_64},
+    primitives::{NO_RADIUS, PAD_16, PAD_32, PAD_64, PAD_8},
     regions::safe_scissor,
+    FrameDrawContext, PathBuf,
 };
-use crate::project::{AudioBlock, AudioBlockID, PatternData, Track};
+use crate::project::{AudioBlock, AudioBlockID, AudioBlockType, PatternData, Track};
 
 pub mod block;
 pub mod grid;
 pub mod playhead;
 pub mod ruler;
 pub mod toolbar;
+
+/// Actions possible on the Playlist window
+#[derive(Clone, Copy, PartialEq, Debug)]
+pub enum PlaylistAction {
+    PlaceFresh(AudioBlockType),
+    PlaceCopy(AudioBlockID),
+    None,
+}
 
 /// Draws the playlist directly into its four clipped frame regions.
 pub fn draw(

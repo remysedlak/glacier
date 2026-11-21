@@ -4,7 +4,7 @@ use crate::{
     graphics::{
         components::{modal, toolbar::TOOLBAR_MARGIN},
         font::cursor_x_offset,
-        mini_window::InteractionResult,
+        mini_window::{playlist::PlaylistAction, InteractionResult},
         regions::*,
         side_panel::track_tray::file_tree,
     },

@@ -1,3 +1,5 @@
+//! State shared by the app's runtime subsystems.
+
 use super::MouseState;
 use crate::project::Track;
 use std::path::PathBuf;

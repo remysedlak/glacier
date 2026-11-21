@@ -1,4 +1,5 @@
 //! handle all commands incoming from audio thread
+
 use super::{App, GraphicsState};
 use crate::project::{ProjectSaveResult, SavePurpose, TrackID};
 use winit::event_loop::ActiveEventLoop;
@@ -6,7 +7,6 @@ use winit::event_loop::ActiveEventLoop;
 /// UiCommands are used to sync the audio engine to the graphics engine
 pub enum UiCommand {
     TrackLevel(TrackID, f32, f32, f32),
-
     MasterLevel(f32, f32, f32),
     StepAdvanced(usize),
     PlayheadPosition(f32),
@@ -55,7 +55,8 @@ impl App {
             && result.purpose == SavePurpose::Regular
             && result.revision == self.project.revision;
         if result.purpose == SavePurpose::Regular {
-            self.project.saves_in_flight
+            self.project
+                .saves_in_flight
                 .remove(&(result.path.clone(), result.revision));
         }
 

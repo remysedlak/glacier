@@ -1,4 +1,5 @@
 //! file for drawing track sliders for volume control
+
 use crate::graphics::{primitives::VertexSink, Rectangle, ScreenConfig, NO_RADIUS};
 
 pub const MIXER_TRACK_HEIGHT: f32 = 164.0;
