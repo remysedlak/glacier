@@ -6,7 +6,7 @@ use crate::graphics::{
     drag::DragResult,
     mini_window::{PIANO_ROLL_ID, PLAYLIST_ID, SEQUENCER_ID},
     primitives::{RenameState, RenameTarget, PAD_32},
-    PlaylistAction, {create_graphics, Graphics, Rc},
+    PlaylistAction, {create_graphics, Graphics},
 };
 use crate::project::{
     next_id, spawn_track_load, AudioBlock, AudioBlockID, AudioBlockType, PatternID, Project,
@@ -15,27 +15,28 @@ use crate::project::{
 use crate::COMMAND_RING_CAPACITY;
 use cpal::traits::StreamTrait;
 use rfd::FileDialog;
-use ringbuf::{traits::Consumer, {HeapCons, HeapProd}};
+use ringbuf::{
+    traits::Consumer,
+    {HeapCons, HeapProd},
+};
 use std::collections::HashSet;
 use std::sync::mpsc::TryRecvError;
 use std::thread;
 use std::time::Instant;
-use winit::{
-    event_loop::{ActiveEventLoop, EventLoop, EventLoopProxy},
-};
+use winit::event_loop::{ActiveEventLoop, EventLoop, EventLoopProxy};
 
-pub mod click;
-mod runtime_state;
 mod audio_bridge;
+pub mod click;
 mod events;
 mod project_session;
 mod rename;
+mod runtime_state;
 mod ui_command;
 
-use runtime_state::{FileOperations, InputState, ShutdownState};
-pub(super) use audio_bridge::AudioCommandSender;
 use audio_bridge::AudioBridge;
+pub(super) use audio_bridge::AudioCommandSender;
 use project_session::ProjectSession;
+use runtime_state::{FileOperations, InputState, ShutdownState};
 pub use ui_command::UiCommand;
 
 #[derive(Clone, Copy, Debug)]
@@ -484,7 +485,8 @@ impl App {
 
     fn poll_track_load(&mut self) {
         let loaded_track = self
-            .files.track_load_rx
+            .files
+            .track_load_rx
             .as_ref()
             .and_then(|rx| match rx.try_recv() {
                 Ok(loaded) => Some(Some(loaded)),
@@ -520,7 +522,13 @@ impl App {
                         gfx.mini_windows[SEQUENCER_ID].is_open = true;
                         bring_to_front(&mut gfx.z_order, SEQUENCER_ID);
                     }
-                    click::sync_audio_project(&mut self.audio.commands, gfx, true, false, added_block);
+                    click::sync_audio_project(
+                        &mut self.audio.commands,
+                        gfx,
+                        true,
+                        false,
+                        added_block,
+                    );
                     self.project.dirty = true;
                     self.project.revision += 1;
                 }

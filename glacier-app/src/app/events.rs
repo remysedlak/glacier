@@ -1,5 +1,6 @@
 use super::*;
 use std::path::PathBuf;
+use std::sync::Arc;
 use winit::platform::wayland::WindowAttributesExtWayland;
 use winit::{
     application::ApplicationHandler,
@@ -32,7 +33,7 @@ impl ApplicationHandler<Graphics> for App {
                     .with_title("Glacier") // window decoration title, cross-platform, already confirmed working
                     .with_name("Glacier", ""); // wayland app_id / taskbar label
 
-                let window = Rc::new(
+                let window = Arc::new(
                     event_loop
                         .create_window(win_attr)
                         .expect("create window err."),
@@ -103,7 +104,9 @@ impl ApplicationHandler<Graphics> for App {
                 }
                 if !event.state.is_pressed() {
                     match event.physical_key {
-                        PhysicalKey::Code(KeyCode::ControlLeft) => self.input.control_pressed = false,
+                        PhysicalKey::Code(KeyCode::ControlLeft) => {
+                            self.input.control_pressed = false
+                        }
                         PhysicalKey::Code(KeyCode::ShiftLeft | KeyCode::ShiftRight) => {
                             self.input.shift_pressed = false;
                         }
@@ -121,14 +124,17 @@ impl ApplicationHandler<Graphics> for App {
                             PhysicalKey::Code(KeyCode::Space) => {
                                 gfx.is_playing = !gfx.is_playing;
                                 gfx.request_redraw();
-                                self.audio.commands
+                                self.audio
+                                    .commands
                                     .try_push(AudioCommand::SetPlaying {
                                         is_playing: gfx.is_playing,
                                         reset_position: false,
                                     })
                                     .ok();
                             }
-                            PhysicalKey::Code(KeyCode::ControlLeft) => self.input.control_pressed = true,
+                            PhysicalKey::Code(KeyCode::ControlLeft) => {
+                                self.input.control_pressed = true
+                            }
                             PhysicalKey::Code(KeyCode::ShiftLeft | KeyCode::ShiftRight) => {
                                 self.input.shift_pressed = true;
                             }
@@ -273,7 +279,8 @@ impl ApplicationHandler<Graphics> for App {
                         // check if part of a double click
                         let now = std::time::Instant::now();
                         let is_double_click = self
-                            .input.last_click
+                            .input
+                            .last_click
                             .map(|t| now.duration_since(t).as_millis() < 300)
                             .unwrap_or(false);
                         self.input.last_click = Some(now);
@@ -327,7 +334,8 @@ impl ApplicationHandler<Graphics> for App {
                             DragResult::DraggingFile => gfx.request_redraw(),
                             DragResult::ResizeTrackTray => gfx.request_redraw(),
                             DragResult::DragMasterVolumeSlider(new_volume) => {
-                                self.audio.commands
+                                self.audio
+                                    .commands
                                     .try_push(AudioCommand::ChangeMasterVolume(new_volume))
                                     .ok();
                                 self.project.dirty = true;
@@ -335,7 +343,8 @@ impl ApplicationHandler<Graphics> for App {
                                 gfx.request_redraw();
                             }
                             DragResult::DragTrackVolumeKnob(track_id, new_volume) => {
-                                self.audio.commands
+                                self.audio
+                                    .commands
                                     .try_push(AudioCommand::ChangeTrackVolume(track_id, new_volume))
                                     .ok();
                                 self.project.dirty = true;
@@ -343,7 +352,8 @@ impl ApplicationHandler<Graphics> for App {
                                 gfx.request_redraw();
                             }
                             DragResult::DragTrackVolumeSlider(track_id, new_volume) => {
-                                self.audio.commands
+                                self.audio
+                                    .commands
                                     .try_push(AudioCommand::ChangeTrackVolume(track_id, new_volume))
                                     .ok();
                                 self.project.dirty = true;
@@ -351,7 +361,8 @@ impl ApplicationHandler<Graphics> for App {
                                 gfx.request_redraw();
                             }
                             DragResult::ResizeAudioBlock(event_id, amount) => {
-                                self.audio.commands
+                                self.audio
+                                    .commands
                                     .try_push(AudioCommand::ResizeAudioBlock(event_id, amount))
                                     .ok();
                                 self.project.dirty = true;
@@ -373,7 +384,7 @@ impl App {
     /// Applies a window resize event to the active graphics context.
     fn resized(&mut self, size: winit::dpi::PhysicalSize<u32>) {
         if let GraphicsState::Ready(gfx) = &mut self.state {
-            gfx.resize(size);
+            gfx.render_context.resize(size);
         }
     }
 }

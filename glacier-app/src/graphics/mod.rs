@@ -4,25 +4,27 @@ pub mod components;
 pub mod drag;
 pub mod draw;
 pub mod font;
-mod frame_draw_context;
+pub mod frame_draw_context;
 pub use frame_draw_context::FrameDrawContext;
 pub mod geometry;
 pub mod icons;
 pub mod mini_window;
 pub mod primitives;
 pub mod regions;
+pub mod render_context;
 
 use crate::app::{MouseState, PianoRollState, ScrollOffset};
 use crate::config::DEFAULT_BPM;
 use crate::graphics::{
     font::FontCache, icons::IconCache, mini_window::playlist::block::WaveformCache,
+    render_context::RenderContext,
 };
 use crate::project::{
     AudioBlock, AudioBlockID, AudioBlockType, PatternData, PatternID, Track, TrackData, TrackID,
 };
 use color::Palette;
 use components::{context_menu::ContextMenu, footer, side_panel, side_panel::DEFAULT_TRAY_WIDTH};
-use font::{create_bind_group_layout, load_fonts, Font::Mono, Font::Roboto, GlyphCache, TextItem};
+use font::{load_fonts, Font::Mono, Font::Roboto, GlyphCache, TextItem};
 use geometry::*;
 use icons::Tooltip;
 use mini_window::{
@@ -33,21 +35,17 @@ use mini_window::{
     track, MiniWindow, WindowKind, MIXER_ID, PIANO_ROLL_ID, PLAYLIST_ID, SEQUENCER_ID,
 };
 use primitives::*;
-use std::borrow::Cow;
 use std::collections::HashMap;
 use std::path::PathBuf;
+use std::sync::Arc;
 use std::time::Instant;
 
 use wgpu::{
-    Adapter, CommandEncoderDescriptor, DeviceDescriptor, Features, FragmentState, Instance, Limits,
-    LoadOp, MemoryHints, Operations, PowerPreference, RenderPassColorAttachment,
-    RenderPassDescriptor, RenderPipeline, RenderPipelineDescriptor, RequestAdapterOptions,
-    ShaderModuleDescriptor, ShaderSource, StoreOp, Surface, SurfaceConfiguration, TextureFormat,
-    TextureViewDescriptor, VertexState,
+    CommandEncoderDescriptor, LoadOp, Operations, RenderPassColorAttachment, RenderPassDescriptor,
+    StoreOp, TextureViewDescriptor,
 };
 
 use winit::{
-    dpi::PhysicalSize,
     event_loop::EventLoopProxy,
     window::{CursorIcon, Window},
 };
@@ -56,6 +54,7 @@ pub(crate) struct DrawItem {
     pub(crate) vertex_offset: u64,
 }
 
+/// Actions possible on the Playlist window
 #[derive(Clone, Copy, PartialEq, Debug)]
 pub enum PlaylistAction {
     PlaceFresh(AudioBlockType),
@@ -63,159 +62,8 @@ pub enum PlaylistAction {
     None,
 }
 
-#[repr(C)]
-#[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
-struct ScreenUniform {
-    resolution: [f32; 2],
-}
-
-pub struct RenderContext {
-    pub surface: wgpu::Surface<'static>,
-    pub surface_config: SurfaceConfiguration,
-    pub device: wgpu::Device,
-    pub queue: wgpu::Queue,
-    pub render_pipeline: wgpu::RenderPipeline,
-    pub screen_uniform_buffer: wgpu::Buffer,
-    pub screen_bind_group: wgpu::BindGroup,
-    // buffers
-    pub vertex_buffer: wgpu::Buffer,
-    pub glyph_vertex_buffer: wgpu::Buffer,
-    pub icon_vertex_buffer: wgpu::Buffer,
-}
-impl RenderContext {
-    async fn init(window: &Rc<Window>) -> Self {
-        // the entry point into the graphics backend (Vulkan/Metal/DX12/GL)
-        let instance: Instance = Instance::default();
-
-        // Surface = the paintable region wgpu is allowed to write pixels into;
-        // everything else about the window (chrome, position, events, focus) is winit's job
-        let surface: Surface = instance.create_surface(Rc::clone(window)).unwrap();
-
-        // handle to one specific physical GPU (that the chosen backend (Vulkan/Metal/DX12/GL) can see on the machine
-        let adapter: Adapter = instance
-            .request_adapter(&RequestAdapterOptions {
-                power_preference: PowerPreference::HighPerformance,
-                force_fallback_adapter: false,
-                compatible_surface: Some(&surface),
-            })
-            .await
-            .expect("Could not get an adapter (GPU).");
-
-        // device: handle for creating GPU-side resources (buffers, textures, pipelines)
-        // queue: queue.write_buffer() uploads CPU-side data (e.g. Vec<Vertex>) into a GPU buffer
-        //        queue.submit() hands a finished CommandEncoder's commands to the GPU for execution
-        let (device, queue) = adapter
-            .request_device(&DeviceDescriptor {
-                label: Some("Daw device"),
-                required_features: Features::empty(),
-                required_limits: Limits::default().using_resolution(adapter.limits()),
-                memory_hints: MemoryHints::Performance,
-                trace: Default::default(),
-            })
-            .await
-            .expect("Failed to get device");
-
-        // Returns the physical size of the winit body
-        let size = window.inner_size();
-        let width = size.width.max(1);
-        let height = size.height.max(1);
-
-        let mut surface_config = surface.get_default_config(&adapter, width, height).unwrap();
-
-        surface_config.format = wgpu::TextureFormat::Bgra8Unorm; // drop the Srgb suffix
-        surface.configure(&device, &surface_config);
-
-        // The bind group layout shared by the glyph and icon atlases:
-        // one filterable 2D texture (binding 0) plus one filtering sampler (binding 1).
-        let bind_group_layout = create_bind_group_layout(&device);
-
-        use wgpu::util::DeviceExt;
-
-        let screen_bind_group_layout =
-            device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-                label: Some("screen_bind_group_layout"),
-                entries: &[wgpu::BindGroupLayoutEntry {
-                    binding: 0,
-                    visibility: wgpu::ShaderStages::FRAGMENT,
-                    ty: wgpu::BindingType::Buffer {
-                        ty: wgpu::BufferBindingType::Uniform,
-                        has_dynamic_offset: false,
-                        min_binding_size: None,
-                    },
-                    count: None,
-                }],
-            });
-
-        let screen_uniform_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("screen_uniform_buffer"),
-            contents: bytemuck::cast_slice(&[ScreenUniform {
-                resolution: [width as f32, height as f32],
-            }]),
-            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
-        });
-
-        let screen_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-            label: Some("screen_bind_group"),
-            layout: &screen_bind_group_layout,
-            entries: &[wgpu::BindGroupEntry {
-                binding: 0,
-                resource: screen_uniform_buffer.as_entire_binding(),
-            }],
-        });
-
-        // A RenderPipeline object represents a graphics pipeline and its stages, bindings, vertex buffers and targets.
-        //
-        // used with
-        // `r_pass.set_pipeline(&self.render_pipeline);`
-        let render_pipeline: RenderPipeline = create_pipeline(
-            &device,
-            surface_config.format,
-            &bind_group_layout,
-            &screen_bind_group_layout,
-        );
-
-        // vertex buffer for collecting text characters
-        let glyph_vertex_buffer = device.create_buffer(&wgpu::BufferDescriptor {
-            label: Some("Glyph Vertex Buffer"),
-            size: ONE_MEGABYTE * 2,
-            usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
-            mapped_at_creation: false,
-        });
-
-        let icon_vertex_buffer = device.create_buffer(&wgpu::BufferDescriptor {
-            label: Some("Icon Vertex Buffer"),
-            size: ONE_MEGABYTE * 2,
-            usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
-            mapped_at_creation: false,
-        });
-
-        // vertex buffer for collecting shapes
-        let vertex_buffer = device.create_buffer(&wgpu::BufferDescriptor {
-            label: Some("Vertex Buffer"),
-            size: ONE_MEGABYTE * 8,
-            usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
-            mapped_at_creation: false,
-        });
-
-        RenderContext {
-            surface,
-            surface_config,
-            device,
-            queue,
-            render_pipeline,
-            screen_bind_group,
-            screen_uniform_buffer,
-            vertex_buffer,
-            glyph_vertex_buffer,
-            icon_vertex_buffer,
-        }
-    }
-}
-
-pub type Rc<T> = std::sync::Arc<T>;
-
 /// Initialize the graphics with default/loaded state and find driver/display info
-pub async fn create_graphics(window: Rc<Window>, proxy: EventLoopProxy<Graphics>) {
+pub async fn create_graphics(window: Arc<Window>, proxy: EventLoopProxy<Graphics>) {
     let render_context = RenderContext::init(&window).await;
     // cache TTF fonts and cache their character glyphs in multiple sizes
     let (font_cache, glyph_cache) = load_fonts(&render_context.device, &render_context.queue);
@@ -227,6 +75,7 @@ pub async fn create_graphics(window: Rc<Window>, proxy: EventLoopProxy<Graphics>
         entries: HashMap::new(),
     };
 
+    // TODO: load/store palette from user config
     let palette = Palette::load_from_toml("./assets/themes/theme_test.toml")
         .expect("Error pulling color pallete from disk.");
 
@@ -329,54 +178,6 @@ pub async fn create_graphics(window: Rc<Window>, proxy: EventLoopProxy<Graphics>
     // This emits a UserEvent(event) event in the event loop,
     // where event is the value passed to this function.
     let _ = proxy.send_event(gfx);
-}
-
-/// create the render pipeline, which describes how to process vertices and fragments, including shaders, blending, and output formats
-fn create_pipeline(
-    device: &wgpu::Device,
-    swap_chain_format: TextureFormat,
-    bind_group_layout: &wgpu::BindGroupLayout,
-    screen_bind_group_layout: &wgpu::BindGroupLayout,
-) -> wgpu::RenderPipeline {
-    // load WGSL shader file
-    let shader = device.create_shader_module(ShaderModuleDescriptor {
-        label: Some("Main shader module"),
-        source: ShaderSource::Wgsl(Cow::Borrowed(include_str!("../shader.wgsl"))),
-    });
-
-    device.create_render_pipeline(&RenderPipelineDescriptor {
-        label: Some("Main render pipeline"),
-        layout: Some(
-            &device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-                label: Some("Main pipeline layout"),
-                bind_group_layouts: &[bind_group_layout, screen_bind_group_layout],
-                push_constant_ranges: &[],
-            }),
-        ),
-        // vertex shader
-        vertex: VertexState {
-            module: &shader,
-            entry_point: Some("vs_main"),
-            buffers: &[Vertex::desc()],
-            compilation_options: Default::default(),
-        },
-        // fragment shader
-        fragment: Some(FragmentState {
-            module: &shader,
-            entry_point: Some("fs_main"),
-            targets: &[Some(wgpu::ColorTargetState {
-                format: swap_chain_format,
-                blend: Some(wgpu::BlendState::ALPHA_BLENDING),
-                write_mask: wgpu::ColorWrites::ALL,
-            })],
-            compilation_options: Default::default(),
-        }),
-        primitive: Default::default(),
-        depth_stencil: None, // not needed; renderer is 2D and immediate-mode
-        multisample: Default::default(),
-        multiview: None,
-        cache: None,
-    })
 }
 
 /// Main struct holding all graphics state, including wgpu objects, loaded fonts and icons, and UI state like open windows and dragging
@@ -483,25 +284,5 @@ impl Graphics {
         {
             existing.data = t;
         }
-    }
-
-    /// respond to winit WindowEvent::Resized(size) by updating surface dimension information
-    pub fn resize(&mut self, new_size: PhysicalSize<u32>) {
-        self.render_context.surface_config.width = new_size.width.max(1);
-        self.render_context.surface_config.height = new_size.height.max(1);
-        self.render_context.surface.configure(
-            &self.render_context.device,
-            &self.render_context.surface_config,
-        );
-        self.render_context.queue.write_buffer(
-            &self.render_context.screen_uniform_buffer,
-            0,
-            bytemuck::cast_slice(&[ScreenUniform {
-                resolution: [
-                    self.render_context.surface_config.width as f32,
-                    self.render_context.surface_config.height as f32,
-                ],
-            }]),
-        );
     }
 }
